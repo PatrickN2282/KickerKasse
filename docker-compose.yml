@@ -1,0 +1,52 @@
+version: '3.8'
+
+services:
+  # PostgreSQL Datenbank
+  postgres:
+    image: postgres:15-alpine
+    container_name: kassensoftware-db
+    environment:
+      POSTGRES_USER: kassensystem
+      POSTGRES_PASSWORD: kassensystem
+      POSTGRES_DB: kassensystem
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./docker-init-db.sh:/docker-entrypoint-initdb.d/01-init.sh
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U kassensystem"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - kassensoftware-network
+    restart: unless-stopped
+
+  # Backend + Frontend
+  kassensoftware:
+    build:
+      context: .
+      dockerfile: backend/Dockerfile
+    container_name: kassensoftware-app
+    environment:
+      DATABASE_URL: postgresql://kassensystem:kassensystem@postgres:5432/kassensystem
+      SECRET_KEY: ${SECRET_KEY:-change-this-to-a-random-secret-key-in-production-minimum-32-chars}
+    ports:
+      - "8000:8000"
+    depends_on:
+      postgres:
+        condition: service_healthy
+    volumes:
+      - ./backend/uploads:/app/uploads
+    networks:
+      - kassensoftware-network
+    restart: unless-stopped
+
+volumes:
+  postgres_data:
+    driver: local
+
+networks:
+  kassensoftware-network:
+    driver: bridge

@@ -1,0 +1,46 @@
+# Git Ignore
+
+# Backend
+backend/venv/
+backend/__pycache__/
+backend/*.pyc
+backend/.pytest_cache/
+backend/.env.local
+backend/*.egg-info/
+backend/dist/
+backend/uploads/          # User-generated content (images/photos)
+
+# Frontend
+frontend/node_modules/
+frontend/dist/
+frontend/.env.local
+frontend/.DS_Store
+frontend/npm-debug.log*
+frontend/yarn-debug.log*
+frontend/yarn-error.log*
+
+# IDEs
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+.DS_Store
+
+# Logs
+*.log
+backend/backend.log
+frontend/frontend.log
+
+# Environment - nur .env ignorieren, nicht .env.example!
+.env
+.env.local
+.env.*.local
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Optional: bilder/ ordner (Demo-Bilder, können gelöscht werden)
+# bilder/
+

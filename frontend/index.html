@@ -1,0 +1,23 @@
+<!DOCTYPE html>
+<html lang="de">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="description" content="Kassensoftware für Vereine" />
+    <meta name="theme-color" content="#1976d2" />
+    <title>Kassensoftware</title>
+    <link rel="manifest" href="/manifest.json" />
+  </head>
+  <body>
+    <div id="app"></div>
+    <script type="module" src="/src/main.js"></script>
+    <script>
+      // Register PWA service worker
+      if ('serviceWorker' in navigator) {
+        navigator.serviceWorker.register('/sw.js').catch(err => {
+          console.log('ServiceWorker registration failed: ', err)
+        })
+      }
+    </script>
+  </body>
+</html>

@@ -1,0 +1,59 @@
+from pydantic import BaseModel, Field
+from datetime import datetime
+from typing import List, Optional, Literal
+
+
+class TransactionItemBase(BaseModel):
+    product_id: int
+    quantity: int = Field(..., ge=1)
+    unit_price_cents: int = Field(..., ge=0)
+
+
+class TransactionItemCreate(TransactionItemBase):
+    pass
+
+
+class TransactionItemResponse(TransactionItemBase):
+    id: int
+    total_price_cents: int
+    created_at: datetime
+
+    class Config:
+        from_attributes = True
+
+
+class TransactionBase(BaseModel):
+    payment_method: Literal["CASH", "BALANCE"]  # Payment method enum
+    user_id: int
+
+
+class TransactionCreate(TransactionBase):
+    member_id: Optional[int] = None
+    items: List[TransactionItemCreate]
+
+
+class TransactionResponse(BaseModel):
+    id: int
+    receipt_number: Optional[int] = None
+    type: str  # "SALE", "STORNO", "RECHARGE"
+    payment_method: str
+    total_amount_cents: int
+    user_id: int
+    member_id: Optional[int] = None
+    items: List[TransactionItemResponse]
+    created_at: datetime
+    updated_at: datetime
+
+    class Config:
+        from_attributes = True
+
+
+class TransactionStornoCreate(BaseModel):
+    transaction_id: int
+
+
+class ZBonResponse(BaseModel):
+    total_cash_cents: int
+    total_balance_cents: int
+    transaction_count: int
+    created_at: datetime

@@ -1,0 +1,236 @@
+📦 Kassensoftware - GitHub Projekt-Struktur
+============================================
+
+Kassensoftware/
+│
+├── 📄 README.md                      ← Projekt-Übersicht (START HIER!)
+├── 📄 DOCKER_QUICKSTART.md           ← Anfänger-Anleitung für Docker
+├── 📄 ARCHITECTURE.md                ← Technische Dokumentation
+├── 📄 PROJECT_OVERVIEW.md            ← Feature & Projekt-Überblick
+│
+├── 🐳 docker-compose.yml             ← Docker Orchestration (Production)
+├── 📄 docker-init-db.sh              ← PostgreSQL Init Script
+│
+├── ⚙️  .env                          ← Environment Config (zur Sicherheit in .gitignore)
+├── 📄 .gitignore                     ← Git Ignore Rules
+│
+│
+├── 📁 backend/                       ← FastAPI Backend
+│   │
+│   ├── 🐳 Dockerfile                 ← Backend Container Image
+│   ├── 📄 main.py                    ← FastAPI Application Entry Point
+│   ├── 📄 requirements.txt            ← Python Dependencies
+│   │
+│   ├── 📁 app/
+│   │   ├── __init__.py
+│   │   │
+│   │   ├── 📁 api/                   ← REST API Routes
+│   │   │   ├── __init__.py
+│   │   │   ├── auth.py               ← Login/Auth Endpoints
+│   │   │   ├── user.py               ← User Management
+│   │   │   ├── member.py             ← Member Management
+│   │   │   ├── product.py            ← Product Management
+│   │   │   └── transaction.py        ← Transaction/Sales API
+│   │   │
+│   │   ├── 📁 core/                  ← Core Configuration
+│   │   │   ├── __init__.py
+│   │   │   ├── config.py             ← Settings/Environment
+│   │   │   ├── database.py           ← SQLAlchemy Setup
+│   │   │   ├── auth.py               ← Authentication Logic
+│   │   │   ├── security.py           ← Security Functions
+│   │   │   └── init_db.py            ← Default User Creation (NEW)
+│   │   │
+│   │   ├── 📁 models/                ← SQLAlchemy ORM Models
+│   │   │   ├── __init__.py
+│   │   │   ├── base.py               ← Base Model Class
+│   │   │   ├── user.py               ← User Model
+│   │   │   ├── member.py             ← Member Model
+│   │   │   ├── product.py            ← Product Model
+│   │   │   ├── transaction.py        ← Transaction Model
+│   │   │   └── balance_log.py        ← Balance Audit Trail
+│   │   │
+│   │   ├── 📁 schemas/               ← Pydantic Validation Schemas
+│   │   │   ├── __init__.py
+│   │   │   ├── auth.py               ← Auth Request/Response
+│   │   │   ├── user.py               ← User Schemas
+│   │   │   ├── member.py             ← Member Schemas
+│   │   │   ├── product.py            ← Product Schemas
+│   │   │   └── transaction.py        ← Transaction Schemas
+│   │   │
+│   │   ├── 📁 services/              ← Business Logic Layer
+│   │   │   ├── __init__.py
+│   │   │   ├── auth_service.py       ← Authentication Service
+│   │   │   ├── user_service.py       ← User Operations
+│   │   │   ├── member_service.py     ← Member Operations
+│   │   │   ├── product_service.py    ← Product Operations
+│   │   │   ├── transaction_service.py ← Sales/Transaction Logic
+│   │   │   └── file_service.py       ← File Upload Management
+│   │   │
+│   │   └── 📁 repositories/          ← Data Access Layer
+│   │       ├── __init__.py
+│   │       ├── user_repository.py
+│   │       ├── member_repository.py
+│   │       ├── product_repository.py
+│   │       └── transaction_repository.py
+│   │
+│   └── 📁 uploads/                   ← User-Generated Content (Docker Volume)
+│       ├── products/                 ← Product Images
+│       │   ├── 1/
+│       │   │   └── image.jpg
+│       │   └── 2/
+│       │       └── image.jpg
+│       └── members/                  ← Member Photos
+│           ├── 1/
+│           │   └── photo.jpg
+│           └── 2/
+│               └── photo.jpg
+│
+│
+├── 📁 frontend/                      ← Vue.js Frontend (PWA)
+│   │
+│   ├── 📄 index.html                 ← HTML Entry Point
+│   ├── 📄 package.json               ← NPM Dependencies
+│   ├── 📄 package-lock.json          ← Dependency Lock File
+│   ├── 📄 vite.config.js             ← Vite Build Configuration (UPDATED)
+│   │
+│   ├── 📁 public/                    ← Static Assets
+│   │   ├── manifest.json             ← PWA Manifest
+│   │   └── sw.js                     ← Service Worker (offline support)
+│   │
+│   └── 📁 src/                       ← Vue Source Code
+│       │
+│       ├── 📄 main.js                ← Application Entry
+│       ├── 📄 App.vue                ← Root Component
+│       │
+│       ├── 📁 services/
+│       │   ├── api.js                ← Axios API Client (UPDATED)
+│       │   └── utils.js              ← Utility Functions
+│       │
+│       ├── 📁 router/
+│       │   └── index.js              ← Vue Router Configuration
+│       │
+│       ├── 📁 stores/                ← Pinia State Management
+│       │   ├── auth.js               ← Auth Store
+│       │   ├── user.js               ← User Store
+│       │   ├── product.js            ← Product Store
+│       │   ├── member.js             ← Member Store
+│       │   ├── cart.js               ← Shopping Cart Store
+│       │   └── notification.js       ← Notification Store
+│       │
+│       ├── 📁 components/            ← Reusable Vue Components
+│       │   └── NotificationCenter.vue ← Toast Notification Center
+│       │
+│       ├── 📁 styles/
+│       │   └── main.scss             ← Global Styling
+│       │
+│       └── 📁 views/                 ← Page Components
+│           ├── Login.vue             ← Login Page
+│           │
+│           ├── 📁 kasse/             ← POS (Point of Sale)
+│           │   └── Kasse.vue         ← Main Checkout View
+│           │
+│           └── 📁 admin/             ← Administration Pages
+│               ├── Admin.vue         ← Admin Dashboard
+│               ├── Users.vue         ← User Management
+│               ├── Members.vue       ← Member Management
+│               ├── Products.vue      ← Product Management
+│               └── Finance.vue       ← Reports & Statistics
+│
+│
+├── 📁 bilder/                        ← Sample/Reference Images (optional, kann gelöscht werden)
+│   ├── ab67616d00001e02b635843b1fa2e467ae66a41f.jpg
+│   ├── I295T1704464723W180H240.jpg
+│   ├── images (1).jpg
+│   └── images.jpg
+│
+└── 📄 .gitignore                     ← Git Ignore (wichtig!)
+
+
+════════════════════════════════════════════════════════════════════
+
+📋 DATEIEN FÜR GITHUB UPLOAD:
+════════════════════════════════════════════════════════════════════
+
+✅ MUSS hochgeladen werden:
+   • README.md
+   • DOCKER_QUICKSTART.md
+   • ARCHITECTURE.md
+   • PROJECT_OVERVIEW.md
+   • docker-compose.yml
+   • docker-init-db.sh
+   • .gitignore
+   • backend/Dockerfile
+   • backend/main.py
+   • backend/requirements.txt
+   • backend/app/ (komplettes Verzeichnis)
+   • frontend/ (komplettes Verzeichnis - OHNE node_modules und dist!)
+   • .env (Beispiel mit Defaults, sensitive Werte entfernen)
+
+⚠️  NICHT hochladen (lokale Daten, temporär):
+   • .env (entfernt sensitive Daten, stattdessen .env.example nutzen)
+   • backend/uploads/ (Benutzer-generierte Inhalte)
+   • bilder/ (nur Beispielbilder - optional)
+   • backend/setup-windows.bat (alte Datei - nicht mehr nötig)
+
+❌ MUSS ignoriert werden (.gitignore):
+   • node_modules/
+   • venv/
+   • __pycache__/
+   • *.pyc
+   • .env (bei Bedarf, falls nicht .env.example)
+   • *.egg-info/
+   • .DS_Store
+   • Thumbs.db
+   • backend/uploads/ (User-Daten)
+
+
+════════════════════════════════════════════════════════════════════
+
+🚀 GITHUB REPOSITORY SETUP:
+════════════════════════════════════════════════════════════════════
+
+1. Auf GitHub neues Repository erstellen: kassensoftware
+
+2. Lokale Git-Initialisierung:
+   git init
+   git add .
+   git commit -m "Initial commit: Vollständiges Kassensystem mit Docker"
+   git branch -M main
+   git remote add origin https://github.com/YOUR_USERNAME/kassensoftware.git
+   git push -u origin main
+
+3. .gitignore überprüfen (vorhanden - gut!)
+
+4. Readme mit Docker Quick-Start (vorhanden - gut!)
+
+5. Optional: Branches für Features
+   git checkout -b develop
+   git push -u origin develop
+
+
+════════════════════════════════════════════════════════════════════
+
+📊 PROJEKT-STATISTIKEN:
+════════════════════════════════════════════════════════════════════
+
+Frontend:
+  • Vue Components: 8 (Login, Kasse, Admin Dashboard + 5 Sub-Pages)
+  • Pinia Stores: 5
+  • ~1000+ Zeilen Vue/JavaScript Code
+
+Backend:
+  • Python Modules: 40+
+  • API Endpoints: 50+
+  • Database Tables: 6 (users, members, products, transactions, transaction_items, balance_logs)
+  • ~3000+ Zeilen Python Code
+
+Documentation:
+  • README.md (Docker-fokussiert)
+  • DOCKER_QUICKSTART.md (Anfänger-Anleitung)
+  • ARCHITECTURE.md (Technische Doku)
+  • Inline Code Comments
+
+Gesamt: ~4000 Zeilen Production-ready Code mit Docker
+
+
+════════════════════════════════════════════════════════════════════

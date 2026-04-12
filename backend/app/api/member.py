@@ -1,0 +1,371 @@
+from fastapi import APIRouter, HTTPException, Depends, Request, status, File, UploadFile
+from fastapi.responses import FileResponse
+from sqlalchemy.orm import Session
+from sqlalchemy.exc import IntegrityError
+from app.core import get_db
+from app.schemas import MemberCreate, MemberUpdate, MemberResponse
+from app.services import MemberService
+from app.services.file_service import save_member_photo, get_full_path
+from app.repositories import MemberRepository, UserRepository
+from app.models import UserRole
+
+router = APIRouter(prefix="/api/members", tags=["Members"])
+
+
+@router.post("/", response_model=MemberResponse, status_code=status.HTTP_201_CREATED)
+async def create_member(
+    member_data: MemberCreate,
+    request: Request,
+    db: Session = Depends(get_db),
+):
+    """Create a new member"""
+    if not request.session.get("user_id"):
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Not authenticated",
+        )
+    
+    try:
+        service = MemberService(db)
+        member = service.create_member(
+            member_data.name,
+            member_data.email,
+            member_data.phone,
+        )
+        return member
+    except IntegrityError as e:
+        db.rollback()
+        if "email" in str(e):
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Diese E-Mail-Adresse existiert bereits",
+            )
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Daten ungültig oder dupliziert",
+        )
+
+
+@router.get("/", response_model=list[MemberResponse])
+async def get_members(
+    request: Request,
+    db: Session = Depends(get_db),
+):
+    """Get all members"""
+    if not request.session.get("user_id"):
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Not authenticated",
+        )
+    
+    service = MemberService(db)
+    return service.get_all_members()
+
+
+@router.get("/statistics")
+async def get_member_statistics(
+    request: Request,
+    db: Session = Depends(get_db),
+):
+    """Get member statistics"""
+    user_id = request.session.get("user_id")
+    if not user_id:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Not authenticated",
+        )
+    
+    try:
+        from datetime import date, timedelta
+        from sqlalchemy import func
+        from app.models import Transaction, TransactionType, Member
+        
+        member_repo = MemberRepository(db)
+        all_members = member_repo.get_all()
+        
+        # Total balance
+        total_balance = sum(m.balance_cents for m in all_members)
+        
+        # Active members this week
+        week_ago = date.today() - timedelta(days=7)
+        active_members = db.query(func.count(func.distinct(Transaction.member_id))).filter(
+            func.date(Transaction.created_at) >= week_ago,
+            Transaction.type == TransactionType.SALE,
+            Transaction.member_id != None
+        ).scalar() or 0
+        
+        # Top members by spending
+        top_members_query = db.query(
+            Member.id,
+            Member.name,
+            Member.balance_cents,
+            func.count(Transaction.id).label('transaction_count'),
+            func.sum(Transaction.total_amount_cents).label('total_spent'),
+        ).join(
+            Transaction, Member.id == Transaction.member_id
+        ).filter(
+            Transaction.type == TransactionType.SALE
+        ).group_by(
+            Member.id, Member.name, Member.balance_cents
+        ).order_by(
+            func.sum(Transaction.total_amount_cents).desc()
+        ).limit(10).all()
+        
+        result = {
+            "total_members": len(all_members),
+            "active_this_week": active_members,
+            "total_balance": total_balance,
+            "top_members": [
+                {
+                    "id": m[0],
+                    "name": m[1],
+                    "balance_cents": m[2],
+                    "transaction_count": m[3] or 0,
+                    "total_spent": m[4] or 0,
+                }
+                for m in top_members_query
+            ],
+        }
+        
+        print(f"[API] Member statistics loaded: {result}")
+        return result
+    except Exception as e:
+        print(f"[API] Error loading member statistics: {str(e)}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Error loading member statistics: {str(e)}",
+        )
+
+
+@router.get("/{member_id}", response_model=MemberResponse)
+async def get_member(
+    member_id: int,
+    request: Request,
+    db: Session = Depends(get_db),
+):
+    """Get member by ID"""
+    if not request.session.get("user_id"):
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Not authenticated",
+        )
+    
+    service = MemberService(db)
+    member = service.get_member(member_id)
+    if not member:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Member not found",
+        )
+    
+    return member
+
+
+@router.put("/{member_id}", response_model=MemberResponse)
+async def update_member(
+    member_id: int,
+    member_data: MemberUpdate,
+    request: Request,
+    db: Session = Depends(get_db),
+):
+    """Update member"""
+    if not request.session.get("user_id"):
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Not authenticated",
+        )
+    
+    try:
+        service = MemberService(db)
+        update_dict = member_data.dict(exclude_unset=True)
+        member = service.update_member(member_id, **update_dict)
+        if not member:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="Member not found",
+            )
+        
+        return member
+    except IntegrityError as e:
+        db.rollback()
+        if "email" in str(e):
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Diese E-Mail-Adresse existiert bereits",
+            )
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Daten ungültig oder dupliziert",
+        )
+
+
+@router.post("/{member_id}/recharge")
+async def recharge_member_balance(
+    member_id: int,
+    amount_cents: int,
+    request: Request,
+    db: Session = Depends(get_db),
+):
+    """Recharge member balance"""
+    user_id = request.session.get("user_id")
+    if not user_id:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Not authenticated",
+        )
+    
+    if amount_cents <= 0:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Amount must be positive",
+        )
+    
+    from app.models import PaymentMethod, TransactionType
+    from app.repositories import TransactionRepository
+    
+    try:
+        service = MemberService(db)
+        member = service.recharge_balance(member_id, amount_cents, "RECHARGE")
+        
+        if not member:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="Member not found",
+            )
+        
+        # Create RECHARGE transaction for financial tracking
+        transaction_repo = TransactionRepository(db)
+        transaction_repo.create(
+            type=TransactionType.RECHARGE,
+            payment_method=PaymentMethod.CASH,  # Recharge is recorded as cash transaction
+            total_amount_cents=amount_cents,
+            user_id=user_id,
+            member_id=member_id,
+            items=[],  # No items for recharge
+        )
+        
+        # Ensure everything is committed
+        db.commit()
+        
+        # Refresh member to get latest balance from DB
+        db.refresh(member)
+        
+        print(f"[API] Member {member_id} recharged with {amount_cents} cents. New balance: {member.balance_cents}")
+        
+        return member
+    except Exception as e:
+        print(f"[API] Error during recharge: {str(e)}")
+        db.rollback()
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Recharge failed: {str(e)}",
+        )
+
+
+@router.delete("/{member_id}", status_code=status.HTTP_204_NO_CONTENT)
+async def delete_member(
+    member_id: int,
+    request: Request,
+    db: Session = Depends(get_db),
+):
+    """Delete member"""
+    from app.repositories import UserRepository
+    from app.models import UserRole
+    
+    user_id = request.session.get("user_id")
+    if not user_id:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Not authenticated",
+        )
+    
+    # Check if admin
+    current_user = UserRepository(db).get_by_id(user_id)
+    if not current_user or current_user.role != UserRole.ADMIN:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Insufficient permissions"
+        )
+    
+    service = MemberService(db)
+    if not service.delete_member(member_id):
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Member not found",
+        )
+
+
+@router.post("/{member_id}/photo")
+async def upload_member_photo(
+    member_id: int,
+    file: UploadFile = File(...),
+    request: Request = None,
+    db: Session = Depends(get_db),
+):
+    """Upload member photo"""
+    user_id = request.session.get("user_id") if request else None
+    if not user_id:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Not authenticated",
+        )
+    
+    # Check if member exists
+    member_repo = MemberRepository(db)
+    member = member_repo.get_by_id(member_id)
+    if not member:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Member not found",
+        )
+    
+    # Read image data to check size
+    image_data = await file.read()
+    if not image_data:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Empty file",
+        )
+    
+    # Limit file size to 5MB
+    if len(image_data) > 5 * 1024 * 1024:
+        raise HTTPException(
+            status_code=status.HTTP_413_REQUEST_ENTITY_TOO_LARGE,
+            detail="File too large (max 5MB)",
+        )
+    
+    # Reset file pointer and save to disk
+    await file.seek(0)
+    photo_path = await save_member_photo(file, member_id)
+    
+    # Update member with photo path
+    member.photo_path = photo_path
+    db.commit()
+    db.refresh(member)
+    
+    return {"status": "success", "member_id": member_id, "photo_path": photo_path}
+
+
+@router.get("/{member_id}/photo")
+async def get_member_photo(
+    member_id: int,
+    db: Session = Depends(get_db),
+):
+    """Get member photo file"""
+    member_repo = MemberRepository(db)
+    member = member_repo.get_by_id(member_id)
+    if not member or not member.photo_path:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Member or photo not found",
+        )
+    
+    # Get full file path
+    file_path = get_full_path(member.photo_path)
+    if not file_path or not file_path.exists():
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Photo file not found",
+        )
+    
+    return FileResponse(file_path, media_type="image/jpeg")
