@@ -31,7 +31,7 @@ services:
       DATABASE_URL: postgresql://kassensystem:kassensystem@postgres:5432/kassensystem
       SECRET_KEY: ${SECRET_KEY:-change-this-to-a-random-secret-key-in-production-minimum-32-chars}
     ports:
-      - "8000:8000"
+      - "9190:8000"
     depends_on:
       postgres:
         condition: service_healthy
