@@ -54,22 +54,23 @@ app.include_router(product_router)
 app.include_router(transaction_router)
 
 
-@app.get("/")
-async def root():
-    """Health check"""
-    return {"status": "ok", "message": "Kassensoftware API is running"}
-
-
-@app.get("/health")
+@app.get("/api/health")
 async def health():
     """Health check endpoint"""
     return {"status": "healthy"}
 
 
 # Mount frontend static files (at the end!)
+# Remove the @app.get("/") handler so StaticFiles can serve index.html on /
 frontend_dist = Path(__file__).parent / "app" / "frontend" / "dist"
 if frontend_dist.exists():
     app.mount("/", StaticFiles(directory=str(frontend_dist), html=True), name="frontend")
+else:
+    # Fallback health check if frontend not found
+    @app.get("/")
+    async def root():
+        """Health check"""
+        return {"status": "ok", "message": "Frontend not found, API is running"}
 
 
 if __name__ == "__main__":

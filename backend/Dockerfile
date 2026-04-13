@@ -25,8 +25,11 @@ RUN pip install --no-cache-dir -r requirements.txt
 COPY backend/app app/
 COPY backend/main.py .
 
+# Create frontend directory for copying dist
+RUN mkdir -p /app/app/frontend
+
 # Copy built frontend from stage 1
-COPY --from=frontend-builder /app/frontend/dist app/frontend/dist
+COPY --from=frontend-builder /app/frontend/dist /app/app/frontend/dist
 
 # Create upload directories
 RUN mkdir -p /app/uploads/products /app/uploads/members
