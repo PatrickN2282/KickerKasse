@@ -565,35 +565,32 @@ const sendZBonEmail = async () => {
     alert(`✗ Fehler beim Versenden: ${error.response?.data?.detail || error.message}`)
   }
 }
-const downloadZBon = () => {
-  const content = `
-╔════════════════════════════════════════════╗
-║              Z-BON / TAGESABRECHNUNG       ║
-╚════════════════════════════════════════════╝
-Datum: ${formatDateDE(selectedDate.value)}
+const downloadZBon = async () => {
+  try {
+    loading.value = true
+    const generateResponse = await apiService.post('/transactions/zbon/generate', {
+      date: selectedDate.value,
+      report_type: reportType.value,
+      cash_count: cashCountData.value ? {
+        coins: Object.fromEntries(Object.entries(cashCountData.value.coins).map(([k, v]) => [parseFloat(k), v])),
+        notes: Object.fromEntries(Object.entries(cashCountData.value.notes).map(([k, v]) => [parseInt(k), v]))
+      } : null,
+    })
 
-────────────────────────────────────────────
-UMSATZ NACH ZAHLUNGSART
-────────────────────────────────────────────
-💰 Bargeld:              ${formatPrice(dailyStats.value.cash_total).padStart(15)}
-💳 Guthaben:            ${formatPrice(dailyStats.value.balance_total).padStart(15)}
-
-GESAMT:                  ${formatPrice(dailyStats.value.total_amount).padStart(15)}
-
-Transaktionen:           ${String(dailyStats.value.transaction_count).padStart(15)}
-
-════════════════════════════════════════════
-Generated: ${new Date().toLocaleString('de-DE')}
-════════════════════════════════════════════
-  `.trim()
-
-  const blob = new Blob([content], { type: 'text/plain' })
-  const url = window.URL.createObjectURL(blob)
-  const a = document.createElement('a')
-  a.href = url
-  a.download = `Z-Bon_${selectedDate.value}.txt`
-  a.click()
-  window.URL.revokeObjectURL(url)
+    const blob = new Blob([generateResponse.data.content], { type: 'text/plain' })
+    const url = window.URL.createObjectURL(blob)
+    const a = document.createElement('a')
+    a.href = url
+    const reportType_ = generateResponse.data.type === 'daily-report' ? 'Tagesberichtsprotokoll' : 'Z-Bon'
+    a.download = `${reportType_}_${selectedDate.value}.txt`
+    a.click()
+    window.URL.revokeObjectURL(url)
+  } catch (error) {
+    console.error('Error downloading Z-Bon:', error)
+    alert(`✗ Fehler beim Download: ${error.response?.data?.detail || error.message}`)
+  } finally {
+    loading.value = false
+  }
 }
 
 // Watch für Datumänderungen

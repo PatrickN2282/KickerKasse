@@ -102,7 +102,7 @@ const props = defineProps({
 const emit = defineEmits(['close', 'confirm'])
 
 // German coin denominations in EUR
-const coinDenominations = [0.01, 0.02, 0.05, 0.10, 0.20, 0.50, 1, 2]
+const coinDenominations = [0.01, 0.02, 0.05, 0.1, 0.2, 0.5, 1, 2]
 
 // German note denominations in EUR
 const noteDenominations = [5, 10, 20, 50, 100, 200, 500]
@@ -113,9 +113,9 @@ const cashCount = ref({
     '0.01': 0,
     '0.02': 0,
     '0.05': 0,
-    '0.10': 0,
-    '0.20': 0,
-    '0.50': 0,
+    '0.1': 0,
+    '0.2': 0,
+    '0.5': 0,
     '1': 0,
     '2': 0,
   },
@@ -184,9 +184,9 @@ const reset = () => {
       '0.01': 0,
       '0.02': 0,
       '0.05': 0,
-      '0.10': 0,
-      '0.20': 0,
-      '0.50': 0,
+      '0.1': 0,
+      '0.2': 0,
+      '0.5': 0,
       '1': 0,
       '2': 0,
     },
