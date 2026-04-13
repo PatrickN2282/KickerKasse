@@ -219,6 +219,7 @@ async def delete_product(
 
 
 @router.post("/{product_id}/image")
+@router.post("/{product_id}/image/")
 async def upload_product_image(
     product_id: int,
     file: UploadFile = File(...),
@@ -278,6 +279,7 @@ async def upload_product_image(
 
 
 @router.get("/{product_id}/image")
+@router.get("/{product_id}/image/")
 async def get_product_image(
     product_id: int,
     db: Session = Depends(get_db),
