@@ -108,6 +108,35 @@
             💰 Kasse zählen
           </button>
         </div>
+
+        <div class="scheduler-section">
+          <h4>⏱️ Automatischer Email-Versand</h4>
+          <div class="scheduler-status">
+            <div class="status-item">
+              <span>Status:</span>
+              <span v-if="schedulerStatus.running" class="status-badge running">
+                ● Läuft
+              </span>
+              <span v-else class="status-badge stopped">
+                ● Gestoppt
+              </span>
+            </div>
+            <div v-if="schedulerStatus.next_run" class="status-item">
+              <span>Nächster Versand:</span>
+              <span class="next-run">{{ formatTime(schedulerStatus.next_run) }}</span>
+            </div>
+          </div>
+          <p class="scheduler-info">
+            Der automatische Z-Bon-Versand muss in der .env-Datei konfiguriert werden:
+          </p>
+          <ul class="config-list">
+            <li><code>SCHEDULED_ZBON_ENABLED=true</code></li>
+            <li><code>SCHEDULED_ZBON_TIME=23:59</code> (HH:MM Format)</li>
+            <li><code>SCHEDULED_ZBON_REPORT_TYPE=zbon</code> (oder "daily-report")</li>
+            <li><code>EMAIL_ENABLED=true</code></li>
+            <li>SMTP-Einstellungen konfigurieren</li>
+          </ul>
+        </div>
       </div>
     </div>
 
@@ -287,6 +316,21 @@
       @close="showCashCounterModal = false"
       @confirm="onCashCounterConfirm"
     />
+
+    <div v-if="showCashCountConfirm" class="confirmation-overlay">
+      <div class="confirmation-dialog">
+        <h3>Kassenzählung erforderlich?</h3>
+        <p>Soll die Kasse vor der Z-Bon-Generierung gezählt werden?</p>
+        <div class="confirmation-buttons">
+          <button @click="proceedWithoutCashCount" class="btn btn-secondary">
+            ✕ Nein, ohne Zählung
+          </button>
+          <button @click="proceedWithCashCount" class="btn btn-primary">
+            ✓ Ja, Kasse zählen
+          </button>
+        </div>
+      </div>
+    </div>
   </div>
 </template>
 
@@ -380,35 +424,6 @@ function formatDateDE(dateStr) {
   return date.toLocaleDateString('de-DE', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })
 }
 
-      <!-- Scheduler Configuration -->
-      <div class="scheduler-section">
-        <h4>⏱️ Automatischer Email-Versand</h4>
-        <div class="scheduler-status">
-          <div class="status-item">
-            <span>Status:</span>
-            <span v-if="schedulerStatus.running" class="status-badge running">
-              ● Läuft
-            </span>
-            <span v-else class="status-badge stopped">
-              ● Gestoppt
-            </span>
-          </div>
-          <div v-if="schedulerStatus.next_run" class="status-item">
-            <span>Nächster Versand:</span>
-            <span class="next-run">{{ formatTime(schedulerStatus.next_run) }}</span>
-          </div>
-        </div>
-        <p class="scheduler-info">
-          Der automatische Z-Bon-Versand muss in der .env-Datei konfiguriert werden:
-        </p>
-        <ul class="config-list">
-          <li><code>SCHEDULED_ZBON_ENABLED=true</code></li>
-          <li><code>SCHEDULED_ZBON_TIME=23:59</code> (HH:MM Format)</li>
-          <li><code>SCHEDULED_ZBON_REPORT_TYPE=zbon</code> (oder "daily-report")</li>
-          <li><code>EMAIL_ENABLED=true</code></li>
-          <li>SMTP-Einstellungen konfigurieren</li>
-        </ul>
-      </div>
 function formatDate(dateStr) {
   if (!dateStr) return '-'
   const date = new Date(dateStr)
@@ -555,22 +570,6 @@ const downloadZBon = () => {
 ╔════════════════════════════════════════════╗
 ║              Z-BON / TAGESABRECHNUNG       ║
 ╚════════════════════════════════════════════╝
-
-    <!-- Pre-confirmation Dialog -->
-    <div v-if="showCashCountConfirm" class="confirmation-overlay">
-      <div class="confirmation-dialog">
-        <h3>Kassenzählung erforderlich?</h3>
-        <p>Sollen Sie die Kasse vor der Z-Bon-Generierung zählen?</p>
-        <div class="confirmation-buttons">
-          <button @click="proceedWithoutCashCount" class="btn btn-secondary">
-            ✕ Nein, ohne Zählung
-          </button>
-          <button @click="proceedWithCashCount" class="btn btn-primary">
-            ✓ Ja, Kasse zählen
-          </button>
-        </div>
-      </div>
-    </div>
 Datum: ${formatDateDE(selectedDate.value)}
 
 ────────────────────────────────────────────
@@ -627,11 +626,10 @@ onMounted(() => {
   applyFilters()
   loadRevenueStats()
   loadMemberStats()
+  loadSchedulerStatus()
 })
 </script>
 
-  loadSchedulerStatus()
-})
 <style scoped lang="scss">
 .admin-finance {
   background: white;

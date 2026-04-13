@@ -3,7 +3,8 @@
 FROM node:18-alpine AS frontend-builder
 WORKDIR /app/frontend
 COPY frontend/package*.json ./
-RUN npm ci
+# Force-install dev dependencies for build tools like vite, even if NODE_ENV=production is set by CI/Portainer.
+RUN npm ci --include=dev
 COPY frontend/ ./
 RUN npm run build
 
