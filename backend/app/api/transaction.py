@@ -1,13 +1,35 @@
 from fastapi import APIRouter, HTTPException, Depends, Request, status
 from sqlalchemy.orm import Session
 from datetime import date, datetime
+from pydantic import BaseModel
+from typing import Optional
 from app.core import get_db
 from app.schemas import TransactionCreate, TransactionResponse, TransactionStornoCreate, ZBonResponse
-from app.services import TransactionService, ProductService
+from app.services import TransactionService, ProductService, ZBonService, EmailService
 from app.repositories import MemberRepository, ProductRepository
 from app.models import PaymentMethod
 
+from app.services import SchedulerService
 router = APIRouter(prefix="/api/transactions", tags=["Transactions"])
+
+
+# Request models
+class CashCountRequest(BaseModel):
+    coins: Optional[dict] = None  # {"0.01": 5, "0.02": 3, ...}
+    notes: Optional[dict] = None  # {"5": 2, "10": 1, ...}
+
+
+class ZBonGenerateRequest(BaseModel):
+    date: Optional[str] = None  # YYYY-MM-DD, defaults to today
+    cash_count: Optional[CashCountRequest] = None
+    report_type: str = "zbon"  # "zbon" or "daily-report"
+
+
+class ZBonEmailRequest(BaseModel):
+    date: Optional[str] = None  # YYYY-MM-DD, defaults to today
+    recipient: Optional[str] = None  # defaults to EMAIL_RECIPIENT_ZBON
+    report_type: str = "zbon"
+    include_cash_count: bool = False
 
 
 @router.get("/next-receipt-number")
@@ -331,3 +353,145 @@ async def get_transactions(
     
     service = TransactionService(db)
     return service.get_all_transactions(skip, limit)
+
+
+# ============================================================
+# Z-BON ENDPOINTS
+# ============================================================
+
+@router.post("/zbon/generate")
+@router.post("/zbon/generate/")
+async def generate_zbon(
+    zbon_req: ZBonGenerateRequest,
+    request: Request,
+    db: Session = Depends(get_db),
+):
+    """Generate Z-Bon or daily report"""
+    user_id = request.session.get("user_id")
+    if not user_id:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Not authenticated",
+        )
+    
+    try:
+        target_date = None
+        if zbon_req.date:
+            target_date = datetime.strptime(zbon_req.date, "%Y-%m-%d").date()
+        else:
+            target_date = date.today()
+        
+        # Convert cash count to dict if provided
+        cash_count = None
+        if zbon_req.cash_count:
+            cash_count = {
+                "coins": zbon_req.cash_count.coins or {},
+                "notes": zbon_req.cash_count.notes or {},
+            }
+        
+        service = ZBonService(db)
+        result = service.generate_zbon(
+            target_date=target_date,
+            include_cash_count=cash_count,
+            report_type=zbon_req.report_type,
+        )
+        
+        return result
+    except Exception as e:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Error generating Z-Bon: {str(e)}",
+        )
+
+
+@router.post("/zbon/send-email")
+@router.post("/zbon/send-email/")
+async def send_zbon_email(
+    email_req: ZBonEmailRequest,
+    request: Request,
+    db: Session = Depends(get_db),
+):
+    """Send Z-Bon via email"""
+    user_id = request.session.get("user_id")
+    if not user_id:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Not authenticated",
+        )
+    
+    try:
+        from app.core.config import settings
+        
+        if not EmailService.is_enabled():
+            raise HTTPException(
+                status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+                detail="Email service is not enabled",
+            )
+        
+        target_date = None
+        if email_req.date:
+            target_date = datetime.strptime(email_req.date, "%Y-%m-%d").date()
+        else:
+            target_date = date.today()
+        
+        recipient = email_req.recipient or settings.EMAIL_RECIPIENT_ZBON
+        
+        # Generate Z-Bon first
+        zbon_service = ZBonService(db)
+        zbon_result = zbon_service.generate_zbon(
+            target_date=target_date,
+            include_cash_count=None,
+            report_type=email_req.report_type,
+        )
+        
+        # Send email
+        success = EmailService.send_zbon_email(
+            recipient=recipient,
+            zbon_content=zbon_result["content"],
+            date=target_date.isoformat(),
+        )
+        
+        if not success:
+            raise Exception("Email sending failed")
+        
+        return {
+            "status": "success",
+            "message": f"Z-Bon sent to {recipient}",
+            "date": target_date.isoformat(),
+            "type": email_req.report_type,
+        }
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Error sending Z-Bon via email: {str(e)}",
+        )
+
+
+@router.get("/scheduler/status")
+@router.get("/scheduler/status/")
+async def get_scheduler_status(
+    request: Request,
+    db: Session = Depends(get_db),
+):
+    """Get current scheduler status (admin only)"""
+    user_id = request.session.get("user_id")
+    if not user_id:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Not authenticated",
+        )
+    
+    # Check if user is admin
+    from app.repositories import UserRepository
+    user_repo = UserRepository(db)
+    user = user_repo.get_by_id(user_id)
+    if not user or not user.is_admin:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Admin access required",
+        )
+    
+    status = SchedulerService.get_scheduler_status()
+    return status

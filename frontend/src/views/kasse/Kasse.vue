@@ -3,23 +3,80 @@
     <div class="kasse-products">
       <h2>Produkte</h2>
       <div v-if="productStore.isLoading" class="loading">Läuft...</div>
-      <div v-else class="products-grid">
-        <button
-          v-for="product in productStore.products"
-          :key="product.id"
-          :disabled="product.stock_quantity === 0"
-          class="product-btn"
-          @click="selectProduct(product)"
+      <div v-else class="products-section">
+        <!-- Active Categories with Expandable Sections -->
+        <div
+          v-for="category in activeCategories"
+          :key="category.id"
+          class="category-section"
         >
-          <div v-if="product.image_path" class="product-image">
-            <img :src="`/api/products/${product.id}/image`" :alt="product.name" />
+          <button
+            @click="toggleCategory(category.id)"
+            class="category-header"
+            :class="{ expanded: expandedCategories.includes(category.id) }"
+          >
+            <span class="category-toggle">{{ expandedCategories.includes(category.id) ? '▼' : '▶' }}</span>
+            <span class="category-name">{{ category.name }}</span>
+            <span class="category-count">({{ getProductsByCategory(category.id).length }})</span>
+          </button>
+          
+          <div
+            v-if="expandedCategories.includes(category.id)"
+            class="products-grid"
+          >
+            <button
+              v-for="product in getProductsByCategory(category.id)"
+              :key="product.id"
+              :disabled="product.stock_quantity === 0"
+              class="product-btn"
+              @click="selectProduct(product)"
+            >
+              <div v-if="product.image_path" class="product-image">
+                <img :src="`/api/products/${product.id}/image`" :alt="product.name" />
+              </div>
+              <div class="product-name">{{ product.name }}</div>
+              <div class="product-price">{{ formatPrice(product.price_cents) }}</div>
+              <div class="product-stock">
+                Lager: {{ product.stock_quantity }}
+              </div>
+            </button>
           </div>
-          <div class="product-name">{{ product.name }}</div>
-          <div class="product-price">{{ formatPrice(product.price_cents) }}</div>
-          <div class="product-stock">
-            Lager: {{ product.stock_quantity }}
+        </div>
+
+        <!-- Products without Categories -->
+        <div v-if="productsWithoutCategory.length > 0" class="category-section">
+          <button
+            @click="toggleCategory(0)"
+            class="category-header"
+            :class="{ expanded: expandedCategories.includes(0) }"
+          >
+            <span class="category-toggle">{{ expandedCategories.includes(0) ? '▼' : '▶' }}</span>
+            <span class="category-name">Ohne Kategorie</span>
+            <span class="category-count">({{ productsWithoutCategory.length }})</span>
+          </button>
+          
+          <div
+            v-if="expandedCategories.includes(0)"
+            class="products-grid"
+          >
+            <button
+              v-for="product in productsWithoutCategory"
+              :key="product.id"
+              :disabled="product.stock_quantity === 0"
+              class="product-btn"
+              @click="selectProduct(product)"
+            >
+              <div v-if="product.image_path" class="product-image">
+                <img :src="`/api/products/${product.id}/image`" :alt="product.name" />
+              </div>
+              <div class="product-name">{{ product.name }}</div>
+              <div class="product-price">{{ formatPrice(product.price_cents) }}</div>
+              <div class="product-stock">
+                Lager: {{ product.stock_quantity }}
+              </div>
+            </button>
           </div>
-        </button>
+        </div>
       </div>
     </div>
 
@@ -192,6 +249,8 @@ const showMemberModal = ref(false)
 const memberSearch = ref('')
 const lastTransaction = ref(null)
 const currentReceiptNumber = ref(null)
+const expandedCategories = ref([])
+const categories = ref([])
 
 const loadNextReceiptNumber = async () => {
   try {
@@ -203,8 +262,48 @@ const loadNextReceiptNumber = async () => {
   }
 }
 
+const loadCategories = async () => {
+  try {
+    const response = await apiService.get('/categories?only_active=true')
+    categories.value = response.data
+    // Auto-expand first category
+    if (categories.value.length > 0) {
+      expandedCategories.value = [categories.value[0].id]
+    }
+    console.log('[Kasse] Categories loaded:', categories.value)
+  } catch (err) {
+    console.error('[Kasse] Failed to load categories:', err)
+  }
+}
+
+const toggleCategory = (categoryId) => {
+  const idx = expandedCategories.value.indexOf(categoryId)
+  if (idx > -1) {
+    expandedCategories.value.splice(idx, 1)
+  } else {
+    expandedCategories.value.push(categoryId)
+  }
+}
+
+const getProductsByCategory = (categoryId) => {
+  if (categoryId === 0) {
+    return productsWithoutCategory.value
+  }
+  return productStore.products.filter(p =>
+    p.categories && p.categories.some(c => c.id === categoryId)
+  )
+}
+
 onMounted(() => {
   loadNextReceiptNumber()
+})
+
+const activeCategories = computed(() => {
+  return categories.value.filter(c => c.is_active_in_kasse).sort((a, b) => a.display_order - b.display_order)
+})
+
+const productsWithoutCategory = computed(() => {
+  return productStore.products.filter(p => !p.categories || p.categories.length === 0)
 })
 
 const selectedMemberName = computed(() => {
@@ -335,6 +434,7 @@ watch(
 onMounted(async () => {
   await productStore.getProducts()
   await memberStore.getMembers()
+  await loadCategories()
   console.log('[Kasse] Initial members loaded:', memberStore.members.length)
 })
 </script>
@@ -369,10 +469,64 @@ onMounted(async () => {
   }
 }
 
+.products-section {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.category-section {
+  border: 1px solid #e0e0e0;
+  border-radius: 6px;
+  overflow: hidden;
+}
+
+.category-header {
+  width: 100%;
+  padding: 0.75rem 1rem;
+  background: #f5f5f5;
+  border: none;
+  text-align: left;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 0.7rem;
+  font-weight: 600;
+  color: #333;
+  transition: all 0.2s;
+
+  &:hover {
+    background: #e8e8e8;
+  }
+
+  &.expanded {
+    background: #e3f2fd;
+    color: #1976d2;
+  }
+
+  .category-toggle {
+    display: inline-block;
+    font-size: 0.9rem;
+    transition: transform 0.2s;
+  }
+
+  .category-name {
+    flex: 1;
+  }
+
+  .category-count {
+    font-size: 0.85rem;
+    color: #999;
+    font-weight: normal;
+  }
+}
+
 .products-grid {
   display: grid;
   grid-template-columns: repeat(2, 1fr);
   gap: 0.75rem;
+  padding: 0.75rem;
+  background: white;
 
   @media (max-width: 600px) {
     grid-template-columns: 1fr;

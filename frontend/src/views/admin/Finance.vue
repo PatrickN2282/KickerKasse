@@ -97,9 +97,17 @@
           </table>
         </div>
 
-        <button @click="downloadZBon" class="btn btn-primary" style="margin-top: 1rem;">
-          📄 Z-Bon drucken
-        </button>
+        <div class="zbon-actions">
+          <button @click="downloadZBon" class="btn btn-primary">
+            📄 Z-Bon drucken
+          </button>
+          <button @click="askForCashCount" class="btn btn-info">
+            📧 Z-Bon per Email
+          </button>
+          <button @click="openCashCounterModal" class="btn btn-secondary">
+            💰 Kasse zählen
+          </button>
+        </div>
       </div>
     </div>
 
@@ -272,6 +280,13 @@
         </tbody>
       </table>
     </div>
+
+    <!-- Cash Counter Modal -->
+    <CashCounterModal
+      :show="showCashCounterModal"
+      @close="showCashCounterModal = false"
+      @confirm="onCashCounterConfirm"
+    />
   </div>
 </template>
 
@@ -279,17 +294,24 @@
 import { ref, computed, onMounted, watch } from 'vue'
 import { formatPrice } from '@/services/utils'
 import apiService from '@/services/api'
+import CashCounterModal from '@/components/CashCounterModal.vue'
 
 const activeTab = ref('zbon')
 const loading = ref(false)
 const loadingHistory = ref(false)
 const selectedDate = ref(new Date().toISOString().split('T')[0])
 
+// Cash counter modal state
+const showCashCounterModal = ref(false)
+const cashCountData = ref(null)
+const reportType = ref('zbon') // 'zbon' or 'daily-report'
 // Filters
 const filterStartDate = ref(getDateDaysAgo(30))
 const filterEndDate = ref(new Date().toISOString().split('T')[0])
 const filterPaymentMethod = ref('')
 
+// Pre-dialog for cash counting confirmation
+const showCashCountConfirm = ref(false)
 // Expanded transactions state
 const expandedTransactions = ref(new Set())
 
@@ -330,17 +352,63 @@ const tabLabels = {
   members: '👥 Mitglieder',
 }
 
+// Scheduler configuration
+const schedulerStatus = ref({
+  enabled: false,
+  running: false,
+  scheduled_time: '23:59',
+})
+const schedulerEnabled = ref(false)
+const schedulerTime = ref('23:59')
 function getDateDaysAgo(days) {
   const date = new Date()
   date.setDate(date.getDate() - days)
   return date.toISOString().split('T')[0]
 }
 
+const loadSchedulerStatus = async () => {
+  try {
+    const response = await apiService.get('/transactions/scheduler/status')
+    schedulerStatus.value = response.data
+    console.log('Scheduler status loaded:', schedulerStatus.value)
+  } catch (error) {
+    console.error('Error loading scheduler status:', error)
+  }
+}
 function formatDateDE(dateStr) {
   const date = new Date(dateStr + 'T00:00:00')
   return date.toLocaleDateString('de-DE', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })
 }
 
+      <!-- Scheduler Configuration -->
+      <div class="scheduler-section">
+        <h4>⏱️ Automatischer Email-Versand</h4>
+        <div class="scheduler-status">
+          <div class="status-item">
+            <span>Status:</span>
+            <span v-if="schedulerStatus.running" class="status-badge running">
+              ● Läuft
+            </span>
+            <span v-else class="status-badge stopped">
+              ● Gestoppt
+            </span>
+          </div>
+          <div v-if="schedulerStatus.next_run" class="status-item">
+            <span>Nächster Versand:</span>
+            <span class="next-run">{{ formatTime(schedulerStatus.next_run) }}</span>
+          </div>
+        </div>
+        <p class="scheduler-info">
+          Der automatische Z-Bon-Versand muss in der .env-Datei konfiguriert werden:
+        </p>
+        <ul class="config-list">
+          <li><code>SCHEDULED_ZBON_ENABLED=true</code></li>
+          <li><code>SCHEDULED_ZBON_TIME=23:59</code> (HH:MM Format)</li>
+          <li><code>SCHEDULED_ZBON_REPORT_TYPE=zbon</code> (oder "daily-report")</li>
+          <li><code>EMAIL_ENABLED=true</code></li>
+          <li>SMTP-Einstellungen konfigurieren</li>
+        </ul>
+      </div>
 function formatDate(dateStr) {
   if (!dateStr) return '-'
   const date = new Date(dateStr)
@@ -431,12 +499,78 @@ const toggleTransaction = (transactionId) => {
   }
 }
 
+const openCashCounterModal = () => {
+  showCashCounterModal.value = true
+}
+
+const askForCashCount = () => {
+  showCashCountConfirm.value = true
+}
+
+const proceedWithCashCount = () => {
+  showCashCountConfirm.value = false
+  openCashCounterModal()
+}
+
+const proceedWithoutCashCount = () => {
+  showCashCountConfirm.value = false
+  cashCountData.value = null
+  sendZBonEmail()
+}
+const onCashCounterConfirm = (data) => {
+  cashCountData.value = data
+  sendZBonEmail()
+}
+
+const sendZBonEmail = async () => {
+  try {
+    // First generate the Z-Bon with optional cash count data
+    const generateResponse = await apiService.post('/transactions/zbon/generate', {
+      date: selectedDate.value,
+      report_type: reportType.value,
+      cash_count: cashCountData.value ? {
+        coins: Object.fromEntries(Object.entries(cashCountData.value.coins).map(([k, v]) => [parseFloat(k), v])),
+        notes: Object.fromEntries(Object.entries(cashCountData.value.notes).map(([k, v]) => [parseInt(k), v]))
+      } : null,
+    })
+    
+    // Then send via email
+    const emailResponse = await apiService.post('/transactions/zbon/send-email', {
+      zbon_content: generateResponse.data.content,
+      date: selectedDate.value,
+    })
+    
+    // Show success notification
+    alert(`✓ Z-Bon erfolgreich versendet an ${emailResponse.data.recipient}`)
+    
+    // Reset cash count
+    cashCountData.value = null
+  } catch (error) {
+    console.error('Error sending Z-Bon:', error)
+    alert(`✗ Fehler beim Versenden: ${error.response?.data?.detail || error.message}`)
+  }
+}
 const downloadZBon = () => {
   const content = `
 ╔════════════════════════════════════════════╗
 ║              Z-BON / TAGESABRECHNUNG       ║
 ╚════════════════════════════════════════════╝
 
+    <!-- Pre-confirmation Dialog -->
+    <div v-if="showCashCountConfirm" class="confirmation-overlay">
+      <div class="confirmation-dialog">
+        <h3>Kassenzählung erforderlich?</h3>
+        <p>Sollen Sie die Kasse vor der Z-Bon-Generierung zählen?</p>
+        <div class="confirmation-buttons">
+          <button @click="proceedWithoutCashCount" class="btn btn-secondary">
+            ✕ Nein, ohne Zählung
+          </button>
+          <button @click="proceedWithCashCount" class="btn btn-primary">
+            ✓ Ja, Kasse zählen
+          </button>
+        </div>
+      </div>
+    </div>
 Datum: ${formatDateDE(selectedDate.value)}
 
 ────────────────────────────────────────────
@@ -496,6 +630,8 @@ onMounted(() => {
 })
 </script>
 
+  loadSchedulerStatus()
+})
 <style scoped lang="scss">
 .admin-finance {
   background: white;
@@ -843,6 +979,22 @@ onMounted(() => {
   }
 }
 
+.btn-secondary {
+  background: #f5f5f5;
+  color: #666;
+  border: 1px solid #ddd;
+
+  &:hover {
+    background: #e0e0e0;
+  }
+}
+
+.zbon-actions {
+  display: flex;
+  gap: 0.75rem;
+  margin-top: 1.5rem;
+  flex-wrap: wrap;
+}
 .form-input {
   padding: 0.5rem;
   border: 1px solid #ddd;
@@ -850,6 +1002,114 @@ onMounted(() => {
   font-size: 1rem;
 }
 
+.scheduler-section {
+  background: #f9f9f9;
+  border-radius: 8px;
+  padding: 1.5rem;
+  margin: 2rem 0;
+  border-left: 4px solid #ff9800;
+}
+
+.scheduler-status {
+  display: flex;
+  gap: 2rem;
+  margin: 1rem 0;
+  flex-wrap: wrap;
+}
+
+.status-item {
+  display: flex;
+  gap: 1rem;
+  align-items: center;
+
+  span:first-child {
+    font-weight: 600;
+    color: #666;
+  }
+}
+
+.status-badge {
+  padding: 0.25rem 0.75rem;
+  border-radius: 20px;
+  font-size: 0.85rem;
+  font-weight: 600;
+
+  &.running {
+    background: #c8e6c9;
+    color: #2e7d32;
+  }
+
+  &.stopped {
+    background: #ffcccc;
+    color: #c62828;
+  }
+}
+
+.next-run {
+  color: #667eea;
+  font-weight: 600;
+}
+
+.scheduler-info {
+  margin: 1rem 0 0.5rem 0;
+  color: #666;
+  font-size: 0.9rem;
+}
+
+.config-list {
+  margin: 0.5rem 0 0 1.5rem;
+  color: #666;
+  font-size: 0.9rem;
+
+  li {
+    margin: 0.3rem 0;
+
+    code {
+      background: #fff;
+      padding: 0.2rem 0.5rem;
+      border-radius: 3px;
+      font-family: monospace;
+      color: #d32f2f;
+    }
+  }
+}
+.confirmation-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.5);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1500;
+}
+
+.confirmation-dialog {
+  background: white;
+  border-radius: 8px;
+  padding: 2rem;
+  max-width: 400px;
+  box-shadow: 0 10px 40px rgba(0, 0, 0, 0.3);
+  text-align: center;
+
+  h3 {
+    margin: 0 0 0.75rem 0;
+    color: #333;
+  }
+
+  p {
+    margin: 0 0 1.5rem 0;
+    color: #666;
+  }
+}
+
+.confirmation-buttons {
+  display: flex;
+  gap: 1rem;
+  justify-content: center;
+}
 .transaction-row {
   &:hover {
     background: #f0f0f0;

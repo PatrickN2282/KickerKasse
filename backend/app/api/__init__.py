@@ -2,6 +2,7 @@ from .auth import router as auth_router
 from .user import router as user_router
 from .member import router as member_router
 from .product import router as product_router
+from .category import router as category_router
 from .transaction import router as transaction_router
 
 __all__ = [
@@ -9,5 +10,6 @@ __all__ = [
     "user_router",
     "member_router",
     "product_router",
+    "category_router",
     "transaction_router",
 ]

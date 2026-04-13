@@ -13,11 +13,13 @@ from app.core import settings, engine
 from app.core.database import SessionLocal, get_db
 from app.core.init_db import init_default_users
 from app.models import Base, User
+from app.services import SchedulerService
 from app.api import (
     auth_router,
     user_router,
     member_router,
     product_router,
+    category_router,
     transaction_router,
 )
 
@@ -77,11 +79,27 @@ class TrailingSlashMiddleware(BaseHTTPMiddleware):
 
 app.add_middleware(TrailingSlashMiddleware)
 
+# Startup event - start scheduler
+@app.on_event("startup")
+async def startup_scheduler():
+    """Start the background scheduler for automated tasks on application startup."""
+    try:
+        SchedulerService.start_scheduler()
+    except Exception as e:
+        print(f"Warning: Failed to start scheduler: {e}")
+
+# Shutdown event - stop scheduler
+@app.on_event("shutdown")
+async def shutdown_scheduler():
+    """Stop the background scheduler on application shutdown."""
+    SchedulerService.stop_scheduler()
+
 # Include routers FIRST - they have priority over catch-all
 app.include_router(auth_router)
 app.include_router(user_router)
 app.include_router(member_router)
 app.include_router(product_router)
+app.include_router(category_router)
 app.include_router(transaction_router)
 
 

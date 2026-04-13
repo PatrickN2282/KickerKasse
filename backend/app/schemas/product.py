@@ -1,6 +1,6 @@
 from pydantic import BaseModel, Field
 from datetime import datetime
-from typing import Optional
+from typing import Optional, List
 
 
 class ProductBase(BaseModel):
@@ -26,12 +26,24 @@ class ProductUpdate(BaseModel):
     is_active: Optional[bool] = None
 
 
+class CategoryInfo(BaseModel):
+    id: int
+    name: str
+
+    class Config:
+        from_attributes = True
+
+
 class ProductResponse(ProductBase):
     id: int
     is_active: bool
     image_path: Optional[str] = None  # Path to product image file
+    categories: List[CategoryInfo] = []
     created_at: datetime
     updated_at: datetime
+
+    class Config:
+        from_attributes = True
 
     class Config:
         from_attributes = True

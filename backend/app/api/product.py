@@ -302,3 +302,110 @@ async def get_product_image(
         )
     
     return FileResponse(file_path, media_type="image/jpeg")
+
+
+@router.post("/{product_id}/categories")
+@router.post("/{product_id}/categories/")
+async def add_category_to_product(
+    product_id: int,
+    category_ids: list[int],
+    request: Request,
+    db: Session = Depends(get_db),
+):
+    """Add categories to a product (admin only)"""
+    user_id = request.session.get("user_id")
+    if not user_id:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Not authenticated",
+        )
+    
+    # Check if admin
+    current_user = UserRepository(db).get_by_id(user_id)
+    if not current_user or current_user.role != UserRole.ADMIN:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Insufficient permissions",
+        )
+    
+    product_repo = ProductRepository(db)
+    product = product_repo.get_by_id(product_id)
+    if not product:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Product not found",
+        )
+    
+    # Import Category here to avoid circular imports
+    from app.models import Category
+    
+    # Get all categories by IDs
+    try:
+        for category_id in category_ids:
+            category = db.query(Category).filter(Category.id == category_id).first()
+            if not category:
+                raise HTTPException(
+                    status_code=status.HTTP_404_NOT_FOUND,
+                    detail=f"Category {category_id} not found",
+                )
+            if category not in product.categories:
+                product.categories.append(category)
+        
+        db.commit()
+        db.refresh(product)
+        return product
+    except Exception as e:
+        db.rollback()
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=str(e),
+        )
+
+
+@router.delete("/{product_id}/categories/{category_id}")
+@router.delete("/{product_id}/categories/{category_id}/")
+async def remove_category_from_product(
+    product_id: int,
+    category_id: int,
+    request: Request,
+    db: Session = Depends(get_db),
+):
+    """Remove a category from a product (admin only)"""
+    user_id = request.session.get("user_id")
+    if not user_id:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Not authenticated",
+        )
+    
+    # Check if admin
+    current_user = UserRepository(db).get_by_id(user_id)
+    if not current_user or current_user.role != UserRole.ADMIN:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Insufficient permissions",
+        )
+    
+    product_repo = ProductRepository(db)
+    product = product_repo.get_by_id(product_id)
+    if not product:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Product not found",
+        )
+    
+    # Import Category here to avoid circular imports
+    from app.models import Category
+    
+    category = db.query(Category).filter(Category.id == category_id).first()
+    if not category:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Category not found",
+        )
+    
+    if category in product.categories:
+        product.categories.remove(category)
+        db.commit()
+    
+    return {"status": "success"}

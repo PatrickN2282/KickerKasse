@@ -1,5 +1,6 @@
 from sqlalchemy import Column, String, Integer, DateTime, Boolean
 from sqlalchemy.sql import func
+from sqlalchemy.orm import relationship
 from .base import BaseModel
 
 
@@ -16,6 +17,13 @@ class Product(BaseModel):
     is_active = Column(Boolean, default=True, nullable=False)
     created_at = Column(DateTime, default=func.now(), nullable=False)
     updated_at = Column(DateTime, default=func.now(), onupdate=func.now(), nullable=False)
+
+    # Relationship to categories
+    categories = relationship(
+        "Category",
+        secondary="product_category",
+        back_populates="products",
+    )
 
     def __repr__(self):
         return f"<Product {self.name}>"

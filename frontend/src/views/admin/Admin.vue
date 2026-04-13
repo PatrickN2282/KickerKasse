@@ -28,6 +28,7 @@ const route = useRoute()
 const tabs = [
   { path: '/admin/members', label: '👥 Mitglieder' },
   { path: '/admin/products', label: '📦 Produkte' },
+  { path: '/admin/categories', label: '🏷️ Kategorien' },
   { path: '/admin/users', label: '👤 Benutzer' },
   { path: '/admin/finance', label: '💰 Finanzen' },
 ]
