@@ -2,26 +2,24 @@
   <div v-if="show" class="modal-overlay">
     <div class="modal-dialog">
       <div class="modal-header">
-        <h3>Kassenzählung</h3>
+        <div>
+          <h3>Kassenzählung</h3>
+          <p class="subtitle">Alle Münzen und Scheine im Kassenbestand erfassen</p>
+        </div>
         <button @click="$emit('close')" class="close-btn">✕</button>
       </div>
 
       <div class="modal-content">
-        <p class="description">
-          Geben Sie die Anzahl der Münzen und Scheine ein, um die Kasse zu zählen:
-        </p>
-
         <div class="cash-counter">
-          <!-- Coins Section -->
-          <div class="section">
+          <section class="section">
             <h4>Münzen</h4>
-            <div class="counter-grid">
+            <div class="counter-list">
               <div
                 v-for="denomination in coinDenominations"
                 :key="`coin-${denomination}`"
                 class="counter-item"
               >
-                <label>{{ denomination }}€</label>
+                <label>{{ formatDenomination(denomination) }}</label>
                 <div class="input-group">
                   <button @click="decrementCoin(denomination)" class="btn-qty">−</button>
                   <input
@@ -33,22 +31,21 @@
                   <button @click="incrementCoin(denomination)" class="btn-qty">+</button>
                 </div>
                 <div class="subtotal">
-                  {{ (cashCount.coins[denomination] * denomination).toFixed(2) }}€
+                  {{ formatCurrency(cashCount.coins[denomination] * denomination) }}
                 </div>
               </div>
             </div>
-          </div>
+          </section>
 
-          <!-- Notes Section -->
-          <div class="section">
+          <section class="section">
             <h4>Scheine</h4>
-            <div class="counter-grid">
+            <div class="counter-list">
               <div
                 v-for="denomination in noteDenominations"
                 :key="`note-${denomination}`"
                 class="counter-item"
               >
-                <label>{{ denomination }}€</label>
+                <label>{{ formatDenomination(denomination) }}</label>
                 <div class="input-group">
                   <button @click="decrementNote(denomination)" class="btn-qty">−</button>
                   <input
@@ -60,25 +57,24 @@
                   <button @click="incrementNote(denomination)" class="btn-qty">+</button>
                 </div>
                 <div class="subtotal">
-                  {{ (cashCount.notes[denomination] * denomination).toFixed(2) }}€
+                  {{ formatCurrency(cashCount.notes[denomination] * denomination) }}
                 </div>
               </div>
             </div>
-          </div>
+          </section>
 
-          <!-- Total -->
           <div class="total-section">
             <div class="total-item">
               <span>Münzen Summe:</span>
-              <strong>{{ coinTotal.toFixed(2) }}€</strong>
+              <strong>{{ formatCurrency(coinTotal) }}</strong>
             </div>
             <div class="total-item">
               <span>Scheine Summe:</span>
-              <strong>{{ noteTotal.toFixed(2) }}€</strong>
+              <strong>{{ formatCurrency(noteTotal) }}</strong>
             </div>
             <div class="total-item highlight">
               <span>Gesamtbetrag:</span>
-              <strong>{{ totalCashCount.toFixed(2) }}€</strong>
+              <strong>{{ formatCurrency(totalCashCount) }}</strong>
             </div>
           </div>
         </div>
@@ -149,6 +145,14 @@ const noteTotal = computed(() => {
 const totalCashCount = computed(() => {
   return coinTotal.value + noteTotal.value
 })
+
+const formatCurrency = (value) => {
+  return `${Number(value).toFixed(2)} EUR`
+}
+
+const formatDenomination = (value) => {
+  return `${Number(value).toFixed(value < 1 ? 2 : 0)} EUR`
+}
 
 const incrementCoin = (denom) => {
   const key = denom.toString()
@@ -221,150 +225,170 @@ const confirm = () => {
   left: 0;
   right: 0;
   bottom: 0;
-  background: rgba(0, 0, 0, 0.5);
+  background: rgba(15, 23, 42, 0.55);
+  backdrop-filter: blur(4px);
   display: flex;
   align-items: center;
   justify-content: center;
   z-index: 2000;
-  padding: 1rem;
+  padding: 1.25rem;
 }
 
 .modal-dialog {
-  background: white;
-  border-radius: 8px;
+  background: #ffffff;
+  border-radius: 16px;
   width: 100%;
-  max-width: 600px;
-  max-height: 90vh;
+  max-width: 980px;
+  max-height: 92vh;
   display: flex;
   flex-direction: column;
-  box-shadow: 0 10px 40px rgba(0, 0, 0, 0.3);
+  box-shadow: 0 24px 50px rgba(15, 23, 42, 0.35);
+  overflow: hidden;
 }
 
 .modal-header {
-  padding: 1.5rem;
-  border-bottom: 1px solid #eee;
+  padding: 1rem 1.25rem;
+  border-bottom: 1px solid #e2e8f0;
   display: flex;
   justify-content: space-between;
-  align-items: center;
+  align-items: flex-start;
+  background: linear-gradient(90deg, #0f766e 0%, #0ea5e9 100%);
 
   h3 {
     margin: 0;
-    color: #333;
+    color: #ffffff;
+    font-size: 1.1rem;
+  }
+
+  .subtitle {
+    margin: 0.35rem 0 0;
+    color: rgba(255, 255, 255, 0.9);
+    font-size: 0.85rem;
   }
 
   .close-btn {
-    background: none;
-    border: none;
-    font-size: 1.5rem;
+    width: 34px;
+    height: 34px;
+    border-radius: 50%;
+    border: 1px solid rgba(255, 255, 255, 0.45);
+    background: rgba(255, 255, 255, 0.18);
+    color: #ffffff;
+    font-size: 1.1rem;
     cursor: pointer;
-    color: #999;
+    display: grid;
+    place-items: center;
 
     &:hover {
-      color: #333;
+      background: rgba(255, 255, 255, 0.3);
     }
   }
 }
 
 .modal-content {
-  padding: 1.5rem;
+  padding: 1rem 1.25rem;
   overflow-y: auto;
   flex: 1;
-
-  .description {
-    color: #666;
-    margin: 0 0 1.5rem 0;
-    font-size: 0.95rem;
-  }
 }
 
 .cash-counter {
-  display: flex;
-  flex-direction: column;
-  gap: 1.5rem;
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 1rem;
 }
 
 .section {
+  border: 1px solid #e2e8f0;
+  border-radius: 12px;
+  padding: 0.85rem;
+  background: #f8fafc;
+
   h4 {
-    margin: 0 0 0.75rem 0;
-    color: #333;
-    font-size: 0.95rem;
+    margin: 0 0 0.7rem 0;
+    color: #0f172a;
+    font-size: 0.9rem;
     font-weight: 600;
   }
 }
 
-.counter-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
-  gap: 1rem;
-}
-
-.counter-item {
+.counter-list {
   display: flex;
   flex-direction: column;
   gap: 0.5rem;
+}
+
+.counter-item {
+  display: grid;
+  grid-template-columns: minmax(70px, 1fr) minmax(140px, 1fr) minmax(90px, auto);
+  align-items: center;
+  gap: 0.6rem;
+  background: #ffffff;
+  border: 1px solid #e5e7eb;
+  border-radius: 10px;
+  padding: 0.45rem 0.55rem;
 
   label {
     font-weight: 600;
-    color: #333;
-    font-size: 0.9rem;
+    color: #1f2937;
+    font-size: 0.83rem;
   }
 
   .input-group {
     display: flex;
-    gap: 0.3rem;
+    gap: 0.35rem;
     align-items: center;
 
     .btn-qty {
       width: 30px;
       height: 30px;
-      border: 1px solid #ddd;
-      background: white;
+      border: 1px solid #cbd5e1;
+      background: #f8fafc;
       cursor: pointer;
-      border-radius: 4px;
+      border-radius: 8px;
       font-weight: bold;
       transition: all 0.2s;
 
       &:hover {
-        background: #f0f0f0;
-        border-color: #999;
+        background: #e2e8f0;
+        border-color: #94a3b8;
       }
 
       &:active {
-        background: #e0e0e0;
+        background: #cbd5e1;
       }
     }
 
     .qty-input {
       flex: 1;
-      border: 1px solid #ddd;
-      border-radius: 4px;
+      border: 1px solid #cbd5e1;
+      border-radius: 8px;
       text-align: center;
       font-size: 0.9rem;
-      padding: 0.4rem;
+      padding: 0.35rem;
       font-weight: 600;
+      min-width: 58px;
 
       &:focus {
         outline: none;
-        border-color: #1976d2;
-        box-shadow: 0 0 0 3px rgba(25, 118, 210, 0.1);
+        border-color: #0ea5e9;
+        box-shadow: 0 0 0 3px rgba(14, 165, 233, 0.16);
       }
     }
   }
 
   .subtotal {
-    text-align: center;
+    text-align: right;
     font-weight: 600;
-    color: #667eea;
-    font-size: 0.85rem;
+    color: #0f766e;
+    font-size: 0.82rem;
   }
 }
 
 .total-section {
-  margin-top: 1rem;
-  padding-top: 1rem;
-  border-top: 2px solid #e0e0e0;
+  grid-column: 1 / -1;
+  margin-top: 0.2rem;
+  padding-top: 0.2rem;
   display: flex;
-  flex-direction: column;
+  flex-wrap: wrap;
   gap: 0.75rem;
 }
 
@@ -372,72 +396,120 @@ const confirm = () => {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  padding: 0.75rem;
-  background: #f5f5f5;
-  border-radius: 4px;
+  padding: 0.7rem 0.85rem;
+  background: #f1f5f9;
+  border-radius: 10px;
+  min-width: 220px;
+  flex: 1;
 
   span {
-    color: #666;
-    font-size: 0.9rem;
+    color: #334155;
+    font-size: 0.86rem;
   }
 
   strong {
-    color: #333;
-    font-size: 0.95rem;
+    color: #0f172a;
+    font-size: 0.92rem;
   }
 
   &.highlight {
-    background: #e3f2fd;
-    border: 1px solid #90caf9;
+    background: #dcfce7;
+    border: 1px solid #86efac;
 
     span {
-      color: #1976d2;
+      color: #166534;
       font-weight: 600;
     }
 
     strong {
-      color: #1976d2;
-      font-size: 1.1rem;
+      color: #166534;
+      font-size: 1.06rem;
     }
   }
 }
 
 .modal-footer {
-  padding: 1.5rem;
-  border-top: 1px solid #eee;
+  padding: 0.95rem 1.25rem;
+  border-top: 1px solid #e2e8f0;
   display: flex;
   gap: 0.75rem;
   justify-content: flex-end;
+  background: #ffffff;
 
   .btn {
-    padding: 0.75rem 1.5rem;
+    padding: 0.65rem 1.2rem;
     border: none;
-    border-radius: 4px;
+    border-radius: 10px;
     font-weight: 600;
     cursor: pointer;
     transition: all 0.2s;
 
     &:hover {
-      transform: translateY(-2px);
+      transform: translateY(-1px);
     }
 
     &.btn-primary {
-      background: #4caf50;
+      background: #059669;
       color: white;
 
       &:hover {
-        background: #45a049;
+        background: #047857;
       }
     }
 
     &.btn-secondary {
-      background: #f5f5f5;
-      color: #666;
-      border: 1px solid #ddd;
+      background: #f8fafc;
+      color: #475569;
+      border: 1px solid #cbd5e1;
 
       &:hover {
-        background: #e0e0e0;
+        background: #e2e8f0;
       }
+    }
+  }
+}
+
+@media (max-width: 900px) {
+  .modal-dialog {
+    max-height: 96vh;
+  }
+
+  .cash-counter {
+    grid-template-columns: 1fr;
+  }
+
+  .counter-item {
+    grid-template-columns: minmax(70px, 1fr) minmax(130px, 1fr) auto;
+  }
+}
+
+@media (max-width: 560px) {
+  .modal-overlay {
+    padding: 0.5rem;
+  }
+
+  .modal-header,
+  .modal-content,
+  .modal-footer {
+    padding-left: 0.75rem;
+    padding-right: 0.75rem;
+  }
+
+  .counter-item {
+    grid-template-columns: 1fr;
+    gap: 0.35rem;
+  }
+
+  .subtotal {
+    text-align: left;
+  }
+
+  .modal-footer {
+    flex-wrap: wrap;
+
+    .btn {
+      flex: 1;
+      min-width: 120px;
     }
   }
 }

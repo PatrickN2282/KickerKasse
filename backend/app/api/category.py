@@ -9,6 +9,24 @@ from app.models import UserRole
 router = APIRouter(prefix="/api/categories", tags=["Categories"])
 
 
+def _require_admin(request: Request, db: Session):
+    user_id = request.session.get("user_id")
+    if not user_id:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Not authenticated",
+        )
+
+    current_user = UserRepository(db).get_by_id(user_id)
+    if not current_user or current_user.role != UserRole.ADMIN:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Insufficient permissions",
+        )
+
+    return current_user
+
+
 @router.get("/", response_model=list[CategoryResponse])
 @router.get("", response_model=list[CategoryResponse])
 async def get_categories(
@@ -60,20 +78,7 @@ async def create_category(
     db: Session = Depends(get_db),
 ):
     """Create a new category (admin only)"""
-    user_id = request.session.get("user_id")
-    if not user_id:
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Not authenticated",
-        )
-    
-    # Check if admin
-    current_user = UserRepository(db).get_by_id(user_id)
-    if not current_user or current_user.role != UserRole.ADMIN:
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail="Insufficient permissions",
-        )
+    _require_admin(request, db)
     
     try:
         repo = CategoryRepository(db)
@@ -101,20 +106,7 @@ async def update_category(
     db: Session = Depends(get_db),
 ):
     """Update category (admin only)"""
-    user_id = request.session.get("user_id")
-    if not user_id:
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Not authenticated",
-        )
-    
-    # Check if admin
-    current_user = UserRepository(db).get_by_id(user_id)
-    if not current_user or current_user.role != UserRole.ADMIN:
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail="Insufficient permissions",
-        )
+    _require_admin(request, db)
     
     try:
         repo = CategoryRepository(db)
@@ -147,20 +139,7 @@ async def delete_category(
     db: Session = Depends(get_db),
 ):
     """Delete category (admin only)"""
-    user_id = request.session.get("user_id")
-    if not user_id:
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Not authenticated",
-        )
-    
-    # Check if admin
-    current_user = UserRepository(db).get_by_id(user_id)
-    if not current_user or current_user.role != UserRole.ADMIN:
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail="Insufficient permissions",
-        )
+    _require_admin(request, db)
     
     repo = CategoryRepository(db)
     if not repo.delete(category_id):
@@ -168,3 +147,70 @@ async def delete_category(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="Category not found",
         )
+
+
+@router.post("/{category_id}/products")
+@router.post("/{category_id}/products/")
+async def assign_products_to_category(
+    category_id: int,
+    product_ids: list[int],
+    request: Request,
+    db: Session = Depends(get_db),
+):
+    """Assign multiple products to a category (admin only)."""
+    _require_admin(request, db)
+
+    from app.models import Category, Product
+
+    category = db.query(Category).filter(Category.id == category_id).first()
+    if not category:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Category not found",
+        )
+
+    assigned = 0
+    for product_id in set(product_ids):
+        product = db.query(Product).filter(Product.id == product_id).first()
+        if not product:
+            continue
+        if category not in product.categories:
+            product.categories.append(category)
+            assigned += 1
+
+    db.commit()
+    return {"status": "success", "assigned": assigned, "category_id": category_id}
+
+
+@router.delete("/{category_id}/products/{product_id}")
+@router.delete("/{category_id}/products/{product_id}/")
+async def remove_product_from_category(
+    category_id: int,
+    product_id: int,
+    request: Request,
+    db: Session = Depends(get_db),
+):
+    """Remove one product from a category (admin only)."""
+    _require_admin(request, db)
+
+    from app.models import Category, Product
+
+    category = db.query(Category).filter(Category.id == category_id).first()
+    if not category:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Category not found",
+        )
+
+    product = db.query(Product).filter(Product.id == product_id).first()
+    if not product:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Product not found",
+        )
+
+    if category in product.categories:
+        product.categories.remove(category)
+        db.commit()
+
+    return {"status": "success", "category_id": category_id, "product_id": product_id}

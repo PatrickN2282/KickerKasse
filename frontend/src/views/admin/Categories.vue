@@ -70,6 +70,7 @@
             <th>Beschreibung</th>
             <th>Reihenfolge</th>
             <th>In Kasse aktiv</th>
+            <th>Artikel zuordnen</th>
             <th>Aktionen</th>
           </tr>
         </thead>
@@ -81,6 +82,45 @@
             <td>
               <span v-if="category.is_active_in_kasse" class="badge badge-success">✓ Ja</span>
               <span v-else class="badge badge-secondary">✗ Nein</span>
+            </td>
+            <td>
+              <div class="assignment-cell">
+                <select v-model="selectedProductByCategory[category.id]" class="form-input compact">
+                  <option value="">Artikel wählen...</option>
+                  <option
+                    v-for="product in unassignedProducts(category.id)"
+                    :key="`assign-${category.id}-${product.id}`"
+                    :value="product.id"
+                  >
+                    {{ product.name }}
+                  </option>
+                </select>
+                <button
+                  @click="assignProduct(category.id)"
+                  :disabled="!selectedProductByCategory[category.id]"
+                  class="btn btn-sm btn-primary"
+                >
+                  Hinzufügen
+                </button>
+
+                <div v-if="assignedProducts(category.id).length > 0" class="product-tags">
+                  <span
+                    v-for="product in assignedProducts(category.id)"
+                    :key="`tag-${category.id}-${product.id}`"
+                    class="product-tag"
+                  >
+                    {{ product.name }}
+                    <button
+                      @click="removeProduct(category.id, product.id)"
+                      class="tag-remove"
+                      title="Zuordnung entfernen"
+                    >
+                      ×
+                    </button>
+                  </span>
+                </div>
+                <div v-else class="small-muted">Noch kein Artikel zugeordnet</div>
+              </div>
             </td>
             <td class="actions">
               <button @click="editCategory(category)" class="btn btn-sm btn-info">Bearbeiten</button>
@@ -100,11 +140,14 @@
 <script setup>
 import { ref, onMounted } from 'vue'
 import { useNotificationStore } from '@/stores/notification'
+import apiService from '@/services/api'
 
 const notificationStore = useNotificationStore()
 
 const categories = ref([])
+const products = ref([])
 const editingId = ref(null)
+const selectedProductByCategory = ref({})
 const formData = ref({
   name: '',
   description: '',
@@ -124,50 +167,80 @@ const resetForm = () => {
 
 const loadCategories = async () => {
   try {
-    const response = await fetch('/api/categories', {
-      credentials: 'include',
+    const response = await apiService.get('/categories')
+    categories.value = response.data
+    categories.value.forEach((category) => {
+      if (selectedProductByCategory.value[category.id] === undefined) {
+        selectedProductByCategory.value[category.id] = ''
+      }
     })
-    if (response.ok) {
-      categories.value = await response.json()
-    } else {
-      notificationStore.error('Fehler beim Laden der Kategorien')
-    }
   } catch (error) {
     console.error('Error loading categories:', error)
     notificationStore.error('Fehler beim Laden der Kategorien')
   }
 }
 
+const loadProducts = async () => {
+  try {
+    const response = await apiService.get('/products?only_active=false')
+    products.value = response.data
+  } catch (error) {
+    console.error('Error loading products:', error)
+    notificationStore.error('Fehler beim Laden der Artikel')
+  }
+}
+
+const assignedProducts = (categoryId) => {
+  return products.value.filter((product) =>
+    (product.categories || []).some((category) => category.id === categoryId)
+  )
+}
+
+const unassignedProducts = (categoryId) => {
+  return products.value.filter(
+    (product) => !(product.categories || []).some((category) => category.id === categoryId)
+  )
+}
+
+const assignProduct = async (categoryId) => {
+  const productId = Number(selectedProductByCategory.value[categoryId])
+  if (!productId) return
+
+  try {
+    await apiService.post(`/categories/${categoryId}/products`, [productId])
+    selectedProductByCategory.value[categoryId] = ''
+    await loadProducts()
+    notificationStore.success('Artikel zur Kategorie hinzugefügt')
+  } catch (error) {
+    console.error('Error assigning product:', error)
+    notificationStore.error(error.response?.data?.detail || 'Zuordnung fehlgeschlagen')
+  }
+}
+
+const removeProduct = async (categoryId, productId) => {
+  try {
+    await apiService.delete(`/categories/${categoryId}/products/${productId}`)
+    await loadProducts()
+    notificationStore.success('Artikelzuordnung entfernt')
+  } catch (error) {
+    console.error('Error removing product assignment:', error)
+    notificationStore.error(error.response?.data?.detail || 'Entfernen fehlgeschlagen')
+  }
+}
+
 const submitForm = async () => {
   try {
-    const url = editingId.value 
-      ? `/api/categories/${editingId.value}`
-      : '/api/categories'
-    
-    const method = editingId.value ? 'PUT' : 'POST'
-
-    const response = await fetch(url, {
-      method: method,
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify(formData.value),
-      credentials: 'include',
-    })
-
-    if (response.ok) {
-      notificationStore.success(
-        editingId.value ? 'Kategorie aktualisiert' : 'Kategorie erstellt'
-      )
-      resetForm()
-      loadCategories()
+    if (editingId.value) {
+      await apiService.put(`/categories/${editingId.value}`, formData.value)
     } else {
-      const error = await response.json()
-      notificationStore.error(error.detail || 'Fehler beim Speichern')
+      await apiService.post('/categories', formData.value)
     }
+    notificationStore.success(editingId.value ? 'Kategorie aktualisiert' : 'Kategorie erstellt')
+    resetForm()
+    await loadCategories()
   } catch (error) {
     console.error('Error submitting form:', error)
-    notificationStore.error('Fehler beim Speichern')
+    notificationStore.error(error.response?.data?.detail || 'Fehler beim Speichern')
   }
 }
 
@@ -188,17 +261,9 @@ const deleteCategory = async (categoryId) => {
   }
 
   try {
-    const response = await fetch(`/api/categories/${categoryId}`, {
-      method: 'DELETE',
-      credentials: 'include',
-    })
-
-    if (response.ok) {
-      notificationStore.success('Kategorie gelöscht')
-      loadCategories()
-    } else {
-      notificationStore.error('Fehler beim Löschen')
-    }
+    await apiService.delete(`/categories/${categoryId}`)
+    notificationStore.success('Kategorie gelöscht')
+    await loadCategories()
   } catch (error) {
     console.error('Error deleting category:', error)
     notificationStore.error('Fehler beim Löschen')
@@ -207,6 +272,7 @@ const deleteCategory = async (categoryId) => {
 
 onMounted(() => {
   loadCategories()
+  loadProducts()
 })
 </script>
 
@@ -376,6 +442,50 @@ onMounted(() => {
   tbody tr:hover {
     background: #f9f9f9;
   }
+}
+
+.assignment-cell {
+  min-width: 260px;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.form-input.compact {
+  padding: 0.5rem;
+  font-size: 0.85rem;
+}
+
+.product-tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.35rem;
+}
+
+.product-tag {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  background: #e8f4ff;
+  border: 1px solid #c5ddff;
+  color: #0f4b8f;
+  border-radius: 999px;
+  padding: 0.15rem 0.45rem;
+  font-size: 0.75rem;
+}
+
+.tag-remove {
+  border: none;
+  background: transparent;
+  cursor: pointer;
+  color: #0f4b8f;
+  font-size: 0.9rem;
+  line-height: 1;
+}
+
+.small-muted {
+  color: #808080;
+  font-size: 0.8rem;
 }
 
 .badge {

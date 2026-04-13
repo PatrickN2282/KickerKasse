@@ -43,18 +43,20 @@ class ZBonService:
         
         # Calculate statistics
         stats = self._calculate_stats(transactions)
+        meta = self._collect_meta(target_date, transactions)
         
         # Generate report content
         if report_type == "daily-report":
-            content = self._generate_daily_report(target_date, stats, include_cash_count, transactions)
+            content = self._generate_daily_report(target_date, stats, meta, include_cash_count, transactions)
         else:
-            content = self._generate_zbon(target_date, stats, include_cash_count, transactions)
+            content = self._generate_zbon(target_date, stats, meta, include_cash_count, transactions)
         
         return {
             "content": content,
             "date": target_date.isoformat(),
             "type": report_type,
             "stats": stats,
+            "meta": meta,
             "has_cash_count": include_cash_count is not None,
         }
     
@@ -83,11 +85,31 @@ class ZBonService:
             "gross_revenue": (cash_total + balance_total) - storno_total,
             "total_member_recharge": recharge_total,
         }
+
+    def _collect_meta(self, target_date: date, transactions: list) -> dict:
+        """Collect additional metadata for report transparency and audit."""
+        sorted_transactions = sorted(transactions, key=lambda t: t.created_at) if transactions else []
+        first_tx = sorted_transactions[0] if sorted_transactions else None
+        last_tx = sorted_transactions[-1] if sorted_transactions else None
+
+        receipt_numbers = [t.receipt_number for t in sorted_transactions if t.receipt_number is not None]
+
+        return {
+            "business_date": target_date.strftime("%d.%m.%Y"),
+            "report_generated_at": datetime.now().strftime("%d.%m.%Y %H:%M:%S"),
+            "report_id": f"ZB-{target_date.strftime('%Y%m%d')}-{datetime.now().strftime('%H%M%S')}",
+            "first_tx_time": first_tx.created_at.strftime("%H:%M:%S") if first_tx else "-",
+            "last_tx_time": last_tx.created_at.strftime("%H:%M:%S") if last_tx else "-",
+            "receipt_min": min(receipt_numbers) if receipt_numbers else "-",
+            "receipt_max": max(receipt_numbers) if receipt_numbers else "-",
+            "has_tse_signature": False,
+        }
     
     def _generate_zbon(
         self,
         target_date: date,
         stats: dict,
+        meta: dict,
         cash_count: dict = None,
         transactions: list = None
     ) -> str:
@@ -105,8 +127,11 @@ class ZBonService:
         lines.append("KASSENSYSTEM - Z-BON (TAGESABSCHLUSS)")
         lines.append("=" * 60)
         lines.append("")
-        lines.append(f"Datum:                {date_str}")
-        lines.append(f"Berichtszeit:         {time_str}")
+        lines.append(f"Datum:                {meta['business_date']}")
+        lines.append(f"Erstellt am:          {meta['report_generated_at']}")
+        lines.append(f"Report-ID:            {meta['report_id']}")
+        lines.append(f"Transaktionszeitraum: {meta['first_tx_time']} - {meta['last_tx_time']}")
+        lines.append(f"Belegnummern:         {meta['receipt_min']} - {meta['receipt_max']}")
         lines.append("")
         lines.append("-" * 60)
         lines.append("UMSÄTZE")
@@ -165,16 +190,26 @@ class ZBonService:
             lines.append("")
         
         lines.append("-" * 60)
-        lines.append("ZUSÄTZLICHE INFORMATIONEN (TSE-Konformität)")
+        lines.append("ZUSÄTZLICHE INFORMATIONEN")
         lines.append("-" * 60)
         lines.append("")
         lines.append("Gesamttransaktionen:          {count:>6}".format(count=stats['total_transactions']))
-        lines.append("Berichtstyp:                  Z-BON (TSE-konform)")
-        lines.append("Rechtliche Grundlage:         KassenSichV / GoBD")
+        lines.append("Berichtstyp:                  Z-BON / Tagesabschluss")
+        lines.append("Rechtliche Grundlage:         KassenSichV / GoBD (Pruefstatus)")
         lines.append("")
-        lines.append("Hinweis: Dieser Beleg entspricht den Anforderungen")
-        lines.append("der TSE (Technische Sicherheitseinrichtung) und der")
-        lines.append("Kassenführungsverordnung (KassenSichV).")
+        lines.append("TSE-/KassenSichV-Pflichtangaben (Status):")
+        lines.append("  - Laufende Belegnummer:     vorhanden")
+        lines.append("  - Zeitangabe Beleg:         vorhanden")
+        lines.append("  - Zahlungsart:              vorhanden")
+        lines.append("  - Transaktionsbetrag:       vorhanden")
+        lines.append("  - TSE-Seriennummer:         NICHT vorhanden")
+        lines.append("  - Signaturzaehler:          NICHT vorhanden")
+        lines.append("  - Pruefwert/Signatur:       NICHT vorhanden")
+        lines.append("")
+        lines.append("Wichtiger Hinweis:")
+        lines.append("Dieser Ausdruck ist ein interner Tagesabschlussbericht.")
+        lines.append("Ohne zertifizierte TSE-Signaturdaten ist dies kein vollstaendig")
+        lines.append("TSE-signierter Kassenbeleg im Sinne der KassenSichV.")
         lines.append("")
         lines.append("=" * 60)
         
@@ -184,6 +219,7 @@ class ZBonService:
         self,
         target_date: date,
         stats: dict,
+        meta: dict,
         cash_count: dict = None,
         transactions: list = None
     ) -> str:
@@ -199,8 +235,10 @@ class ZBonService:
         lines.append("KASSENSYSTEM - TAGESBERICHTSPROTOKOLL")
         lines.append("=" * 70)
         lines.append("")
-        lines.append(f"Datum:                      {date_str}")
-        lines.append(f"Berichtszeit:               {time_str}")
+        lines.append(f"Datum:                      {meta['business_date']}")
+        lines.append(f"Berichtszeit:               {meta['report_generated_at']}")
+        lines.append(f"Report-ID:                  {meta['report_id']}")
+        lines.append(f"Belegnummern:               {meta['receipt_min']} - {meta['receipt_max']}")
         lines.append("")
         lines.append("-" * 70)
         lines.append("TAGESSTATISTIK")
@@ -275,6 +313,10 @@ class ZBonService:
                 lines.append(f"... und {len(transactions) - 50} weitere Transaktionen")
             
             lines.append("")
+
+        lines.append("TSE-Hinweis: Dieser Bericht enthaelt keine TSE-Signaturdaten")
+        lines.append("(Seriennummer, Signaturzaehler, Pruefwert) und dient als")
+        lines.append("interner Tagesabschluss-/Pruefbericht.")
         
         lines.append("=" * 70)
         
