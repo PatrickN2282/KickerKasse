@@ -11,6 +11,7 @@ router = APIRouter(prefix="/api/transactions", tags=["Transactions"])
 
 
 @router.get("/next-receipt-number")
+@router.get("/next-receipt-number/")
 async def get_next_receipt_number(
     request: Request,
     db: Session = Depends(get_db),
@@ -29,6 +30,7 @@ async def get_next_receipt_number(
 
 
 @router.post("/sale", response_model=TransactionResponse, status_code=status.HTTP_201_CREATED)
+@router.post("/sale/", response_model=TransactionResponse, status_code=status.HTTP_201_CREATED)
 async def create_sale(
     transaction_data: TransactionCreate,
     request: Request,
@@ -119,6 +121,7 @@ async def create_sale(
 
 
 @router.post("/storno", response_model=TransactionResponse, status_code=status.HTTP_201_CREATED)
+@router.post("/storno/", response_model=TransactionResponse, status_code=status.HTTP_201_CREATED)
 async def create_storno(
     storno_data: TransactionStornoCreate,
     request: Request,
@@ -158,6 +161,7 @@ async def create_storno(
 
 
 @router.get("/daily-summary")
+@router.get("/daily-summary/")
 async def get_daily_summary(
     date_param: str,  # format: YYYY-MM-DD
     request: Request,
@@ -196,6 +200,7 @@ async def get_daily_summary(
 
 
 @router.get("/daily-stats")
+@router.get("/daily-stats/")
 async def get_daily_stats(
     date: str,  # format: YYYY-MM-DD
     request: Request,
@@ -224,6 +229,7 @@ async def get_daily_stats(
 
 
 @router.get("/filtered")
+@router.get("/filtered/")
 async def get_filtered_transactions(
     start_date: str,
     end_date: str,
@@ -255,6 +261,7 @@ async def get_filtered_transactions(
 
 
 @router.get("/revenue-stats")
+@router.get("/revenue-stats/")
 async def get_revenue_stats(
     request: Request,
     db: Session = Depends(get_db),
@@ -281,6 +288,7 @@ async def get_revenue_stats(
 
 
 @router.get("/{transaction_id}", response_model=TransactionResponse)
+@router.get("/{transaction_id}/", response_model=TransactionResponse)
 async def get_transaction(
     transaction_id: int,
     request: Request,
@@ -306,6 +314,7 @@ async def get_transaction(
 
 
 @router.get("/", response_model=list[TransactionResponse])
+@router.get("", response_model=list[TransactionResponse])
 async def get_transactions(
     request: Request,
     skip: int = 0,

@@ -61,19 +61,17 @@ if not os.getenv("PRODUCTION"):
 # Custom middleware to handle trailing slash redirects for API routes
 class TrailingSlashMiddleware(BaseHTTPMiddleware):
     async def dispatch(self, request, call_next):
-        # Only handle GET requests for trailing slash
-        if request.method == "GET" and request.url.path.startswith("/api"):
-            # Add trailing slash if missing (but only for GET)
-            if not request.url.path.endswith("/"):
-                # Check if it ends with a "filename-like" pattern (has a dot)
-                path_parts = request.url.path.split("/")
-                last_part = path_parts[-1] if path_parts else ""
-                
-                # Don't add trailing slash to files (w/extension)
-                if "." not in last_part:
-                    # Redirect to path with trailing slash (307 preserves method)
-                    new_path = request.url.path + "/"
-                    return RedirectResponse(url=new_path, status_code=307)
+        # Rewrite URL to add trailing slash for all API routes (GET, POST, PUT, DELETE)
+        if request.url.path.startswith("/api") and not request.url.path.endswith("/"):
+            # Check if it ends with a "filename-like" pattern (has a dot)
+            path_parts = request.url.path.split("/")
+            last_part = path_parts[-1] if path_parts else ""
+            
+            # Don't add trailing slash to files (w/extension)
+            if "." not in last_part:
+                # URL rewrite: modify the scope to add trailing slash
+                # This works for GET, POST, PUT, DELETE without redirect
+                request.scope["path"] = request.url.path + "/"
         
         return await call_next(request)
 
@@ -88,12 +86,14 @@ app.include_router(transaction_router)
 
 
 @app.get("/api/health")
+@app.get("/api/health/")
 async def health():
     """Health check endpoint"""
     return {"status": "healthy"}
 
 
 @app.get("/api/debug/users-count")
+@app.get("/api/debug/users-count/")
 async def debug_users_count(db: Session = Depends(get_db)):
     """Debug endpoint - count users in DB"""
     count = db.query(User).count()
@@ -135,8 +135,9 @@ if frontend_dist.exists():
             if index_path.exists():
                 return FileResponse(str(index_path), media_type="text/html")
         
-        # For other status codes or API errors, re-raise
-        raise exc
+        # For other status codes (401, 403, 500, etc), return JSON response
+        # This allows API errors to return proper status codes
+        return JSONResponse(status_code=exc.status_code, content={"detail": exc.detail})
     
     @app.get("/{path_name:path}")
     async def serve_spa(path_name: str):

@@ -13,6 +13,7 @@ router = APIRouter(prefix="/api/products", tags=["Products"])
 
 
 @router.post("/", response_model=ProductResponse, status_code=status.HTTP_201_CREATED)
+@router.post("", response_model=ProductResponse, status_code=status.HTTP_201_CREATED)
 async def create_product(
     product_data: ProductCreate,
     request: Request,
@@ -57,6 +58,7 @@ async def create_product(
 
 
 @router.get("/", response_model=list[ProductResponse])
+@router.get("", response_model=list[ProductResponse])
 async def get_products(
     request: Request,
     only_active: bool = True,
@@ -74,6 +76,7 @@ async def get_products(
 
 
 @router.get("/{product_id}", response_model=ProductResponse)
+@router.get("/{product_id}/", response_model=ProductResponse)
 async def get_product(
     product_id: int,
     request: Request,
@@ -98,6 +101,7 @@ async def get_product(
 
 
 @router.put("/{product_id}", response_model=ProductResponse)
+@router.put("/{product_id}/", response_model=ProductResponse)
 async def update_product(
     product_id: int,
     product_data: ProductUpdate,
@@ -143,6 +147,7 @@ async def update_product(
 
 
 @router.post("/{product_id}/adjust-stock")
+@router.post("/{product_id}/adjust-stock/")
 async def adjust_stock(
     product_id: int,
     quantity: int,
@@ -180,6 +185,7 @@ async def adjust_stock(
 
 
 @router.delete("/{product_id}", status_code=status.HTTP_204_NO_CONTENT)
+@router.delete("/{product_id}/", status_code=status.HTTP_204_NO_CONTENT)
 async def delete_product(
     product_id: int,
     request: Request,

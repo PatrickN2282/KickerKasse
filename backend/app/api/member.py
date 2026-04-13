@@ -13,6 +13,7 @@ router = APIRouter(prefix="/api/members", tags=["Members"])
 
 
 @router.post("/", response_model=MemberResponse, status_code=status.HTTP_201_CREATED)
+@router.post("", response_model=MemberResponse, status_code=status.HTTP_201_CREATED)
 async def create_member(
     member_data: MemberCreate,
     request: Request,
@@ -47,6 +48,7 @@ async def create_member(
 
 
 @router.get("/", response_model=list[MemberResponse])
+@router.get("", response_model=list[MemberResponse])
 async def get_members(
     request: Request,
     db: Session = Depends(get_db),
@@ -63,6 +65,7 @@ async def get_members(
 
 
 @router.get("/statistics")
+@router.get("/statistics/")
 async def get_member_statistics(
     request: Request,
     db: Session = Depends(get_db),
@@ -138,6 +141,7 @@ async def get_member_statistics(
 
 
 @router.get("/{member_id}", response_model=MemberResponse)
+@router.get("/{member_id}/", response_model=MemberResponse)
 async def get_member(
     member_id: int,
     request: Request,
@@ -162,6 +166,7 @@ async def get_member(
 
 
 @router.put("/{member_id}", response_model=MemberResponse)
+@router.put("/{member_id}/", response_model=MemberResponse)
 async def update_member(
     member_id: int,
     member_data: MemberUpdate,
@@ -200,6 +205,7 @@ async def update_member(
 
 
 @router.post("/{member_id}/recharge")
+@router.post("/{member_id}/recharge/")
 async def recharge_member_balance(
     member_id: int,
     amount_cents: int,
@@ -263,6 +269,7 @@ async def recharge_member_balance(
 
 
 @router.delete("/{member_id}", status_code=status.HTTP_204_NO_CONTENT)
+@router.delete("/{member_id}/", status_code=status.HTTP_204_NO_CONTENT)
 async def delete_member(
     member_id: int,
     request: Request,
@@ -296,6 +303,7 @@ async def delete_member(
 
 
 @router.post("/{member_id}/photo")
+@router.post("/{member_id}/photo/")
 async def upload_member_photo(
     member_id: int,
     file: UploadFile = File(...),
@@ -347,6 +355,7 @@ async def upload_member_photo(
 
 
 @router.get("/{member_id}/photo")
+@router.get("/{member_id}/photo/")
 async def get_member_photo(
     member_id: int,
     db: Session = Depends(get_db),

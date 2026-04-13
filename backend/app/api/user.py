@@ -9,12 +9,15 @@ router = APIRouter(prefix="/api/users", tags=["Users"])
 
 
 @router.get("/test-route")
+@router.get("/test-route/")
+@router.get("/test-route/")
 async def test_route():
     """Test endpoint - no auth required"""
     return {"test": "users route exists"}
 
 
 @router.get("/", response_model=list[UserResponse])
+@router.get("", response_model=list[UserResponse])
 async def get_users(
     request: Request,
     db: Session = Depends(get_db),
@@ -40,6 +43,7 @@ async def get_users(
 
 
 @router.post("/", response_model=UserResponse, status_code=status.HTTP_201_CREATED)
+@router.post("", response_model=UserResponse, status_code=status.HTTP_201_CREATED)
 async def create_user(
     user_data: UserCreate,
     request: Request,
@@ -103,6 +107,7 @@ async def get_users(
 
 
 @router.get("/{user_id}", response_model=UserResponse)
+@router.get("/{user_id}/", response_model=UserResponse)
 async def get_user(
     user_id: int,
     request: Request,
@@ -128,6 +133,7 @@ async def get_user(
 
 
 @router.put("/{user_id}", response_model=UserResponse)
+@router.put("/{user_id}/", response_model=UserResponse)
 async def update_user(
     user_id: int,
     user_data: dict,
@@ -162,6 +168,7 @@ async def update_user(
 
 
 @router.delete("/{user_id}", status_code=status.HTTP_204_NO_CONTENT)
+@router.delete("/{user_id}/", status_code=status.HTTP_204_NO_CONTENT)
 async def delete_user(
     user_id: int,
     request: Request,

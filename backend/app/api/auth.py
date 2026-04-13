@@ -8,6 +8,7 @@ router = APIRouter(prefix="/api/auth", tags=["Authentication"])
 
 
 @router.post("/login", response_model=LoginResponse)
+@router.post("/login/", response_model=LoginResponse)
 async def login(
     login_data: LoginRequest,
     request: Request,
@@ -38,6 +39,7 @@ async def login(
 
 
 @router.post("/logout")
+@router.post("/logout/")
 async def logout(request: Request):
     """Logout"""
     request.session.clear()
@@ -45,6 +47,7 @@ async def logout(request: Request):
 
 
 @router.get("/me", response_model=UserResponse)
+@router.get("/me/", response_model=UserResponse)
 async def get_current_user(
     request: Request,
     db: Session = Depends(get_db),
