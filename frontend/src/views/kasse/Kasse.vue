@@ -463,13 +463,27 @@ onMounted(async () => {
   }
 }
 
-.kasse-products,
-.kasse-bon {
-  background: #fafafa;
+.kasse-products {
+  background: linear-gradient(135deg, #ececec 0%, #e0e0e0 100%);
   border-radius: 8px;
   padding: 1.5rem;
   box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
   overflow-y: auto;
+
+  h2 {
+    margin: 0 0 1rem 0;
+    color: #333;
+    font-size: 1.3rem;
+  }
+}
+
+.kasse-bon {
+  background: linear-gradient(135deg, #ececec 0%, #e0e0e0 100%);
+  border-radius: 8px;
+  padding: 1.5rem;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+  overflow-y: auto;
+  border-left: 5px solid #ff6b35;
 
   h2 {
     margin: 0 0 1rem 0;
