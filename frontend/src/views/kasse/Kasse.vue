@@ -266,11 +266,20 @@ const loadCategories = async () => {
   try {
     const response = await apiService.get('/categories?only_active=true')
     categories.value = response.data
-    // Auto-expand first category
-    if (categories.value.length > 0) {
-      expandedCategories.value = [categories.value[0].id]
+    // Auto-expand categories that have products
+    expandedCategories.value = []
+    categories.value.forEach(category => {
+      const productsInCategory = getProductsByCategory(category.id)
+      if (productsInCategory.length > 0) {
+        expandedCategories.value.push(category.id)
+      }
+    })
+    // Also expand "Ohne Kategorie" if there are products without categories
+    if (productsWithoutCategory.value.length > 0) {
+      expandedCategories.value.push(0)
     }
     console.log('[Kasse] Categories loaded:', categories.value)
+    console.log('[Kasse] Auto-expanded categories:', expandedCategories.value)
   } catch (err) {
     console.error('[Kasse] Failed to load categories:', err)
   }

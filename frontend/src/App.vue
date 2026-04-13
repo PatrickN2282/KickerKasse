@@ -3,7 +3,7 @@
     <NotificationCenter />
     <nav v-if="authStore.isAuthenticated" class="navbar">
       <div class="navbar-content">
-        <h1 class="navbar-title">Kassensoftware</h1>
+        <h1 class="navbar-title">KGB - Kickerkasse</h1>
         <div class="navbar-menu">
           <router-link to="/" class="nav-link">Kasse</router-link>
           <router-link to="/admin" class="nav-link" v-if="isAdmin">Admin</router-link>
@@ -44,10 +44,11 @@ const logout = async () => {
 }
 
 .navbar {
-  background-color: #1976d2;
+  background: linear-gradient(135deg, #1a1a1a 0%, #2d2d2d 100%);
   color: white;
   padding: 1rem;
-  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+  border-bottom: 3px solid #ff6b35;
 
   .navbar-content {
     display: flex;
@@ -73,10 +74,11 @@ const logout = async () => {
     text-decoration: none;
     padding: 0.5rem 1rem;
     border-radius: 4px;
-    transition: background-color 0.2s;
+    transition: all 0.2s;
 
     &:hover {
-      background-color: rgba(0, 0, 0, 0.1);
+      background-color: #ff6b35;
+      color: #fff;
     }
 
     &.router-link-active {
