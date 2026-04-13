@@ -455,7 +455,7 @@ onMounted(async () => {
   gap: 1rem;
   padding: 1rem;
   height: calc(100vh - 70px);
-  background: #f5f5f5;
+  background: #e3e3e3;
 
   @media (max-width: 768px) {
     grid-template-columns: 1fr;
@@ -464,7 +464,7 @@ onMounted(async () => {
 }
 
 .kasse-products {
-  background: linear-gradient(135deg, #ececec 0%, #e0e0e0 100%);
+  background: linear-gradient(135deg, #dddddd 0%, #cecece 100%);
   border-radius: 8px;
   padding: 1.5rem;
   box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
@@ -478,7 +478,7 @@ onMounted(async () => {
 }
 
 .kasse-bon {
-  background: linear-gradient(135deg, #ececec 0%, #e0e0e0 100%);
+  background: linear-gradient(135deg, #dddddd 0%, #cecece 100%);
   border-radius: 8px;
   padding: 1.5rem;
   box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
@@ -507,7 +507,7 @@ onMounted(async () => {
 .category-header {
   width: 100%;
   padding: 0.75rem 1rem;
-  background: #f0f0f0;
+  background: #e3e3e3;
   border: none;
   text-align: left;
   cursor: pointer;
@@ -519,7 +519,7 @@ onMounted(async () => {
   transition: all 0.2s;
 
   &:hover {
-    background: #e5e5e5;
+    background: #d9d9d9;
   }
 
   &.expanded {
@@ -550,7 +550,7 @@ onMounted(async () => {
   grid-template-columns: repeat(5, 1fr);
   gap: 0.75rem;
   padding: 0.75rem;
-  background: #f5f5f5;
+  background: #dcdcdc;
 
   @media (max-width: 1400px) {
     grid-template-columns: repeat(4, 1fr);
@@ -627,7 +627,7 @@ onMounted(async () => {
 }
 
 .member-info {
-  background: #f0f0f0;
+  background: #e1e1e1;
   padding: 1rem;
   border-radius: 4px;
   margin-bottom: 1rem;
@@ -668,9 +668,9 @@ onMounted(async () => {
 
 .bon-header {
   flex-shrink: 0;
-  background: #f5f5f5;
+  background: #dcdcdc;
   padding: 0.8rem;
-  border-bottom: 2px solid #ddd;
+  border-bottom: 2px solid #c7c7c7;
   display: flex;
   justify-content: center;
   align-items: center;
@@ -724,10 +724,10 @@ onMounted(async () => {
 .bon-items {
   flex: 1;
   overflow-y: auto;
-  border: 1px solid #eee;
+  border: 1px solid #cfcfcf;
   border-radius: 4px;
   padding: 0.5rem;
-  background: #fafafa;
+  background: #e7e7e7;
   min-height: 50px;
 }
 
