@@ -8,6 +8,37 @@ from app.models import UserRole
 router = APIRouter(prefix="/api/users", tags=["Users"])
 
 
+@router.get("/test-route")
+async def test_route():
+    """Test endpoint - no auth required"""
+    return {"test": "users route exists"}
+
+
+@router.get("/", response_model=list[UserResponse])
+async def get_users(
+    request: Request,
+    db: Session = Depends(get_db),
+):
+    """Get all users (Admin only)"""
+    user_id = request.session.get("user_id")
+    if not user_id:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Not authenticated",
+        )
+    
+    from app.repositories import UserRepository
+    current_user = UserRepository(db).get_by_id(user_id)
+    if not current_user or current_user.role != UserRole.ADMIN:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Insufficient permissions"
+        )
+    
+    service = UserService(db)
+    return service.get_all_users()
+
+
 @router.post("/", response_model=UserResponse, status_code=status.HTTP_201_CREATED)
 async def create_user(
     user_data: UserCreate,
