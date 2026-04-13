@@ -451,7 +451,7 @@ onMounted(async () => {
 <style scoped lang="scss">
 .kasse-container {
   display: grid;
-  grid-template-columns: 1fr 1fr;
+  grid-template-columns: 3fr 1fr;
   gap: 1rem;
   padding: 1rem;
   height: calc(100vh - 70px);
@@ -465,7 +465,7 @@ onMounted(async () => {
 
 .kasse-products,
 .kasse-bon {
-  background: white;
+  background: #fafafa;
   border-radius: 8px;
   padding: 1.5rem;
   box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
@@ -493,7 +493,7 @@ onMounted(async () => {
 .category-header {
   width: 100%;
   padding: 0.75rem 1rem;
-  background: #f5f5f5;
+  background: #f0f0f0;
   border: none;
   text-align: left;
   cursor: pointer;
@@ -505,12 +505,13 @@ onMounted(async () => {
   transition: all 0.2s;
 
   &:hover {
-    background: #e8e8e8;
+    background: #e5e5e5;
   }
 
   &.expanded {
-    background: #e3f2fd;
-    color: #1976d2;
+    background: linear-gradient(90deg, #fff5f0 0%, #fff9f7 100%);
+    color: #ff6b35;
+    border-left: 4px solid #ff6b35;
   }
 
   .category-toggle {
@@ -532,10 +533,22 @@ onMounted(async () => {
 
 .products-grid {
   display: grid;
-  grid-template-columns: repeat(2, 1fr);
+  grid-template-columns: repeat(5, 1fr);
   gap: 0.75rem;
   padding: 0.75rem;
-  background: white;
+  background: #f5f5f5;
+
+  @media (max-width: 1400px) {
+    grid-template-columns: repeat(4, 1fr);
+  }
+
+  @media (max-width: 1100px) {
+    grid-template-columns: repeat(3, 1fr);
+  }
+
+  @media (max-width: 800px) {
+    grid-template-columns: repeat(2, 1fr);
+  }
 
   @media (max-width: 600px) {
     grid-template-columns: 1fr;
@@ -543,8 +556,8 @@ onMounted(async () => {
 }
 
 .product-btn {
-  background: #f0f0f0;
-  border: 2px solid #ddd;
+  background: white;
+  border: 2px solid #e0e0e0;
   border-radius: 8px;
   padding: 1rem;
   cursor: pointer;
@@ -556,8 +569,9 @@ onMounted(async () => {
   gap: 0.5rem;
 
   &:hover:not(:disabled) {
-    background: #e0e0e0;
-    border-color: #1976d2;
+    background: #fff9f7;
+    border-color: #ff6b35;
+    box-shadow: 0 2px 8px rgba(255, 107, 53, 0.15);
   }
 
   &:disabled {
@@ -587,7 +601,7 @@ onMounted(async () => {
   }
 
   .product-price {
-    color: #667eea;
+    color: #ff6b35;
     font-size: 1.1rem;
     font-weight: bold;
   }
@@ -599,14 +613,15 @@ onMounted(async () => {
 }
 
 .member-info {
-  background: #e3f2fd;
+  background: #f0f0f0;
   padding: 1rem;
   border-radius: 4px;
   margin-bottom: 1rem;
+  border-left: 4px solid #ff6b35;
 
   .member-name {
     font-weight: 600;
-    color: #1976d2;
+    color: #ff6b35;
     margin-bottom: 0.5rem;
   }
 
@@ -659,6 +674,7 @@ onMounted(async () => {
 
 .payment-section {
   flex-shrink: 0;
+  margin-top: 1.5rem;
   
   .payment-buttons {
     display: flex;
