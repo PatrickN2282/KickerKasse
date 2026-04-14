@@ -5,6 +5,7 @@ from .product_service import ProductService
 from .transaction_service import TransactionService
 from .email_service import EmailService
 from .zbon_service import ZBonService
+from .zbon_html_exporter import ZBonHTMLExporter
 
 from .scheduler_service import SchedulerService
 __all__ = [
@@ -15,5 +16,6 @@ __all__ = [
     "TransactionService",
     "EmailService",
     "ZBonService",
+    "ZBonHTMLExporter",
     "SchedulerService",
 ]

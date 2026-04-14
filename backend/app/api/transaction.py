@@ -1,13 +1,16 @@
 from fastapi import APIRouter, HTTPException, Depends, Request, status
+from fastapi.responses import HTMLResponse, FileResponse
 from sqlalchemy.orm import Session
 from datetime import date, datetime
+from sqlalchemy import func, desc
 from pydantic import BaseModel
 from typing import Optional
 from app.core import get_db
 from app.schemas import TransactionCreate, TransactionResponse, TransactionStornoCreate, ZBonResponse
 from app.services import TransactionService, ProductService, ZBonService, EmailService
+from app.services.zbon_html_exporter import ZBonHTMLExporter
 from app.repositories import MemberRepository, ProductRepository
-from app.models import PaymentMethod
+from app.models import PaymentMethod, Transaction, ZBonHistory
 
 from app.services import SchedulerService
 router = APIRouter(prefix="/api/transactions", tags=["Transactions"])
@@ -466,6 +469,193 @@ async def send_zbon_email(
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Error sending Z-Bon via email: {str(e)}",
+        )
+
+
+@router.get("/zbon/html")
+@router.get("/zbon/html/")
+async def get_zbon_html(
+    report_date: Optional[str] = None,
+    request: Request = None,
+    db: Session = Depends(get_db),
+):
+    """Get Z-Bon as HTML for preview"""
+    user_id = request.session.get("user_id")
+    if not user_id:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Not authenticated",
+        )
+    
+    try:
+        from app.services.zbon_html_exporter import ZBonHTMLExporter
+        
+        target_date = None
+        if report_date:
+            target_date = datetime.strptime(report_date, "%Y-%m-%d").date()
+        else:
+            target_date = date.today()
+        
+        # Generate Z-Bon data
+        zbon_service = ZBonService(db)
+        transactions = db.query(Transaction).filter(
+            func.date(Transaction.created_at) == target_date
+        ).all()
+        
+        stats = zbon_service._calculate_stats(transactions)
+        meta = zbon_service._collect_meta(target_date, transactions)
+        product_breakdown = zbon_service._aggregate_by_product(transactions)
+        category_breakdown = zbon_service._aggregate_by_category(transactions)
+        customer_breakdown = zbon_service._aggregate_by_customer(transactions)
+        customer_group_breakdown = zbon_service._aggregate_by_customer_group(transactions)
+        storno_details = zbon_service._get_storno_details(transactions)
+        
+        # Get last Z-Bon number
+        last_zbon = db.query(ZBonHistory).filter(
+            ZBonHistory.business_date < target_date
+        ).order_by(desc(ZBonHistory.sequence_number)).first()
+        seq_number = (last_zbon.sequence_number + 1) if last_zbon else 1
+        
+        # Render HTML
+        from sqlalchemy import func
+        from app.models import Transaction, ZBonHistory
+        
+        html = ZBonHTMLExporter.render_html(
+            seq_number=seq_number,
+            business_date=meta['business_date'],
+            created_at=meta['report_generated_at'],
+            period_start=meta['first_tx_time'],
+            period_end=meta['last_tx_time'],
+            receipt_min=meta['receipt_min'],
+            receipt_max=meta['receipt_max'],
+            cash_sales_count=stats['cash_sales_count'],
+            cash_sales_net=stats['cash_sales_total'],
+            cash_sales_tax=0.0,
+            cash_sales_gross=stats['cash_sales_total'],
+            balance_sales_count=stats['balance_sales_count'],
+            balance_sales_net=stats['balance_sales_total'],
+            balance_sales_tax=0.0,
+            balance_sales_gross=stats['balance_sales_total'],
+            recharge_count=stats['recharge_count'],
+            recharge_total=stats['recharge_total'],
+            total_items_count=stats['cash_sales_count'] + stats['balance_sales_count'],
+            total_net=stats['cash_sales_total'] + stats['balance_sales_total'],
+            total_tax=0.0,
+            total_gross=stats['cash_sales_total'] + stats['balance_sales_total'] + stats['recharge_total'],
+            cash_revenue=stats['cash_sales_total'] + stats['recharge_total'],
+            guthaben_net=stats['balance_sales_total'],
+            guthaben_gross=stats['balance_sales_total'],
+            total_revenue=stats['gross_revenue_cash'] + stats['gross_revenue_balance'],
+            categories_breakdown=category_breakdown,
+            customer_groups=customer_group_breakdown,
+            customers=customer_breakdown,
+            stornos=storno_details,
+        )
+        
+        from fastapi.responses import HTMLResponse
+        return HTMLResponse(content=html)
+        
+    except Exception as e:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Error generating Z-Bon HTML: {str(e)}",
+        )
+
+
+@router.get("/zbon/pdf")
+@router.get("/zbon/pdf/")
+async def get_zbon_pdf(
+    report_date: Optional[str] = None,
+    request: Request = None,
+    db: Session = Depends(get_db),
+):
+    """Download Z-Bon as PDF"""
+    user_id = request.session.get("user_id")
+    if not user_id:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Not authenticated",
+        )
+    
+    try:
+        from app.services.zbon_html_exporter import ZBonHTMLExporter
+        from fastapi.responses import FileResponse
+        from sqlalchemy import func
+        from app.models import Transaction, ZBonHistory
+        
+        target_date = None
+        if report_date:
+            target_date = datetime.strptime(report_date, "%Y-%m-%d").date()
+        else:
+            target_date = date.today()
+        
+        # Generate Z-Bon data (same as HTML endpoint)
+        zbon_service = ZBonService(db)
+        transactions = db.query(Transaction).filter(
+            func.date(Transaction.created_at) == target_date
+        ).all()
+        
+        stats = zbon_service._calculate_stats(transactions)
+        meta = zbon_service._collect_meta(target_date, transactions)
+        product_breakdown = zbon_service._aggregate_by_product(transactions)
+        category_breakdown = zbon_service._aggregate_by_category(transactions)
+        customer_breakdown = zbon_service._aggregate_by_customer(transactions)
+        customer_group_breakdown = zbon_service._aggregate_by_customer_group(transactions)
+        storno_details = zbon_service._get_storno_details(transactions)
+        
+        # Get last Z-Bon number
+        last_zbon = db.query(ZBonHistory).filter(
+            ZBonHistory.business_date < target_date
+        ).order_by(desc(ZBonHistory.sequence_number)).first()
+        seq_number = (last_zbon.sequence_number + 1) if last_zbon else 1
+        
+        # Render HTML
+        html = ZBonHTMLExporter.render_html(
+            seq_number=seq_number,
+            business_date=meta['business_date'],
+            created_at=meta['report_generated_at'],
+            period_start=meta['first_tx_time'],
+            period_end=meta['last_tx_time'],
+            receipt_min=meta['receipt_min'],
+            receipt_max=meta['receipt_max'],
+            cash_sales_count=stats['cash_sales_count'],
+            cash_sales_net=stats['cash_sales_total'],
+            cash_sales_tax=0.0,
+            cash_sales_gross=stats['cash_sales_total'],
+            balance_sales_count=stats['balance_sales_count'],
+            balance_sales_net=stats['balance_sales_total'],
+            balance_sales_tax=0.0,
+            balance_sales_gross=stats['balance_sales_total'],
+            recharge_count=stats['recharge_count'],
+            recharge_total=stats['recharge_total'],
+            total_items_count=stats['cash_sales_count'] + stats['balance_sales_count'],
+            total_net=stats['cash_sales_total'] + stats['balance_sales_total'],
+            total_tax=0.0,
+            total_gross=stats['cash_sales_total'] + stats['balance_sales_total'] + stats['recharge_total'],
+            cash_revenue=stats['cash_sales_total'] + stats['recharge_total'],
+            guthaben_net=stats['balance_sales_total'],
+            guthaben_gross=stats['balance_sales_total'],
+            total_revenue=stats['gross_revenue_cash'] + stats['gross_revenue_balance'],
+            categories_breakdown=category_breakdown,
+            customer_groups=customer_group_breakdown,
+            customers=customer_breakdown,
+            stornos=storno_details,
+        )
+        
+        # Export to PDF
+        pdf_bytes = ZBonHTMLExporter.export_pdf(html)
+        
+        filename = f"Z-Bon_{seq_number}_{target_date.strftime('%Y-%m-%d')}.pdf"
+        return FileResponse(
+            pdf_bytes,
+            media_type="application/pdf",
+            filename=filename,
+        )
+        
+    except Exception as e:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Error generating Z-Bon PDF: {str(e)}",
         )
 
 
