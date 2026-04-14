@@ -29,6 +29,11 @@ services:
     container_name: kassensoftware-app
     environment:
       DATABASE_URL: postgresql://kassensystem:kassensystem@postgres:5432/kassensystem
+      DATABASE_HOST: postgres
+      DATABASE_PORT: 5432
+      DATABASE_USER: kassensystem
+      DATABASE_PASSWORD: kassensystem
+      DATABASE_NAME: kassensystem
       SECRET_KEY: ${SECRET_KEY:-change-this-to-a-random-secret-key-in-production-minimum-32-chars}
     ports:
       - "9190:8000"

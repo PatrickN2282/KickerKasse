@@ -12,6 +12,7 @@ from sqlalchemy.orm import Session
 from app.core import settings, engine
 from app.core.database import SessionLocal, get_db
 from app.core.init_db import init_default_users
+from app.core.db_migration import run_migrations
 from app.models import Base, User
 from app.services import SchedulerService
 from app.api import (
@@ -23,8 +24,12 @@ from app.api import (
     transaction_router,
 )
 
-# Create tables
-Base.metadata.create_all(bind=engine)
+# Run database migrations (create tables + add missing columns)
+import logging
+logger = logging.getLogger(__name__)
+logger.info("Starting database migration process...")
+run_migrations(engine)
+logger.info("Database migration completed")
 
 # Initialize default users
 db = SessionLocal()

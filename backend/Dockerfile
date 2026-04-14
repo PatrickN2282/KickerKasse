@@ -35,6 +35,10 @@ COPY --from=frontend-builder /app/frontend/dist /app/app/frontend/dist
 # Create upload directories
 RUN mkdir -p /app/uploads/products /app/uploads/members
 
+# Copy entrypoint script
+COPY backend/docker-entrypoint.sh /app/
+RUN chmod +x /app/docker-entrypoint.sh
+
 # Health check
 HEALTHCHECK --interval=30s --timeout=10s --start-period=40s --retries=3 \
     CMD python -c "import socket; socket.create_connection(('localhost', 8000), timeout=5)"
@@ -42,5 +46,5 @@ HEALTHCHECK --interval=30s --timeout=10s --start-period=40s --retries=3 \
 # Expose port
 EXPOSE 8000
 
-# Start the backend (which also serves the fronted static files)
-CMD ["uvicorn", "main:app", "--host", "0.0.0.0", "--port", "8000"]
+# Start the application with entrypoint script for automatic migrations
+ENTRYPOINT ["/app/docker-entrypoint.sh"]
