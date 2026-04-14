@@ -98,15 +98,39 @@
         </div>
 
         <div class="zbon-actions">
-          <button @click="downloadZBon" class="btn btn-primary">
-            📄 Z-Bon drucken
+          <button @click="loadZBonHTML" class="btn btn-primary">
+            👁️ Z-Bon Vorschau
           </button>
-          <button @click="askForCashCount" class="btn btn-info">
+          <button @click="handleDownloadZBon" class="btn btn-success">
+            ⬇️ Als HTML herunterladen
+          </button>
+          <button @click="downloadZBonAsPDF" class="btn btn-info">
+            📄 Als PDF herunterladen
+          </button>
+          <button @click="askForCashCount" class="btn btn-secondary">
             📧 Z-Bon per Email
           </button>
-          <button @click="openCashCounterModal" class="btn btn-secondary">
+          <button @click="openCashCounterModal" class="btn btn-warning">
             💰 Kasse zählen
           </button>
+        </div>
+
+        <!-- Z-Bon HTML Preview -->
+        <div v-if="zBonHtml" class="zbon-preview" style="margin-top: 2rem; border: 1px solid #ddd; border-radius: 8px; padding: 1.5rem; background: #f9f9f9;">
+          <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem;">
+            <h4 style="margin: 0;">📋 Z-Bon Vorschau</h4>
+            <button @click="zBonHtml = ''" style="background: none; border: 1px solid #999; padding: 0.5rem 1rem; border-radius: 4px; cursor: pointer;">
+              ✕ Schließen
+            </button>
+          </div>
+          <div style="background: white; border-radius: 4px; max-height: 600px; overflow-y: auto; padding: 1.5rem; border: 1px solid #eee;">
+            <div v-html="zBonHtml" class="zbon-html-content"></div>
+          </div>
+          <div style="margin-top: 1rem; text-align: center;">
+            <p style="margin: 0.5rem 0; color: #666; font-size: 0.9rem;">
+              💡 Tipp: Mit Ctrl+P oder Cmd+P zum Drucken / Als PDF speichern
+            </p>
+          </div>
         </div>
 
         <div class="scheduler-section">
@@ -359,6 +383,9 @@ const showCashCountConfirm = ref(false)
 // Expanded transactions state
 const expandedTransactions = ref(new Set())
 
+// Z-Bon HTML preview
+const zBonHtml = ref('')
+
 // Data
 const dailyStats = ref({
   cash_total: 0,
@@ -539,55 +566,97 @@ const onCashCounterConfirm = (data) => {
 
 const sendZBonEmail = async () => {
   try {
-    // First generate the Z-Bon with optional cash count data
-    const generateResponse = await apiService.post('/transactions/zbon/generate', {
-      date: selectedDate.value,
-      report_type: reportType.value,
-      cash_count: cashCountData.value ? {
-        coins: Object.fromEntries(Object.entries(cashCountData.value.coins).map(([k, v]) => [parseFloat(k), v])),
-        notes: Object.fromEntries(Object.entries(cashCountData.value.notes).map(([k, v]) => [parseInt(k), v]))
-      } : null,
-    })
-    
-    // Then send via email
-    const emailResponse = await apiService.post('/transactions/zbon/send-email', {
-      zbon_content: generateResponse.data.content,
-      date: selectedDate.value,
+    loading.value = true
+    const email = prompt('E-Mail-Adresse eingeben:')
+    if (!email) return
+
+    console.log('Sending Z-Bon email to:', email)
+    const emailResponse = await apiService.post('/transactions/zbon/email', null, {
+      params: {
+        recipient: email,
+        report_date: selectedDate.value,
+        include_pdf: true
+      }
     })
     
     // Show success notification
-    alert(`✓ Z-Bon erfolgreich versendet an ${emailResponse.data.recipient}`)
+    alert(`✓ Z-Bon erfolgreich versendet an ${email}`)
+    console.log('Email sent successfully:', emailResponse.data)
     
     // Reset cash count
     cashCountData.value = null
   } catch (error) {
     console.error('Error sending Z-Bon:', error)
     alert(`✗ Fehler beim Versenden: ${error.response?.data?.detail || error.message}`)
+  } finally {
+    loading.value = false
   }
 }
-const downloadZBon = async () => {
+// Load Z-Bon as HTML for preview
+const loadZBonHTML = async () => {
   try {
     loading.value = true
-    const generateResponse = await apiService.post('/transactions/zbon/generate', {
-      date: selectedDate.value,
-      report_type: reportType.value,
-      cash_count: cashCountData.value ? {
-        coins: Object.fromEntries(Object.entries(cashCountData.value.coins).map(([k, v]) => [parseFloat(k), v])),
-        notes: Object.fromEntries(Object.entries(cashCountData.value.notes).map(([k, v]) => [parseInt(k), v]))
-      } : null,
-    })
+    console.log('Loading Z-Bon HTML for date:', selectedDate.value)
+    const response = await apiService.get(`/transactions/zbon/html?report_date=${selectedDate.value}`)
+    zBonHtml.value = response.data || response
+    console.log('Z-Bon HTML loaded successfully')
+  } catch (error) {
+    console.error('Error loading Z-Bon HTML:', error)
+    alert(`✗ Fehler beim Laden: ${error.response?.data?.detail || error.message}`)
+    zBonHtml.value = ''
+  } finally {
+    loading.value = false
+  }
+}
 
-    const blob = new Blob([generateResponse.data.content], { type: 'text/plain' })
+// Download Z-Bon as HTML file
+const handleDownloadZBon = async () => {
+  try {
+    loading.value = true
+    console.log('Downloading Z-Bon HTML for date:', selectedDate.value)
+    const response = await apiService.get(`/transactions/zbon/html?report_date=${selectedDate.value}`, {
+      responseType: 'text'
+    })
+    
+    const blob = new Blob([response.data || response], { type: 'text/html;charset=utf-8' })
     const url = window.URL.createObjectURL(blob)
     const a = document.createElement('a')
     a.href = url
-    const reportType_ = generateResponse.data.type === 'daily-report' ? 'Tagesberichtsprotokoll' : 'Z-Bon'
-    a.download = `${reportType_}_${selectedDate.value}.txt`
+    a.download = `Z-Bon_${selectedDate.value}.html`
     a.click()
     window.URL.revokeObjectURL(url)
+    alert('✓ Z-Bon HTML erfolgreich heruntergeladen')
   } catch (error) {
-    console.error('Error downloading Z-Bon:', error)
+    console.error('Error downloading Z-Bon HTML:', error)
     alert(`✗ Fehler beim Download: ${error.response?.data?.detail || error.message}`)
+  } finally {
+    loading.value = false
+  }
+}
+
+// Download Z-Bon as PDF
+const downloadZBonAsPDF = async () => {
+  try {
+    loading.value = true
+    console.log('Downloading Z-Bon PDF for date:', selectedDate.value)
+    const response = await apiService.get(`/transactions/zbon/pdf?report_date=${selectedDate.value}`, {
+      responseType: 'blob'
+    })
+    
+    const url = window.URL.createObjectURL(response.data)
+    const a = document.createElement('a')
+    a.href = url
+    a.download = `Z-Bon_${selectedDate.value}.pdf`
+    a.click()
+    window.URL.revokeObjectURL(url)
+    alert('✓ Z-Bon PDF erfolgreich heruntergeladen')
+  } catch (error) {
+    console.error('Error downloading Z-Bon PDF:', error)
+    if (error.response?.status === 500) {
+      alert('⚠️ PDF-Export nicht verfügbar. Nutzen Sie "Drucken" zum Speichern als PDF.')
+    } else {
+      alert(`✗ Fehler beim Download: ${error.response?.data?.detail || error.message}`)
+    }
   } finally {
     loading.value = false
   }
@@ -1168,5 +1237,110 @@ onMounted(() => {
   text-align: center;
   color: #999;
   font-style: italic;
+}
+
+.zbon-preview {
+  background: #f9f9f9;
+  border: 1px solid #ddd;
+  border-radius: 8px;
+  padding: 1.5rem;
+  margin-top: 2rem;
+}
+
+.zbon-html-content {
+  font-family: Arial, sans-serif;
+  font-size: 0.95rem;
+  line-height: 1.6;
+  color: #333;
+
+  /* Styling for the HTML Z-Bon Template */
+  table {
+    width: 100%;
+    border-collapse: collapse;
+    margin: 1rem 0;
+
+    th {
+      background: #f5f5f5;
+      padding: 0.75rem;
+      text-align: left;
+      font-weight: 600;
+      border-bottom: 2px solid #ddd;
+    }
+
+    td {
+      padding: 0.75rem;
+      border-bottom: 1px solid #eee;
+    }
+
+    &.summary-table tr {
+      &:hover {
+        background: #f9f9f9;
+      }
+    }
+  }
+
+  h2, h3, h4 {
+    margin: 1rem 0 0.5rem 0;
+  }
+
+  h2 {
+    color: #0275d8;
+    border-bottom: 2px solid #0275d8;
+    padding-bottom: 0.5rem;
+  }
+
+  .summary-box {
+    background: #fff3cd;
+    border: 1px solid #ffc107;
+    padding: 1rem;
+    border-radius: 4px;
+    margin: 1rem 0;
+  }
+
+  .meta-section {
+    background: #f5f5f5;
+    border-left: 4px solid #0275d8;
+    padding: 1rem;
+    margin: 1rem 0;
+  }
+
+  .cash-count-detail {
+    background: #e8f5e9;
+    border-left: 4px solid #2e7d32;
+    padding: 1rem;
+    margin: 0.5rem 0;
+  }
+
+  /* Monospace for amounts */
+  .amount {
+    font-family: 'Courier New', monospace;
+    text-align: right;
+    font-weight: bold;
+  }
+
+  /* Hide print-specific styles in preview */
+  @media screen {
+    .no-print {
+      display: none;
+    }
+  }
+}
+
+.btn-success {
+  background: #4caf50;
+  color: white;
+
+  &:hover {
+    background: #45a049;
+  }
+}
+
+.btn-warning {
+  background: #ff9800;
+  color: white;
+
+  &:hover {
+    background: #e65100;
+  }
 }
 </style>
