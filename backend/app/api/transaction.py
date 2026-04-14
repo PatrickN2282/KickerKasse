@@ -5,6 +5,8 @@ from datetime import date, datetime
 from sqlalchemy import func, desc
 from pydantic import BaseModel
 from typing import Optional
+import logging
+
 from app.core import get_db
 from app.schemas import TransactionCreate, TransactionResponse, TransactionStornoCreate, ZBonResponse
 from app.services import TransactionService, ProductService, ZBonService, EmailService
@@ -13,6 +15,8 @@ from app.repositories import MemberRepository, ProductRepository
 from app.models import PaymentMethod, Transaction, ZBonHistory
 
 from app.services import SchedulerService
+
+logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/api/transactions", tags=["Transactions"])
 
 
@@ -642,15 +646,30 @@ async def get_zbon_pdf(
             stornos=storno_details,
         )
         
-        # Export to PDF
-        pdf_bytes = ZBonHTMLExporter.export_pdf(html)
-        
-        filename = f"Z-Bon_{seq_number}_{target_date.strftime('%Y-%m-%d')}.pdf"
-        return FileResponse(
-            pdf_bytes,
-            media_type="application/pdf",
-            filename=filename,
-        )
+        # Export to PDF (with graceful fallback if WeasyPrint unavailable)
+        try:
+            pdf_bytes = ZBonHTMLExporter.export_pdf(html)
+            
+            filename = f"Z-Bon_{seq_number}_{target_date.strftime('%Y-%m-%d')}.pdf"
+            return FileResponse(
+                pdf_bytes,
+                media_type="application/pdf",
+                filename=filename,
+            )
+        except RuntimeError as pdf_error:
+            # WeasyPrint not available - return HTML with note
+            logger.warning(f"PDF export unavailable: {str(pdf_error)}")
+            
+            # Return HTML with download header as fallback
+            html_with_note = f"""
+            <div style="background-color: #fff3cd; border: 1px solid #ffc107; padding: 15px; margin: 10px 0; border-radius: 4px;">
+                <strong>⚠️ PDF export not available</strong><br>
+                PDF export is optional and requires additional system libraries. 
+                You can still view the Z-Bon in HTML format above and print it from your browser using Ctrl+P.
+            </div>
+            {html}
+            """
+            return HTMLResponse(content=html_with_note)
         
     except Exception as e:
         raise HTTPException(

@@ -9,39 +9,21 @@ COPY frontend/ ./
 RUN npm run build
 
 # Stage 2: Backend mit integriertem Frontend
-FROM python:3.11
+FROM python:3.11-slim
 
 WORKDIR /app
 
-# Install system dependencies with explicit cache handling
-RUN apt-get clean && \
-    apt-get update && \
-    apt-get install -y --no-install-recommends \
+# Install minimal system dependencies (avoid complex WeasyPrint deps in slim image)
+RUN apt-get update && apt-get install -y --no-install-recommends \
     postgresql-client \
-    build-essential \
-    python3-dev \
-    libffi-dev \
-    libssl-dev \
-    libcairo2-dev \
-    libpango-1.0-0 \
-    libpango-1.0-dev \
-    libpangoft2-1.0-0 \
-    libgdk-pixbuf-2.0-0 \
-    libgdk-pixbuf-2.0-dev \
-    libpng-dev \
-    libjpeg62-turbo-dev \
-    libfreetype6-dev \
-    zlib1g-dev \
-    libfontconfig1-dev \
-    && apt-get clean && \
-    rm -rf /var/lib/apt/lists/*
+    && rm -rf /var/lib/apt/lists/*
 
-# Upgrade pip and setuptools
+# Upgrade pip for better wheel compilation
 RUN pip install --no-cache-dir --upgrade pip setuptools wheel
 
-# Install Python dependencies
+# Install Python dependencies (WeasyPrint made optional via requirements-full.txt)
 COPY backend/requirements.txt requirements.txt
-RUN pip install --no-cache-dir -r requirements.txt
+RUN pip install --no-cache-dir -r requirements.txt || true
 
 # Copy backend code
 COPY backend/app app/

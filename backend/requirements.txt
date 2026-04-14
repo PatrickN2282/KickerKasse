@@ -11,5 +11,9 @@ python-multipart==0.0.6
 
 apscheduler==3.10.4
 alembic==1.12.1
-weasyprint==59.3
 jinja2==3.1.2
+
+# Optional: PDF export support (requires additional system libraries)
+# Uncomment and rebuild Docker with full base image if PDF export is needed
+# weasyprint==59.3
+

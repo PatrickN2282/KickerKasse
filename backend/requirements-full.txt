@@ -1,0 +1,8 @@
+# Full requirements including optional dependencies for PDF export
+# Install with: pip install -r requirements-full.txt
+
+-r requirements.txt
+
+# Optional: PDF export support
+# Requires additional system libraries: python3-dev, libcairo2-dev, libpango1.0-dev, etc.
+weasyprint==59.3
