@@ -5,6 +5,8 @@ from .product import Product
 from .category import Category, product_category
 from .transaction import Transaction, TransactionItem, TransactionType, PaymentMethod
 from .balance_log import BalanceLog
+from .zbon_history import ZBonHistory
+from .cash_management import CashBalance, CashEntry, CashEntryType
 
 __all__ = [
     "Base",
@@ -19,4 +21,8 @@ __all__ = [
     "TransactionType",
     "PaymentMethod",
     "BalanceLog",
+    "ZBonHistory",
+    "CashBalance",
+    "CashEntry",
+    "CashEntryType",
 ]

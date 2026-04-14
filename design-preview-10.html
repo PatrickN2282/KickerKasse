@@ -1,0 +1,358 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>KGB Kasse - 10 weitere Designvorschlaege</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      font-family: "Segoe UI", "Noto Sans", Arial, sans-serif;
+      background: linear-gradient(135deg, #d7d7d7 0%, #cfcfcf 100%);
+      color: #1f1f1f;
+      padding: 28px;
+    }
+
+    .wrap {
+      max-width: 1600px;
+      margin: 0 auto;
+    }
+
+    .hero {
+      background: linear-gradient(120deg, #1f1f1f 0%, #2d2d2d 100%);
+      color: #f3f3f3;
+      border-radius: 16px;
+      padding: 20px 24px;
+      border-bottom: 4px solid #e67a3d;
+      box-shadow: 0 12px 26px rgba(0, 0, 0, 0.18);
+      margin-bottom: 24px;
+    }
+
+    .hero h1 {
+      font-size: 28px;
+      margin-bottom: 6px;
+      letter-spacing: 0.2px;
+    }
+
+    .hero p {
+      font-size: 15px;
+      opacity: 0.88;
+    }
+
+    .grid {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(320px, 1fr));
+      gap: 20px;
+    }
+
+    .card {
+      border-radius: 14px;
+      overflow: hidden;
+      border: 1px solid rgba(0, 0, 0, 0.08);
+      box-shadow: 0 8px 20px rgba(0, 0, 0, 0.12);
+      background: #ececec;
+    }
+
+    .card-head {
+      padding: 12px 14px;
+      background: #1f1f1f;
+      color: #f2f2f2;
+      border-bottom: 3px solid var(--accent);
+    }
+
+    .card-head h2 {
+      font-size: 16px;
+      margin-bottom: 3px;
+    }
+
+    .card-head p {
+      font-size: 13px;
+      opacity: 0.85;
+    }
+
+    .kasse {
+      display: grid;
+      grid-template-columns: 3fr 1fr;
+      min-height: 290px;
+    }
+
+    .products,
+    .bon {
+      position: relative;
+      padding: 12px;
+    }
+
+    .products {
+      background: var(--prod-bg);
+    }
+
+    .bon {
+      background: var(--bon-bg);
+      border-left: 4px solid var(--accent);
+    }
+
+    .pattern-dots::before,
+    .pattern-grid::before,
+    .pattern-lines::before,
+    .pattern-noise::before {
+      content: "";
+      position: absolute;
+      inset: 0;
+      pointer-events: none;
+      opacity: 0.22;
+    }
+
+    .pattern-dots::before {
+      background-image: radial-gradient(#000 0.8px, transparent 0.8px);
+      background-size: 16px 16px;
+    }
+
+    .pattern-grid::before {
+      background-image:
+        linear-gradient(to right, rgba(0, 0, 0, 0.22) 1px, transparent 1px),
+        linear-gradient(to bottom, rgba(0, 0, 0, 0.22) 1px, transparent 1px);
+      background-size: 18px 18px;
+    }
+
+    .pattern-lines::before {
+      background-image: repeating-linear-gradient(
+        135deg,
+        rgba(0, 0, 0, 0.25),
+        rgba(0, 0, 0, 0.25) 1px,
+        transparent 1px,
+        transparent 10px
+      );
+    }
+
+    .pattern-noise::before {
+      background-image:
+        radial-gradient(rgba(0, 0, 0, 0.22) 1px, transparent 1px),
+        radial-gradient(rgba(0, 0, 0, 0.16) 1px, transparent 1px);
+      background-size: 10px 10px, 14px 14px;
+      background-position: 0 0, 4px 4px;
+    }
+
+    .block-title {
+      background: rgba(255, 255, 255, 0.72);
+      border: 1px solid rgba(0, 0, 0, 0.12);
+      border-radius: 8px;
+      padding: 8px 10px;
+      font-weight: 700;
+      font-size: 13px;
+      margin-bottom: 10px;
+      position: relative;
+      z-index: 1;
+    }
+
+    .prod-grid {
+      position: relative;
+      z-index: 1;
+      display: grid;
+      grid-template-columns: repeat(5, minmax(0, 1fr));
+      gap: 8px;
+    }
+
+    .prod {
+      background: rgba(255, 255, 255, 0.78);
+      border: 1px solid rgba(0, 0, 0, 0.12);
+      border-radius: 8px;
+      padding: 8px 6px;
+      text-align: center;
+      font-size: 11px;
+      line-height: 1.35;
+    }
+
+    .prod b {
+      color: var(--accent-deep);
+      font-size: 12px;
+    }
+
+    .bon-stack {
+      position: relative;
+      z-index: 1;
+      display: grid;
+      gap: 8px;
+    }
+
+    .pill,
+    .sum,
+    .row {
+      background: rgba(255, 255, 255, 0.74);
+      border: 1px solid rgba(0, 0, 0, 0.12);
+      border-radius: 8px;
+      padding: 8px;
+      font-size: 12px;
+    }
+
+    .sum {
+      font-weight: 700;
+      border-left: 3px solid var(--accent);
+    }
+
+    .actions {
+      display: flex;
+      gap: 6px;
+    }
+
+    .btn {
+      flex: 1;
+      border: 0;
+      border-radius: 6px;
+      padding: 8px 6px;
+      font-size: 11px;
+      font-weight: 700;
+      cursor: default;
+    }
+
+    .btn-light {
+      background: #d9d9d9;
+      color: #282828;
+    }
+
+    .btn-accent {
+      background: var(--accent);
+      color: #fff;
+    }
+
+    .pick {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding: 12px 14px;
+      border-top: 1px solid rgba(0, 0, 0, 0.08);
+      background: #e6e6e6;
+      font-size: 14px;
+    }
+
+    .pick input { width: 16px; height: 16px; }
+
+    .sticky-vote {
+      position: sticky;
+      bottom: 12px;
+      margin-top: 20px;
+      background: rgba(31, 31, 31, 0.96);
+      color: #f3f3f3;
+      border-radius: 12px;
+      border: 1px solid rgba(255, 255, 255, 0.1);
+      padding: 12px 14px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 10px;
+    }
+
+    .sticky-vote button {
+      border: 0;
+      border-radius: 8px;
+      background: #e67a3d;
+      color: #fff;
+      font-weight: 700;
+      padding: 9px 14px;
+      cursor: pointer;
+    }
+
+    @media (max-width: 1100px) {
+      .grid { grid-template-columns: 1fr; }
+      .kasse { grid-template-columns: 1fr; }
+      .bon { border-left: 0; border-top: 4px solid var(--accent); }
+      .prod-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+    }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <section class="hero">
+      <h1>10 weitere Designvorschlaege</h1>
+      <p>Ruhige Farbkombinationen, gedimmte Grautoene und mehrere Muster-Varianten fuer die Kasse.</p>
+    </section>
+
+    <section class="grid">
+      <article class="card" style="--accent:#d97a3a;--accent-deep:#a9561f;--prod-bg:linear-gradient(135deg,#d8d8d8 0%,#c9c9c9 100%);--bon-bg:linear-gradient(135deg,#d2d2d2 0%,#c3c3c3 100%);">
+        <div class="card-head"><h2>6. Slate Orange</h2><p>Gedimmtes Grau + warmes Orange</p></div>
+        <div class="kasse"><div class="products"><div class="block-title">Produkte</div><div class="prod-grid"><div class="prod">Bier<br><b>2,50 EUR</b></div><div class="prod">Limo<br><b>2,00 EUR</b></div><div class="prod">Wasser<br><b>1,50 EUR</b></div><div class="prod">Cola<br><b>2,20 EUR</b></div><div class="prod">Saft<br><b>2,40 EUR</b></div></div></div><div class="bon"><div class="bon-stack"><div class="pill">Beleg: 3128</div><div class="row">2x Bier - 5,00 EUR</div><div class="row">1x Wasser - 1,50 EUR</div><div class="sum">Gesamt 6,50 EUR</div><div class="actions"><button class="btn btn-light">Mitglied</button><button class="btn btn-accent">BAR</button></div></div></div></div>
+        <label class="pick"><input type="radio" name="pick" value="6" />Dieses Design waehlen</label>
+      </article>
+
+      <article class="card" style="--accent:#bf7f56;--accent-deep:#8e5836;--prod-bg:linear-gradient(135deg,#d4cfc8 0%,#c9c3bb 100%);--bon-bg:linear-gradient(135deg,#cbc5bd 0%,#beb7ae 100%);">
+        <div class="card-head"><h2>7. Warm Stone</h2><p>Steinfarben mit ruhigem Braun-Orange</p></div>
+        <div class="kasse"><div class="products"><div class="block-title">Produkte</div><div class="prod-grid"><div class="prod">Bier<br><b>2,50 EUR</b></div><div class="prod">Limo<br><b>2,00 EUR</b></div><div class="prod">Wasser<br><b>1,50 EUR</b></div><div class="prod">Cola<br><b>2,20 EUR</b></div><div class="prod">Saft<br><b>2,40 EUR</b></div></div></div><div class="bon"><div class="bon-stack"><div class="pill">Beleg: 3128</div><div class="row">2x Bier - 5,00 EUR</div><div class="row">1x Wasser - 1,50 EUR</div><div class="sum">Gesamt 6,50 EUR</div><div class="actions"><button class="btn btn-light">Mitglied</button><button class="btn btn-accent">BAR</button></div></div></div></div>
+        <label class="pick"><input type="radio" name="pick" value="7" />Dieses Design waehlen</label>
+      </article>
+
+      <article class="card" style="--accent:#c56c45;--accent-deep:#954a2c;--prod-bg:linear-gradient(135deg,#d3d3d3 0%,#c4c4c4 100%);--bon-bg:linear-gradient(135deg,#cecece 0%,#bfbfbf 100%);">
+        <div class="card-head"><h2>8. Dot Steel</h2><p>Kuehle Grautoene mit Punktmuster</p></div>
+        <div class="kasse"><div class="products pattern-dots"><div class="block-title">Produkte</div><div class="prod-grid"><div class="prod">Bier<br><b>2,50 EUR</b></div><div class="prod">Limo<br><b>2,00 EUR</b></div><div class="prod">Wasser<br><b>1,50 EUR</b></div><div class="prod">Cola<br><b>2,20 EUR</b></div><div class="prod">Saft<br><b>2,40 EUR</b></div></div></div><div class="bon"><div class="bon-stack"><div class="pill">Beleg: 3128</div><div class="row">2x Bier - 5,00 EUR</div><div class="row">1x Wasser - 1,50 EUR</div><div class="sum">Gesamt 6,50 EUR</div><div class="actions"><button class="btn btn-light">Mitglied</button><button class="btn btn-accent">BAR</button></div></div></div></div>
+        <label class="pick"><input type="radio" name="pick" value="8" />Dieses Design waehlen</label>
+      </article>
+
+      <article class="card" style="--accent:#b76339;--accent-deep:#894729;--prod-bg:linear-gradient(135deg,#d5d0cc 0%,#c9c3be 100%);--bon-bg:linear-gradient(135deg,#cfc8c1 0%,#c1b9b1 100%);">
+        <div class="card-head"><h2>9. Soft Grid</h2><p>Muster mit feinem Raster, sehr ruhig</p></div>
+        <div class="kasse"><div class="products pattern-grid"><div class="block-title">Produkte</div><div class="prod-grid"><div class="prod">Bier<br><b>2,50 EUR</b></div><div class="prod">Limo<br><b>2,00 EUR</b></div><div class="prod">Wasser<br><b>1,50 EUR</b></div><div class="prod">Cola<br><b>2,20 EUR</b></div><div class="prod">Saft<br><b>2,40 EUR</b></div></div></div><div class="bon"><div class="bon-stack"><div class="pill">Beleg: 3128</div><div class="row">2x Bier - 5,00 EUR</div><div class="row">1x Wasser - 1,50 EUR</div><div class="sum">Gesamt 6,50 EUR</div><div class="actions"><button class="btn btn-light">Mitglied</button><button class="btn btn-accent">BAR</button></div></div></div></div>
+        <label class="pick"><input type="radio" name="pick" value="9" />Dieses Design waehlen</label>
+      </article>
+
+      <article class="card" style="--accent:#d4864b;--accent-deep:#995722;--prod-bg:linear-gradient(135deg,#d6d4cf 0%,#c8c5be 100%);--bon-bg:linear-gradient(135deg,#cecac2 0%,#c0bbb2 100%);">
+        <div class="card-head"><h2>10. Quiet Sand</h2><p>Sandige Neutrals, freundlich aber gedimmt</p></div>
+        <div class="kasse"><div class="products"><div class="block-title">Produkte</div><div class="prod-grid"><div class="prod">Bier<br><b>2,50 EUR</b></div><div class="prod">Limo<br><b>2,00 EUR</b></div><div class="prod">Wasser<br><b>1,50 EUR</b></div><div class="prod">Cola<br><b>2,20 EUR</b></div><div class="prod">Saft<br><b>2,40 EUR</b></div></div></div><div class="bon"><div class="bon-stack"><div class="pill">Beleg: 3128</div><div class="row">2x Bier - 5,00 EUR</div><div class="row">1x Wasser - 1,50 EUR</div><div class="sum">Gesamt 6,50 EUR</div><div class="actions"><button class="btn btn-light">Mitglied</button><button class="btn btn-accent">BAR</button></div></div></div></div>
+        <label class="pick"><input type="radio" name="pick" value="10" />Dieses Design waehlen</label>
+      </article>
+
+      <article class="card" style="--accent:#b96f3f;--accent-deep:#834a25;--prod-bg:linear-gradient(135deg,#cccfd2 0%,#bdc1c5 100%);--bon-bg:linear-gradient(135deg,#c5c9cc 0%,#b5babf 100%);">
+        <div class="card-head"><h2>11. Blue Ash</h2><p>Graublau fuer kuehlere, entspannte Optik</p></div>
+        <div class="kasse"><div class="products"><div class="block-title">Produkte</div><div class="prod-grid"><div class="prod">Bier<br><b>2,50 EUR</b></div><div class="prod">Limo<br><b>2,00 EUR</b></div><div class="prod">Wasser<br><b>1,50 EUR</b></div><div class="prod">Cola<br><b>2,20 EUR</b></div><div class="prod">Saft<br><b>2,40 EUR</b></div></div></div><div class="bon"><div class="bon-stack"><div class="pill">Beleg: 3128</div><div class="row">2x Bier - 5,00 EUR</div><div class="row">1x Wasser - 1,50 EUR</div><div class="sum">Gesamt 6,50 EUR</div><div class="actions"><button class="btn btn-light">Mitglied</button><button class="btn btn-accent">BAR</button></div></div></div></div>
+        <label class="pick"><input type="radio" name="pick" value="11" />Dieses Design waehlen</label>
+      </article>
+
+      <article class="card" style="--accent:#c06f49;--accent-deep:#8f4526;--prod-bg:linear-gradient(135deg,#d4d2cf 0%,#c7c4c0 100%);--bon-bg:linear-gradient(135deg,#cdcbc8 0%,#bfbbb6 100%);">
+        <div class="card-head"><h2>12. Fine Lines</h2><p>Leichtes Linienmuster fuer Tiefe</p></div>
+        <div class="kasse"><div class="products pattern-lines"><div class="block-title">Produkte</div><div class="prod-grid"><div class="prod">Bier<br><b>2,50 EUR</b></div><div class="prod">Limo<br><b>2,00 EUR</b></div><div class="prod">Wasser<br><b>1,50 EUR</b></div><div class="prod">Cola<br><b>2,20 EUR</b></div><div class="prod">Saft<br><b>2,40 EUR</b></div></div></div><div class="bon"><div class="bon-stack"><div class="pill">Beleg: 3128</div><div class="row">2x Bier - 5,00 EUR</div><div class="row">1x Wasser - 1,50 EUR</div><div class="sum">Gesamt 6,50 EUR</div><div class="actions"><button class="btn btn-light">Mitglied</button><button class="btn btn-accent">BAR</button></div></div></div></div>
+        <label class="pick"><input type="radio" name="pick" value="12" />Dieses Design waehlen</label>
+      </article>
+
+      <article class="card" style="--accent:#cd7a3f;--accent-deep:#935525;--prod-bg:linear-gradient(135deg,#d8d1c8 0%,#cbc3b9 100%);--bon-bg:linear-gradient(135deg,#d0c7bd 0%,#c1b8ad 100%);">
+        <div class="card-head"><h2>13. Clay Neutral</h2><p>Warmer Lehmton, sehr angenehm am Abend</p></div>
+        <div class="kasse"><div class="products"><div class="block-title">Produkte</div><div class="prod-grid"><div class="prod">Bier<br><b>2,50 EUR</b></div><div class="prod">Limo<br><b>2,00 EUR</b></div><div class="prod">Wasser<br><b>1,50 EUR</b></div><div class="prod">Cola<br><b>2,20 EUR</b></div><div class="prod">Saft<br><b>2,40 EUR</b></div></div></div><div class="bon"><div class="bon-stack"><div class="pill">Beleg: 3128</div><div class="row">2x Bier - 5,00 EUR</div><div class="row">1x Wasser - 1,50 EUR</div><div class="sum">Gesamt 6,50 EUR</div><div class="actions"><button class="btn btn-light">Mitglied</button><button class="btn btn-accent">BAR</button></div></div></div></div>
+        <label class="pick"><input type="radio" name="pick" value="13" />Dieses Design waehlen</label>
+      </article>
+
+      <article class="card" style="--accent:#b36841;--accent-deep:#804826;--prod-bg:linear-gradient(135deg,#cdcdcd 0%,#c0c0c0 100%);--bon-bg:linear-gradient(135deg,#c8c8c8 0%,#bbbbbb 100%);">
+        <div class="card-head"><h2>14. Noise Matte</h2><p>Matte Grauflaeche mit feinem Noise-Muster</p></div>
+        <div class="kasse"><div class="products pattern-noise"><div class="block-title">Produkte</div><div class="prod-grid"><div class="prod">Bier<br><b>2,50 EUR</b></div><div class="prod">Limo<br><b>2,00 EUR</b></div><div class="prod">Wasser<br><b>1,50 EUR</b></div><div class="prod">Cola<br><b>2,20 EUR</b></div><div class="prod">Saft<br><b>2,40 EUR</b></div></div></div><div class="bon"><div class="bon-stack"><div class="pill">Beleg: 3128</div><div class="row">2x Bier - 5,00 EUR</div><div class="row">1x Wasser - 1,50 EUR</div><div class="sum">Gesamt 6,50 EUR</div><div class="actions"><button class="btn btn-light">Mitglied</button><button class="btn btn-accent">BAR</button></div></div></div></div>
+        <label class="pick"><input type="radio" name="pick" value="14" />Dieses Design waehlen</label>
+      </article>
+
+      <article class="card" style="--accent:#c3774a;--accent-deep:#8a4d29;--prod-bg:linear-gradient(135deg,#d3d0cb 0%,#c5c1bb 100%);--bon-bg:linear-gradient(135deg,#cdcac4 0%,#beb9b1 100%);">
+        <div class="card-head"><h2>15. Charcoal Sand</h2><p>Etwas kontrastreicher, aber weiterhin weich</p></div>
+        <div class="kasse"><div class="products"><div class="block-title">Produkte</div><div class="prod-grid"><div class="prod">Bier<br><b>2,50 EUR</b></div><div class="prod">Limo<br><b>2,00 EUR</b></div><div class="prod">Wasser<br><b>1,50 EUR</b></div><div class="prod">Cola<br><b>2,20 EUR</b></div><div class="prod">Saft<br><b>2,40 EUR</b></div></div></div><div class="bon"><div class="bon-stack"><div class="pill">Beleg: 3128</div><div class="row">2x Bier - 5,00 EUR</div><div class="row">1x Wasser - 1,50 EUR</div><div class="sum">Gesamt 6,50 EUR</div><div class="actions"><button class="btn btn-light">Mitglied</button><button class="btn btn-accent">BAR</button></div></div></div></div>
+        <label class="pick"><input type="radio" name="pick" value="15" />Dieses Design waehlen</label>
+      </article>
+    </section>
+
+    <div class="sticky-vote">
+      <div id="vote-text">Kein Design ausgewaehlt.</div>
+      <button onclick="saveChoice()">Auswahl notieren</button>
+    </div>
+  </div>
+
+  <script>
+    const radios = document.querySelectorAll('input[name="pick"]');
+    const voteText = document.getElementById('vote-text');
+
+    radios.forEach((r) => {
+      r.addEventListener('change', () => {
+        voteText.textContent = 'Ausgewaehlt: Design ' + r.value;
+      });
+    });
+
+    function saveChoice() {
+      const selected = document.querySelector('input[name="pick"]:checked');
+      if (!selected) {
+        alert('Bitte zuerst ein Design auswaehlen.');
+        return;
+      }
+      alert('Auswahl gespeichert: Design ' + selected.value + '. Sag mir einfach die Nummer, dann setze ich es live um.');
+    }
+  </script>
+</body>
+</html>

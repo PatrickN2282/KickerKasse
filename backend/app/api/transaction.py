@@ -22,13 +22,13 @@ class CashCountRequest(BaseModel):
 class ZBonGenerateRequest(BaseModel):
     date: Optional[str] = None  # YYYY-MM-DD, defaults to today
     cash_count: Optional[CashCountRequest] = None
-    report_type: str = "zbon"  # "zbon" or "daily-report"
+    report_type: str = "full-zbon"  # "full-zbon", "short-zbon", or "daily-report"
 
 
 class ZBonEmailRequest(BaseModel):
     date: Optional[str] = None  # YYYY-MM-DD, defaults to today
     recipient: Optional[str] = None  # defaults to EMAIL_RECIPIENT_ZBON
-    report_type: str = "zbon"
+    report_type: str = "full-zbon"  # "full-zbon", "short-zbon", or "daily-report"
     include_cash_count: bool = False
 
 
@@ -495,3 +495,205 @@ async def get_scheduler_status(
     
     status = SchedulerService.get_scheduler_status()
     return status
+
+
+# ============================================================
+# CASH MANAGEMENT ENDPOINTS
+# ============================================================
+
+class CashWithdrawalRequest(BaseModel):
+    amount_cents: int  # Amount in cents
+    reason: str  # Reason for withdrawal (e.g., "Abschöpfung Benny u.Carsten")
+
+
+class CashDepositRequest(BaseModel):
+    amount_cents: int  # Amount in cents
+    reason: str  # Reason for deposit
+
+
+@router.post("/cash/withdrawal")
+@router.post("/cash/withdrawal/")
+async def record_cash_withdrawal(
+    withdrawal_req: CashWithdrawalRequest,
+    request: Request,
+    db: Session = Depends(get_db),
+):
+    """Record a cash withdrawal (Entnahme)"""
+    user_id = request.session.get("user_id")
+    if not user_id:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Not authenticated",
+        )
+    
+    try:
+        from app.repositories import CashEntryRepository
+        from app.models import CashEntryType
+        
+        cash_repo = CashEntryRepository(db)
+        entry = cash_repo.create(
+            entry_type=CashEntryType.WITHDRAWAL,
+            amount_cents=withdrawal_req.amount_cents,
+            reason=withdrawal_req.reason,
+            user_id=user_id,
+        )
+        
+        return {
+            "id": entry.id,
+            "type": "WITHDRAWAL",
+            "amount_cents": entry.amount_cents,
+            "amount_eur": entry.amount_cents / 100,
+            "reason": entry.reason,
+            "created_at": entry.created_at.isoformat(),
+        }
+    except Exception as e:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Error recording cash withdrawal: {str(e)}",
+        )
+
+
+@router.post("/cash/deposit")
+@router.post("/cash/deposit/")
+async def record_cash_deposit(
+    deposit_req: CashDepositRequest,
+    request: Request,
+    db: Session = Depends(get_db),
+):
+    """Record a cash deposit (Einlage)"""
+    user_id = request.session.get("user_id")
+    if not user_id:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Not authenticated",
+        )
+    
+    try:
+        from app.repositories import CashEntryRepository
+        from app.models import CashEntryType
+        
+        cash_repo = CashEntryRepository(db)
+        entry = cash_repo.create(
+            entry_type=CashEntryType.DEPOSIT,
+            amount_cents=deposit_req.amount_cents,
+            reason=deposit_req.reason,
+            user_id=user_id,
+        )
+        
+        return {
+            "id": entry.id,
+            "type": "DEPOSIT",
+            "amount_cents": entry.amount_cents,
+            "amount_eur": entry.amount_cents / 100,
+            "reason": entry.reason,
+            "created_at": entry.created_at.isoformat(),
+        }
+    except Exception as e:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Error recording cash deposit: {str(e)}",
+        )
+
+
+@router.get("/cash/entries")
+@router.get("/cash/entries/")
+async def get_cash_entries(
+    target_date: Optional[str] = None,
+    request: Request = None,
+    db: Session = Depends(get_db),
+):
+    """Get cash entries (withdrawals and deposits) for a date"""
+    user_id = request.session.get("user_id")
+    if not user_id:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Not authenticated",
+        )
+    
+    try:
+        from app.repositories import CashEntryRepository
+        
+        target = None
+        if target_date:
+            target = datetime.strptime(target_date, "%Y-%m-%d").date()
+        else:
+            target = date.today()
+        
+        cash_repo = CashEntryRepository(db)
+        entries = cash_repo.get_by_date(target)
+        
+        return {
+            "date": target.isoformat(),
+            "entries": [
+                {
+                    "id": entry.id,
+                    "type": entry.entry_type.value,
+                    "amount_cents": entry.amount_cents,
+                    "amount_eur": entry.amount_cents / 100,
+                    "reason": entry.reason,
+                    "user_id": entry.user_id,
+                    "created_at": entry.created_at.isoformat(),
+                }
+                for entry in entries
+            ],
+            "total_withdrawals_eur": cash_repo.get_total_withdrawals(target) / 100,
+            "total_deposits_eur": cash_repo.get_total_deposits(target) / 100,
+        }
+    except Exception as e:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Error fetching cash entries: {str(e)}",
+        )
+
+
+@router.get("/cash/balance")
+@router.get("/cash/balance/")
+async def get_cash_balance(
+    target_date: Optional[str] = None,
+    request: Request = None,
+    db: Session = Depends(get_db),
+):
+    """Get cash balance snapshot for a date"""
+    user_id = request.session.get("user_id")
+    if not user_id:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Not authenticated",
+        )
+    
+    try:
+        from app.repositories import CashBalanceRepository
+        
+        target = None
+        if target_date:
+            target = datetime.strptime(target_date, "%Y-%m-%d").date()
+        else:
+            target = date.today()
+        
+        balance_repo = CashBalanceRepository(db)
+        balance = balance_repo.get_by_date(target)
+        
+        if not balance:
+            return {
+                "date": target.isoformat(),
+                "status": "not_found",
+                "message": "No cash balance recorded for this date",
+            }
+        
+        return {
+            "id": balance.id,
+            "date": balance.balance_date.strftime("%d.%m.%Y"),
+            "opening_balance_eur": balance.opening_balance_cents / 100,
+            "closing_balance_eur": balance.closing_balance_cents / 100 if balance.closing_balance_cents else None,
+            "cash_sales_eur": balance.cash_sales_cents / 100,
+            "balance_recharges_eur": balance.balance_recharges_cents / 100,
+            "cash_withdrawals_eur": balance.cash_withdrawals_cents / 100,
+            "cash_deposits_eur": balance.cash_deposits_cents / 100,
+            "created_at": balance.created_at.isoformat(),
+            "updated_at": balance.updated_at.isoformat(),
+        }
+    except Exception as e:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Error fetching cash balance: {str(e)}",
+        )

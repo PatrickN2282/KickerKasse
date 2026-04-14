@@ -1,4 +1,4 @@
-from sqlalchemy import Column, String, Integer, DateTime, Boolean
+from sqlalchemy import Column, String, Integer, DateTime, Boolean, Float
 from sqlalchemy.sql import func
 from sqlalchemy.orm import relationship
 from .base import BaseModel
@@ -15,6 +15,7 @@ class Product(BaseModel):
     stock_quantity = Column(Integer, default=0, nullable=False)  # Lagerbestand
     image_path = Column(String(255), nullable=True)  # Pfad zum Produktbild
     is_active = Column(Boolean, default=True, nullable=False)
+    tax_rate = Column(Float, default=0.0, nullable=False)  # Steuersatz in % (z.B. 19.0, 7.0, 0.0)
     created_at = Column(DateTime, default=func.now(), nullable=False)
     updated_at = Column(DateTime, default=func.now(), onupdate=func.now(), nullable=False)
 
