@@ -136,3 +136,78 @@ Diese E-Mail wurde automatisch generiert.
             html_body=html_body,
             attachments=attachments,
         )
+    
+    @staticmethod
+    def send_zbon_html_email(
+        recipient: str,
+        html_zbon: str,
+        date: str,
+        seq_number: int = None,
+        include_pdf: bytes = None,
+        use_email_template: bool = True,
+    ) -> bool:
+        """
+        Send Z-Bon via email with professional HTML formatting
+        
+        Args:
+            recipient: Email address
+            html_zbon: Z-Bon HTML content
+            date: Date of Z-Bon (YYYY-MM-DD)
+            seq_number: Z-Bon sequence number (optional)
+            include_pdf: Optional PDF bytes for attachment
+            use_email_template: If True, optimize HTML for email clients
+        
+        Returns:
+            True if successful, False otherwise
+        """
+        subject = f"Z-Bon {seq_number or date} - {date}" if seq_number else f"Z-Bon für {date}"
+        
+        # Create responsive wrapper HTML with email-safe styles
+        body = f"Z-Bon für {date}"
+        
+        # Use the provided HTML directly (already rendered from template)
+        html_body = f"""
+<html>
+  <head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <style>
+      body {{ font-family: Arial, sans-serif; line-height: 1.6; color: #333; }}
+      .container {{ max-width: 900px; margin: 20px auto; padding: 20px; }}
+      .greeting {{ margin-bottom: 20px; }}
+      .zbon-container {{ border: 1px solid #ddd; border-radius: 4px; padding: 20px; background: #fff; }}
+      .footer {{ margin-top: 20px; padding-top: 20px; border-top: 1px solid #eee; font-size: 0.9em; color: #666; }}
+    </style>
+  </head>
+  <body>
+    <div class="container">
+      <div class="greeting">
+        <p>Anbei erhalten Sie den Z-Bon für <strong>{date}</strong>.</p>
+      </div>
+      
+      <div class="zbon-container">
+        {html_zbon}
+      </div>
+      
+      <div class="footer">
+        <p>Diese E-Mail wurde automatisch generiert. Bitte speichern Sie diesen Z-Bon für Ihre Unterlagen.</p>
+      </div>
+    </div>
+  </body>
+</html>
+"""
+        
+        attachments = []
+        
+        # Add PDF if provided
+        if include_pdf:
+            filename = f"Z-Bon_{seq_number}_{date}.pdf" if seq_number else f"Z-Bon_{date}.pdf"
+            attachments.append((filename, include_pdf, "application/pdf"))
+        
+        return EmailService.send_email(
+            recipient,
+            subject,
+            body,
+            html_body=html_body,
+            attachments=attachments,
+        )

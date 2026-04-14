@@ -25,6 +25,12 @@ class ZBonHTMLExporter:
         return ZBON_HTML_TEMPLATE
     
     @staticmethod
+    def get_email_template():
+        """Get the Z-Bon email-optimized HTML template"""
+        from app.templates.zbon_email_template import ZBON_EMAIL_HTML_TEMPLATE
+        return ZBON_EMAIL_HTML_TEMPLATE
+    
+    @staticmethod
     def render_html(
         seq_number: int,
         business_date: str,
@@ -127,6 +133,60 @@ class ZBonHTMLExporter:
             cash_counted=f"{cash_counted:.2f}",
             cash_calculated=f"{cash_calculated:.2f}",
             cash_difference=f"{cash_difference:.2f}",
+        )
+        
+        return html_content
+    
+    @staticmethod
+    def render_email_html(
+        seq_number: int,
+        business_date: str,
+        created_at: str,
+        period_start: str,
+        period_end: str,
+        receipt_min: int,
+        receipt_max: int,
+        cash_sales_count: int,
+        cash_sales_gross: float,
+        balance_sales_count: int,
+        balance_sales_gross: float,
+        recharge_count: int,
+        recharge_total: float,
+        total_items_count: int,
+        total_gross: float,
+        guthaben_gross: float,
+        categories_breakdown: dict = None,
+        **kwargs
+    ) -> str:
+        """
+        Render Z-Bon as email-optimized HTML
+        
+        Uses table-based layout for maximum email client compatibility
+        
+        Returns:
+            Email-safe HTML string
+        """
+        template_str = ZBonHTMLExporter.get_email_template()
+        template = Template(template_str)
+        
+        html_content = template.render(
+            seq_number=seq_number,
+            business_date=business_date,
+            created_at=created_at,
+            period_start=period_start,
+            period_end=period_end,
+            receipt_min=receipt_min,
+            receipt_max=receipt_max,
+            cash_sales_count=cash_sales_count,
+            cash_sales_gross=f"{cash_sales_gross:.2f}",
+            balance_sales_count=balance_sales_count,
+            balance_sales_gross=f"{balance_sales_gross:.2f}",
+            recharge_count=recharge_count,
+            recharge_total=f"{recharge_total:.2f}",
+            total_items_count=total_items_count,
+            total_gross=f"{total_gross:.2f}",
+            guthaben_gross=f"{guthaben_gross:.2f}",
+            categories_breakdown=categories_breakdown or {},
         )
         
         return html_content

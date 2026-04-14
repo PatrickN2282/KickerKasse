@@ -678,6 +678,139 @@ async def get_zbon_pdf(
         )
 
 
+@router.post("/zbon/email")
+async def send_zbon_email(
+    recipient: str,
+    report_date: Optional[str] = None,
+    include_pdf: bool = False,
+    request: Request = None,
+    db: Session = Depends(get_db),
+):
+    """
+    Send Z-Bon via email with professional HTML formatting
+    
+    Args:
+        recipient: Email address to send to
+        report_date: Optional date (YYYY-MM-DD), defaults to today
+        include_pdf: Optional - attach PDF if WeasyPrint available
+        request: HTTP request (for auth)
+        db: Database session
+    
+    Returns:
+        JSON response with status
+    """
+    user_id = request.session.get("user_id")
+    if not user_id:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Not authenticated",
+        )
+    
+    try:
+        target_date = None
+        if report_date:
+            target_date = datetime.strptime(report_date, "%Y-%m-%d").date()
+        else:
+            target_date = date.today()
+        
+        # Generate Z-Bon data
+        zbon_service = ZBonService(db)
+        transactions = db.query(Transaction).filter(
+            func.date(Transaction.created_at) == target_date
+        ).all()
+        
+        stats = zbon_service._calculate_stats(transactions)
+        meta = zbon_service._collect_meta(target_date, transactions)
+        product_breakdown = zbon_service._aggregate_by_product(transactions)
+        category_breakdown = zbon_service._aggregate_by_category(transactions)
+        customer_breakdown = zbon_service._aggregate_by_customer(transactions)
+        customer_group_breakdown = zbon_service._aggregate_by_customer_group(transactions)
+        storno_details = zbon_service._get_storno_details(transactions)
+        
+        # Get last Z-Bon number
+        last_zbon = db.query(ZBonHistory).filter(
+            ZBonHistory.business_date < target_date
+        ).order_by(desc(ZBonHistory.sequence_number)).first()
+        seq_number = (last_zbon.sequence_number + 1) if last_zbon else 1
+        
+        # Render HTML
+        html = ZBonHTMLExporter.render_html(
+            seq_number=seq_number,
+            business_date=meta['business_date'],
+            created_at=meta['report_generated_at'],
+            period_start=meta['first_tx_time'],
+            period_end=meta['last_tx_time'],
+            receipt_min=meta['receipt_min'],
+            receipt_max=meta['receipt_max'],
+            cash_sales_count=stats['cash_sales_count'],
+            cash_sales_net=stats['cash_sales_total'],
+            cash_sales_tax=0.0,
+            cash_sales_gross=stats['cash_sales_total'],
+            balance_sales_count=stats['balance_sales_count'],
+            balance_sales_net=stats['balance_sales_total'],
+            balance_sales_tax=0.0,
+            balance_sales_gross=stats['balance_sales_total'],
+            recharge_count=stats['recharge_count'],
+            recharge_total=stats['recharge_total'],
+            total_items_count=stats['cash_sales_count'] + stats['balance_sales_count'],
+            total_net=stats['cash_sales_total'] + stats['balance_sales_total'],
+            total_tax=0.0,
+            total_gross=stats['cash_sales_total'] + stats['balance_sales_total'] + stats['recharge_total'],
+            cash_revenue=stats['cash_sales_total'] + stats['recharge_total'],
+            guthaben_net=stats['balance_sales_total'],
+            guthaben_gross=stats['balance_sales_total'],
+            total_revenue=stats['gross_revenue_cash'] + stats['gross_revenue_balance'],
+            categories_breakdown=category_breakdown,
+            customer_groups=customer_group_breakdown,
+            customers=customer_breakdown,
+            stornos=storno_details,
+        )
+        
+        # Optional: Generate PDF if requested
+        pdf_bytes = None
+        if include_pdf:
+            try:
+                pdf_file = ZBonHTMLExporter.export_pdf(html)
+                pdf_bytes = pdf_file.getvalue()
+            except RuntimeError:
+                # PDF export not available, send without it
+                logger.info("PDF export not available, sending HTML only")
+        
+        # Send email with HTML Z-Bon
+        email_service = EmailService()
+        success = email_service.send_zbon_html_email(
+            recipient=recipient,
+            html_zbon=html,
+            date=target_date.strftime("%Y-%m-%d"),
+            seq_number=seq_number,
+            include_pdf=pdf_bytes,
+        )
+        
+        if success:
+            return {
+                "status": "success",
+                "message": f"Z-Bon sent to {recipient}",
+                "date": target_date.strftime("%Y-%m-%d"),
+                "seq_number": seq_number,
+                "pdf_attached": include_pdf and pdf_bytes is not None,
+            }
+        else:
+            raise HTTPException(
+                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                detail="Failed to send email",
+            )
+        
+    except ValueError as ve:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"Invalid date format: {str(ve)}",
+        )
+    except Exception as e:
+        logger.error(f"Error sending Z-Bon email: {str(e)}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Error sending Z-Bon email: {str(e)}",
+        )
 @router.get("/scheduler/status")
 @router.get("/scheduler/status/")
 async def get_scheduler_status(
