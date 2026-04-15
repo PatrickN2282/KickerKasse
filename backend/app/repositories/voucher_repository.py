@@ -1,0 +1,142 @@
+"""Repository for Voucher operations"""
+from sqlalchemy.orm import Session
+from sqlalchemy import desc, func
+from datetime import datetime, date
+from app.models import Voucher, VoucherType, VoucherStatus
+import logging
+
+logger = logging.getLogger(__name__)
+
+
+class VoucherRepository:
+    """Handle Voucher database operations"""
+
+    def __init__(self, db: Session):
+        self.db = db
+
+    def create(
+        self,
+        voucher_type: VoucherType,
+        value_cents: int,
+        created_by_user_id: int,
+        reason: str = None,
+        description: str = None,
+    ) -> Voucher:
+        """Create a new voucher and generate next number"""
+        # Get next sequence number
+        last_voucher = self.db.query(Voucher).order_by(desc(Voucher.voucher_number)).first()
+        next_number = (last_voucher.voucher_number + 1) if last_voucher else 1
+
+        voucher = Voucher(
+            voucher_number=next_number,
+            voucher_type=voucher_type,
+            value_cents=value_cents,
+            created_by_user_id=created_by_user_id,
+            reason=reason,
+            description=description,
+            status=VoucherStatus.CREATED,
+        )
+        self.db.add(voucher)
+        self.db.commit()
+        self.db.refresh(voucher)
+        
+        logger.info(f"Created {voucher_type} voucher #{next_number} for {value_cents/100:.2f}€")
+        return voucher
+
+    def get_by_id(self, voucher_id: int) -> Voucher:
+        """Get voucher by ID"""
+        return self.db.query(Voucher).filter(Voucher.id == voucher_id).first()
+
+    def get_by_number(self, voucher_number: int) -> Voucher:
+        """Get voucher by number"""
+        return self.db.query(Voucher).filter(Voucher.voucher_number == voucher_number).first()
+
+    def get_all_by_status(self, status: VoucherStatus, limit: int = 100, offset: int = 0) -> list:
+        """Get all vouchers by status"""
+        return (
+            self.db.query(Voucher)
+            .filter(Voucher.status == status)
+            .order_by(desc(Voucher.voucher_number))
+            .limit(limit)
+            .offset(offset)
+            .all()
+        )
+
+    def get_all_by_type(self, voucher_type: VoucherType, limit: int = 100, offset: int = 0) -> list:
+        """Get all vouchers by type"""
+        return (
+            self.db.query(Voucher)
+            .filter(Voucher.voucher_type == voucher_type)
+            .order_by(desc(Voucher.voucher_number))
+            .limit(limit)
+            .offset(offset)
+            .all()
+        )
+
+    def get_all_by_type_and_status(
+        self, voucher_type: VoucherType, status: VoucherStatus, limit: int = 100, offset: int = 0
+    ) -> list:
+        """Get vouchers by type and status"""
+        return (
+            self.db.query(Voucher)
+            .filter(Voucher.voucher_type == voucher_type, Voucher.status == status)
+            .order_by(desc(Voucher.voucher_number))
+            .limit(limit)
+            .offset(offset)
+            .all()
+        )
+
+    def get_all_by_date_range(self, start_date: date, end_date: date, limit: int = 100, offset: int = 0) -> list:
+        """Get vouchers by date range"""
+        return (
+            self.db.query(Voucher)
+            .filter(
+                Voucher.created_at >= datetime.combine(start_date, datetime.min.time()),
+                Voucher.created_at <= datetime.combine(end_date, datetime.max.time()),
+            )
+            .order_by(desc(Voucher.created_at))
+            .limit(limit)
+            .offset(offset)
+            .all()
+        )
+
+    def redeem(self, voucher_id: int, redeemed_by_user_id: int, transaction_id: int) -> Voucher:
+        """Mark voucher as redeemed"""
+        voucher = self.get_by_id(voucher_id)
+        if not voucher:
+            raise ValueError(f"Voucher {voucher_id} not found")
+
+        if voucher.status == VoucherStatus.REDEEMED:
+            raise ValueError(f"Voucher {voucher.voucher_number} already redeemed")
+
+        voucher.status = VoucherStatus.REDEEMED
+        voucher.redeemed_by_user_id = redeemed_by_user_id
+        voucher.redeemed_at = datetime.now()
+        voucher.redeemed_in_transaction_id = transaction_id
+
+        self.db.commit()
+        self.db.refresh(voucher)
+        
+        logger.info(f"Redeemed voucher #{voucher.voucher_number} in transaction {transaction_id}")
+        return voucher
+
+    def count_by_status(self, status: VoucherStatus) -> int:
+        """Count vouchers by status"""
+        return self.db.query(Voucher).filter(Voucher.status == status).count()
+
+    def count_by_type_and_status(self, voucher_type: VoucherType, status: VoucherStatus) -> int:
+        """Count vouchers by type and status"""
+        return self.db.query(Voucher).filter(
+            Voucher.voucher_type == voucher_type,
+            Voucher.status == status,
+        ).count()
+
+    def sum_redeemed_by_type_and_date(self, voucher_type: VoucherType, start_date: date, end_date: date) -> int:
+        """Sum value of redeemed vouchers by type and date (in cents)"""
+        result = self.db.query(func.sum(Voucher.value_cents)).filter(
+            Voucher.voucher_type == voucher_type,
+            Voucher.status == VoucherStatus.REDEEMED,
+            Voucher.redeemed_at >= datetime.combine(start_date, datetime.min.time()),
+            Voucher.redeemed_at <= datetime.combine(end_date, datetime.max.time()),
+        ).scalar()
+        return result or 0

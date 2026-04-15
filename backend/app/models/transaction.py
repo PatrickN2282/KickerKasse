@@ -6,14 +6,18 @@ from .base import BaseModel
 
 
 class TransactionType(str, enum.Enum):
-    SALE = "SALE"  # Verkauf
-    STORNO = "STORNO"  # Storno (Rückgängigmachung)
-    RECHARGE = "RECHARGE"  # Guthaben aufladen
+    SALE = "SALE"                      # Verkauf
+    STORNO = "STORNO"                  # Storno (Rückgängigmachung)
+    RECHARGE = "RECHARGE"              # Guthaben aufladen
+    VOUCHER_SALE = "VOUCHER_SALE"      # Voucher-Verkauf (Prepaid)
+    VOUCHER_REDEMPTION = "VOUCHER_REDEMPTION"  # Voucher-Einlösung
 
 
 class PaymentMethod(str, enum.Enum):
-    CASH = "CASH"  # Bar
-    BALANCE = "BALANCE"  # Guthaben (Mitglieder)
+    CASH = "CASH"                           # Bar
+    BALANCE = "BALANCE"                     # Guthaben (Mitglieder)
+    VOUCHER_GIFT = "VOUCHER_GIFT"           # Geschenk-Voucher (Einlösung)
+    VOUCHER_PREPAID = "VOUCHER_PREPAID"     # Prepaid-Voucher (Einlösung)
 
 
 class Transaction(BaseModel):
