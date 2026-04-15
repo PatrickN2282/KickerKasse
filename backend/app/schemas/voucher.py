@@ -1,4 +1,4 @@
-from pydantic import BaseModel, Field, field_validator, computed_field
+from pydantic import BaseModel, Field, field_validator, computed_field, ConfigDict
 from datetime import datetime
 from typing import Optional, Literal
 
@@ -40,7 +40,7 @@ class VoucherValidationResponse(BaseModel):
 class VoucherResponse(BaseModel):
     """Voucher response model"""
     id: int
-    voucher_code: str  # Format: V-2026-001
+    voucher_code: Optional[str] = None  # Can be None if DB column missing, frontend generates fallback
     voucher_type: str  # GIFT or PREPAID
     value_cents: int
     status: str  # CREATED or REDEEMED
@@ -50,8 +50,34 @@ class VoucherResponse(BaseModel):
     redeemed_by_user_id: Optional[int] = None
     redeemed_at: Optional[datetime] = None
 
-    class Config:
-        from_attributes = True
+    model_config = ConfigDict(from_attributes=True)
+    
+    @field_validator('voucher_type', 'status', 'reason', mode='before')
+    @classmethod
+    def convert_enums(cls, v):
+        """Convert enum values to their string representation"""
+        if v is None:
+            return None
+        if hasattr(v, 'value'):  # It's an Enum
+            return v.value
+        return str(v)
+    
+    @field_validator('voucher_code', mode='before')
+    @classmethod
+    def fallback_voucher_code(cls, v, info):
+        """Fallback: generate voucher_code from ID if not in DB"""
+        # If already set, use it
+        if v is not None:
+            return v
+        
+        # Fallback: generate from ID if available
+        if hasattr(info, 'data') and isinstance(info.data, dict):
+            id_val = info.data.get('id')
+            if id_val:
+                return f"V-2026-{str(id_val).zfill(3)}"
+        
+        # Return None, frontend will handle the fallback
+        return None
 
 
 class VoucherListResponse(BaseModel):

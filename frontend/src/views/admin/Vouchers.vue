@@ -275,17 +275,30 @@ const createGiftVoucher = async () => {
   createdGiftVoucher.value = null
 
   try {
+    console.log('[Vouchers] Creating GIFT voucher with:', {
+      value_cents: giftForm.value.valueCents,
+      reason: giftForm.value.reason,
+    })
     const response = await apiService.post('/admin/vouchers/gift/', {
       value_cents: giftForm.value.valueCents,
       reason: giftForm.value.reason,
     })
-    console.log('[Vouchers] Create GIFT response:', JSON.stringify(response, null, 2))
+    console.log('[Vouchers] Create GIFT response received:')
+    console.log('[Vouchers]   Full response:', JSON.stringify(response, null, 2))
+    console.log('[Vouchers]   response.id:', response?.id)
+    console.log('[Vouchers]   response.voucher_code:', response?.voucher_code)
+    console.log('[Vouchers]   response.voucher_type:', response?.voucher_type)
+    console.log('[Vouchers]   response.status:', response?.status)
+    
     createdGiftVoucher.value = response
     giftForm.value = { valueCents: 1000, reason: 'COURTESY', valueDisplay: '10.00' }
     // Always refresh list after creating a voucher
+    console.log('[Vouchers] Refreshing voucher list...')
     await loadVouchers()
   } catch (error) {
     console.error('[Vouchers] Error creating GIFT voucher:', error)
+    console.error('[Vouchers]   Status:', error?.response?.status)
+    console.error('[Vouchers]   Message:', error?.response?.data?.detail || error.message)
     createError.value = error.response?.data?.detail || error.message || 'Fehler beim Erstellen'
   } finally {
     creatingGift.value = false
@@ -329,21 +342,57 @@ const loadVouchers = async () => {
       params.status_filter = filters.value.status
     }
 
-    console.log('[Vouchers] Loading with params:', params)
+    console.log('[Vouchers] ======================================')
+    console.log('[Vouchers] Loading vouchers with params:', params)
     const response = await apiService.get('/admin/vouchers/', { params })
-    console.log('[Vouchers] API response:', response)
+    console.log('[Vouchers] Raw API response:', response)
+    console.log('[Vouchers] Response type:', typeof response)
+    console.log('[Vouchers] Response keys:', Object.keys(response || {}))
     
-    vouchers.value = response.vouchers || response.data || []
-    totalVouchers.value = response.total || 0
-    console.log('[Vouchers] Loaded', vouchers.value.length, 'vouchers, total:', totalVouchers.value)
+    // Try multiple possible response structures
+    let loadedVouchers = []
+    let loadedTotal = 0
     
-    // Log details of first voucher for debugging
-    if (vouchers.value.length > 0) {
-      console.log('[Vouchers] First voucher:', JSON.stringify(vouchers.value[0], null, 2))
+    if (response && response.vouchers && Array.isArray(response.vouchers)) {
+      loadedVouchers = response.vouchers
+      loadedTotal = response.total || 0
+      console.log('[Vouchers] ✓ Found response.vouchers (array)', loadedVouchers.length)
+    } else if (response && response.data && Array.isArray(response.data)) {
+      loadedVouchers = response.data
+      loadedTotal = response.total || response.data.length || 0
+      console.log('[Vouchers] ✓ Found response.data (array)', loadedVouchers.length)
+    } else if (Array.isArray(response)) {
+      loadedVouchers = response
+      loadedTotal = response.length
+      console.log('[Vouchers] ✓ Response is array directly', loadedVouchers.length)
+    } else {
+      console.warn('[Vouchers] ⚠️  Could not find vouchers in response')
+      console.log('[Vouchers] Full response object:', JSON.stringify(response, null, 2))
     }
+    
+    vouchers.value = loadedVouchers
+    totalVouchers.value = loadedTotal
+    console.log('[Vouchers] Updated state: vouchers.length =', vouchers.value.length, 'total =', totalVouchers.value)
+    
+    // Log first voucher with all details
+    if (loadedVouchers.length > 0) {
+      console.log('[Vouchers] First voucher (full object):')
+      console.log('[Vouchers]   id:', loadedVouchers[0].id)
+      console.log('[Vouchers]   voucher_code:', loadedVouchers[0].voucher_code)
+      console.log('[Vouchers]   voucher_type:', loadedVouchers[0].voucher_type)
+      console.log('[Vouchers]   value_cents:', loadedVouchers[0].value_cents)
+      console.log('[Vouchers]   status:', loadedVouchers[0].status)
+      console.log('[Vouchers]   Full JSON:', JSON.stringify(loadedVouchers[0], null, 2))
+    } else {
+      console.warn('[Vouchers] No vouchers in response (empty array)')
+    }
+    console.log('[Vouchers] ======================================')
   } catch (error) {
-    console.error('[Vouchers] Error loading vouchers:', error)
-    console.error('[Vouchers] Error details:', error.response?.data || error.message)
+    console.error('[Vouchers] ❌ Error loading vouchers:', error)
+    console.error('[Vouchers] Error message:', error.message)
+    console.error('[Vouchers] Error status:', error.response?.status)
+    console.error('[Vouchers] Error details:', error.response?.data)
+    console.error('[Vouchers] Full error object:', error)
   }
 }
 

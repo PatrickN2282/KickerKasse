@@ -20,21 +20,36 @@ class DatabaseMigrator:
     def migrate(self) -> bool:
         """Run all pending migrations. Returns True if successful."""
         try:
-            # Create all tables first (for new models like ZBonHistory)
+            logger.info("=" * 70)
+            logger.info("DATABASE MIGRATION STARTED")
+            logger.info("=" * 70)
+            
+            # Step 1: Create all tables first
+            logger.info("✓ Step 1: Creating/verifying tables...")
             from app.models import Base
             Base.metadata.create_all(bind=self.engine)
-            logger.info("✓ All tables created/verified")
+            logger.info("  → All tables created/verified")
             
-            # Update enum types if needed
+            # Step 2: Update enum types if needed
+            logger.info("✓ Step 2: Updating enum types...")
             self._update_enum_types()
+            logger.info("  → Enum types checked")
             
-            # Then apply column additions for existing tables
+            # Step 3: Apply column additions for existing tables
+            logger.info("✓ Step 3: Adding missing columns...")
             self._add_missing_columns()
+            logger.info("  → Missing columns added")
             
-            logger.info("✓ Database migration completed successfully")
+            logger.info("=" * 70)
+            logger.info("✓ DATABASE MIGRATION COMPLETED SUCCESSFULLY")
+            logger.info("=" * 70)
             return True
         except Exception as e:
-            logger.error(f"✗ Database migration failed: {str(e)}")
+            logger.error("=" * 70)
+            logger.error(f"✗ DATABASE MIGRATION FAILED: {str(e)}")
+            logger.error("=" * 70)
+            import traceback
+            logger.error(traceback.format_exc())
             # Don't crash, just log - tables might already exist
             return False
     

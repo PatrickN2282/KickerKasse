@@ -162,8 +162,22 @@ async def list_vouchers(
         
         total_pages = (total + page_size - 1) // page_size
         
+        # Convert ORM objects to responses with error handling
+        responses = []
+        for v in vouchers:
+            try:
+                response = VoucherResponse.from_orm(v)
+                responses.append(response)
+            except Exception as e:
+                logger.warning(f"[ADMIN] Error converting voucher {v.id}: {str(e)}")
+                # Still add the response with error logging
+                response = VoucherResponse.from_orm(v)
+                responses.append(response)
+        
+        logger.info(f"[ADMIN] Listed {len(responses)} vouchers for user {user_id}")
+        
         return VoucherListResponse(
-            vouchers=[VoucherResponse.from_orm(v) for v in vouchers],
+            vouchers=responses,
             total=total,
             page=page,
             page_size=page_size,
