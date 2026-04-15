@@ -70,7 +70,10 @@ async def create_gift_voucher(
             f"[ADMIN] Created GIFT voucher {voucher.voucher_number} "
             f"(value: {voucher.value_cents} cents) by user {user_id}"
         )
-        return voucher
+        # Convert to response and add formatted number
+        response = VoucherResponse.from_orm(voucher)
+        response.formatted_voucher_number = f"V-{voucher.voucher_number:03d}"
+        return response
     except Exception as e:
         logger.error(f"[ADMIN] Error creating GIFT voucher: {str(e)}", exc_info=True)
         raise HTTPException(
@@ -107,7 +110,10 @@ async def create_prepaid_voucher(
             f"[ADMIN] Created PREPAID voucher {voucher.voucher_number} "
             f"(value: {voucher.value_cents} cents) by user {user_id}"
         )
-        return voucher
+        # Convert to response and add formatted number
+        response = VoucherResponse.from_orm(voucher)
+        response.formatted_voucher_number = f"V-{voucher.voucher_number:03d}"
+        return response
     except Exception as e:
         logger.error(f"[ADMIN] Error creating PREPAID voucher: {str(e)}", exc_info=True)
         raise HTTPException(
@@ -160,8 +166,15 @@ async def list_vouchers(
         
         total_pages = (total + page_size - 1) // page_size
         
+        # Convert to response and add formatted numbers
+        voucher_responses = []
+        for v in vouchers:
+            response = VoucherResponse.from_orm(v)
+            response.formatted_voucher_number = f"V-{v.voucher_number:03d}"
+            voucher_responses.append(response)
+        
         return VoucherListResponse(
-            vouchers=[VoucherResponse.from_orm(v) for v in vouchers],
+            vouchers=voucher_responses,
             total=total,
             page=page,
             page_size=page_size,
@@ -195,7 +208,9 @@ async def get_voucher_detail(
                 detail=f"Voucher {voucher_id} not found",
             )
         
-        return VoucherResponse.from_orm(voucher)
+        response = VoucherResponse.from_orm(voucher)
+        response.formatted_voucher_number = f"V-{voucher.voucher_number:03d}"
+        return response
     except HTTPException:
         raise
     except Exception as e:
@@ -226,7 +241,9 @@ async def get_voucher_by_number(
                 detail=f"Voucher {voucher_number} not found",
             )
         
-        return VoucherResponse.from_orm(voucher)
+        response = VoucherResponse.from_orm(voucher)
+        response.formatted_voucher_number = f"V-{voucher.voucher_number:03d}"
+        return response
     except HTTPException:
         raise
     except Exception as e:

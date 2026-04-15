@@ -57,8 +57,8 @@
 
           <div v-if="createdGiftVoucher" class="success-message">
             <p>✅ Gutschein erstellt!</p>
-            <p class="voucher-number">{{ createdGiftVoucher.voucher_number }}</p>
-            <button @click="copyToClipboard(createdGiftVoucher.voucher_number)" class="btn-secondary">
+            <p class="voucher-number">{{ createdGiftVoucher.formatted_voucher_number || `V-${String(createdGiftVoucher.voucher_number).padStart(3, '0')}` }}</p>
+            <button @click="copyToClipboard(createdGiftVoucher.formatted_voucher_number || `V-${String(createdGiftVoucher.voucher_number).padStart(3, '0')}`)" class="btn-secondary">
               📋 Kopieren
             </button>
           </div>
@@ -95,8 +95,8 @@
 
           <div v-if="createdPrepaidVoucher" class="success-message">
             <p>✅ Gutschein erstellt!</p>
-            <p class="voucher-number">{{ createdPrepaidVoucher.voucher_number }}</p>
-            <button @click="copyToClipboard(createdPrepaidVoucher.voucher_number)" class="btn-secondary">
+            <p class="voucher-number">{{ createdPrepaidVoucher.formatted_voucher_number || `V-${String(createdPrepaidVoucher.voucher_number).padStart(3, '0')}` }}</p>
+            <button @click="copyToClipboard(createdPrepaidVoucher.formatted_voucher_number || `V-${String(createdPrepaidVoucher.voucher_number).padStart(3, '0')}`)" class="btn-secondary">
               📋 Kopieren
             </button>
           </div>
@@ -157,7 +157,7 @@
           </thead>
           <tbody>
             <tr v-for="voucher in filteredVouchers" :key="voucher.id">
-              <td class="voucher-number">{{ voucher.voucher_number }}</td>
+              <td class="voucher-number">{{ voucher.formatted_voucher_number || `V-${String(voucher.voucher_number).padStart(3, '0')}` }}</td>
               <td>
                 <span :class="['type-badge', voucher.voucher_type.toLowerCase()]">
                   {{ voucher.voucher_type === 'GIFT' ? '🎁 Geschenk' : '💳 Guthaben' }}
@@ -173,7 +173,7 @@
               <td class="date">{{ formatDate(voucher.created_at) }}</td>
               <td class="date">{{ voucher.redeemed_at ? formatDate(voucher.redeemed_at) : '-' }}</td>
               <td class="actions">
-                <button @click="copyToClipboard(voucher.voucher_number)" class="btn-small">
+                <button @click="copyToClipboard(voucher.formatted_voucher_number || `V-${String(voucher.voucher_number).padStart(3, '0')}`)" class="btn-small">
                   📋
                 </button>
               </td>
