@@ -64,7 +64,7 @@ async def create_gift_voucher(
         voucher = service.create_gift_voucher(
             value_cents=voucher_data.value_cents,
             reason=voucher_data.reason,
-            created_by=user_id,
+            created_by_user_id=user_id,
         )
         logger.info(
             f"[ADMIN] Created GIFT voucher {voucher.voucher_number} "
@@ -101,7 +101,7 @@ async def create_prepaid_voucher(
         service = VoucherService(db)
         voucher = service.create_prepaid_voucher(
             value_cents=voucher_data.value_cents,
-            created_by=user_id,
+            created_by_user_id=user_id,
         )
         logger.info(
             f"[ADMIN] Created PREPAID voucher {voucher.voucher_number} "

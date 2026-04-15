@@ -34,8 +34,8 @@
                 min="0.01"
                 step="0.01"
                 placeholder="z.B. 10.00"
-                :value="(giftForm.valueCents / 100).toFixed(2)"
-                @input="giftForm.valueCents = Math.round($event.target.value * 100)"
+                :value="giftForm.valueDisplay"
+                @input="handleGiftValueInput"
                 required
               />
             </div>
@@ -77,8 +77,8 @@
                 min="0.01"
                 step="0.01"
                 placeholder="z.B. 20.00"
-                :value="(prepaidForm.valueCents / 100).toFixed(2)"
-                @input="prepaidForm.valueCents = Math.round($event.target.value * 100)"
+                :value="prepaidForm.valueDisplay"
+                @input="handlePrepaidValueInput"
                 required
               />
             </div>
@@ -219,10 +219,30 @@ const activeSubTab = ref('create')
 const giftForm = ref({
   valueCents: 1000, // 10€ default
   reason: 'COURTESY',
+  valueDisplay: '10.00',
 })
 
 const prepaidForm = ref({
   valueCents: 2000, // 20€ default
+  valueDisplay: '20.00',
+})
+
+// Handle value input changes
+const handleGiftValueInput = (event) => {
+  const euroValue = parseFloat(event.target.value)
+  if (!isNaN(euroValue) && euroValue > 0) {
+    giftForm.value.valueCents = Math.round(euroValue * 100)
+    giftForm.value.valueDisplay = euroValue.toFixed(2)
+  }
+}
+
+const handlePrepaidValueInput = (event) => {
+  const euroValue = parseFloat(event.target.value)
+  if (!isNaN(euroValue) && euroValue > 0) {
+    prepaidForm.value.valueCents = Math.round(euroValue * 100)
+    prepaidForm.value.valueDisplay = euroValue.toFixed(2)
+  }
+}
 })
 
 // States
@@ -255,7 +275,7 @@ const createGiftVoucher = async () => {
       reason: giftForm.value.reason,
     })
     createdGiftVoucher.value = response
-    giftForm.value = { valueCents: 1000, reason: 'COURTESY' }
+    giftForm.value = { valueCents: 1000, reason: 'COURTESY', valueDisplay: '10.00' }
     // Refresh list if manage tab was visited
     if (vouchers.value.length > 0) {
       await loadVouchers()
@@ -277,7 +297,7 @@ const createPrepaidVoucher = async () => {
       value_cents: prepaidForm.value.valueCents,
     })
     createdPrepaidVoucher.value = response
-    prepaidForm.value = { valueCents: 2000 }
+    prepaidForm.value = { valueCents: 2000, valueDisplay: '20.00' }
     // Refresh list if manage tab was visited
     if (vouchers.value.length > 0) {
       await loadVouchers()
@@ -303,11 +323,16 @@ const loadVouchers = async () => {
       params.status_filter = filters.value.status
     }
 
+    console.log('[Vouchers] Loading with params:', params)
     const response = await apiService.get('/admin/vouchers/', { params })
-    vouchers.value = response.vouchers
-    totalVouchers.value = response.total
+    console.log('[Vouchers] API response:', response)
+    
+    vouchers.value = response.vouchers || response.data || []
+    totalVouchers.value = response.total || 0
+    console.log('[Vouchers] Loaded', vouchers.value.length, 'vouchers, total:', totalVouchers.value)
   } catch (error) {
-    console.error('Error loading vouchers:', error)
+    console.error('[Vouchers] Error loading vouchers:', error)
+    console.error('[Vouchers] Error details:', error.response?.data || error.message)
   }
 }
 
@@ -367,7 +392,7 @@ watch(currentPage, () => {
 })
 
 watch(() => activeSubTab.value, (newTab) => {
-  if (newTab === 'manage' && vouchers.value.length === 0) {
+  if (newTab === 'manage') {
     loadVouchers()
   }
 })
