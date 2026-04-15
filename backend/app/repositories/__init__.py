@@ -5,6 +5,7 @@ from .category_repository import CategoryRepository
 from .transaction_repository import TransactionRepository, BalanceLogRepository
 from .zbon_history_repository import ZBonHistoryRepository
 from .cash_management_repository import CashEntryRepository, CashBalanceRepository
+from .voucher_repository import VoucherRepository
 
 __all__ = [
     "UserRepository",
@@ -16,4 +17,5 @@ __all__ = [
     "ZBonHistoryRepository",
     "CashEntryRepository",
     "CashBalanceRepository",
+    "VoucherRepository",
 ]
