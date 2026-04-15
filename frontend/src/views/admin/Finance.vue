@@ -881,7 +881,6 @@ watch([filterStartDate, filterEndDate, filterPaymentMethod], () => {
   applyFilters()
 })
 
-// Watch für Tab-Wechsel
 // Z-Böns History Methods
 const loadZbonsHistory = async () => {
   loadingZbons.value = true
@@ -978,13 +977,15 @@ const zbonsTotalRevenue = computed(() => {
   return zbonsTotalCash.value + zbonsTotalBalance.value
 })
 
+// Watch für Pagination
 watch(zbonsCurrentPage, () => {
   if (zbonsList.value.length > 0) {
     loadZbonsHistory()
   }
 })
 
-
+// Watch für Tab-Wechsel
+watch(activeTab, (newTab) => {
   console.log('Switched to tab:', newTab)
   if (newTab === 'zbon' && dailyStats.value.transaction_count === 0) {
     loadDailyStats()
