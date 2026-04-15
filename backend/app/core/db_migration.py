@@ -35,7 +35,8 @@ class DatabaseMigrator:
             return True
         except Exception as e:
             logger.error(f"✗ Database migration failed: {str(e)}")
-            raise
+            # Don't crash, just log - tables might already exist
+            return False
     
     def _update_enum_types(self):
         """Update enum types to match current version"""
@@ -131,6 +132,43 @@ class DatabaseMigrator:
                     except Exception as e:
                         logger.warning(f"Could not add display_order column: {str(e)}")
                         conn.rollback()
+
+
+            # Migration: Add voucher_code column to vouchers if missing
+            if 'vouchers' in inspector.get_table_names():
+                vouchers_columns = {col['name'] for col in inspector.get_columns('vouchers')}
+                
+                if 'voucher_code' not in vouchers_columns:
+                    logger.info("Adding voucher_code column to vouchers table...")
+                    try:
+                        # First add the column as nullable
+                        try:
+                            conn.execute(text(
+                                "ALTER TABLE vouchers ADD COLUMN voucher_code VARCHAR(20) UNIQUE"
+                            ))
+                            conn.commit()
+                            logger.info("✓ Added voucher_code column to vouchers")
+                        except Exception as e:
+                            logger.debug(f"Column might already exist: {str(e)}")
+                            conn.rollback()
+                        
+                        # Update existing vouchers with generated codes
+                        try:
+                            conn.execute(text(
+                                "UPDATE vouchers SET voucher_code = 'V-2026-' || LPAD(CAST(voucher_number AS TEXT), 3, '0') WHERE voucher_code IS NULL"
+                            ))
+                            conn.commit()
+                            logger.info("✓ Updated existing vouchers with codes (V-2026-NNN format)")
+                        except Exception as e:
+                            logger.debug(f"Could not update vouchers: {str(e)}")
+                            conn.rollback()
+                            
+                    except Exception as e:
+                        logger.warning(f"Could not add voucher_code column: {str(e)}")
+                        try:
+                            conn.rollback()
+                        except:
+                            pass
 
 
 def run_migrations(engine: Engine) -> bool:

@@ -27,8 +27,13 @@ class VoucherRepository:
         last_voucher = self.db.query(Voucher).order_by(desc(Voucher.voucher_number)).first()
         next_number = (last_voucher.voucher_number + 1) if last_voucher else 1
 
+        # Generate voucher code: V-JAHR-NUMMER (e.g., V-2026-001)
+        year = datetime.now().year
+        voucher_code = f"V-{year}-{next_number:03d}"
+
         voucher = Voucher(
             voucher_number=next_number,
+            voucher_code=voucher_code,
             voucher_type=voucher_type,
             value_cents=value_cents,
             created_by_user_id=created_by_user_id,
@@ -36,30 +41,43 @@ class VoucherRepository:
             description=description,
             status=VoucherStatus.CREATED,
         )
-        self.db.add(voucher)
-        self.db.commit()
-        self.db.refresh(voucher)
         
-        logger.info(f"Created {voucher_type} voucher #{next_number} for {value_cents/100:.2f}€")
-        return voucher
+        try:
+            self.db.add(voucher)
+            self.db.flush()  # Force flush to catch errors early
+            self.db.commit()
+            self.db.refresh(voucher)
+            
+            logger.info(f"Created {voucher_type} voucher {voucher_code} (seq: {next_number}) for {value_cents/100:.2f}€")
+            return voucher
+        except Exception as e:
+            self.db.rollback()
+            logger.error(f"Error creating voucher: {str(e)}", exc_info=True)
+            raise
 
     def get_by_id(self, voucher_id: int) -> Voucher:
         """Get voucher by ID"""
         return self.db.query(Voucher).filter(Voucher.id == voucher_id).first()
 
-    def get_by_number(self, voucher_number: int) -> Voucher:
-        """Get voucher by number"""
-        return self.db.query(Voucher).filter(Voucher.voucher_number == voucher_number).first()
+    def get_by_number(self, voucher_number) -> Voucher:
+        """Get voucher by number or code (handles both V-2026-001 and numeric formats)"""
+        if isinstance(voucher_number, str) and voucher_number.startswith('V-'):
+            # It's a voucher code
+            return self.db.query(Voucher).filter(Voucher.voucher_code == voucher_number).first()
+        else:
+            # Try as numeric
+            try:
+                num = int(voucher_number)
+                return self.db.query(Voucher).filter(Voucher.voucher_number == num).first()
+            except (ValueError, TypeError):
+                return None
 
-    def get_all(self, limit: int = 100, offset: int = 0) -> list:
-        """Get all vouchers"""
-        return (
-            self.db.query(Voucher)
-            .order_by(desc(Voucher.voucher_number))
-            .limit(limit)
-            .offset(offset)
-            .all()
-        )
+    def get_all(self, limit: int = 100, offset: int = 0) -> tuple:
+        """Get all vouchers, returns (vouchers, total)"""
+        query = self.db.query(Voucher)
+        total = query.count()
+        vouchers = query.order_by(desc(Voucher.voucher_number)).limit(limit).offset(offset).all()
+        return vouchers, total
 
     def get_all_by_status(self, status: VoucherStatus, skip: int = 0, limit: int = 100) -> tuple:
         """Get all vouchers by status, returns (vouchers, total)"""

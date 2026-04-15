@@ -29,7 +29,8 @@ class Voucher(BaseModel):
     """Voucher for gifts (GIFT) or prepaid (PREPAID)"""
     __tablename__ = "vouchers"
 
-    voucher_number = Column(Integer, unique=True, nullable=False, index=True)  # Laufende Nummer
+    voucher_number = Column(Integer, unique=True, nullable=False, index=True)  # Laufende Nummer (1, 2, 3...)
+    voucher_code = Column(String(20), unique=True, nullable=False, index=True)  # Für Benutzer: V-2026-001, V-2026-002...
     voucher_type = Column(Enum(VoucherType), nullable=False, index=True)  # GIFT oder PREPAID
     status = Column(Enum(VoucherStatus), nullable=False, default=VoucherStatus.CREATED, index=True)
     

@@ -12,6 +12,7 @@ class VoucherCreateGift(BaseModel):
 class VoucherCreatePrepaid(BaseModel):
     """Create a prepaid voucher"""
     value_cents: int = Field(..., ge=1, description="Value in cents")
+    reason: Literal["COURTESY", "PROMOTIONAL", "STAFF_BENEFIT", "OTHER"] = "COURTESY"
 
 
 class VoucherValidateRequest(BaseModel):
@@ -39,7 +40,7 @@ class VoucherValidationResponse(BaseModel):
 class VoucherResponse(BaseModel):
     """Voucher response model"""
     id: int
-    voucher_number: int
+    voucher_code: str  # Format: V-2026-001
     voucher_type: str  # GIFT or PREPAID
     value_cents: int
     status: str  # CREATED or REDEEMED
@@ -48,7 +49,6 @@ class VoucherResponse(BaseModel):
     created_at: datetime
     redeemed_by_user_id: Optional[int] = None
     redeemed_at: Optional[datetime] = None
-    formatted_voucher_number: str = ""  # Will be set in API
 
     class Config:
         from_attributes = True

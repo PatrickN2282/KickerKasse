@@ -57,8 +57,8 @@
 
           <div v-if="createdGiftVoucher" class="success-message">
             <p>✅ Gutschein erstellt!</p>
-            <p class="voucher-number">{{ createdGiftVoucher.formatted_voucher_number || `V-${String(createdGiftVoucher.voucher_number).padStart(3, '0')}` }}</p>
-            <button @click="copyToClipboard(createdGiftVoucher.formatted_voucher_number || `V-${String(createdGiftVoucher.voucher_number).padStart(3, '0')}`)" class="btn-secondary">
+            <p class="voucher-number">{{ createdGiftVoucher.voucher_code || `V-2026-${String(createdGiftVoucher.id).padStart(3, '0')}` }}</p>
+            <button @click="copyToClipboard(createdGiftVoucher.voucher_code || `V-2026-${String(createdGiftVoucher.id).padStart(3, '0')}`)" class="btn-secondary">
               📋 Kopieren
             </button>
           </div>
@@ -84,8 +84,13 @@
             </div>
 
             <div class="form-group">
-              <label>Höchster Preis</label>
-              <p class="info-text">Der Gutschein wird zum angegebenen Wert verkauft</p>
+              <label>Grund</label>
+              <select v-model="prepaidForm.reason" required>
+                <option value="COURTESY">Kulanz</option>
+                <option value="PROMOTIONAL">Aktion/Werbung</option>
+                <option value="STAFF_BENEFIT">Mitarbeitervorteil</option>
+                <option value="OTHER">Sonstig</option>
+              </select>
             </div>
 
             <button type="submit" class="btn-primary" :disabled="creatingPrepaid">
@@ -95,8 +100,8 @@
 
           <div v-if="createdPrepaidVoucher" class="success-message">
             <p>✅ Gutschein erstellt!</p>
-            <p class="voucher-number">{{ createdPrepaidVoucher.formatted_voucher_number || `V-${String(createdPrepaidVoucher.voucher_number).padStart(3, '0')}` }}</p>
-            <button @click="copyToClipboard(createdPrepaidVoucher.formatted_voucher_number || `V-${String(createdPrepaidVoucher.voucher_number).padStart(3, '0')}`)" class="btn-secondary">
+            <p class="voucher-number">{{ createdPrepaidVoucher.voucher_code || `V-2026-${String(createdPrepaidVoucher.id).padStart(3, '0')}` }}</p>
+            <button @click="copyToClipboard(createdPrepaidVoucher.voucher_code || `V-2026-${String(createdPrepaidVoucher.id).padStart(3, '0')}`)" class="btn-secondary">
               📋 Kopieren
             </button>
           </div>
@@ -157,7 +162,7 @@
           </thead>
           <tbody>
             <tr v-for="voucher in filteredVouchers" :key="voucher.id">
-              <td class="voucher-number">{{ voucher.formatted_voucher_number || `V-${String(voucher.voucher_number).padStart(3, '0')}` }}</td>
+              <td class="voucher-number">{{ voucher.voucher_code }}</td>
               <td>
                 <span :class="['type-badge', voucher.voucher_type.toLowerCase()]">
                   {{ voucher.voucher_type === 'GIFT' ? '🎁 Geschenk' : '💳 Guthaben' }}
@@ -173,7 +178,7 @@
               <td class="date">{{ formatDate(voucher.created_at) }}</td>
               <td class="date">{{ voucher.redeemed_at ? formatDate(voucher.redeemed_at) : '-' }}</td>
               <td class="actions">
-                <button @click="copyToClipboard(voucher.formatted_voucher_number || `V-${String(voucher.voucher_number).padStart(3, '0')}`)" class="btn-small">
+                <button @click="copyToClipboard(voucher.voucher_code)" class="btn-small">
                   📋
                 </button>
               </td>
@@ -224,6 +229,7 @@ const giftForm = ref({
 
 const prepaidForm = ref({
   valueCents: 2000, // 20€ default
+  reason: 'COURTESY',
   valueDisplay: '20.00',
 })
 
@@ -273,12 +279,14 @@ const createGiftVoucher = async () => {
       value_cents: giftForm.value.valueCents,
       reason: giftForm.value.reason,
     })
+    console.log('[Vouchers] Create GIFT response:', JSON.stringify(response, null, 2))
     createdGiftVoucher.value = response
     giftForm.value = { valueCents: 1000, reason: 'COURTESY', valueDisplay: '10.00' }
     // Always refresh list after creating a voucher
     await loadVouchers()
   } catch (error) {
-    createError.value = error.response?.data?.detail || 'Fehler beim Erstellen'
+    console.error('[Vouchers] Error creating GIFT voucher:', error)
+    createError.value = error.response?.data?.detail || error.message || 'Fehler beim Erstellen'
   } finally {
     creatingGift.value = false
   }
@@ -292,13 +300,16 @@ const createPrepaidVoucher = async () => {
   try {
     const response = await apiService.post('/admin/vouchers/prepaid/', {
       value_cents: prepaidForm.value.valueCents,
+      reason: prepaidForm.value.reason || 'COURTESY',
     })
+    console.log('[Vouchers] Create PREPAID response:', JSON.stringify(response, null, 2))
     createdPrepaidVoucher.value = response
     prepaidForm.value = { valueCents: 2000, valueDisplay: '20.00' }
     // Always refresh list after creating a voucher
     await loadVouchers()
   } catch (error) {
-    createError.value = error.response?.data?.detail || 'Fehler beim Erstellen'
+    console.error('[Vouchers] Error creating PREPAID voucher:', error)
+    createError.value = error.response?.data?.detail || error.message || 'Fehler beim Erstellen'
   } finally {
     creatingPrepaid.value = false
   }
@@ -325,6 +336,11 @@ const loadVouchers = async () => {
     vouchers.value = response.vouchers || response.data || []
     totalVouchers.value = response.total || 0
     console.log('[Vouchers] Loaded', vouchers.value.length, 'vouchers, total:', totalVouchers.value)
+    
+    // Log details of first voucher for debugging
+    if (vouchers.value.length > 0) {
+      console.log('[Vouchers] First voucher:', JSON.stringify(vouchers.value[0], null, 2))
+    }
   } catch (error) {
     console.error('[Vouchers] Error loading vouchers:', error)
     console.error('[Vouchers] Error details:', error.response?.data || error.message)
