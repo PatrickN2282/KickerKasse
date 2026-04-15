@@ -1,4 +1,4 @@
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, field_validator
 from datetime import datetime
 from typing import Optional, Literal
 
@@ -44,14 +44,21 @@ class VoucherResponse(BaseModel):
     value_cents: int
     status: str  # CREATED or REDEEMED
     reason: Optional[str] = None  # For GIFT vouchers
-    created_by: int
+    created_by_user_id: int
     created_at: datetime
-    redeemed_by: Optional[int] = None
+    redeemed_by_user_id: Optional[int] = None
     redeemed_at: Optional[datetime] = None
-    transaction_id: Optional[int] = None
 
     class Config:
         from_attributes = True
+
+    @field_validator('voucher_number', mode='before')
+    @classmethod
+    def format_voucher_number(cls, v):
+        """Format voucher number as V-XXX"""
+        if isinstance(v, int):
+            return f"V-{v:03d}"
+        return str(v)
 
 
 class VoucherListResponse(BaseModel):
