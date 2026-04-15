@@ -30,7 +30,6 @@
             <div class="form-group">
               <label>Wert (€)</label>
               <input
-                v-model.number="giftForm.valueCents"
                 type="number"
                 min="0.01"
                 step="0.01"
@@ -74,7 +73,6 @@
             <div class="form-group">
               <label>Wert (€)</label>
               <input
-                v-model.number="prepaidForm.valueCents"
                 type="number"
                 min="0.01"
                 step="0.01"

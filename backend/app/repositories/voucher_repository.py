@@ -51,40 +51,38 @@ class VoucherRepository:
         """Get voucher by number"""
         return self.db.query(Voucher).filter(Voucher.voucher_number == voucher_number).first()
 
-    def get_all_by_status(self, status: VoucherStatus, limit: int = 100, offset: int = 0) -> list:
-        """Get all vouchers by status"""
+    def get_all(self, limit: int = 100, offset: int = 0) -> list:
+        """Get all vouchers"""
         return (
             self.db.query(Voucher)
-            .filter(Voucher.status == status)
             .order_by(desc(Voucher.voucher_number))
             .limit(limit)
             .offset(offset)
             .all()
         )
 
-    def get_all_by_type(self, voucher_type: VoucherType, limit: int = 100, offset: int = 0) -> list:
-        """Get all vouchers by type"""
-        return (
-            self.db.query(Voucher)
-            .filter(Voucher.voucher_type == voucher_type)
-            .order_by(desc(Voucher.voucher_number))
-            .limit(limit)
-            .offset(offset)
-            .all()
-        )
+    def get_all_by_status(self, status: VoucherStatus, skip: int = 0, limit: int = 100) -> tuple:
+        """Get all vouchers by status, returns (vouchers, total)"""
+        query = self.db.query(Voucher).filter(Voucher.status == status)
+        total = query.count()
+        vouchers = query.order_by(desc(Voucher.voucher_number)).offset(skip).limit(limit).all()
+        return vouchers, total
+
+    def get_all_by_type(self, voucher_type: VoucherType, skip: int = 0, limit: int = 100) -> tuple:
+        """Get all vouchers by type, returns (vouchers, total)"""
+        query = self.db.query(Voucher).filter(Voucher.voucher_type == voucher_type)
+        total = query.count()
+        vouchers = query.order_by(desc(Voucher.voucher_number)).offset(skip).limit(limit).all()
+        return vouchers, total
 
     def get_all_by_type_and_status(
-        self, voucher_type: VoucherType, status: VoucherStatus, limit: int = 100, offset: int = 0
-    ) -> list:
-        """Get vouchers by type and status"""
-        return (
-            self.db.query(Voucher)
-            .filter(Voucher.voucher_type == voucher_type, Voucher.status == status)
-            .order_by(desc(Voucher.voucher_number))
-            .limit(limit)
-            .offset(offset)
-            .all()
-        )
+        self, voucher_type: VoucherType, status: VoucherStatus, skip: int = 0, limit: int = 100
+    ) -> tuple:
+        """Get vouchers by type and status, returns (vouchers, total)"""
+        query = self.db.query(Voucher).filter(Voucher.voucher_type == voucher_type, Voucher.status == status)
+        total = query.count()
+        vouchers = query.order_by(desc(Voucher.voucher_number)).offset(skip).limit(limit).all()
+        return vouchers, total
 
     def get_all_by_date_range(self, start_date: date, end_date: date, limit: int = 100, offset: int = 0) -> list:
         """Get vouchers by date range"""

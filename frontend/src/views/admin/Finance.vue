@@ -897,13 +897,26 @@ const loadZbonsHistory = async () => {
       params.end_date = zbonsFilterEndDate.value
     }
     
+    console.log('[Finance] Loading Z-Böns history with params:', params)
     const response = await apiService.get('/transactions/zbon/history', { params })
-    zbonsList.value = response.histories
-    zbonsTotalPages.value = response.total_pages
-    console.log('[Finance] Z-Böns history loaded:', response.histories.length, 'entries')
+    console.log('[Finance] Z-Böns history response:', response)
+    
+    // Handle different possible response structures
+    const historyData = response.histories || response.data || response
+    if (Array.isArray(historyData)) {
+      zbonsList.value = historyData
+    } else if (historyData && Array.isArray(historyData.histories)) {
+      zbonsList.value = historyData.histories
+    } else {
+      throw new Error(`Unexpected response structure: ${JSON.stringify(response)}`)
+    }
+    
+    zbonsTotalPages.value = response.total_pages || 1
+    console.log('[Finance] Z-Böns history loaded:', zbonsList.value.length, 'entries, total pages:', zbonsTotalPages.value)
   } catch (error) {
     console.error('[Finance] Error loading Z-Böns history:', error)
-    notificationStore.error('Fehler beim Laden der Z-Bons Verlauf')
+    console.error('[Finance] Error details:', error.response?.data || error.message)
+    notificationStore.error('Fehler beim Laden der Z-Bons Verlauf: ' + (error.message || 'Unbekannter Fehler'))
   } finally {
     loadingZbons.value = false
   }
@@ -977,13 +990,6 @@ const zbonsTotalRevenue = computed(() => {
   return zbonsTotalCash.value + zbonsTotalBalance.value
 })
 
-// Watch für Pagination
-watch(zbonsCurrentPage, () => {
-  if (zbonsList.value.length > 0) {
-    loadZbonsHistory()
-  }
-})
-
 // Watch für Tab-Wechsel
 watch(activeTab, (newTab) => {
   console.log('Switched to tab:', newTab)
@@ -992,13 +998,18 @@ watch(activeTab, (newTab) => {
   } else if (newTab === 'history' && filteredTransactions.value.length === 0) {
     applyFilters()
   } else if (newTab === 'zbons') {
-    if (zbonsList.value.length === 0) {
-      loadZbonsHistory()
-    }
+    loadZbonsHistory()
   } else if (newTab === 'revenue' && revenueStats.value.week_total === 0) {
     loadRevenueStats()
   } else if (newTab === 'members' && memberStats.value.total_members === 0) {
     loadMemberStats()
+  }
+})
+
+// Watch für Z-Böns Filter-Änderungen
+watch([zbonsFilterStartDate, zbonsFilterEndDate, zbonsCurrentPage], () => {
+  if (activeTab.value === 'zbons') {
+    loadZbonsHistory()
   }
 })
 
