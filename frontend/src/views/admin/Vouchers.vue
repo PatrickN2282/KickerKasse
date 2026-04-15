@@ -275,10 +275,8 @@ const createGiftVoucher = async () => {
     })
     createdGiftVoucher.value = response
     giftForm.value = { valueCents: 1000, reason: 'COURTESY', valueDisplay: '10.00' }
-    // Refresh list if manage tab was visited
-    if (vouchers.value.length > 0) {
-      await loadVouchers()
-    }
+    // Always refresh list after creating a voucher
+    await loadVouchers()
   } catch (error) {
     createError.value = error.response?.data?.detail || 'Fehler beim Erstellen'
   } finally {
@@ -297,10 +295,8 @@ const createPrepaidVoucher = async () => {
     })
     createdPrepaidVoucher.value = response
     prepaidForm.value = { valueCents: 2000, valueDisplay: '20.00' }
-    // Refresh list if manage tab was visited
-    if (vouchers.value.length > 0) {
-      await loadVouchers()
-    }
+    // Always refresh list after creating a voucher
+    await loadVouchers()
   } catch (error) {
     createError.value = error.response?.data?.detail || 'Fehler beim Erstellen'
   } finally {

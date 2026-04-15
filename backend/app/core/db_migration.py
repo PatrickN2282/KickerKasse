@@ -25,6 +25,9 @@ class DatabaseMigrator:
             Base.metadata.create_all(bind=self.engine)
             logger.info("✓ All tables created/verified")
             
+            # Update enum types if needed
+            self._update_enum_types()
+            
             # Then apply column additions for existing tables
             self._add_missing_columns()
             
@@ -33,6 +36,64 @@ class DatabaseMigrator:
         except Exception as e:
             logger.error(f"✗ Database migration failed: {str(e)}")
             raise
+    
+    def _update_enum_types(self):
+        """Update enum types to match current version"""
+        with self.engine.connect() as conn:
+            try:
+                # Check if voucherreason enum exists
+                result = conn.execute(text(
+                    "SELECT EXISTS(SELECT 1 FROM pg_type WHERE typname = 'voucherreason')"
+                ))
+                enum_exists = result.scalar()
+                
+                if enum_exists:
+                    logger.info("Updating voucherreason enum type...")
+                    try:
+                        # Get current enum values
+                        result = conn.execute(text(
+                            "SELECT enumlabel FROM pg_enum WHERE enumtypid = (SELECT oid FROM pg_type WHERE typname = 'voucherreason') ORDER BY enumsortorder"
+                        ))
+                        current_values = [row[0] for row in result.fetchall()]
+                        logger.debug(f"Current enum values: {current_values}")
+                        
+                        # Define expected values in correct order
+                        expected_values = ['COURTESY', 'PROMOTIONAL', 'STAFF_BENEFIT', 'OTHER']
+                        
+                        # Check if we need to update
+                        if current_values != expected_values:
+                            # We need to recreate the enum
+                            logger.info("Recreating voucherreason enum with updated values...")
+                            
+                            # Rename old enum
+                            conn.execute(text("ALTER TYPE voucherreason RENAME TO voucherreason_old"))
+                            
+                            # Create new enum with correct values
+                            values_str = ", ".join([f"'{v}'" for v in expected_values])
+                            conn.execute(text(f"CREATE TYPE voucherreason AS ENUM ({values_str})"))
+                            
+                            # Update columns to use new enum
+                            conn.execute(text(
+                                "ALTER TABLE vouchers ALTER COLUMN reason TYPE voucherreason USING reason::text::voucherreason"
+                            ))
+                            
+                            # Drop old enum
+                            conn.execute(text("DROP TYPE voucherreason_old"))
+                            
+                            logger.info("✓ Successfully updated voucherreason enum")
+                        else:
+                            logger.debug("voucherreason enum already has correct values")
+                    
+                    except Exception as e:
+                        logger.debug(f"Enum already up to date or error: {str(e)}")
+                    
+                    conn.commit()
+            except Exception as e:
+                logger.warning(f"Could not update enum types: {str(e)}")
+                try:
+                    conn.rollback()
+                except:
+                    pass
     
     def _add_missing_columns(self):
         """Add missing columns to existing tables"""
