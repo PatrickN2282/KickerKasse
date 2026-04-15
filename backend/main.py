@@ -22,6 +22,8 @@ from app.api import (
     product_router,
     category_router,
     transaction_router,
+    voucher_admin_router,
+    voucher_kasse_router,
 )
 
 # Run database migrations (create tables + add missing columns)
@@ -106,6 +108,8 @@ app.include_router(member_router)
 app.include_router(product_router)
 app.include_router(category_router)
 app.include_router(transaction_router)
+app.include_router(voucher_admin_router)
+app.include_router(voucher_kasse_router)
 
 
 @app.get("/api/health")

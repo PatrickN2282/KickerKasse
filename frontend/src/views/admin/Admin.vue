@@ -30,6 +30,7 @@ const tabs = [
   { path: '/admin/products', label: '📦 Produkte' },
   { path: '/admin/categories', label: '🏷️ Kategorien' },
   { path: '/admin/users', label: '👤 Benutzer' },
+  { path: '/admin/vouchers', label: '🎫 Gutscheine' },
   { path: '/admin/finance', label: '💰 Finanzen' },
 ]
 

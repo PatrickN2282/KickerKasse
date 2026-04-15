@@ -4,6 +4,17 @@ from .product import ProductCreate, ProductUpdate, ProductResponse
 from .category import CategoryCreate, CategoryUpdate, CategoryResponse
 from .transaction import TransactionCreate, TransactionResponse, TransactionStornoCreate, ZBonResponse
 from .auth import LoginRequest, LoginResponse
+from .voucher import (
+    VoucherCreateGift,
+    VoucherCreatePrepaid,
+    VoucherValidateRequest,
+    VoucherRedeemRequest,
+    VoucherValidationResponse,
+    VoucherResponse,
+    VoucherListResponse,
+    VoucherRedeemResponse,
+)
+from .zbon_history import ZBonHistoryResponse, ZBonHistoryListResponse
 
 __all__ = [
     "UserCreate",
@@ -24,4 +35,14 @@ __all__ = [
     "ZBonResponse",
     "LoginRequest",
     "LoginResponse",
+    "VoucherCreateGift",
+    "VoucherCreatePrepaid",
+    "VoucherValidateRequest",
+    "VoucherRedeemRequest",
+    "VoucherValidationResponse",
+    "VoucherResponse",
+    "VoucherListResponse",
+    "VoucherRedeemResponse",
+    "ZBonHistoryResponse",
+    "ZBonHistoryListResponse",
 ]

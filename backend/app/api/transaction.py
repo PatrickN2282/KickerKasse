@@ -8,7 +8,14 @@ from typing import Optional
 import logging
 
 from app.core import get_db
-from app.schemas import TransactionCreate, TransactionResponse, TransactionStornoCreate, ZBonResponse
+from app.schemas import (
+    TransactionCreate,
+    TransactionResponse,
+    TransactionStornoCreate,
+    ZBonResponse,
+    ZBonHistoryResponse,
+    ZBonHistoryListResponse,
+)
 from app.services import TransactionService, ProductService, ZBonService, EmailService
 from app.services.zbon_html_exporter import ZBonHTMLExporter
 from app.repositories import MemberRepository, ProductRepository
@@ -1077,4 +1084,134 @@ async def get_cash_balance(
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Error fetching cash balance: {str(e)}",
+        )
+
+
+# ============================================================================
+# Z-BON HISTORY ENDPOINTS
+# ============================================================================
+
+
+@router.get("/zbon/history", response_model=ZBonHistoryListResponse)
+@router.get("/zbon/history/", response_model=ZBonHistoryListResponse)
+async def get_zbon_history(
+    request: Request,
+    db: Session = Depends(get_db),
+    page: int = 1,
+    page_size: int = 20,
+    start_date: str = None,
+    end_date: str = None,
+):
+    """Get Z-Bon history with optional date filtering
+    
+    Query parameters:
+    - page: Page number (default 1)
+    - page_size: Items per page (default 20, max 100)
+    - start_date: Filter from date (YYYY-MM-DD)
+    - end_date: Filter to date (YYYY-MM-DD)
+    """
+    user_id = request.session.get("user_id")
+    if not user_id:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Not authenticated",
+        )
+    
+    try:
+        query = db.query(ZBonHistory)
+        
+        # Apply date filters if provided
+        if start_date:
+            try:
+                start = datetime.strptime(start_date, "%Y-%m-%d")
+                query = query.filter(ZBonHistory.business_date >= start)
+            except ValueError:
+                raise HTTPException(
+                    status_code=status.HTTP_400_BAD_REQUEST,
+                    detail="Invalid start_date format, use YYYY-MM-DD",
+                )
+        
+        if end_date:
+            try:
+                end = datetime.strptime(end_date, "%Y-%m-%d")
+                # Add 1 day to include all of end_date
+                end = end.replace(hour=23, minute=59, second=59)
+                query = query.filter(ZBonHistory.business_date <= end)
+            except ValueError:
+                raise HTTPException(
+                    status_code=status.HTTP_400_BAD_REQUEST,
+                    detail="Invalid end_date format, use YYYY-MM-DD",
+                )
+        
+        # Sort by sequence number descending (newest first)
+        query = query.order_by(desc(ZBonHistory.sequence_number))
+        
+        # Count total
+        total = query.count()
+        
+        # Apply pagination
+        offset = (page - 1) * page_size
+        histories = query.offset(offset).limit(page_size).all()
+        
+        total_pages = (total + page_size - 1) // page_size
+        
+        logger.info(
+            f"[TRANSACTION] Z-Bon history retrieved: total={total}, page={page}, "
+            f"filters={{'start_date': {start_date}, 'end_date': {end_date}}}"
+        )
+        
+        return ZBonHistoryListResponse(
+            histories=[ZBonHistoryResponse.from_orm(h) for h in histories],
+            total=total,
+            page=page,
+            page_size=page_size,
+            total_pages=total_pages,
+        )
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"[TRANSACTION] Error retrieving Z-Bon history: {str(e)}", exc_info=True)
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Error retrieving Z-Bon history: {str(e)}",
+        )
+
+
+@router.get("/zbon/history/{sequence_number}", response_model=ZBonHistoryResponse)
+@router.get("/zbon/history/{sequence_number}/", response_model=ZBonHistoryResponse)
+async def get_zbon_history_detail(
+    sequence_number: int,
+    request: Request,
+    db: Session = Depends(get_db),
+):
+    """Get Z-Bon history detail by sequence number"""
+    user_id = request.session.get("user_id")
+    if not user_id:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Not authenticated",
+        )
+    
+    try:
+        history = db.query(ZBonHistory).filter(
+            ZBonHistory.sequence_number == sequence_number
+        ).first()
+        
+        if not history:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail=f"Z-Bon #{sequence_number} not found",
+            )
+        
+        return ZBonHistoryResponse.from_orm(history)
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(
+            f"[TRANSACTION] Error retrieving Z-Bon #{sequence_number}: {str(e)}",
+            exc_info=True,
+        )
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Error retrieving Z-Bon: {str(e)}",
         )

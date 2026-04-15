@@ -183,6 +183,13 @@
               >
                 💳 Zahlen - Guthaben
               </button>
+
+              <button
+                @click="showVoucherModal = true"
+                class="payment-btn voucher-btn"
+              >
+                🎫 Gutschein
+              </button>
             </div>
           </div>
         </div>
@@ -226,6 +233,120 @@
         </button>
       </div>
     </div>
+
+    <!-- Voucher Redemption Modal -->
+    <div v-if="showVoucherModal" class="modal">
+      <div class="modal-content voucher-modal">
+        <h3>🎫 Gutschein einlösen</h3>
+
+        <!-- Step 1: Input Voucher Number -->
+        <div v-if="!voucherValidated" class="step">
+          <input
+            v-model="voucherNumber"
+            type="text"
+            placeholder="Gutscheinnummer eingeben (z.B. V-001)"
+            class="form-input voucher-input"
+            @keyup.enter="validateVoucher"
+            autocomplete="off"
+          />
+
+          <div v-if="voucherError" class="error-message">
+            ❌ {{ voucherError }}
+          </div>
+
+          <div class="button-group">
+            <button
+              @click="validateVoucher"
+              :disabled="!voucherNumber || validatingVoucher"
+              class="btn btn-primary"
+            >
+              {{ validatingVoucher ? '⏳ Wird überprüft...' : '✓ Überprüfen' }}
+            </button>
+            <button @click="resetVoucher" class="btn btn-secondary">
+              Abbrechen
+            </button>
+          </div>
+        </div>
+
+        <!-- Step 2: Show Validation Result -->
+        <div v-else-if="voucherValidation && !voucherRedeemed" class="step">
+          <div
+            :class="['validation-result', voucherValidation.valid ? 'valid' : 'invalid']"
+          >
+            <h4>{{ voucherValidation.valid ? '✅ Gültig' : '❌ Ungültig' }}</h4>
+            <table class="voucher-details">
+              <tr>
+                <td>Nummer:</td>
+                <td><strong>{{ voucherValidation.voucher_number }}</strong></td>
+              </tr>
+              <tr>
+                <td>Typ:</td>
+                <td>{{ voucherValidation.voucher_type === 'GIFT' ? '🎁 Geschenk' : '💳 Guthaben' }}</td>
+              </tr>
+              <tr>
+                <td>Wert:</td>
+                <td><strong>{{ (voucherValidation.value_cents / 100).toFixed(2) }}€</strong></td>
+              </tr>
+              <tr>
+                <td>Status:</td>
+                <td>{{ voucherValidation.status === 'CREATED' ? '✅ Verfügbar' : '✓ Bereits eingelöst' }}</td>
+              </tr>
+              <tr v-if="voucherValidation.reason">
+                <td>Grund:</td>
+                <td>{{ voucherValidation.reason }}</td>
+              </tr>
+            </table>
+            <p v-if="voucherValidation.message" class="info-text">
+              ℹ️ {{ voucherValidation.message }}
+            </p>
+          </div>
+
+          <div class="button-group">
+            <button
+              v-if="voucherValidation.valid"
+              @click="redeemVoucher"
+              :disabled="redeemingVoucher"
+              class="btn btn-primary"
+            >
+              {{ redeemingVoucher ? '⏳ Wird eingelöst...' : '✓ Einlösen' }}
+            </button>
+            <button @click="resetVoucher" class="btn btn-secondary">
+              {{ voucherValidation.valid ? 'Neue Nummer' : 'Abbrechen' }}
+            </button>
+          </div>
+        </div>
+
+        <!-- Step 3: Success Message -->
+        <div v-else-if="voucherRedeemed" class="step">
+          <div class="success-message">
+            <h4>✅ Gutschein eingelöst!</h4>
+            <table class="voucher-details">
+              <tr>
+                <td>Nummer:</td>
+                <td><strong>{{ voucherRedeemed.voucher_number }}</strong></td>
+              </tr>
+              <tr>
+                <td>Typ:</td>
+                <td>{{ voucherRedeemed.voucher_type === 'GIFT' ? '🎁 Geschenk' : '💳 Guthaben' }}</td>
+              </tr>
+              <tr>
+                <td>Wert:</td>
+                <td><strong>{{ (voucherRedeemed.value_cents / 100).toFixed(2) }}€</strong></td>
+              </tr>
+            </table>
+            <p class="info-text">
+              {{ voucherRedeemed.message }}
+            </p>
+          </div>
+
+          <div class="button-group">
+            <button @click="resetVoucher" class="btn btn-primary">
+              ✓ Fertig
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
   </div>
 </template>
 
@@ -251,6 +372,16 @@ const lastTransaction = ref(null)
 const currentReceiptNumber = ref(null)
 const expandedCategories = ref([])
 const categories = ref([])
+
+// Voucher redemption
+const showVoucherModal = ref(false)
+const voucherNumber = ref('')
+const voucherValidation = ref(null)
+const voucherValidated = ref(false)
+const voucherRedeemed = ref(null)
+const voucherError = ref(null)
+const validatingVoucher = ref(false)
+const redeemingVoucher = ref(false)
 
 const loadNextReceiptNumber = async () => {
   try {
@@ -373,6 +504,65 @@ const selectMember = (member) => {
   cartStore.selectedMemberId = member.id
   cartStore.recalculatePrices()  // Update prices to member prices
   showMemberModal.value = false
+}
+
+const validateVoucher = async () => {
+  if (!voucherNumber.value) return
+  
+  validatingVoucher.value = true
+  voucherError.value = null
+  voucherValidation.value = null
+  
+  try {
+    const response = await apiService.post('/transactions/voucher/validate', {
+      voucher_number: voucherNumber.value
+    })
+    voucherValidation.value = response
+    voucherValidated.value = true
+    console.log('[Kasse] Voucher validated:', response)
+  } catch (error) {
+    const detail = error.response?.data?.detail || error.message || 'Fehler bei der Validierung'
+    voucherError.value = detail
+    voucherValidated.value = false
+    console.error('[Kasse] Voucher validation failed:', error)
+  } finally {
+    validatingVoucher.value = false
+  }
+}
+
+const redeemVoucher = async () => {
+  if (!voucherValidation.value || !voucherValidation.value.valid) return
+  
+  redeemingVoucher.value = true
+  voucherError.value = null
+  
+  try {
+    const response = await apiService.post('/transactions/voucher/redeem', {
+      voucher_number: voucherNumber.value,
+      member_id: cartStore.selectedMemberId || null
+    })
+    voucherRedeemed.value = response
+    console.log('[Kasse] Voucher redeemed:', response)
+    
+    // Reload members to update balances (for PREPAID vouchers)
+    await memberStore.getMembers()
+    notificationStore.success(`Gutschein ${voucherNumber.value} eingelöst`)
+  } catch (error) {
+    const detail = error.response?.data?.detail || error.message || 'Fehler bei der Einlösung'
+    voucherError.value = detail
+    console.error('[Kasse] Voucher redemption failed:', error)
+  } finally {
+    redeemingVoucher.value = false
+  }
+}
+
+const resetVoucher = () => {
+  voucherNumber.value = ''
+  voucherValidation.value = null
+  voucherValidated.value = false
+  voucherRedeemed.value = null
+  voucherError.value = null
+  showVoucherModal.value = false
 }
 
 const handleCheckout = async () => {
@@ -702,6 +892,8 @@ onMounted(async () => {
       border-radius: 6px;
       font-weight: 600;
       transition: all 0.2s;
+      border: none;
+      cursor: pointer;
 
       &:disabled {
         opacity: 0.5;
@@ -716,6 +908,11 @@ onMounted(async () => {
       &.active {
         box-shadow: 0 0 0 3px rgba(25, 118, 210, 0.3);
         transform: scale(1.02);
+      }
+
+      &.voucher-btn {
+        background: linear-gradient(135deg, #ff9500 0%, #f57c00 100%);
+        color: white;
       }
     }
   }
@@ -1086,6 +1283,121 @@ onMounted(async () => {
       border-radius: 4px;
       margin-bottom: 1rem;
       font-size: 1rem;
+    }
+
+    &.voucher-modal {
+      max-width: 500px;
+
+      .voucher-input {
+        text-transform: uppercase;
+        font-family: monospace;
+        letter-spacing: 0.1em;
+      }
+
+      .step {
+        animation: fadeIn 0.2s;
+      }
+
+      .validation-result {
+        border: 2px solid #ddd;
+        border-radius: 8px;
+        padding: 1.5rem;
+        margin-bottom: 1.5rem;
+
+        h4 {
+          margin-top: 0;
+          margin-bottom: 1rem;
+        }
+
+        &.valid {
+          background: #d4edda;
+          border-color: #c3e6cb;
+          color: #155724;
+
+          h4 {
+            color: #155724;
+          }
+        }
+
+        &.invalid {
+          background: #f8d7da;
+          border-color: #f5c6cb;
+          color: #721c24;
+
+          h4 {
+            color: #721c24;
+          }
+        }
+      }
+
+      .voucher-details {
+        width: 100%;
+        border-collapse: collapse;
+        margin-bottom: 1rem;
+        font-size: 0.9rem;
+
+        tr {
+          border-bottom: 1px solid rgba(0, 0, 0, 0.1);
+        }
+
+        td {
+          padding: 0.5rem;
+
+          &:first-child {
+            color: #666;
+            font-weight: 500;
+            width: 100px;
+          }
+
+          &:last-child {
+            text-align: right;
+          }
+        }
+      }
+
+      .success-message {
+        background: #d4edda;
+        border: 2px solid #c3e6cb;
+        border-radius: 8px;
+        padding: 1.5rem;
+        color: #155724;
+        margin-bottom: 1.5rem;
+
+        h4 {
+          margin-top: 0;
+          margin-bottom: 1rem;
+          color: #155724;
+        }
+      }
+
+      .info-text {
+        font-size: 0.85rem;
+        color: #666;
+        margin: 0;
+        padding: 0.5rem;
+        background: #f9f9f9;
+        border-radius: 4px;
+      }
+
+      .error-message {
+        background: #f8d7da;
+        border: 1px solid #f5c6cb;
+        border-radius: 4px;
+        color: #721c24;
+        padding: 0.75rem;
+        margin-bottom: 1rem;
+        font-size: 0.9rem;
+      }
+
+      .button-group {
+        display: flex;
+        gap: 0.75rem;
+        justify-content: flex-end;
+
+        button {
+          flex: 1;
+        }
+      }
     }
   }
 }
