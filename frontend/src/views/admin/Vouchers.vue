@@ -243,7 +243,6 @@ const handlePrepaidValueInput = (event) => {
     prepaidForm.value.valueDisplay = euroValue.toFixed(2)
   }
 }
-})
 
 // States
 const creatingGift = ref(false)
