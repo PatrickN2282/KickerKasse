@@ -226,7 +226,40 @@ class DatabaseMigrator:
             # ============================================================================
             # OTHER COLUMNS
             # ============================================================================
-            
+
+            if 'app_settings' in inspector.get_table_names():
+                app_settings_columns = {col['name'] for col in inspector.get_columns('app_settings')}
+
+                if 'app_name' not in app_settings_columns:
+                    logger.info("Adding app_name column to app_settings table...")
+                    try:
+                        conn.execute(text(
+                            "ALTER TABLE app_settings "
+                            "ADD COLUMN app_name VARCHAR(120) DEFAULT 'KGB - KickerKasse' NOT NULL"
+                        ))
+                        conn.commit()
+                        logger.info("✓ Added app_name column to app_settings")
+                    except Exception as e:
+                        logger.warning(f"Could not add app_name column: {str(e)}")
+                        try:
+                            conn.rollback()
+                        except:
+                            pass
+                else:
+                    try:
+                        conn.execute(text(
+                            "UPDATE app_settings "
+                            "SET app_name = 'KGB - KickerKasse' "
+                            "WHERE app_name IS NULL OR TRIM(app_name) = ''"
+                        ))
+                        conn.commit()
+                    except Exception as e:
+                        logger.warning(f"Could not backfill app_name values: {str(e)}")
+                        try:
+                            conn.rollback()
+                        except:
+                            pass
+             
             # Tax rate column
             if 'products' in inspector.get_table_names():
                 products_columns = {col['name'] for col in inspector.get_columns('products')}

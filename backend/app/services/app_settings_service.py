@@ -26,6 +26,7 @@ class AppSettingsService:
             return settings
 
         settings = AppSettings(
+            app_name=DEFAULT_APP_NAME,
             background_color=DEFAULT_BACKGROUND_COLOR,
             banner_color=DEFAULT_BANNER_COLOR,
             highlight_color=DEFAULT_HIGHLIGHT_COLOR,
@@ -42,7 +43,7 @@ class AppSettingsService:
     def to_public_payload(self, settings: AppSettings | None = None) -> dict:
         settings = settings or self.get_or_create_settings()
         return {
-            "app_name": DEFAULT_APP_NAME,
+            "app_name": settings.app_name or DEFAULT_APP_NAME,
             "background_color": settings.background_color,
             "banner_color": settings.banner_color,
             "highlight_color": settings.highlight_color,
@@ -65,6 +66,12 @@ class AppSettingsService:
 
     def update_settings(self, **kwargs) -> AppSettings:
         settings = self.get_or_create_settings()
+        if "app_name" in kwargs and kwargs["app_name"] is not None:
+            app_name = kwargs["app_name"].strip()
+            if not app_name:
+                raise ValueError("App name must not be empty")
+            settings.app_name = app_name
+
         for field in ("background_color", "banner_color", "highlight_color"):
             if field in kwargs and kwargs[field] is not None:
                 value = kwargs[field].upper()

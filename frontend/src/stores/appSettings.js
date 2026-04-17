@@ -14,6 +14,20 @@ const fallbackSettings = {
   asset_version: '1',
 }
 
+const getContrastColor = (hexColor, dark = '#111827', light = '#FFFFFF') => {
+  const hex = (hexColor || '').replace('#', '')
+  if (hex.length !== 6) {
+    return light
+  }
+
+  const red = parseInt(hex.slice(0, 2), 16)
+  const green = parseInt(hex.slice(2, 4), 16)
+  const blue = parseInt(hex.slice(4, 6), 16)
+  const brightness = ((red * 299) + (green * 587) + (blue * 114)) / 1000
+
+  return brightness >= 160 ? dark : light
+}
+
 const setLinkTag = (id, rel, href, type = null) => {
   let link = document.getElementById(id)
   if (!link) {
@@ -44,6 +58,9 @@ export const useAppSettingsStore = defineStore('app-settings', () => {
     document.documentElement.style.setProperty('--app-banner-color', settings.value.banner_color)
     document.documentElement.style.setProperty('--app-highlight-color', settings.value.highlight_color)
     document.documentElement.style.setProperty('--app-surface-color', '#ffffff')
+    document.documentElement.style.setProperty('--app-banner-contrast', getContrastColor(settings.value.banner_color))
+    document.documentElement.style.setProperty('--app-highlight-contrast', getContrastColor(settings.value.highlight_color))
+    document.documentElement.style.setProperty('--app-background-contrast', getContrastColor(settings.value.background_color))
     document.title = settings.value.app_name
 
     const themeMeta = document.getElementById('theme-color-meta')

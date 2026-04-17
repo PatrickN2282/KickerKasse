@@ -52,6 +52,10 @@
             <div class="card-label">Soll-Bestand Kasse</div>
             <div class="card-value">{{ formatEuroValue(dailyStats.cash_calculated) }}</div>
           </div>
+          <div class="summary-card warning">
+            <div class="card-label">Abschöpfungen</div>
+            <div class="card-value">{{ formatPrice(dailyStats.withdrawal_total) }}</div>
+          </div>
           <div class="summary-card">
             <div class="card-label">Offene Gutscheine</div>
             <div class="card-value">{{ formatEuroValue(dailyStats.voucher_open_total) }}</div>
@@ -141,8 +145,8 @@
               ✕ Schließen
             </button>
           </div>
-          <div style="background: white; border-radius: 4px; max-height: 600px; overflow-y: auto; padding: 1.5rem; border: 1px solid #eee;">
-            <div v-html="zBonHtml" class="zbon-html-content"></div>
+          <div class="zbon-preview-frame-shell">
+            <iframe :srcdoc="zBonHtml" class="zbon-preview-frame" title="Z-Bon Vorschau"></iframe>
           </div>
           <div style="margin-top: 1rem; text-align: center;">
             <p style="margin: 0.5rem 0; color: #666; font-size: 0.9rem;">
@@ -510,6 +514,10 @@
           <div class="card-label">Durchschnitt pro Tag</div>
           <div class="card-value">{{ formatPrice(revenueStats.daily_average) }}</div>
         </div>
+        <div class="revenue-card warning">
+          <div class="card-label">Abschöpfungen diese Woche</div>
+          <div class="card-value">{{ formatPrice(revenueStats.week_withdrawals) }}</div>
+        </div>
       </div>
 
       <div class="payment-stats">
@@ -524,6 +532,10 @@
             <div class="stat-label">💳 Guthaben</div>
             <div class="stat-value">{{ formatPrice(revenueStats.balance_total) }}</div>
             <div class="stat-percent">{{ revenueStats.balance_percent }}%</div>
+          </div>
+          <div class="stat-item">
+            <div class="stat-label">💸 Abschöpfungen 30 Tage</div>
+            <div class="stat-value">{{ formatPrice(revenueStats.month_withdrawals) }}</div>
           </div>
         </div>
       </div>
@@ -763,6 +775,7 @@ const dailyStats = ref({
   total_amount: 0,
   transaction_count: 0,
   cash_calculated: 0,
+  withdrawal_total: 0,
   voucher_open_total: 0,
   period_start: null,
   period_end: null,
@@ -782,6 +795,8 @@ const revenueStats = ref({
   balance_total: 0,
   cash_percent: 0,
   balance_percent: 0,
+  week_withdrawals: 0,
+  month_withdrawals: 0,
   top_products: [],
 })
 
@@ -929,6 +944,7 @@ const loadDailyStats = async () => {
       total_amount: Math.round((preview.summary?.gross_sales_total || 0) * 100),
       transaction_count: preview.summary?.transaction_count || 0,
       cash_calculated: preview.summary?.cash_calculated || 0,
+      withdrawal_total: Math.round((preview.summary?.cash_withdrawals_total || 0) * 100),
       voucher_open_total: preview.summary?.voucher_open_total || 0,
       period_start: preview.period_start,
       period_end: preview.period_end,
@@ -947,6 +963,7 @@ const loadDailyStats = async () => {
       total_amount: 0,
       transaction_count: 0,
       cash_calculated: 0,
+      withdrawal_total: 0,
       voucher_open_total: 0,
       period_start: null,
       period_end: null,
@@ -1392,21 +1409,23 @@ onMounted(() => {
 
 .tab-btn {
   padding: 0.75rem 1.5rem;
-  background: transparent;
-  border: none;
-  border-bottom: 3px solid transparent;
+  background: var(--app-banner-color);
+  border: 1px solid color-mix(in srgb, var(--app-banner-color) 70%, #000 30%);
+  border-bottom: none;
+  border-radius: 10px 10px 0 0;
   cursor: pointer;
   font-weight: 600;
-  color: #666;
+  color: var(--app-banner-contrast);
   transition: all 0.2s;
 
   &:hover {
-    color: #1976d2;
+    opacity: 0.92;
   }
 
   &.active {
-    color: #1976d2;
-    border-bottom-color: #1976d2;
+    background: var(--app-highlight-color);
+    border-color: var(--app-highlight-color);
+    color: var(--app-highlight-contrast);
   }
 }
 
@@ -1488,6 +1507,10 @@ onMounted(() => {
 
   &.highlight {
     background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
+  }
+
+  &.warning {
+    background: linear-gradient(135deg, #ffb74d 0%, #ef6c00 100%);
   }
 
   .card-label {
@@ -1646,6 +1669,10 @@ onMounted(() => {
 .revenue-card {
   background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
   color: white;
+
+  &.warning {
+    background: linear-gradient(135deg, #ffb74d 0%, #ef6c00 100%);
+  }
 
   .card-label {
     font-size: 0.9rem;
@@ -2021,83 +2048,19 @@ onMounted(() => {
   margin-top: 2rem;
 }
 
-.zbon-html-content {
-  font-family: Arial, sans-serif;
-  font-size: 0.95rem;
-  line-height: 1.6;
-  color: #333;
+.zbon-preview-frame-shell {
+  background: white;
+  border-radius: 4px;
+  max-height: 600px;
+  overflow: hidden;
+  border: 1px solid #eee;
+}
 
-  /* Styling for the HTML Z-Bon Template */
-  table {
-    width: 100%;
-    border-collapse: collapse;
-    margin: 1rem 0;
-
-    th {
-      background: #f5f5f5;
-      padding: 0.75rem;
-      text-align: left;
-      font-weight: 600;
-      border-bottom: 2px solid #ddd;
-    }
-
-    td {
-      padding: 0.75rem;
-      border-bottom: 1px solid #eee;
-    }
-
-    &.summary-table tr {
-      &:hover {
-        background: #f9f9f9;
-      }
-    }
-  }
-
-  h2, h3, h4 {
-    margin: 1rem 0 0.5rem 0;
-  }
-
-  h2 {
-    color: #0275d8;
-    border-bottom: 2px solid #0275d8;
-    padding-bottom: 0.5rem;
-  }
-
-  .summary-box {
-    background: #fff3cd;
-    border: 1px solid #ffc107;
-    padding: 1rem;
-    border-radius: 4px;
-    margin: 1rem 0;
-  }
-
-  .meta-section {
-    background: #f5f5f5;
-    border-left: 4px solid #0275d8;
-    padding: 1rem;
-    margin: 1rem 0;
-  }
-
-  .cash-count-detail {
-    background: #e8f5e9;
-    border-left: 4px solid #2e7d32;
-    padding: 1rem;
-    margin: 0.5rem 0;
-  }
-
-  /* Monospace for amounts */
-  .amount {
-    font-family: 'Courier New', monospace;
-    text-align: right;
-    font-weight: bold;
-  }
-
-  /* Hide print-specific styles in preview */
-  @media screen {
-    .no-print {
-      display: none;
-    }
-  }
+.zbon-preview-frame {
+  width: 100%;
+  min-height: 600px;
+  border: 0;
+  display: block;
 }
 
 /* Z-Böns History Table Styles */

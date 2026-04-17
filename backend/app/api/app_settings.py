@@ -103,7 +103,7 @@ async def get_manifest(db: Session = Depends(get_db)):
     payload = service.to_public_payload()
     manifest = {
         "name": payload["app_name"],
-        "short_name": "KickerKasse",
+        "short_name": payload["app_name"],
         "description": "Webbasierte Kassensoftware für Vereine",
         "id": "/",
         "start_url": "/",
