@@ -638,7 +638,7 @@
         <div class="selection-group">
           <label>Durchgeführt von</label>
           <button @click="openMemberPicker('withdrawalMemberId')" class="member-select-btn">
-            {{ getSelectedMemberName(withdrawalForm.memberId, 'Mitglied auswählen') }}
+            {{ getSelectedMemberName(selectedWithdrawalMemberId, 'Mitglied auswählen') }}
           </button>
         </div>
         <div class="filter-group">
@@ -885,6 +885,8 @@ const filteredPickerMembers = computed(() => {
 
   return memberStore.members.filter(member => member.name.toLowerCase().includes(search))
 })
+
+const selectedWithdrawalMemberId = computed(() => withdrawalForm.value.memberId)
 
 const getMemberById = (memberId) => {
   if (!memberId) return null

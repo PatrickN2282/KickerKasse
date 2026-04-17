@@ -535,12 +535,12 @@ ZBON_HTML_TEMPLATE = """
                     <td>{{ withdrawal.created_at }}</td>
                     <td>{{ withdrawal.reason }}</td>
                     <td>{{ withdrawal.performed_by|default("-") }}</td>
-                    <td class="amount">{{ "%.2f"|format(withdrawal.amount) }}</td>
+                    <td class="amount">{{ "%.2f"|format(withdrawal.amount) }} EUR</td>
                 </tr>
                 {% endfor %}
                 <tr class="total-row">
                     <td colspan="3">Gesamt</td>
-                    <td class="amount">{{ cash_withdrawals_total|default("0.00") }}</td>
+                    <td class="amount">{{ cash_withdrawals_total|default("0.00") }} EUR</td>
                 </tr>
             </tbody>
         </table>
