@@ -118,8 +118,33 @@
         </div>
 
         <div class="bon-total">
-          <div class="total-label">Gesamt:</div>
-          <div class="total-amount">{{ formatPrice(cartStore.getTotalAmount()) }}</div>
+          <div class="total-row">
+            <div class="total-label">Zwischensumme:</div>
+            <div class="total-amount">{{ formatPrice(cartSubtotal) }}</div>
+          </div>
+          <div v-if="hasAppliedVoucher" class="total-row voucher-row">
+            <div class="total-label">
+              Gutscheineinlösung
+              <small>{{ cartStore.appliedVoucher?.voucher_number }}</small>
+            </div>
+            <div class="total-amount">-{{ formatPrice(voucherAppliedAmount) }}</div>
+          </div>
+          <div class="total-row grand-total">
+            <div class="total-label">Zu zahlen:</div>
+            <div class="total-amount">{{ formatPrice(cartStore.getTotalAmount()) }}</div>
+          </div>
+        </div>
+
+        <div v-if="hasAppliedVoucher" class="voucher-applied-card">
+          <div>
+            <strong>🎫 Gutschein aktiv</strong>
+            <div class="voucher-applied-hint">
+              {{ cartStore.appliedVoucher?.message }}
+            </div>
+          </div>
+          <button @click="removeAppliedVoucher" class="btn-remove-voucher">
+            Entfernen
+          </button>
         </div>
 
         <div v-if="lastTransaction && lastTransaction.receipt_number" class="receipt-number">
@@ -186,6 +211,7 @@
 
               <button
                 @click="showVoucherModal = true"
+                :disabled="cartStore.items.length === 0"
                 class="payment-btn voucher-btn"
               >
                 🎫 Gutschein
@@ -287,6 +313,14 @@
                 <td>Wert:</td>
                 <td><strong>{{ (voucherValidation.value_cents / 100).toFixed(2) }}€</strong></td>
               </tr>
+              <tr v-if="voucherValidation.valid && cartSubtotal > 0">
+                <td>Anrechnung:</td>
+                <td><strong>{{ (voucherValidation.applicable_amount_cents / 100).toFixed(2) }}€</strong></td>
+              </tr>
+              <tr v-if="voucherValidation.valid && voucherValidation.remaining_value_cents > 0">
+                <td>Restwert:</td>
+                <td>{{ (voucherValidation.remaining_value_cents / 100).toFixed(2) }}€</td>
+              </tr>
               <tr>
                 <td>Status:</td>
                 <td>{{ voucherValidation.status === 'CREATED' ? '✅ Verfügbar' : '✓ Bereits eingelöst' }}</td>
@@ -308,7 +342,7 @@
               :disabled="redeemingVoucher"
               class="btn btn-primary"
             >
-              {{ redeemingVoucher ? '⏳ Wird eingelöst...' : '✓ Einlösen' }}
+              {{ voucherActionLabel }}
             </button>
             <button @click="resetVoucher" class="btn btn-secondary">
               {{ voucherValidation.valid ? 'Neue Nummer' : 'Abbrechen' }}
@@ -466,6 +500,19 @@ const selectedMember = computed(() => {
   return memberStore.members.find(m => m.id === cartStore.selectedMemberId) || null
 })
 
+const cartSubtotal = computed(() => cartStore.getSubtotalAmount())
+const voucherAppliedAmount = computed(() => cartStore.getVoucherAppliedAmount())
+const hasAppliedVoucher = computed(() => !!cartStore.appliedVoucher)
+const voucherActionLabel = computed(() => {
+  if (redeemingVoucher.value) {
+    return '⏳ Wird verarbeitet...'
+  }
+
+  return voucherValidation.value?.covers_cart_total
+    ? '✓ Kauf abschließen'
+    : '✓ Als Rabatt anwenden'
+})
+
 const filteredMembers = computed(() => {
   return memberStore.members.filter(m =>
     m.name.toLowerCase().includes(memberSearch.value.toLowerCase())
@@ -520,7 +567,8 @@ const validateVoucher = async () => {
   
   try {
     const response = await apiService.post('/transactions/voucher/validate', {
-      voucher_number: voucherNumber.value
+      voucher_number: voucherNumber.value,
+      cart_total_cents: cartSubtotal.value,
     })
     voucherValidation.value = response.data
     voucherValidated.value = true
@@ -542,16 +590,28 @@ const redeemVoucher = async () => {
   voucherError.value = null
   
   try {
-    const response = await apiService.post('/transactions/voucher/redeem', {
-      voucher_number: voucherNumber.value,
-      member_id: cartStore.selectedMemberId || null
-    })
-    voucherRedeemed.value = response.data
-    console.log('[Kasse] Voucher redeemed:', response.data)
-    
-    // Reload members to update balances (for PREPAID vouchers)
-    await memberStore.getMembers()
-    notificationStore.success(`Gutschein ${voucherNumber.value} eingelöst`)
+    const appliedVoucher = {
+      voucher_number: voucherValidation.value.voucher_number,
+      voucher_type: voucherValidation.value.voucher_type,
+      value_cents: voucherValidation.value.value_cents,
+      message: voucherValidation.value.message,
+    }
+
+    cartStore.applyVoucher(appliedVoucher)
+
+    if (voucherValidation.value.covers_cart_total) {
+      voucherRedeemed.value = appliedVoucher
+      cartStore.paymentMethod = 'CASH'
+      await handleCheckout('Verkauf mit Gutschein abgeschlossen')
+      resetVoucher()
+      return
+    }
+
+    voucherRedeemed.value = {
+      ...appliedVoucher,
+      message: `Gutschein ${voucherValidation.value.voucher_number} wurde als Rabatt übernommen.`,
+    }
+    notificationStore.success(`Gutschein ${voucherValidation.value.voucher_number} als Rabatt übernommen`)
   } catch (error) {
     const detail = error.response?.data?.detail || error.message || 'Fehler bei der Einlösung'
     voucherError.value = detail
@@ -570,19 +630,24 @@ const resetVoucher = () => {
   showVoucherModal.value = false
 }
 
+const removeAppliedVoucher = () => {
+  cartStore.removeVoucher()
+  notificationStore.success('Gutschein aus dem Bon entfernt')
+}
+
 const formatVoucherReason = (reason) => {
   if (!reason) return '-'
   return voucherReasonLabels[reason] || reason
 }
 
-const handleCheckout = async () => {
+const handleCheckout = async (successMessage = 'Verkauf abgeschlossen') => {
   try {
     console.log('[Kasse] Starting checkout...')
     const transaction = await cartStore.checkout(authStore.user.id)
     console.log('[Kasse] Checkout successful, transaction:', transaction)
     lastTransaction.value = transaction
     console.log('[Kasse] Set lastTransaction with receipt_number:', transaction?.receipt_number)
-    notificationStore.success('Verkauf abgeschlossen')
+    notificationStore.success(successMessage)
     // Reload members to update balances
     await memberStore.getMembers()
     // Load next receipt number for the next transaction
@@ -650,24 +715,24 @@ onMounted(async () => {
 
 <style scoped lang="scss">
 .kasse-container {
-  display: grid;
-  grid-template-columns: 3fr 1fr;
+  display: flex;
   gap: 1rem;
   padding: 1rem;
   height: calc(100vh - 70px);
-  background: #e3e3e3;
+  background: #cfd3d8;
 
   @media (max-width: 768px) {
-    grid-template-columns: 1fr;
-    grid-template-rows: auto 1fr;
+    flex-direction: column;
   }
 }
 
 .kasse-products {
-  background: linear-gradient(135deg, #dddddd 0%, #cecece 100%);
+  flex: 1 1 auto;
+  min-width: 0;
+  background: linear-gradient(135deg, #c4c8cf 0%, #aeb4bc 100%);
   border-radius: 8px;
   padding: 1.5rem;
-  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+  box-shadow: 0 10px 24px rgba(24, 28, 34, 0.14);
   overflow-y: auto;
 
   h2 {
@@ -678,10 +743,15 @@ onMounted(async () => {
 }
 
 .kasse-bon {
-  background: linear-gradient(135deg, #dddddd 0%, #cecece 100%);
+  flex: 0 0 clamp(340px, 30vw, 520px);
+  width: clamp(340px, 30vw, 520px);
+  min-width: 320px;
+  max-width: min(70vw, 720px);
+  resize: horizontal;
+  background: linear-gradient(135deg, #c4c8cf 0%, #aeb4bc 100%);
   border-radius: 8px;
   padding: 1.5rem;
-  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+  box-shadow: 0 10px 24px rgba(24, 28, 34, 0.14);
   overflow-y: auto;
   border-left: 5px solid #ff6b35;
 
@@ -689,6 +759,13 @@ onMounted(async () => {
     margin: 0 0 1rem 0;
     color: #333;
     font-size: 1.3rem;
+  }
+
+  @media (max-width: 768px) {
+    width: 100%;
+    min-width: 0;
+    max-width: 100%;
+    resize: none;
   }
 }
 
@@ -699,7 +776,7 @@ onMounted(async () => {
 }
 
 .category-section {
-  border: 1px solid #e0e0e0;
+  border: 1px solid #99a1ab;
   border-radius: 6px;
   overflow: hidden;
 }
@@ -707,7 +784,7 @@ onMounted(async () => {
 .category-header {
   width: 100%;
   padding: 0.75rem 1rem;
-  background: #e3e3e3;
+  background: #bcc2ca;
   border: none;
   text-align: left;
   cursor: pointer;
@@ -719,7 +796,7 @@ onMounted(async () => {
   transition: all 0.2s;
 
   &:hover {
-    background: #d9d9d9;
+    background: #b2b8c1;
   }
 
   &.expanded {
@@ -750,7 +827,7 @@ onMounted(async () => {
   grid-template-columns: repeat(5, 1fr);
   gap: 0.75rem;
   padding: 0.75rem;
-  background: #dcdcdc;
+  background: #b5bbc4;
 
   @media (max-width: 1400px) {
     grid-template-columns: repeat(4, 1fr);
@@ -770,8 +847,8 @@ onMounted(async () => {
 }
 
 .product-btn {
-  background: white;
-  border: 2px solid #e0e0e0;
+  background: #eef1f4;
+  border: 2px solid #aeb5be;
   border-radius: 8px;
   padding: 1rem;
   cursor: pointer;
@@ -798,7 +875,7 @@ onMounted(async () => {
     height: 80px;
     overflow: hidden;
     border-radius: 4px;
-    background: white;
+    background: #f6f7f9;
     display: flex;
     align-items: center;
     justify-content: center;
@@ -827,7 +904,7 @@ onMounted(async () => {
 }
 
 .member-info {
-  background: #e1e1e1;
+  background: #bcc2ca;
   padding: 1rem;
   border-radius: 4px;
   margin-bottom: 1rem;
@@ -853,7 +930,7 @@ onMounted(async () => {
     font-size: 0.85rem;
 
     &:hover {
-      background: #f5f5f5;
+      background: #d5dae0;
     }
   }
 }
@@ -868,9 +945,9 @@ onMounted(async () => {
 
 .bon-header {
   flex-shrink: 0;
-  background: #dcdcdc;
+  background: #b5bbc4;
   padding: 0.8rem;
-  border-bottom: 2px solid #c7c7c7;
+  border-bottom: 2px solid #9ca4ae;
   display: flex;
   justify-content: center;
   align-items: center;
@@ -881,9 +958,9 @@ onMounted(async () => {
   font-weight: bold;
   color: #333;
   padding: 0.5rem;
-  background: #fff;
+  background: #eef1f4;
   border-radius: 4px;
-  border: 1px solid #ddd;
+  border: 1px solid #9ca4ae;
 }
 
 .payment-section {
@@ -1015,10 +1092,10 @@ onMounted(async () => {
 .bon-total {
   flex-shrink: 0;
   display: flex;
-  justify-content: space-between;
-  align-items: center;
+  flex-direction: column;
+  gap: 0.45rem;
   padding: 0.75rem;
-  background: #f0f0f0;
+  background: #d8dde3;
   border-radius: 4px;
 
   .total-label {
@@ -1026,10 +1103,61 @@ onMounted(async () => {
   }
 
   .total-amount {
-    color: #667eea;
+    color: #ff6b35;
     font-weight: bold;
+    font-size: 1.1rem;
+  }
+}
+
+.total-row {
+  display: flex;
+  justify-content: space-between;
+  gap: 1rem;
+  width: 100%;
+}
+
+.grand-total {
+  padding-top: 0.55rem;
+  border-top: 1px solid #a2abb5;
+
+  .total-amount {
     font-size: 1.3rem;
   }
+}
+
+.voucher-row {
+  color: #ff6b35;
+
+  small {
+    display: block;
+    color: #5d646d;
+    font-weight: 500;
+  }
+}
+
+.voucher-applied-card {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 1rem;
+  padding: 0.85rem 1rem;
+  border-radius: 8px;
+  background: rgba(255, 107, 53, 0.1);
+  border: 1px solid rgba(255, 107, 53, 0.28);
+}
+
+.voucher-applied-hint {
+  color: #4f555d;
+  font-size: 0.85rem;
+}
+
+.btn-remove-voucher {
+  border: 1px solid rgba(255, 107, 53, 0.35);
+  background: #eef1f4;
+  color: #ff6b35;
+  border-radius: 6px;
+  padding: 0.45rem 0.75rem;
+  cursor: pointer;
 }
 
 .receipt-number {
@@ -1055,7 +1183,7 @@ onMounted(async () => {
   }
 
   .member-card {
-    background: white;
+    background: #eef1f4;
     border: 2px solid #1976d2;
     border-radius: 8px;
     padding: 0.75rem;

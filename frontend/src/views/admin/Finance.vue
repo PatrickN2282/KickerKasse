@@ -34,6 +34,10 @@
             <div class="card-label">Umsatz (Guthaben)</div>
             <div class="card-value">{{ formatPrice(dailyStats.balance_total) }}</div>
           </div>
+          <div class="summary-card">
+            <div class="card-label">Gutscheine</div>
+            <div class="card-value">{{ formatPrice(dailyStats.voucher_total) }}</div>
+          </div>
           <div class="summary-card highlight">
             <div class="card-label">Umsatz GESAMT</div>
             <div class="card-value">{{ formatPrice(dailyStats.total_amount) }}</div>
@@ -70,8 +74,8 @@
                     <span v-if="transaction.type === 'RECHARGE'" class="payment-badge recharge">
                       ⬆️ Aufladen
                     </span>
-                    <span v-else :class="['payment-badge', transaction.payment_method.toLowerCase()]">
-                      {{ transaction.payment_method === 'CASH' ? '💰 BAR' : '💳 Guthaben' }}
+                    <span v-else :class="['payment-badge', getPaymentBadgeClass(transaction)]">
+                      {{ getPaymentBadgeLabel(transaction) }}
                     </span>
                   </td>
                 </tr>
@@ -382,6 +386,8 @@
             <option value="">Alle</option>
             <option value="CASH">BAR</option>
             <option value="BALANCE">Guthaben</option>
+            <option value="VOUCHER_GIFT">Geschenk-Gutschein</option>
+            <option value="VOUCHER_PREPAID">Guthaben-Gutschein</option>
           </select>
         </div>
         <button @click="applyFilters" class="btn btn-info">Filter anwenden</button>
@@ -393,6 +399,10 @@
           <div class="summary-item">
             <span>Umsatz gesamt:</span>
             <span class="amount">{{ formatPrice(filteredStats.total) }}</span>
+          </div>
+          <div class="summary-item">
+            <span>Gutscheine:</span>
+            <span class="amount">{{ formatPrice(filteredStats.voucherTotal) }}</span>
           </div>
           <div class="summary-item">
             <span>Anzahl Transaktionen:</span>
@@ -423,8 +433,8 @@
                 <span v-if="transaction.type === 'RECHARGE'" class="payment-badge recharge">
                   ⬆️ Aufladen
                 </span>
-                <span v-else :class="['payment-badge', transaction.payment_method.toLowerCase()]">
-                  {{ transaction.payment_method === 'CASH' ? '💰 BAR' : '💳 Guthaben' }}
+                <span v-else :class="['payment-badge', getPaymentBadgeClass(transaction)]">
+                  {{ getPaymentBadgeLabel(transaction) }}
                 </span>
               </td>
               <td>{{ transaction.user?.username || '-' }}</td>
@@ -562,6 +572,9 @@ import { ref, computed, onMounted, watch } from 'vue'
 import { formatPrice } from '@/services/utils'
 import apiService from '@/services/api'
 import CashCounterModal from '@/components/CashCounterModal.vue'
+import { useNotificationStore } from '@/stores/notification'
+
+const notificationStore = useNotificationStore()
 
 const activeTab = ref('zbon')
 const loading = ref(false)
@@ -598,13 +611,14 @@ const zbonsTotalPages = ref(1)
 const dailyStats = ref({
   cash_total: 0,
   balance_total: 0,
+  voucher_total: 0,
   total_amount: 0,
   transaction_count: 0,
   transactions: [],
 })
 
 const filteredTransactions = ref([])
-const filteredStats = ref({ total: 0 })
+const filteredStats = ref({ total: 0, voucherTotal: 0 })
 const revenueStats = ref({
   week_total: 0,
   month_total: 0,
@@ -684,6 +698,7 @@ const loadDailyStats = async () => {
     dailyStats.value = {
       cash_total: 0,
       balance_total: 0,
+      voucher_total: 0,
       total_amount: 0,
       transaction_count: 0,
       transactions: [],
@@ -710,14 +725,44 @@ const applyFilters = async () => {
     filteredTransactions.value = data.data.transactions || []
     filteredStats.value = {
       total: data.data.total_amount || 0,
+      voucherTotal: filteredTransactions.value.reduce(
+        (sum, transaction) => sum + (transaction.voucher_applied_cents || 0),
+        0
+      ),
     }
   } catch (error) {
     console.error('Error loading filtered transactions:', error)
     filteredTransactions.value = []
-    filteredStats.value = { total: 0 }
+    filteredStats.value = { total: 0, voucherTotal: 0 }
   } finally {
     loadingHistory.value = false
   }
+}
+
+const getPaymentBadgeClass = (transaction) => {
+  if (transaction.voucher_applied_cents > 0 && transaction.voucher_type) {
+    return transaction.voucher_type === 'GIFT' ? 'voucher-gift' : 'voucher-prepaid'
+  }
+
+  return transaction.payment_method.toLowerCase()
+}
+
+const getPaymentBadgeLabel = (transaction) => {
+  if (transaction.voucher_applied_cents > 0 && transaction.voucher_type) {
+    const baseLabel = transaction.payment_method === 'BALANCE' ? '💳 Guthaben' : '💰 BAR'
+    const voucherLabel = transaction.voucher_type === 'GIFT' ? '🎁 Gutschein' : '🎫 Gutschein'
+    return `${voucherLabel} + ${baseLabel}`
+  }
+
+  if (transaction.payment_method === 'VOUCHER_GIFT') {
+    return '🎁 Gutschein'
+  }
+
+  if (transaction.payment_method === 'VOUCHER_PREPAID') {
+    return '🎫 Gutschein'
+  }
+
+  return transaction.payment_method === 'CASH' ? '💰 BAR' : '💳 Guthaben'
 }
 
 const loadRevenueStats = async () => {
@@ -1025,10 +1070,10 @@ onMounted(() => {
 
 <style scoped lang="scss">
 .admin-finance {
-  background: white;
+  background: #dde2e8;
   border-radius: 8px;
   padding: 2rem;
-  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+  box-shadow: 0 10px 24px rgba(24, 28, 34, 0.14);
 
   h2 {
     margin-bottom: 2rem;
@@ -1050,7 +1095,7 @@ onMounted(() => {
   display: flex;
   gap: 1rem;
   margin-bottom: 2rem;
-  border-bottom: 2px solid #eee;
+  border-bottom: 2px solid #aeb5be;
   flex-wrap: wrap;
 }
 
@@ -1101,7 +1146,7 @@ onMounted(() => {
 
   input {
     padding: 0.5rem;
-    border: 1px solid #ddd;
+    border: 1px solid #9ca4ae;
     border-radius: 4px;
     font-size: 1rem;
   }
@@ -1113,7 +1158,7 @@ onMounted(() => {
   gap: 1rem;
   margin-bottom: 2rem;
   padding: 1rem;
-  background: #f9f9f9;
+  background: #d8dde3;
   border-radius: 4px;
   align-items: flex-end;
 }
@@ -1131,7 +1176,7 @@ onMounted(() => {
   input,
   select {
     padding: 0.5rem;
-    border: 1px solid #ddd;
+      border: 1px solid #9ca4ae;
     border-radius: 4px;
   }
 }
@@ -1180,7 +1225,7 @@ onMounted(() => {
   margin-top: 1rem;
 
   thead {
-    background: #f5f5f5;
+    background: #d8dde3;
 
     th {
       padding: 1rem;
@@ -1195,7 +1240,7 @@ onMounted(() => {
       border-bottom: 1px solid #eee;
 
       &:hover {
-        background: #f9f9f9;
+        background: #dde2e8;
       }
 
       td {
@@ -1231,6 +1276,16 @@ onMounted(() => {
     background: #fff3e0;
     color: #e65100;
   }
+
+  &.voucher-gift {
+    background: rgba(255, 107, 53, 0.16);
+    color: #b84b1f;
+  }
+
+  &.voucher-prepaid {
+    background: rgba(255, 107, 53, 0.1);
+    color: #ff6b35;
+  }
 }
 
 .empty {
@@ -1257,7 +1312,7 @@ onMounted(() => {
 .summary-item,
 .stat-card,
 .revenue-card {
-  background: #f5f5f5;
+  background: #d8dde3;
   padding: 1.5rem;
   border-radius: 8px;
   display: flex;
@@ -1478,7 +1533,7 @@ onMounted(() => {
 }
 
 .confirmation-dialog {
-  background: white;
+  background: #dde2e8;
   border-radius: 8px;
   padding: 2rem;
   max-width: 400px;
@@ -1508,7 +1563,7 @@ onMounted(() => {
 }
 
 .items-row {
-  background: #f9f9f9;
+  background: #d8dde3;
 
   td {
     padding: 0 !important;
@@ -1516,7 +1571,7 @@ onMounted(() => {
 }
 
 .items-cell {
-  background: #f9f9f9 !important;
+  background: #d8dde3 !important;
   padding: 0.5rem 1rem !important;
 }
 
@@ -1530,7 +1585,7 @@ onMounted(() => {
   display: flex;
   gap: 1rem;
   padding: 0.5rem;
-  background: white;
+  background: #eef1f4;
   border-radius: 4px;
   border-left: 3px solid #667eea;
   font-size: 0.9rem;

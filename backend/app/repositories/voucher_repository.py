@@ -139,7 +139,14 @@ class VoucherRepository:
             .all()
         )
 
-    def redeem(self, voucher_id: int, redeemed_by_user_id: int, transaction_id: int) -> Voucher:
+    def redeem(
+        self,
+        voucher_id: int,
+        redeemed_by_user_id: int,
+        transaction_id: int,
+        applied_amount_cents: int = None,
+        commit: bool = True,
+    ) -> Voucher:
         """Mark voucher as redeemed"""
         voucher = self.get_by_id(voucher_id)
         if not voucher:
@@ -152,11 +159,33 @@ class VoucherRepository:
         voucher.redeemed_by_user_id = redeemed_by_user_id
         voucher.redeemed_at = datetime.now()
         voucher.redeemed_in_transaction_id = transaction_id
+        voucher.redeemed_amount_cents = applied_amount_cents if applied_amount_cents is not None else voucher.value_cents
 
-        self.db.commit()
-        self.db.refresh(voucher)
+        if commit:
+            self.db.commit()
+            self.db.refresh(voucher)
+        else:
+            self.db.flush()
         
         logger.info(f"Redeemed voucher #{voucher.voucher_number} in transaction {transaction_id}")
+        return voucher
+
+    def update(self, voucher_id: int, commit: bool = True, **kwargs) -> Voucher:
+        """Update editable voucher fields"""
+        voucher = self.get_by_id(voucher_id)
+        if not voucher:
+            raise ValueError(f"Voucher {voucher_id} not found")
+
+        allowed_fields = {"value_cents", "reason", "description"}
+        for key, value in kwargs.items():
+            if key in allowed_fields:
+                setattr(voucher, key, value)
+
+        if commit:
+            self.db.commit()
+            self.db.refresh(voucher)
+        else:
+            self.db.flush()
         return voucher
 
     def count_by_status(self, status: VoucherStatus) -> int:

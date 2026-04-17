@@ -13,6 +13,7 @@ from .voucher import (
     VoucherResponse,
     VoucherListResponse,
     VoucherRedeemResponse,
+    VoucherUpdateRequest,
 )
 from .zbon_history import ZBonHistoryResponse, ZBonHistoryListResponse
 
@@ -43,6 +44,7 @@ __all__ = [
     "VoucherResponse",
     "VoucherListResponse",
     "VoucherRedeemResponse",
+    "VoucherUpdateRequest",
     "ZBonHistoryResponse",
     "ZBonHistoryListResponse",
 ]

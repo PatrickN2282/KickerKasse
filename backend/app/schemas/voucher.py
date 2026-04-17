@@ -17,12 +17,14 @@ class VoucherCreatePrepaid(BaseModel):
 class VoucherValidateRequest(BaseModel):
     """Validate a voucher before redemption"""
     voucher_number: str = Field(..., description="Voucher number (e.g., V-001)")
+    cart_total_cents: Optional[int] = Field(None, ge=0, description="Current cart total in cents")
 
 
 class VoucherRedeemRequest(BaseModel):
     """Redeem a voucher"""
     voucher_number: str = Field(..., description="Voucher number (e.g., V-001)")
     member_id: Optional[int] = None
+    cart_total_cents: Optional[int] = Field(None, ge=0)
 
 
 class VoucherValidationResponse(BaseModel):
@@ -34,6 +36,9 @@ class VoucherValidationResponse(BaseModel):
     status: str
     message: str = ""
     reason: Optional[str] = None
+    applicable_amount_cents: int = 0
+    remaining_value_cents: int = 0
+    covers_cart_total: bool = False
 
 
 class VoucherResponse(BaseModel):
@@ -45,10 +50,12 @@ class VoucherResponse(BaseModel):
     value_cents: int
     status: str  # CREATED or REDEEMED
     reason: Optional[str] = None  # For GIFT vouchers
+    description: Optional[str] = None
     created_by_user_id: int
     created_at: datetime
     redeemed_by_user_id: Optional[int] = None
     redeemed_at: Optional[datetime] = None
+    redeemed_amount_cents: Optional[int] = None
 
     model_config = ConfigDict(from_attributes=True)
     
@@ -90,3 +97,11 @@ class VoucherRedeemResponse(BaseModel):
     value_cents: int
     transaction_id: int
     message: str
+    applied_amount_cents: int = 0
+
+
+class VoucherUpdateRequest(BaseModel):
+    """Editable voucher fields for admin"""
+    value_cents: int = Field(..., ge=1, description="Value in cents")
+    reason: Optional[Literal["DYP_SIEGER", "PROMOTION"]] = None
+    description: Optional[str] = Field(None, max_length=255)

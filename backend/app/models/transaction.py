@@ -27,6 +27,9 @@ class Transaction(BaseModel):
     type = Column(Enum(TransactionType), nullable=False, default=TransactionType.SALE)
     payment_method = Column(Enum(PaymentMethod), nullable=False)
     total_amount_cents = Column(Integer, nullable=False)  # Gesamtbetrag in Cent
+    voucher_code = Column(String(20), nullable=True, index=True)
+    voucher_type = Column(String(20), nullable=True)
+    voucher_applied_cents = Column(Integer, nullable=False, default=0)
     
     # Referenzen
     user_id = Column(Integer, ForeignKey("users.id"), nullable=False)  # Kassierer/Admin
