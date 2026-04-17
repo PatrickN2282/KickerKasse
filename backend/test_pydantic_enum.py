@@ -90,7 +90,8 @@ try:
     print(f"  reason: {response.reason}")
     print(f"  Created success message would show:")
     print(f"    ✅ Gutschein erstellt!")
-    print(f"    {response.voucher_code or f'V-2026-{str(response.id).padStart(3, \"0\")}'}")
+    fallback_code = response.voucher_code or f"V-2026-{str(response.id).zfill(3)}"
+    print(f"    {fallback_code}")
 except Exception as e:
     print(f"✗ from_orm() failed: {e}")
     import traceback
