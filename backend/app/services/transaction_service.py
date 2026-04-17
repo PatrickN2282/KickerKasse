@@ -1,8 +1,8 @@
 from sqlalchemy.orm import Session, joinedload
 from sqlalchemy import func, and_
-from datetime import date
+from datetime import date, datetime, time, timedelta
 from app.repositories import TransactionRepository, BalanceLogRepository
-from app.models import Transaction, TransactionType, PaymentMethod, Product
+from app.models import Transaction, TransactionType, PaymentMethod, Product, CashEntry, CashEntryType
 
 
 class TransactionService:
@@ -293,7 +293,6 @@ class TransactionService:
     
     def get_revenue_stats(self):
         """Get revenue statistics"""
-        from datetime import timedelta
         from app.models import TransactionItem, Product
         
         today = date.today()
@@ -310,6 +309,19 @@ class TransactionService:
         week_total = sum(t.total_amount_cents for t in week_transactions)
         week_cash = sum(t.total_amount_cents for t in week_transactions if t.payment_method == PaymentMethod.CASH)
         week_balance = sum(t.total_amount_cents for t in week_transactions if t.payment_method == PaymentMethod.BALANCE)
+
+        week_start = datetime.combine(week_ago, time.min)
+        week_end = datetime.combine(today, time.max)
+        week_withdrawals = (
+            self.db.query(func.coalesce(func.sum(CashEntry.amount_cents), 0))
+            .filter(
+                CashEntry.entry_type == CashEntryType.WITHDRAWAL,
+                CashEntry.created_at >= week_start,
+                CashEntry.created_at <= week_end,
+            )
+            .scalar()
+            or 0
+        )
         
         # Month stats
         month_transactions = self.db.query(Transaction).filter(
@@ -319,6 +331,18 @@ class TransactionService:
         ).all()
         
         month_total = sum(t.total_amount_cents for t in month_transactions)
+        month_start = datetime.combine(month_ago, time.min)
+        month_end = datetime.combine(today, time.max)
+        month_withdrawals = (
+            self.db.query(func.coalesce(func.sum(CashEntry.amount_cents), 0))
+            .filter(
+                CashEntry.entry_type == CashEntryType.WITHDRAWAL,
+                CashEntry.created_at >= month_start,
+                CashEntry.created_at <= month_end,
+            )
+            .scalar()
+            or 0
+        )
         
         # Daily average
         daily_average = int(month_total / 30) if month_total > 0 else 0
@@ -346,6 +370,8 @@ class TransactionService:
             "daily_average": daily_average,
             "cash_total": week_cash,
             "balance_total": week_balance,
+            "week_withdrawals": int(week_withdrawals),
+            "month_withdrawals": int(month_withdrawals),
             "cash_percent": cash_percent,
             "balance_percent": balance_percent,
             "top_products": [

@@ -4,7 +4,8 @@
     <nav v-if="authStore.isAuthenticated" class="navbar">
       <div class="navbar-content">
         <div class="navbar-brand">
-          <img :src="appSettingsStore.logoUrl" alt="KGB - KickerKasse" class="navbar-logo" />
+          <img :src="appSettingsStore.logoUrl" :alt="appSettingsStore.settings.app_name" class="navbar-logo" />
+          <span class="navbar-title">{{ appSettingsStore.settings.app_name }}</span>
         </div>
         <div class="navbar-menu">
           <router-link to="/" class="nav-link">Kasse</router-link>
@@ -73,6 +74,13 @@ onMounted(() => {
     gap: 0.85rem;
   }
 
+  .navbar-title {
+    color: var(--app-banner-contrast);
+    font-size: clamp(1.1rem, 1.8vw, 1.6rem);
+    font-weight: 700;
+    line-height: 1.2;
+  }
+
   .navbar-logo {
     width: min(300px, 62vw);
     height: 58px;
@@ -88,7 +96,7 @@ onMounted(() => {
   }
 
   .nav-link {
-    color: white;
+    color: var(--app-banner-contrast);
     text-decoration: none;
     padding: 0.5rem 0.9rem;
     border-radius: 999px;
@@ -97,13 +105,13 @@ onMounted(() => {
     &:hover,
     &.router-link-active {
       background-color: var(--app-highlight-color);
-      color: #fff;
+      color: var(--app-highlight-contrast);
     }
   }
 
   .btn-logout {
     background-color: #d32f2f;
-    color: white;
+    color: #fff;
     border: none;
     padding: 0.5rem 1rem;
     border-radius: 999px;
@@ -125,6 +133,7 @@ onMounted(() => {
 
   .navbar .navbar-brand {
     justify-content: center;
+    text-align: center;
   }
 
   .navbar .navbar-menu {

@@ -64,21 +64,22 @@ const isTabActive = (path) => route.path === path
 
 .tab-button {
   padding: 1rem 1.5rem;
-  background: transparent;
-  border: none;
-  border-bottom: 3px solid transparent;
-  color: #666;
+  background: var(--app-banner-color);
+  border: 1px solid color-mix(in srgb, var(--app-banner-color) 70%, #000 30%);
+  color: var(--app-banner-contrast);
   font-size: 1rem;
   font-weight: 500;
   cursor: pointer;
   transition: all 0.3s;
   text-decoration: none;
   display: block;
+  border-radius: 10px 10px 0 0;
 
   &:hover,
   &.active {
-    color: var(--app-highlight-color);
-    border-bottom-color: var(--app-highlight-color);
+    background: var(--app-highlight-color);
+    border-color: var(--app-highlight-color);
+    color: var(--app-highlight-contrast);
   }
 }
 

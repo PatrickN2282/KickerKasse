@@ -1,6 +1,7 @@
 import { defineStore } from 'pinia'
 import { computed, ref } from 'vue'
 import apiService from '@/services/api'
+import { getContrastColor } from '@/services/utils'
 
 const fallbackSettings = {
   app_name: 'KGB - KickerKasse',
@@ -44,6 +45,9 @@ export const useAppSettingsStore = defineStore('app-settings', () => {
     document.documentElement.style.setProperty('--app-banner-color', settings.value.banner_color)
     document.documentElement.style.setProperty('--app-highlight-color', settings.value.highlight_color)
     document.documentElement.style.setProperty('--app-surface-color', '#ffffff')
+    document.documentElement.style.setProperty('--app-banner-contrast', getContrastColor(settings.value.banner_color))
+    document.documentElement.style.setProperty('--app-highlight-contrast', getContrastColor(settings.value.highlight_color))
+    document.documentElement.style.setProperty('--app-background-contrast', getContrastColor(settings.value.background_color))
     document.title = settings.value.app_name
 
     const themeMeta = document.getElementById('theme-color-meta')

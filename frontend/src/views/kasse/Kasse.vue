@@ -736,9 +736,9 @@ const getPaymentButtonStyle = (method) => {
   // No member selected - only BAR button is green
   if (!hasMember) {
     if (method === 'CASH') {
-      return { background: '#4caf50', color: 'white' } // Green
+      return { background: 'var(--app-highlight-color)', color: 'var(--app-highlight-contrast)' }
     } else {
-      return { background: '#999', color: 'white', cursor: 'not-allowed' } // Gray, disabled
+      return { background: '#999', color: 'white', cursor: 'not-allowed' }
     }
   }
 
@@ -747,12 +747,12 @@ const getPaymentButtonStyle = (method) => {
   console.log(`[Kasse] HasEnoughBalance: ${hasEnoughBalance} (${balance} >= ${total})`)
   
   if (method === 'CASH') {
-    return { background: '#81c784', color: 'white' } // Light green
+    return { background: 'var(--app-highlight-color)', color: 'var(--app-highlight-contrast)' }
   } else {
     if (hasEnoughBalance) {
-      return { background: '#a5d6a7', color: 'white' } // Very light green
+      return { background: 'var(--app-banner-color)', color: 'var(--app-banner-contrast)' }
     } else {
-      return { background: '#ccc', color: '#999', cursor: 'not-allowed' } // Gray, disabled
+      return { background: '#ccc', color: '#999', cursor: 'not-allowed' }
     }
   }
 }
@@ -790,7 +790,7 @@ onBeforeUnmount(() => {
   gap: 0;
   padding: 1rem;
   height: calc(100vh - 70px);
-  background: #cfd3d8;
+  background: var(--app-background-color);
 
   @media (max-width: 768px) {
     flex-direction: column;
@@ -801,15 +801,16 @@ onBeforeUnmount(() => {
   flex: 1 1 auto;
   min-width: 0;
   margin-right: 1rem;
-  background: linear-gradient(135deg, #c4c8cf 0%, #aeb4bc 100%);
+  background: var(--app-surface-color);
   border-radius: 8px;
   padding: 1.5rem;
   box-shadow: 0 10px 24px rgba(24, 28, 34, 0.14);
   overflow-y: auto;
+  border: 1px solid var(--app-banner-color);
 
   h2 {
     margin: 0 0 1rem 0;
-    color: #333;
+    color: var(--app-banner-color);
     font-size: 1.3rem;
   }
 }
@@ -818,14 +819,14 @@ onBeforeUnmount(() => {
   width: 12px;
   margin: 0 0.5rem;
   border-radius: 999px;
-  background: linear-gradient(180deg, rgba(255, 107, 53, 0.55) 0%, rgba(255, 107, 53, 0.2) 100%);
+  background: var(--app-highlight-color);
   cursor: col-resize;
   flex: 0 0 12px;
   align-self: stretch;
   transition: background 0.2s ease;
 
   &:hover {
-    background: linear-gradient(180deg, rgba(255, 107, 53, 0.8) 0%, rgba(255, 107, 53, 0.35) 100%);
+    opacity: 0.85;
   }
 
   @media (max-width: 768px) {
@@ -838,16 +839,17 @@ onBeforeUnmount(() => {
   width: 420px;
   min-width: 320px;
   max-width: min(70vw, 720px);
-  background: linear-gradient(135deg, #c4c8cf 0%, #aeb4bc 100%);
+  background: var(--app-surface-color);
   border-radius: 8px;
   padding: 1.5rem;
   box-shadow: 0 10px 24px rgba(24, 28, 34, 0.14);
   overflow-y: auto;
-  border-left: 5px solid #ff6b35;
+  border: 1px solid var(--app-banner-color);
+  border-left: 5px solid var(--app-highlight-color);
 
   h2 {
     margin: 0 0 1rem 0;
-    color: #333;
+    color: var(--app-banner-color);
     font-size: 1.3rem;
   }
 
@@ -866,7 +868,7 @@ onBeforeUnmount(() => {
 }
 
 .category-section {
-  border: 1px solid #99a1ab;
+  border: 1px solid var(--app-banner-color);
   border-radius: 6px;
   overflow: hidden;
 }
@@ -874,7 +876,7 @@ onBeforeUnmount(() => {
 .category-header {
   width: 100%;
   padding: 0.75rem 1rem;
-  background: #bcc2ca;
+  background: var(--app-banner-color);
   border: none;
   text-align: left;
   cursor: pointer;
@@ -882,17 +884,17 @@ onBeforeUnmount(() => {
   align-items: center;
   gap: 0.7rem;
   font-weight: 600;
-  color: #333;
+  color: var(--app-banner-contrast);
   transition: all 0.2s;
 
   &:hover {
-    background: #b2b8c1;
+    opacity: 0.92;
   }
 
   &.expanded {
-    background: linear-gradient(90deg, #fff5f0 0%, #fff9f7 100%);
-    color: #ff6b35;
-    border-left: 4px solid #ff6b35;
+    background: var(--app-highlight-color);
+    color: var(--app-highlight-contrast);
+    border-left: 4px solid var(--app-highlight-color);
   }
 
   .category-toggle {
@@ -917,7 +919,7 @@ onBeforeUnmount(() => {
   grid-template-columns: repeat(5, 1fr);
   gap: 0.75rem;
   padding: 0.75rem;
-  background: #b5bbc4;
+  background: var(--app-background-color);
 
   @media (max-width: 1400px) {
     grid-template-columns: repeat(4, 1fr);
@@ -937,8 +939,8 @@ onBeforeUnmount(() => {
 }
 
 .product-btn {
-  background: #eef1f4;
-  border: 2px solid #aeb5be;
+  background: #fff;
+  border: 2px solid color-mix(in srgb, var(--app-banner-color) 30%, white 70%);
   border-radius: 8px;
   padding: 1rem;
   cursor: pointer;
@@ -950,9 +952,9 @@ onBeforeUnmount(() => {
   gap: 0.5rem;
 
   &:hover:not(:disabled) {
-    background: #fff9f7;
-    border-color: #ff6b35;
-    box-shadow: 0 2px 8px rgba(255, 107, 53, 0.15);
+    background: color-mix(in srgb, var(--app-highlight-color) 10%, white 90%);
+    border-color: var(--app-highlight-color);
+    box-shadow: 0 2px 8px color-mix(in srgb, var(--app-highlight-color) 25%, transparent);
   }
 
   &:disabled {
@@ -982,7 +984,7 @@ onBeforeUnmount(() => {
   }
 
   .product-price {
-    color: #ff6b35;
+    color: var(--app-highlight-color);
     font-size: 1.1rem;
     font-weight: bold;
   }
@@ -994,15 +996,15 @@ onBeforeUnmount(() => {
 }
 
 .member-info {
-  background: #bcc2ca;
+  background: color-mix(in srgb, var(--app-background-color) 55%, white 45%);
   padding: 1rem;
   border-radius: 4px;
   margin-bottom: 1rem;
-  border-left: 4px solid #ff6b35;
+  border-left: 4px solid var(--app-highlight-color);
 
   .member-name {
     font-weight: 600;
-    color: #ff6b35;
+    color: var(--app-highlight-color);
     margin-bottom: 0.5rem;
   }
 
@@ -1035,9 +1037,9 @@ onBeforeUnmount(() => {
 
 .bon-header {
   flex-shrink: 0;
-  background: #b5bbc4;
+  background: color-mix(in srgb, var(--app-banner-color) 12%, white 88%);
   padding: 0.8rem;
-  border-bottom: 2px solid #9ca4ae;
+  border-bottom: 2px solid color-mix(in srgb, var(--app-banner-color) 40%, white 60%);
   display: flex;
   justify-content: center;
   align-items: center;
@@ -1046,11 +1048,11 @@ onBeforeUnmount(() => {
 .receipt-number-current {
   font-size: 1.1rem;
   font-weight: bold;
-  color: #333;
+  color: var(--app-banner-color);
   padding: 0.5rem;
   background: #eef1f4;
   border-radius: 4px;
-  border: 1px solid #9ca4ae;
+  border: 1px solid color-mix(in srgb, var(--app-banner-color) 35%, white 65%);
 }
 
 .payment-section {
@@ -1088,8 +1090,8 @@ onBeforeUnmount(() => {
       }
 
       &.voucher-btn {
-        background: linear-gradient(135deg, #ff9500 0%, #f57c00 100%);
-        color: white;
+        background: var(--app-banner-color);
+        color: var(--app-banner-contrast);
       }
     }
   }
@@ -1152,7 +1154,7 @@ onBeforeUnmount(() => {
     font-weight: 600;
     min-width: 70px;
     text-align: right;
-    color: #667eea;
+    color: var(--app-highlight-color);
   }
 
   .btn-remove {
@@ -1185,7 +1187,7 @@ onBeforeUnmount(() => {
   flex-direction: column;
   gap: 0.45rem;
   padding: 0.75rem;
-  background: #d8dde3;
+  background: color-mix(in srgb, var(--app-background-color) 65%, white 35%);
   border-radius: 4px;
 
   .total-label {
@@ -1193,7 +1195,7 @@ onBeforeUnmount(() => {
   }
 
   .total-amount {
-    color: #ff6b35;
+    color: var(--app-highlight-color);
     font-weight: bold;
     font-size: 1.1rem;
   }
@@ -1208,7 +1210,7 @@ onBeforeUnmount(() => {
 
 .grand-total {
   padding-top: 0.55rem;
-  border-top: 1px solid #a2abb5;
+  border-top: 1px solid color-mix(in srgb, var(--app-banner-color) 25%, white 75%);
 
   .total-amount {
     font-size: 1.3rem;
@@ -1216,7 +1218,7 @@ onBeforeUnmount(() => {
 }
 
 .voucher-row {
-  color: #ff6b35;
+  color: var(--app-highlight-color);
 
   small {
     display: block;
@@ -1232,8 +1234,8 @@ onBeforeUnmount(() => {
   gap: 1rem;
   padding: 0.85rem 1rem;
   border-radius: 8px;
-  background: rgba(255, 107, 53, 0.1);
-  border: 1px solid rgba(255, 107, 53, 0.28);
+  background: color-mix(in srgb, var(--app-highlight-color) 12%, white 88%);
+  border: 1px solid color-mix(in srgb, var(--app-highlight-color) 30%, white 70%);
 }
 
 .voucher-applied-hint {
@@ -1242,9 +1244,9 @@ onBeforeUnmount(() => {
 }
 
 .btn-remove-voucher {
-  border: 1px solid rgba(255, 107, 53, 0.35);
+  border: 1px solid color-mix(in srgb, var(--app-highlight-color) 35%, white 65%);
   background: #eef1f4;
-  color: #ff6b35;
+  color: var(--app-highlight-color);
   border-radius: 6px;
   padding: 0.45rem 0.75rem;
   cursor: pointer;
@@ -1274,7 +1276,7 @@ onBeforeUnmount(() => {
 
   .member-card {
     background: #eef1f4;
-    border: 2px solid #1976d2;
+    border: 2px solid var(--app-banner-color);
     border-radius: 8px;
     padding: 0.75rem;
     display: flex;
@@ -1292,7 +1294,7 @@ onBeforeUnmount(() => {
         height: 48px;
         border-radius: 50%;
         overflow: hidden;
-        border: 2px solid #1976d2;
+        border: 2px solid var(--app-banner-color);
         flex-shrink: 0;
 
         img {
@@ -1307,7 +1309,7 @@ onBeforeUnmount(() => {
         height: 48px;
         border-radius: 50%;
         background: #e3f2fd;
-        border: 2px solid #1976d2;
+        border: 2px solid var(--app-banner-color);
         display: flex;
         align-items: center;
         justify-content: center;
@@ -1329,7 +1331,7 @@ onBeforeUnmount(() => {
 
         .member-balance-display {
           font-size: 0.85rem;
-          color: #667eea;
+          color: var(--app-highlight-color);
           font-weight: 600;
         }
       }
@@ -1339,8 +1341,8 @@ onBeforeUnmount(() => {
       width: 100%;
       padding: 0.5rem;
       background: white;
-      border: 1px solid #1976d2;
-      color: #1976d2;
+      border: 1px solid var(--app-banner-color);
+      color: var(--app-banner-color);
       border-radius: 4px;
       cursor: pointer;
       font-weight: 600;
@@ -1349,7 +1351,7 @@ onBeforeUnmount(() => {
       margin-bottom: 0.75rem;
 
       &:hover {
-        background: #e3f2fd;
+        background: color-mix(in srgb, var(--app-banner-color) 10%, white 90%);
       }
     }
   }
@@ -1458,11 +1460,11 @@ onBeforeUnmount(() => {
 }
 
 .btn-info {
-  background-color: #2196f3;
-  color: white;
+  background-color: var(--app-banner-color);
+  color: var(--app-banner-contrast);
 
   &:not(:disabled):hover {
-    background-color: #0b7dda;
+    opacity: 0.9;
   }
 }
 
@@ -1654,7 +1656,7 @@ onBeforeUnmount(() => {
 
   &:hover {
     background: #f0f0f0;
-    border-color: #1976d2;
+    border-color: var(--app-banner-color);
     box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
   }
 
@@ -1693,7 +1695,7 @@ onBeforeUnmount(() => {
   }
 
   .balance {
-    color: #667eea;
+    color: var(--app-highlight-color);
     font-weight: 600;
   }
 }

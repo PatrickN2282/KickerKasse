@@ -3,6 +3,7 @@ from pydantic import BaseModel, Field
 
 
 class AppSettingsBase(BaseModel):
+    app_name: str = Field(..., min_length=1, max_length=120)
     background_color: str = Field(..., pattern=r"^#[0-9A-Fa-f]{6}$")
     banner_color: str = Field(..., pattern=r"^#[0-9A-Fa-f]{6}$")
     highlight_color: str = Field(..., pattern=r"^#[0-9A-Fa-f]{6}$")
@@ -32,4 +33,3 @@ class PublicAppSettingsResponse(AppSettingsBase):
     apple_touch_icon_url: str
     manifest_url: str
     asset_version: str
-    app_name: str

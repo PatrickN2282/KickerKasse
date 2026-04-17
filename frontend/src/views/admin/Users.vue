@@ -22,8 +22,8 @@
       <div class="form-group">
         <label for="role">Rolle*:</label>
         <select v-model="formData.role" id="role" class="form-input" required>
-          <option value="CASHIER">Kassierer</option>
-          <option value="KASSENMITGLIED">Kassenmitglied</option>
+          <option value="CASHIER">Verkauf</option>
+          <option value="KASSENMITGLIED">VerkaufAdmin</option>
           <option value="ADMIN">Admin</option>
         </select>
       </div>
@@ -75,8 +75,8 @@ const formData = reactive({
 
 const roleLabel = (role) => ({
   ADMIN: 'Admin',
-  CASHIER: 'Kassierer',
-  KASSENMITGLIED: 'Kassenmitglied',
+  CASHIER: 'Verkauf',
+  KASSENMITGLIED: 'VerkaufAdmin',
 }[role] || role)
 
 const handleSaveUser = async () => {
