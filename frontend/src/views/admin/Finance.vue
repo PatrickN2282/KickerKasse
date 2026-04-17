@@ -769,7 +769,7 @@ function formatEuroValue(value) {
 }
 
 function getCashCountTotal(cashCount) {
-  if (!cashCount) return null
+  if (!cashCount) return 0
   if (cashCount.total !== undefined && cashCount.total !== null) {
     return cashCount.total
   }

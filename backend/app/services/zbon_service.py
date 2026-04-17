@@ -100,9 +100,7 @@ class ZBonService:
         sales = [t for t in transactions if t.type == TransactionType.SALE]
         recharges = [t for t in transactions if t.type == TransactionType.RECHARGE]
         stornos = [t for t in transactions if t.type == TransactionType.STORNO]
-        first_transaction_at = period_end
-        if transactions:
-            first_transaction_at = transactions[0].created_at
+        first_transaction_at = transactions[0].created_at if transactions else None
         effective_period_start = period_start or first_transaction_at
 
         gross_sales_total = sum(self._calculate_sale_gross_cents(t) for t in sales) / 100

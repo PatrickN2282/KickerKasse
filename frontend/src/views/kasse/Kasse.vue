@@ -675,6 +675,8 @@ const clampBonWidth = (width) => {
   bonWidth.value = Math.min(Math.max(width, minWidth), maxWidth)
 }
 
+const BON_RESIZE_OFFSET = 16
+
 const stopResizing = () => {
   document.body.style.cursor = ''
   document.body.style.userSelect = ''
@@ -683,7 +685,7 @@ const stopResizing = () => {
 }
 
 const handleResize = (event) => {
-  const nextWidth = window.innerWidth - event.clientX - 16
+  const nextWidth = window.innerWidth - event.clientX - BON_RESIZE_OFFSET
   clampBonWidth(nextWidth)
 }
 

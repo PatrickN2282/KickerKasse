@@ -14,6 +14,12 @@ class VoucherRepository:
     def __init__(self, db: Session):
         self.db = db
 
+    @staticmethod
+    def _get_available_amount_cents(voucher: Voucher) -> int:
+        if voucher.remaining_value_cents is None:
+            return voucher.value_cents
+        return voucher.remaining_value_cents
+
     def create(
         self,
         voucher_type: VoucherType,
@@ -158,7 +164,7 @@ class VoucherRepository:
         if voucher.status == VoucherStatus.REDEEMED:
             raise ValueError(f"Voucher {voucher.voucher_number} already redeemed")
 
-        available_amount_cents = voucher.remaining_value_cents or voucher.value_cents
+        available_amount_cents = self._get_available_amount_cents(voucher)
         if applied_amount_cents <= 0:
             raise ValueError("Applied voucher amount must be greater than zero")
         if applied_amount_cents > available_amount_cents:
@@ -202,7 +208,11 @@ class VoucherRepository:
             voucher_id=voucher_id,
             redeemed_by_user_id=redeemed_by_user_id,
             transaction_id=transaction_id,
-            applied_amount_cents=applied_amount_cents or (voucher.remaining_value_cents or voucher.value_cents),
+            applied_amount_cents=(
+                applied_amount_cents
+                if applied_amount_cents is not None
+                else self._get_available_amount_cents(voucher)
+            ),
             commit=commit,
         )
 

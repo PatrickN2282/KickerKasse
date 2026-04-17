@@ -127,7 +127,11 @@ async def create_sale(
                 detail=str(e),
             )
 
-        available_voucher_cents = voucher.remaining_value_cents or voucher.value_cents
+        available_voucher_cents = (
+            voucher.remaining_value_cents
+            if voucher.remaining_value_cents is not None
+            else voucher.value_cents
+        )
         voucher_applied_cents = min(available_voucher_cents, total_amount)
 
         if voucher_applied_cents <= 0:
