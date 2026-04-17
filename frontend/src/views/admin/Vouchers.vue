@@ -57,8 +57,8 @@
 
           <div v-if="createdGiftVoucher" class="success-message">
             <p>✅ Gutschein erstellt!</p>
-            <p class="voucher-number">{{ createdGiftVoucher.voucher_code || `V-2026-${String(createdGiftVoucher.id).padStart(3, '0')}` }}</p>
-            <button @click="copyToClipboard(createdGiftVoucher.voucher_code || `V-2026-${String(createdGiftVoucher.id).padStart(3, '0')}`)" class="btn-secondary">
+            <p class="voucher-number">{{ getVoucherCode(createdGiftVoucher) }}</p>
+            <button @click="copyToClipboard(getVoucherCode(createdGiftVoucher))" class="btn-secondary">
               📋 Kopieren
             </button>
           </div>
@@ -100,8 +100,8 @@
 
           <div v-if="createdPrepaidVoucher" class="success-message">
             <p>✅ Gutschein erstellt!</p>
-            <p class="voucher-number">{{ createdPrepaidVoucher.voucher_code || `V-2026-${String(createdPrepaidVoucher.id).padStart(3, '0')}` }}</p>
-            <button @click="copyToClipboard(createdPrepaidVoucher.voucher_code || `V-2026-${String(createdPrepaidVoucher.id).padStart(3, '0')}`)" class="btn-secondary">
+            <p class="voucher-number">{{ getVoucherCode(createdPrepaidVoucher) }}</p>
+            <button @click="copyToClipboard(getVoucherCode(createdPrepaidVoucher))" class="btn-secondary">
               📋 Kopieren
             </button>
           </div>
@@ -162,7 +162,7 @@
           </thead>
           <tbody>
             <tr v-for="voucher in filteredVouchers" :key="voucher.id">
-              <td class="voucher-number">{{ voucher.voucher_code }}</td>
+              <td class="voucher-number">{{ getVoucherCode(voucher) }}</td>
               <td>
                 <span :class="['type-badge', voucher.voucher_type.toLowerCase()]">
                   {{ voucher.voucher_type === 'GIFT' ? '🎁 Geschenk' : '💳 Guthaben' }}
@@ -178,7 +178,7 @@
               <td class="date">{{ formatDate(voucher.created_at) }}</td>
               <td class="date">{{ voucher.redeemed_at ? formatDate(voucher.redeemed_at) : '-' }}</td>
               <td class="actions">
-                <button @click="copyToClipboard(voucher.voucher_code)" class="btn-small">
+                <button @click="copyToClipboard(getVoucherCode(voucher))" class="btn-small">
                   📋
                 </button>
               </td>
@@ -268,6 +268,17 @@ const filters = ref({
   status: '',
 })
 
+const getVoucherCode = (voucher) => {
+  if (!voucher) return '-'
+  if (voucher.voucher_code && String(voucher.voucher_code).trim()) return voucher.voucher_code
+  if (voucher.voucher_number === undefined || voucher.voucher_number === null) return '-'
+
+  const year = voucher.created_at
+    ? new Date(voucher.created_at).getFullYear()
+    : new Date().getFullYear()
+  return `V-${year}-${String(voucher.voucher_number).padStart(3, '0')}`
+}
+
 // Methods
 const createGiftVoucher = async () => {
   creatingGift.value = true
@@ -283,14 +294,15 @@ const createGiftVoucher = async () => {
       value_cents: giftForm.value.valueCents,
       reason: giftForm.value.reason,
     })
+    const payload = response.data
     console.log('[Vouchers] Create GIFT response received:')
     console.log('[Vouchers]   Full response:', JSON.stringify(response, null, 2))
-    console.log('[Vouchers]   response.id:', response?.id)
-    console.log('[Vouchers]   response.voucher_code:', response?.voucher_code)
-    console.log('[Vouchers]   response.voucher_type:', response?.voucher_type)
-    console.log('[Vouchers]   response.status:', response?.status)
+    console.log('[Vouchers]   response.id:', payload?.id)
+    console.log('[Vouchers]   response.voucher_code:', payload?.voucher_code)
+    console.log('[Vouchers]   response.voucher_type:', payload?.voucher_type)
+    console.log('[Vouchers]   response.status:', payload?.status)
     
-    createdGiftVoucher.value = response
+    createdGiftVoucher.value = payload
     giftForm.value = { valueCents: 1000, reason: 'COURTESY', valueDisplay: '10.00' }
     // Always refresh list after creating a voucher
     console.log('[Vouchers] Refreshing voucher list...')
@@ -315,8 +327,9 @@ const createPrepaidVoucher = async () => {
       value_cents: prepaidForm.value.valueCents,
       reason: prepaidForm.value.reason || 'COURTESY',
     })
-    console.log('[Vouchers] Create PREPAID response:', JSON.stringify(response, null, 2))
-    createdPrepaidVoucher.value = response
+    const payload = response.data
+    console.log('[Vouchers] Create PREPAID response:', JSON.stringify(payload, null, 2))
+    createdPrepaidVoucher.value = payload
     prepaidForm.value = { valueCents: 2000, valueDisplay: '20.00' }
     // Always refresh list after creating a voucher
     await loadVouchers()
@@ -345,29 +358,26 @@ const loadVouchers = async () => {
     console.log('[Vouchers] ======================================')
     console.log('[Vouchers] Loading vouchers with params:', params)
     const response = await apiService.get('/admin/vouchers/', { params })
-    console.log('[Vouchers] Raw API response:', response)
-    console.log('[Vouchers] Response type:', typeof response)
-    console.log('[Vouchers] Response keys:', Object.keys(response || {}))
+    const payload = response.data
+    console.log('[Vouchers] Raw API response:', payload)
+    console.log('[Vouchers] Response type:', typeof payload)
+    console.log('[Vouchers] Response keys:', Object.keys(payload || {}))
     
     // Try multiple possible response structures
     let loadedVouchers = []
     let loadedTotal = 0
     
-    if (response && response.vouchers && Array.isArray(response.vouchers)) {
-      loadedVouchers = response.vouchers
-      loadedTotal = response.total || 0
-      console.log('[Vouchers] ✓ Found response.vouchers (array)', loadedVouchers.length)
-    } else if (response && response.data && Array.isArray(response.data)) {
-      loadedVouchers = response.data
-      loadedTotal = response.total || response.data.length || 0
-      console.log('[Vouchers] ✓ Found response.data (array)', loadedVouchers.length)
-    } else if (Array.isArray(response)) {
-      loadedVouchers = response
-      loadedTotal = response.length
-      console.log('[Vouchers] ✓ Response is array directly', loadedVouchers.length)
+    if (payload && payload.vouchers && Array.isArray(payload.vouchers)) {
+      loadedVouchers = payload.vouchers
+      loadedTotal = payload.total || 0
+      console.log('[Vouchers] ✓ Found payload.vouchers (array)', loadedVouchers.length)
+    } else if (Array.isArray(payload)) {
+      loadedVouchers = payload
+      loadedTotal = payload.length
+      console.log('[Vouchers] ✓ Payload is array directly', loadedVouchers.length)
     } else {
       console.warn('[Vouchers] ⚠️  Could not find vouchers in response')
-      console.log('[Vouchers] Full response object:', JSON.stringify(response, null, 2))
+      console.log('[Vouchers] Full response object:', JSON.stringify(payload, null, 2))
     }
     
     vouchers.value = loadedVouchers
@@ -415,7 +425,7 @@ const exportAsCSV = () => {
 
   const headers = ['Nummer', 'Typ', 'Wert (€)', 'Status', 'Grund', 'Erstellt', 'Eingelöst']
   const rows = vouchers.value.map((v) => [
-    v.voucher_number,
+    getVoucherCode(v),
     v.voucher_type,
     (v.value_cents / 100).toFixed(2),
     v.status,

@@ -1,6 +1,7 @@
 """Service for Voucher operations"""
 from sqlalchemy.orm import Session
 from datetime import date
+from typing import Optional
 from app.models import Voucher, VoucherType, VoucherStatus, VoucherReason, Transaction, TransactionType, PaymentMethod
 from app.repositories.voucher_repository import VoucherRepository
 import logging
@@ -75,7 +76,14 @@ class VoucherService:
         logger.info(f"Created PREPAID voucher #{voucher.voucher_number}: {value_cents/100:.2f}€ ({reason})")
         return voucher
 
-    def validate_voucher(self, voucher_number: int) -> dict:
+    def _format_voucher_identifier(self, voucher: Voucher) -> str:
+        """Get display identifier for voucher"""
+        if voucher.voucher_code:
+            return voucher.voucher_code
+        year = voucher.created_at.year if voucher.created_at else date.today().year
+        return f"V-{year}-{str(voucher.voucher_number).zfill(3)}"
+
+    def validate_voucher(self, voucher_number: str) -> dict:
         """
         Validate a voucher before redemption
         
@@ -91,23 +99,39 @@ class VoucherService:
         voucher = self.repository.get_by_number(voucher_number)
         
         if not voucher:
-            raise ValueError(f"Voucher #{voucher_number} not found")
+            return {
+                "valid": False,
+                "voucher_number": str(voucher_number),
+                "voucher_type": "",
+                "value_cents": 0,
+                "status": "NOT_FOUND",
+                "message": f"Voucher {voucher_number} not found",
+                "reason": None,
+            }
 
         if voucher.status == VoucherStatus.REDEEMED:
-            raise ValueError(f"Voucher #{voucher_number} already redeemed on {voucher.redeemed_at.strftime('%d.%m.%Y %H:%M')}")
+            redeemed_str = voucher.redeemed_at.strftime('%d.%m.%Y %H:%M') if voucher.redeemed_at else "unknown time"
+            return {
+                "valid": False,
+                "voucher_number": self._format_voucher_identifier(voucher),
+                "voucher_type": voucher.voucher_type.value,
+                "value_cents": voucher.value_cents,
+                "status": voucher.status.value,
+                "message": f"Voucher already redeemed on {redeemed_str}",
+                "reason": voucher.reason.value if voucher.reason else None,
+            }
 
         return {
-            "id": voucher.id,
-            "number": voucher.voucher_number,
-            "type": voucher.voucher_type,
+            "valid": True,
+            "voucher_number": self._format_voucher_identifier(voucher),
+            "voucher_type": voucher.voucher_type.value,
             "value_cents": voucher.value_cents,
-            "value_eur": voucher.value_cents / 100.0,
-            "status": voucher.status,
-            "reason": voucher.reason,  # nur bei GIFT
-            "description": voucher.description,
+            "status": voucher.status.value,
+            "message": "Voucher is valid",
+            "reason": voucher.reason.value if voucher.reason else None,
         }
 
-    def redeem_gift_voucher(self, voucher_number: int, user_id: int) -> Voucher:
+    def redeem_gift_voucher(self, voucher_number: str, redeemed_by: int, member_id: Optional[int] = None) -> Transaction:
         """
         Redeem a GIFT voucher
         
@@ -136,21 +160,19 @@ class VoucherService:
             type=TransactionType.VOUCHER_REDEMPTION,
             payment_method=PaymentMethod.VOUCHER_GIFT,
             total_amount_cents=-voucher.value_cents,  # Negative = loss
-            user_id=user_id,
-            member_id=None,
+            user_id=redeemed_by,
+            member_id=member_id,
         )
         self.db.add(transaction)
         self.db.flush()  # Get transaction ID without committing
 
         # Mark voucher as redeemed
-        redeemed_voucher = self.repository.redeem(voucher.id, user_id, transaction.id)
+        self.repository.redeem(voucher.id, redeemed_by, transaction.id)
 
-        self.db.commit()
+        logger.info(f"Redeemed GIFT voucher #{voucher_number} ({voucher.value_cents/100:.2f}€) in transaction {transaction.id}")
+        return transaction
 
-        logger.info(f"Redeemed GIFT voucher #{voucher_number} ({redeemed_voucher.value_cents/100:.2f}€) in transaction {transaction.id}")
-        return redeemed_voucher
-
-    def redeem_prepaid_voucher(self, voucher_number: int, user_id: int) -> Voucher:
+    def redeem_prepaid_voucher(self, voucher_number: str, redeemed_by: int, member_id: Optional[int] = None) -> Transaction:
         """
         Redeem a PREPAID voucher
         
@@ -179,19 +201,17 @@ class VoucherService:
             type=TransactionType.VOUCHER_REDEMPTION,
             payment_method=PaymentMethod.VOUCHER_PREPAID,
             total_amount_cents=0,  # Null transaction
-            user_id=user_id,
-            member_id=None,
+            user_id=redeemed_by,
+            member_id=member_id,
         )
         self.db.add(transaction)
         self.db.flush()
 
         # Mark voucher as redeemed
-        redeemed_voucher = self.repository.redeem(voucher.id, user_id, transaction.id)
-
-        self.db.commit()
+        self.repository.redeem(voucher.id, redeemed_by, transaction.id)
 
         logger.info(f"Redeemed PREPAID voucher #{voucher_number} in transaction {transaction.id}")
-        return redeemed_voucher
+        return transaction
 
     def get_voucher_statistics(self, start_date: date, end_date: date) -> dict:
         """
