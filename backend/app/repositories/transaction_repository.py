@@ -19,6 +19,9 @@ class TransactionRepository:
         member_id: int = None,
         items: list = None,
         reference_transaction_id: int = None,
+        voucher_code: str = None,
+        voucher_type: str = None,
+        voucher_applied_cents: int = 0,
     ) -> Transaction:
         """Create a new transaction"""
         transaction = Transaction(
@@ -28,6 +31,9 @@ class TransactionRepository:
             user_id=user_id,
             member_id=member_id,
             reference_transaction_id=reference_transaction_id,
+            voucher_code=voucher_code,
+            voucher_type=voucher_type,
+            voucher_applied_cents=voucher_applied_cents or 0,
         )
         
         if items:

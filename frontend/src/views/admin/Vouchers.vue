@@ -168,6 +168,13 @@
               <td class="date">{{ formatDate(voucher.created_at) }}</td>
               <td class="date">{{ voucher.redeemed_at ? formatDate(voucher.redeemed_at) : '-' }}</td>
               <td class="actions">
+                <button
+                  v-if="voucher.status === 'CREATED'"
+                  @click="openEditVoucher(voucher)"
+                  class="btn-small btn-edit"
+                >
+                  ✏️
+                </button>
                 <button @click="copyToClipboard(getVoucherCode(voucher))" class="btn-small">
                   📋
                 </button>
@@ -198,6 +205,38 @@
         >
           Weiter ▶
         </button>
+      </div>
+    </div>
+
+    <div v-if="showEditModal" class="modal-overlay">
+      <div class="modal-card">
+        <h3>🎫 Gutschein bearbeiten</h3>
+        <div class="form-group">
+          <label>Wert (€)</label>
+          <input v-model="editForm.valueDisplay" type="number" min="0.01" step="0.01" />
+        </div>
+        <div v-if="editingVoucher?.voucher_type === 'GIFT'" class="form-group">
+          <label>Grund</label>
+          <select v-model="editForm.reason">
+            <option value="DYP_SIEGER">Dyp-Sieger</option>
+            <option value="PROMOTION">Promotion</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label>Beschreibung</label>
+          <input v-model="editForm.description" type="text" maxlength="255" />
+        </div>
+        <div v-if="editError" class="error-message">
+          ❌ {{ editError }}
+        </div>
+        <div class="button-row">
+          <button @click="saveVoucherEdit" class="btn-primary" :disabled="updatingVoucher">
+            {{ updatingVoucher ? '⏳ Speichert...' : '✓ Speichern' }}
+          </button>
+          <button @click="closeEditVoucher" class="btn-secondary">
+            Abbrechen
+          </button>
+        </div>
       </div>
     </div>
   </div>
@@ -278,6 +317,15 @@ const creatingPrepaid = ref(false)
 const createdGiftVoucher = ref(null)
 const createdPrepaidVoucher = ref(null)
 const createError = ref(null)
+const showEditModal = ref(false)
+const editingVoucher = ref(null)
+const updatingVoucher = ref(false)
+const editError = ref(null)
+const editForm = ref({
+  valueDisplay: '',
+  reason: 'PROMOTION',
+  description: '',
+})
 
 // Manage section
 const vouchers = ref([])
@@ -446,6 +494,50 @@ const copyToClipboard = (text) => {
   // Could add a toast notification here
 }
 
+const openEditVoucher = (voucher) => {
+  editingVoucher.value = voucher
+  editForm.value = {
+    valueDisplay: (voucher.value_cents / 100).toFixed(2),
+    reason: voucher.reason || 'PROMOTION',
+    description: voucher.description || '',
+  }
+  editError.value = null
+  showEditModal.value = true
+}
+
+const closeEditVoucher = () => {
+  showEditModal.value = false
+  editingVoucher.value = null
+  editError.value = null
+}
+
+const saveVoucherEdit = async () => {
+  if (!editingVoucher.value) return
+
+  updatingVoucher.value = true
+  editError.value = null
+
+  try {
+    const response = await apiService.put(`/admin/vouchers/${editingVoucher.value.id}`, {
+      value_cents: Math.round(parseFloat(editForm.value.valueDisplay || '0') * 100),
+      reason: editingVoucher.value.voucher_type === 'GIFT' ? editForm.value.reason : null,
+      description: editForm.value.description || null,
+    })
+
+    const updatedVoucher = response.data
+    const index = vouchers.value.findIndex(voucher => voucher.id === updatedVoucher.id)
+    if (index !== -1) {
+      vouchers.value[index] = updatedVoucher
+    }
+
+    closeEditVoucher()
+  } catch (error) {
+    editError.value = error.response?.data?.detail || error.message || 'Fehler beim Speichern'
+  } finally {
+    updatingVoucher.value = false
+  }
+}
+
 const exportAsCSV = () => {
   if (vouchers.value.length === 0) return
 
@@ -502,6 +594,8 @@ onMounted(() => {
 <style scoped lang="scss">
 .vouchers-container {
   padding: 2rem;
+  background: #cfd3d8;
+  min-height: 100%;
 
   h2 {
     color: #333;
@@ -513,7 +607,7 @@ onMounted(() => {
   display: flex;
   gap: 0.5rem;
   margin-bottom: 2rem;
-  border-bottom: 2px solid #f0f0f0;
+  border-bottom: 2px solid #aeb5be;
 }
 
 .subtab-button {
@@ -552,10 +646,10 @@ onMounted(() => {
 }
 
 .form-card {
-  border: 1px solid #ddd;
+  border: 1px solid #9ca4ae;
   border-radius: 8px;
   padding: 1.5rem;
-  background: #f9f9f9;
+  background: #dde2e8;
 
   h3 {
     color: #333;
@@ -660,7 +754,7 @@ onMounted(() => {
 
 .table-container {
   overflow-x: auto;
-  border: 1px solid #ddd;
+  border: 1px solid #9ca4ae;
   border-radius: 8px;
   margin-bottom: 2rem;
 }
@@ -671,7 +765,7 @@ onMounted(() => {
   font-size: 0.9rem;
 
   thead {
-    background: #f5f5f5;
+    background: #d8dde3;
   }
 
   th,
@@ -687,7 +781,7 @@ onMounted(() => {
   }
 
   tr:hover {
-    background: #f9f9f9;
+    background: #dde2e8;
   }
 
   .voucher-number {
@@ -809,6 +903,38 @@ onMounted(() => {
   &:hover {
     background: #025aa5;
   }
+}
+
+.btn-edit {
+  background: #ff6b35;
+}
+
+.actions {
+  display: flex;
+  gap: 0.35rem;
+}
+
+.modal-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(20, 24, 30, 0.45);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+}
+
+.modal-card {
+  width: min(480px, calc(100vw - 2rem));
+  background: #dde2e8;
+  border-radius: 12px;
+  padding: 1.5rem;
+  box-shadow: 0 16px 40px rgba(15, 20, 28, 0.22);
+}
+
+.button-row {
+  display: flex;
+  gap: 0.75rem;
 }
 
 @keyframes fadeIn {

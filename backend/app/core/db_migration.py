@@ -245,6 +245,58 @@ class DatabaseMigrator:
                         except:
                             pass
 
+            if 'transactions' in inspector.get_table_names():
+                transaction_columns = {col['name'] for col in inspector.get_columns('transactions')}
+
+                missing_transaction_columns = [
+                    (
+                        'voucher_code',
+                        "ALTER TABLE transactions ADD COLUMN voucher_code VARCHAR(20)"
+                    ),
+                    (
+                        'voucher_type',
+                        "ALTER TABLE transactions ADD COLUMN voucher_type VARCHAR(20)"
+                    ),
+                    (
+                        'voucher_applied_cents',
+                        "ALTER TABLE transactions ADD COLUMN voucher_applied_cents INTEGER DEFAULT 0 NOT NULL"
+                    ),
+                ]
+
+                for column_name, sql in missing_transaction_columns:
+                    if column_name in transaction_columns:
+                        continue
+
+                    logger.info(f"Adding {column_name} column to transactions table...")
+                    try:
+                        conn.execute(text(sql))
+                        conn.commit()
+                        logger.info(f"✓ Added {column_name} column to transactions")
+                    except Exception as e:
+                        logger.warning(f"Could not add {column_name} column: {str(e)}")
+                        try:
+                            conn.rollback()
+                        except:
+                            pass
+
+            if 'vouchers' in inspector.get_table_names():
+                voucher_columns = {col['name'] for col in inspector.get_columns('vouchers')}
+
+                if 'redeemed_amount_cents' not in voucher_columns:
+                    logger.info("Adding redeemed_amount_cents column to vouchers table...")
+                    try:
+                        conn.execute(text(
+                            "ALTER TABLE vouchers ADD COLUMN redeemed_amount_cents INTEGER"
+                        ))
+                        conn.commit()
+                        logger.info("✓ Added redeemed_amount_cents column to vouchers")
+                    except Exception as e:
+                        logger.warning(f"Could not add redeemed_amount_cents column: {str(e)}")
+                        try:
+                            conn.rollback()
+                        except:
+                            pass
+
 
 def run_migrations(engine: Engine) -> bool:
     """

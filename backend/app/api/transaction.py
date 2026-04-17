@@ -16,7 +16,7 @@ from app.schemas import (
     ZBonHistoryResponse,
     ZBonHistoryListResponse,
 )
-from app.services import TransactionService, ProductService, ZBonService, EmailService
+from app.services import TransactionService, ProductService, ZBonService, EmailService, VoucherService
 from app.services.zbon_html_exporter import ZBonHTMLExporter
 from app.repositories import MemberRepository, ProductRepository
 from app.models import PaymentMethod, Transaction, ZBonHistory
@@ -97,6 +97,32 @@ async def create_sale(
                 detail=f"Unzureichender Bestand für Produkt {product.name}",
             )
     
+    total_amount = sum(item.unit_price_cents * item.quantity for item in transaction_data.items)
+    voucher = None
+    voucher_applied_cents = 0
+
+    if transaction_data.voucher_redemption:
+        try:
+            voucher_service = VoucherService(db)
+            voucher = voucher_service.get_redeemable_voucher(
+                transaction_data.voucher_redemption.voucher_number
+            )
+        except ValueError as e:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail=str(e),
+            )
+
+        voucher_applied_cents = min(voucher.value_cents, total_amount)
+
+        if voucher_applied_cents <= 0:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Voucher kann bei leerem Warenkorb nicht eingelöst werden",
+            )
+
+    payable_amount_cents = max(total_amount - voucher_applied_cents, 0)
+
     # Check member balance if paying with balance
     if transaction_data.payment_method == "BALANCE":
         if not transaction_data.member_id:
@@ -113,12 +139,7 @@ async def create_sale(
                 detail="Member not found",
             )
         
-        # Calculate total amount
-        total_amount = 0
-        for item in transaction_data.items:
-            total_amount += item.unit_price_cents * item.quantity
-        
-        if member.balance_cents < total_amount:
+        if member.balance_cents < payable_amount_cents:
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
                 detail="Insufficient member balance",
@@ -126,17 +147,17 @@ async def create_sale(
     
     service = TransactionService(db)
     
-    # Calculate total amount
-    total_amount = sum(item.unit_price_cents * item.quantity for item in transaction_data.items)
-    
     # Create transaction
     items_data = [item.dict() for item in transaction_data.items]
     transaction = service.create_sale_transaction(
         user_id=user_id,
-        total_amount_cents=total_amount,
+        total_amount_cents=payable_amount_cents,
         payment_method=transaction_data.payment_method,
         member_id=transaction_data.member_id,
         items=items_data,
+        voucher_code=voucher.voucher_code if voucher else None,
+        voucher_type=voucher.voucher_type.value if voucher else None,
+        voucher_applied_cents=voucher_applied_cents,
     )
     
     # Process payment
@@ -146,12 +167,26 @@ async def create_sale(
     # Deduct stock for each item
     for item in transaction.items:
         product_repo.deduct_stock(item.product_id, item.quantity)
-    
+
+    if voucher:
+        voucher_service = VoucherService(db)
+        voucher_service.repository.redeem(
+            voucher.id,
+            user_id,
+            transaction.id,
+            applied_amount_cents=voucher_applied_cents,
+            commit=False,
+        )
+
     # Final commit to ensure everything is persisted
     db.commit()
     db.refresh(transaction)
     
-    print(f"[API] Sale transaction created successfully: id={transaction.id}, receipt_number={transaction.receipt_number}, amount={total_amount}")
+    print(
+        f"[API] Sale transaction created successfully: "
+        f"id={transaction.id}, receipt_number={transaction.receipt_number}, "
+        f"gross={total_amount}, payable={payable_amount_cents}, voucher={voucher_applied_cents}"
+    )
     
     return transaction
 

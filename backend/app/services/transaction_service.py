@@ -33,6 +33,9 @@ class TransactionService:
         payment_method: str,
         member_id: int = None,
         items: list = None,
+        voucher_code: str = None,
+        voucher_type: str = None,
+        voucher_applied_cents: int = 0,
     ) -> Transaction:
         """Create a sale transaction"""
         payment_enum = PaymentMethod[payment_method]
@@ -44,6 +47,9 @@ class TransactionService:
             user_id=user_id,
             member_id=member_id,
             items=items or [],
+            voucher_code=voucher_code,
+            voucher_type=voucher_type,
+            voucher_applied_cents=voucher_applied_cents,
         )
         
         return transaction
@@ -158,13 +164,20 @@ class TransactionService:
         ).filter(
             Transaction.created_at >= start_datetime,
             Transaction.created_at <= end_datetime,
-            Transaction.type.in_([TransactionType.SALE, TransactionType.RECHARGE])
+            Transaction.type.in_([
+                TransactionType.SALE,
+                TransactionType.RECHARGE,
+                TransactionType.VOUCHER_REDEMPTION,
+                TransactionType.VOUCHER_SALE,
+            ])
         ).order_by(Transaction.created_at.desc()).all()
         
         print(f"[Service] Found {len(transactions)} transactions for {date_from}")
         
         total_cash = 0
         total_balance = 0
+        total_voucher_gift = 0
+        total_voucher_prepaid = 0
         count = 0
         
         for transaction in transactions:
@@ -173,11 +186,20 @@ class TransactionService:
                 total_cash += transaction.total_amount_cents
             elif transaction.payment_method == PaymentMethod.BALANCE:
                 total_balance += transaction.total_amount_cents
+
+            if transaction.voucher_applied_cents:
+                if transaction.voucher_type == "GIFT":
+                    total_voucher_gift += transaction.voucher_applied_cents
+                elif transaction.voucher_type == "PREPAID":
+                    total_voucher_prepaid += transaction.voucher_applied_cents
             count += 1
         
         return {
             "cash_total": total_cash,
             "balance_total": total_balance,
+            "voucher_gift_total": total_voucher_gift,
+            "voucher_prepaid_total": total_voucher_prepaid,
+            "voucher_total": total_voucher_gift + total_voucher_prepaid,
             "total_amount": total_cash + total_balance,
             "transaction_count": count,
             "transactions": [
@@ -187,6 +209,9 @@ class TransactionService:
                     "total_amount_cents": t.total_amount_cents,
                     "payment_method": t.payment_method.value,
                     "type": t.type.value,
+                    "voucher_code": t.voucher_code,
+                    "voucher_type": t.voucher_type,
+                    "voucher_applied_cents": t.voucher_applied_cents,
                     "created_at": t.created_at,
                     "member": {
                         "id": t.member.id,
@@ -223,7 +248,12 @@ class TransactionService:
         query = self.db.query(Transaction).filter(
             Transaction.created_at >= start_datetime,
             Transaction.created_at <= end_datetime,
-            Transaction.type.in_([TransactionType.SALE, TransactionType.RECHARGE])
+            Transaction.type.in_([
+                TransactionType.SALE,
+                TransactionType.RECHARGE,
+                TransactionType.VOUCHER_REDEMPTION,
+                TransactionType.VOUCHER_SALE,
+            ])
         )
         
         if payment_method:
@@ -243,6 +273,9 @@ class TransactionService:
                     "total_amount_cents": t.total_amount_cents,
                     "payment_method": t.payment_method.value,
                     "type": t.type.value,
+                    "voucher_code": t.voucher_code,
+                    "voucher_type": t.voucher_type,
+                    "voucher_applied_cents": t.voucher_applied_cents,
                     "created_at": t.created_at,
                     "member": {
                         "id": t.member.id,

@@ -4,6 +4,8 @@
 backend/venv/
 backend/__pycache__/
 backend/*.pyc
+backend/**/*.pyc
+backend/**/__pycache__/
 backend/.pytest_cache/
 backend/.env.local
 backend/*.egg-info/
@@ -43,4 +45,3 @@ Thumbs.db
 
 # Optional: bilder/ ordner (Demo-Bilder, können gelöscht werden)
 # bilder/
-

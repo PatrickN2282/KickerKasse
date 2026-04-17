@@ -93,12 +93,29 @@ class ZBonService:
         balance_sales = [t for t in transactions if t.payment_method == PaymentMethod.BALANCE and t.type == TransactionType.SALE]
         recharges = [t for t in transactions if t.type == TransactionType.RECHARGE]
         stornos = [t for t in transactions if t.type == TransactionType.STORNO]
-        
+        gift_voucher_sales = [
+            t for t in transactions
+            if t.type == TransactionType.SALE and t.voucher_type == "GIFT" and (t.voucher_applied_cents or 0) > 0
+        ]
+        prepaid_voucher_sales = [
+            t for t in transactions
+            if t.type == TransactionType.SALE and t.voucher_type == "PREPAID" and (t.voucher_applied_cents or 0) > 0
+        ]
+        legacy_gift_redemptions = [
+            t for t in transactions
+            if t.type == TransactionType.VOUCHER_REDEMPTION and t.payment_method == PaymentMethod.VOUCHER_GIFT
+        ]
+         
         cash_total = sum(t.total_amount_cents for t in cash_sales) / 100
         balance_total = sum(t.total_amount_cents for t in balance_sales) / 100
         recharge_total = sum(t.total_amount_cents for t in recharges) / 100
         storno_total = sum(t.total_amount_cents for t in stornos) / 100
-        
+        gift_voucher_total = (
+            sum(t.voucher_applied_cents or 0 for t in gift_voucher_sales)
+            + abs(sum(t.total_amount_cents for t in legacy_gift_redemptions))
+        ) / 100
+        prepaid_voucher_total = sum(t.voucher_applied_cents or 0 for t in prepaid_voucher_sales) / 100
+         
         return {
             "cash_sales_count": len(cash_sales),
             "cash_sales_total": cash_total,
@@ -108,6 +125,11 @@ class ZBonService:
             "recharge_total": recharge_total,
             "storno_count": len(stornos),
             "storno_total": storno_total,
+            "gift_voucher_count": len(gift_voucher_sales) + len(legacy_gift_redemptions),
+            "gift_voucher_total": gift_voucher_total,
+            "prepaid_voucher_count": len(prepaid_voucher_sales),
+            "prepaid_voucher_total": prepaid_voucher_total,
+            "voucher_total": gift_voucher_total + prepaid_voucher_total,
             "total_transactions": len(transactions),
             "gross_revenue_cash": cash_total,
             "gross_revenue_balance": balance_total,
@@ -368,6 +390,18 @@ class ZBonService:
         lines.append(f"Steuern {0:>8.2f}")
         lines.append(" _____________")
         lines.append(f"Buchungen brutto {guthaben_netto:>8.2f}")
+
+        # Gutscheine
+        lines.append("")
+        lines.append("Gutscheineinlösungen")
+        lines.append(
+            f"{stats['gift_voucher_count']}x Geschenk-Gutschein {stats['gift_voucher_total']:>8.2f}"
+        )
+        lines.append(
+            f"{stats['prepaid_voucher_count']}x Guthaben-Gutschein {stats['prepaid_voucher_total']:>8.2f}"
+        )
+        lines.append(" _____________")
+        lines.append(f"Gutscheinwert gesamt {stats['voucher_total']:>8.2f}")
         
         # Gesamtumsatz
         lines.append("")
@@ -416,8 +450,14 @@ class ZBonService:
         lines.append(" Brutto")
         lines.append(f"BAR {stats['cash_sales_total']:>8.2f}")
         lines.append(f"{stats['balance_sales_count']}x Guthaben {stats['balance_sales_total']:>8.2f}")
+        if stats['gift_voucher_count'] > 0:
+            lines.append(f"{stats['gift_voucher_count']}x Gutschein (Geschenk) {stats['gift_voucher_total']:>8.2f}")
+        if stats['prepaid_voucher_count'] > 0:
+            lines.append(f"{stats['prepaid_voucher_count']}x Gutschein (Guthaben) {stats['prepaid_voucher_total']:>8.2f}")
         lines.append(" _____________")
-        lines.append(f" {stats['cash_sales_total'] + stats['balance_sales_total']:>8.2f}")
+        lines.append(
+            f" {stats['cash_sales_total'] + stats['balance_sales_total'] + stats['voucher_total']:>8.2f}"
+        )
         
         # Gesamtumsatz nach Steuersätzen
         lines.append("")

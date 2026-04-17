@@ -75,7 +75,38 @@ class VoucherService:
         year = voucher.created_at.year if voucher.created_at else date.today().year
         return f"V-{year}-{str(voucher.voucher_number).zfill(3)}"
 
-    def validate_voucher(self, voucher_number: str) -> dict:
+    def _build_cart_context(self, voucher: Voucher, cart_total_cents: Optional[int] = None) -> dict:
+        """Calculate applicable voucher amount for the current cart."""
+        if cart_total_cents is None:
+            return {
+                "applicable_amount_cents": voucher.value_cents,
+                "remaining_value_cents": 0,
+                "covers_cart_total": True,
+            }
+
+        applicable_amount_cents = min(voucher.value_cents, max(cart_total_cents, 0))
+        remaining_value_cents = max(voucher.value_cents - applicable_amount_cents, 0)
+        covers_cart_total = voucher.value_cents >= cart_total_cents
+
+        return {
+            "applicable_amount_cents": applicable_amount_cents,
+            "remaining_value_cents": remaining_value_cents,
+            "covers_cart_total": covers_cart_total,
+        }
+
+    def get_redeemable_voucher(self, voucher_number: str) -> Voucher:
+        """Load a voucher and ensure it can still be redeemed."""
+        voucher = self.repository.get_by_number(voucher_number)
+
+        if not voucher:
+            raise ValueError(f"Voucher #{voucher_number} not found")
+
+        if voucher.status == VoucherStatus.REDEEMED:
+            raise ValueError(f"Voucher #{voucher_number} already redeemed")
+
+        return voucher
+
+    def validate_voucher(self, voucher_number: str, cart_total_cents: Optional[int] = None) -> dict:
         """
         Validate a voucher before redemption
         
@@ -99,6 +130,9 @@ class VoucherService:
                 "status": "NOT_FOUND",
                 "message": f"Voucher {voucher_number} not found",
                 "reason": None,
+                "applicable_amount_cents": 0,
+                "remaining_value_cents": 0,
+                "covers_cart_total": False,
             }
 
         if voucher.status == VoucherStatus.REDEEMED:
@@ -111,7 +145,24 @@ class VoucherService:
                 "status": voucher.status.value,
                 "message": f"Voucher already redeemed on {redeemed_str}",
                 "reason": voucher.reason.value if voucher.reason else None,
+                "applicable_amount_cents": 0,
+                "remaining_value_cents": 0,
+                "covers_cart_total": False,
             }
+
+        cart_context = self._build_cart_context(voucher, cart_total_cents)
+        message = "Voucher is valid"
+        if cart_total_cents is not None and cart_total_cents > 0:
+            if cart_context["covers_cart_total"]:
+                remainder = cart_context["remaining_value_cents"]
+                if remainder > 0:
+                    message = f"Voucher deckt den Warenkorb ab. Restwert von {remainder / 100:.2f}€ verfällt bei Einlösung."
+                else:
+                    message = "Voucher deckt den Warenkorb vollständig ab."
+            else:
+                message = (
+                    f"Voucher reduziert den Warenkorb um {cart_context['applicable_amount_cents'] / 100:.2f}€."
+                )
 
         return {
             "valid": True,
@@ -119,9 +170,38 @@ class VoucherService:
             "voucher_type": voucher.voucher_type.value,
             "value_cents": voucher.value_cents,
             "status": voucher.status.value,
-            "message": "Voucher is valid",
+            "message": message,
             "reason": voucher.reason.value if voucher.reason else None,
+            **cart_context,
         }
+
+    def update_voucher(
+        self,
+        voucher_id: int,
+        value_cents: int,
+        reason: Optional[str] = None,
+        description: Optional[str] = None,
+    ) -> Voucher:
+        """Update an existing voucher before redemption."""
+        voucher = self.repository.get_by_id(voucher_id)
+        if not voucher:
+            raise ValueError(f"Voucher {voucher_id} not found")
+
+        if voucher.status == VoucherStatus.REDEEMED:
+            raise ValueError("Eingelöste Gutscheine können nicht mehr bearbeitet werden")
+
+        if voucher.voucher_type == VoucherType.GIFT and not reason:
+            raise ValueError("Gift-Gutscheine benötigen einen Grund")
+
+        if voucher.voucher_type == VoucherType.PREPAID:
+            reason = None
+
+        return self.repository.update(
+            voucher_id,
+            value_cents=value_cents,
+            reason=VoucherReason(reason) if reason else None,
+            description=description,
+        )
 
     def redeem_gift_voucher(self, voucher_number: str, redeemed_by: int, member_id: Optional[int] = None) -> Transaction:
         """

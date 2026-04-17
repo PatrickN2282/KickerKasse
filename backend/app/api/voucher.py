@@ -12,6 +12,7 @@ from app.schemas import (
     VoucherResponse,
     VoucherListResponse,
     VoucherRedeemResponse,
+    VoucherUpdateRequest,
 )
 from app.services import VoucherService
 from app.repositories import VoucherRepository
@@ -230,6 +231,40 @@ async def get_voucher_detail(
         )
 
 
+@admin_router.put("/{voucher_id}", response_model=VoucherResponse)
+@admin_router.put("/{voucher_id}/", response_model=VoucherResponse)
+async def update_voucher(
+    voucher_id: int,
+    voucher_data: VoucherUpdateRequest,
+    request: Request,
+    db: Session = Depends(get_db),
+):
+    """Update editable voucher fields before redemption."""
+    user_id = get_user_id(request)
+
+    try:
+        service = VoucherService(db)
+        voucher = service.update_voucher(
+            voucher_id=voucher_id,
+            value_cents=voucher_data.value_cents,
+            reason=voucher_data.reason,
+            description=voucher_data.description,
+        )
+        logger.info(f"[ADMIN] Updated voucher {voucher_id} by user {user_id}")
+        return VoucherResponse.from_orm(voucher)
+    except ValueError as e:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=str(e),
+        )
+    except Exception as e:
+        logger.error(f"[ADMIN] Error updating voucher {voucher_id}: {str(e)}", exc_info=True)
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Error updating voucher: {str(e)}",
+        )
+
+
 @admin_router.get("/by-number/{voucher_number}", response_model=VoucherResponse)
 @admin_router.get("/by-number/{voucher_number}/", response_model=VoucherResponse)
 async def get_voucher_by_number(
@@ -286,7 +321,10 @@ async def validate_voucher(
     
     try:
         service = VoucherService(db)
-        validation_result = service.validate_voucher(request_data.voucher_number)
+        validation_result = service.validate_voucher(
+            request_data.voucher_number,
+            cart_total_cents=request_data.cart_total_cents,
+        )
         
         logger.info(
             f"[KASSE] Validated voucher {request_data.voucher_number} "
@@ -301,6 +339,9 @@ async def validate_voucher(
             status=validation_result["status"],
             message=validation_result["message"],
             reason=validation_result.get("reason"),
+            applicable_amount_cents=validation_result.get("applicable_amount_cents", 0),
+            remaining_value_cents=validation_result.get("remaining_value_cents", 0),
+            covers_cart_total=validation_result.get("covers_cart_total", False),
         )
     except Exception as e:
         logger.error(
@@ -389,6 +430,7 @@ async def redeem_voucher(
             value_cents=voucher.value_cents,
             transaction_id=transaction.id,
             message=f"Voucher {request_data.voucher_number} successfully redeemed",
+            applied_amount_cents=voucher.redeemed_amount_cents or voucher.value_cents,
         )
     except HTTPException:
         raise

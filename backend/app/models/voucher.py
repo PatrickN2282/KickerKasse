@@ -47,6 +47,7 @@ class Voucher(BaseModel):
     # When
     created_at = Column(DateTime, default=func.now(), nullable=False, index=True)
     redeemed_at = Column(DateTime, nullable=True)  # Wann eingelöst
+    redeemed_amount_cents = Column(Integer, nullable=True)  # Tatsächlich angerechneter Wert
     
     # Reference to transaction where voucher was redeemed
     redeemed_in_transaction_id = Column(Integer, ForeignKey("transactions.id"), nullable=True)

@@ -27,9 +27,14 @@ class TransactionBase(BaseModel):
     user_id: int
 
 
+class VoucherRedemptionData(BaseModel):
+    voucher_number: str
+
+
 class TransactionCreate(TransactionBase):
     member_id: Optional[int] = None
     items: List[TransactionItemCreate]
+    voucher_redemption: Optional[VoucherRedemptionData] = None
 
 
 class TransactionResponse(BaseModel):
@@ -40,6 +45,9 @@ class TransactionResponse(BaseModel):
     total_amount_cents: int
     user_id: int
     member_id: Optional[int] = None
+    voucher_code: Optional[str] = None
+    voucher_type: Optional[str] = None
+    voucher_applied_cents: int = 0
     items: List[TransactionItemResponse]
     created_at: datetime
     updated_at: datetime

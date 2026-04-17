@@ -6,6 +6,7 @@ export const useCartStore = defineStore('cart', () => {
   const items = ref([])
   const selectedMemberId = ref(null)
   const paymentMethod = ref('CASH')
+  const appliedVoucher = ref(null)
 
   const addItem = (product) => {
     const existingItem = items.value.find(item => item.product_id === product.id)
@@ -58,37 +59,59 @@ export const useCartStore = defineStore('cart', () => {
     }
   }
 
-  const getTotalAmount = () => {
+  const getSubtotalAmount = () => {
     return items.value.reduce((sum, item) => sum + item.total_price_cents, 0)
+  }
+
+  const getVoucherAppliedAmount = () => {
+    if (!appliedVoucher.value) {
+      return 0
+    }
+
+    return Math.min(appliedVoucher.value.value_cents, getSubtotalAmount())
+  }
+
+  const getTotalAmount = () => {
+    return Math.max(getSubtotalAmount() - getVoucherAppliedAmount(), 0)
   }
 
   // Computed-like getter for total
   const total = computed(() => getTotalAmount())
+
+  const applyVoucher = (voucher) => {
+    appliedVoucher.value = voucher
+  }
+
+  const removeVoucher = () => {
+    appliedVoucher.value = null
+  }
 
   const checkout = async (userId) => {
     if (items.value.length === 0) {
       throw new Error('Cart is empty')
     }
 
-    const totalAmount = getTotalAmount()
-
-    try {
-      console.log('[Cart] Starting checkout with paymentMethod:', paymentMethod.value)
-      const response = await apiService.post('/transactions/sale', {
-        user_id: userId,
-        payment_method: paymentMethod.value,
-        member_id: selectedMemberId.value,
-        items: items.value.map(item => ({
-          product_id: item.product_id,
-          quantity: item.quantity,
-          unit_price_cents: item.unit_price_cents,
-        })),
+      try {
+        console.log('[Cart] Starting checkout with paymentMethod:', paymentMethod.value)
+        const response = await apiService.post('/transactions/sale', {
+          user_id: userId,
+          payment_method: paymentMethod.value,
+          member_id: selectedMemberId.value,
+          voucher_redemption: appliedVoucher.value
+            ? { voucher_number: appliedVoucher.value.voucher_number }
+            : null,
+          items: items.value.map(item => ({
+            product_id: item.product_id,
+            quantity: item.quantity,
+            unit_price_cents: item.unit_price_cents,
+          })),
       })
 
       console.log('[Cart] Checkout successful:', response.data)
       items.value = []
       selectedMemberId.value = null
       paymentMethod.value = 'CASH'
+      appliedVoucher.value = null
 
       return response.data
     } catch (err) {
@@ -101,18 +124,24 @@ export const useCartStore = defineStore('cart', () => {
     items.value = []
     selectedMemberId.value = null
     paymentMethod.value = 'CASH'
+    appliedVoucher.value = null
   }
 
   return {
     items,
     selectedMemberId,
     paymentMethod,
+    appliedVoucher,
     total,
     addItem,
     removeItem,
     updateItemQuantity,
     recalculatePrices,
+    getSubtotalAmount,
+    getVoucherAppliedAmount,
     getTotalAmount,
+    applyVoucher,
+    removeVoucher,
     checkout,
     clear,
   }
