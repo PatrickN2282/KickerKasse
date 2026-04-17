@@ -1,19 +1,13 @@
 from fastapi import APIRouter, HTTPException, Depends, Request, status
 from sqlalchemy.orm import Session
+
 from app.core import get_db
-from app.schemas import UserCreate, UserResponse
-from app.services import UserService
+from app.core.auth import require_roles
 from app.models import UserRole
+from app.schemas import UserCreate, UserResponse, UserUpdate
+from app.services import UserService
 
 router = APIRouter(prefix="/api/users", tags=["Users"])
-
-
-@router.get("/test-route")
-@router.get("/test-route/")
-@router.get("/test-route/")
-async def test_route():
-    """Test endpoint - no auth required"""
-    return {"test": "users route exists"}
 
 
 @router.get("/", response_model=list[UserResponse])
@@ -22,24 +16,8 @@ async def get_users(
     request: Request,
     db: Session = Depends(get_db),
 ):
-    """Get all users (Admin only)"""
-    user_id = request.session.get("user_id")
-    if not user_id:
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Not authenticated",
-        )
-    
-    from app.repositories import UserRepository
-    current_user = UserRepository(db).get_by_id(user_id)
-    if not current_user or current_user.role != UserRole.ADMIN:
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail="Insufficient permissions"
-        )
-    
-    service = UserService(db)
-    return service.get_all_users()
+    require_roles(request, db, UserRole.ADMIN)
+    return UserService(db).get_all_users()
 
 
 @router.post("/", response_model=UserResponse, status_code=status.HTTP_201_CREATED)
@@ -49,61 +27,17 @@ async def create_user(
     request: Request,
     db: Session = Depends(get_db),
 ):
-    """Create a new user (Admin only)"""
-    user_id = request.session.get("user_id")
-    if not user_id:
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Not authenticated",
-        )
-    
-    from app.repositories import UserRepository
-    current_user = UserRepository(db).get_by_id(user_id)
-    if not current_user or current_user.role != UserRole.ADMIN:
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail="Insufficient permissions"
-        )
-    
+    require_roles(request, db, UserRole.ADMIN)
     service = UserService(db)
     try:
-        user = service.create_user(
+        return service.create_user(
             user_data.username,
             user_data.email,
             user_data.password,
             user_data.role,
         )
-        return user
-    except ValueError as e:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail=str(e),
-        )
-
-
-@router.get("/", response_model=list[UserResponse])
-async def get_users(
-    request: Request,
-    db: Session = Depends(get_db),
-):
-    """Get all users (Admin only)"""
-    user_id = request.session.get("user_id")
-    if not user_id:
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Not authenticated",
-        )
-    
-    from app.repositories import UserRepository
-    current_user = UserRepository(db).get_by_id(user_id)
-    if not current_user or current_user.role != UserRole.ADMIN:
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail="Insufficient permissions"
-        )
-    
-    service = UserService(db)
-    return service.get_all_users()
+    except ValueError as exc:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(exc)) from exc
 
 
 @router.get("/{user_id}", response_model=UserResponse)
@@ -113,22 +47,10 @@ async def get_user(
     request: Request,
     db: Session = Depends(get_db),
 ):
-    """Get user by ID"""
-    current_user_id = request.session.get("user_id")
-    if not current_user_id:
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Not authenticated",
-        )
-    
-    service = UserService(db)
-    user = service.get_user(user_id)
+    require_roles(request, db, UserRole.ADMIN)
+    user = UserService(db).get_user(user_id)
     if not user:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="User not found",
-        )
-    
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="User not found")
     return user
 
 
@@ -136,34 +58,14 @@ async def get_user(
 @router.put("/{user_id}/", response_model=UserResponse)
 async def update_user(
     user_id: int,
-    user_data: dict,
+    user_data: UserUpdate,
     request: Request,
     db: Session = Depends(get_db),
 ):
-    """Update user (Admin only)"""
-    current_user_id = request.session.get("user_id")
-    if not current_user_id:
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Not authenticated",
-        )
-    
-    from app.repositories import UserRepository
-    current_user = UserRepository(db).get_by_id(current_user_id)
-    if not current_user or current_user.role != UserRole.ADMIN:
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail="Insufficient permissions"
-        )
-    
-    service = UserService(db)
-    user = service.update_user(user_id, **user_data)
+    require_roles(request, db, UserRole.ADMIN)
+    user = UserService(db).update_user(user_id, **user_data.model_dump(exclude_unset=True))
     if not user:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="User not found",
-        )
-    
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="User not found")
     return user
 
 
@@ -174,25 +76,6 @@ async def delete_user(
     request: Request,
     db: Session = Depends(get_db),
 ):
-    """Delete user (Admin only)"""
-    current_user_id = request.session.get("user_id")
-    if not current_user_id:
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Not authenticated",
-        )
-    
-    from app.repositories import UserRepository
-    current_user = UserRepository(db).get_by_id(current_user_id)
-    if not current_user or current_user.role != UserRole.ADMIN:
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail="Insufficient permissions"
-        )
-    
-    service = UserService(db)
-    if not service.delete_user(user_id):
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="User not found",
-        )
+    require_roles(request, db, UserRole.ADMIN)
+    if not UserService(db).delete_user(user_id):
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="User not found")

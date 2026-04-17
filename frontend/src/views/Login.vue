@@ -1,7 +1,9 @@
 <template>
   <div class="login-container">
     <div class="login-card">
-      <h1>Kassensoftware</h1>
+      <div class="login-brand">
+        <img :src="appSettingsStore.logoUrl" alt="KGB - KickerKasse" class="login-logo" />
+      </div>
       <form @submit.prevent="handleLogin">
         <div class="form-group">
           <label for="username">Benutzername:</label>
@@ -31,6 +33,9 @@
 
         <div v-if="error" class="alert alert-error">{{ error }}</div>
       </form>
+      <div class="login-footer">
+        <PwaInstallButton />
+      </div>
     </div>
   </div>
 </template>
@@ -39,9 +44,12 @@
 import { reactive, ref } from 'vue'
 import { useRouter } from 'vue-router'
 import { useAuthStore } from '@/stores/auth'
+import { useAppSettingsStore } from '@/stores/appSettings'
+import PwaInstallButton from '@/components/PwaInstallButton.vue'
 
 const router = useRouter()
 const authStore = useAuthStore()
+const appSettingsStore = useAppSettingsStore()
 
 const form = reactive({
   username: '',
@@ -72,27 +80,42 @@ const handleLogin = async () => {
   display: flex;
   align-items: center;
   justify-content: center;
-  height: 100vh;
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  min-height: 100vh;
+  background: var(--app-background-color);
+  padding: 1rem;
 }
 
 .login-card {
   background: white;
   padding: 2rem;
-  border-radius: 8px;
-  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
+  border-radius: 16px;
+  box-shadow: 0 12px 36px rgba(0, 0, 0, 0.12);
   width: 100%;
-  max-width: 400px;
+  max-width: 420px;
+  border-top: 4px solid var(--app-highlight-color);
 
   h1 {
     text-align: center;
     color: #333;
-    margin-bottom: 2rem;
+    margin-bottom: 1.5rem;
   }
 }
 
+.login-brand {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+.login-logo {
+  width: min(320px, 100%);
+  height: 130px;
+  object-fit: contain;
+  margin-bottom: 1rem;
+}
+
 .form-group {
-  margin-bottom: 1.5rem;
+  margin-bottom: 1.25rem;
 
   label {
     display: block;
@@ -106,13 +129,13 @@ const handleLogin = async () => {
   width: 100%;
   padding: 0.75rem;
   border: 1px solid #ddd;
-  border-radius: 4px;
+  border-radius: 8px;
   font-size: 1rem;
 
   &:focus {
     outline: none;
-    border-color: #667eea;
-    box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+    border-color: var(--app-highlight-color);
+    box-shadow: 0 0 0 3px rgba(92, 143, 58, 0.15);
   }
 }
 
@@ -120,41 +143,32 @@ const handleLogin = async () => {
   width: 100%;
   padding: 0.75rem;
   border: none;
-  border-radius: 4px;
+  border-radius: 8px;
   font-size: 1rem;
   font-weight: 600;
   cursor: pointer;
-  transition: all 0.2s;
-
-  &:disabled {
-    opacity: 0.6;
-    cursor: not-allowed;
-  }
-
-  &:not(:disabled):hover {
-    transform: translateY(-2px);
-    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
-  }
 }
 
 .btn-primary {
-  background-color: #667eea;
+  background-color: var(--app-highlight-color);
   color: white;
-
-  &:not(:disabled):hover {
-    background-color: #5568d3;
-  }
 }
 
 .alert {
   margin-top: 1rem;
   padding: 1rem;
-  border-radius: 4px;
+  border-radius: 8px;
 
   &.alert-error {
     background-color: #ffebee;
     color: #c62828;
     border: 1px solid #ef5350;
   }
+}
+
+.login-footer {
+  margin-top: 1.25rem;
+  display: flex;
+  justify-content: center;
 }
 </style>

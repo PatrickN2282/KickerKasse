@@ -23,6 +23,7 @@
         <label for="role">Rolle*:</label>
         <select v-model="formData.role" id="role" class="form-input" required>
           <option value="CASHIER">Kassierer</option>
+          <option value="KASSENMITGLIED">Kassenmitglied</option>
           <option value="ADMIN">Admin</option>
         </select>
       </div>
@@ -43,7 +44,7 @@
           <tr v-for="user in users" :key="user.id">
             <td>{{ user.username }}</td>
             <td>{{ user.email }}</td>
-            <td>{{ user.role === 'ADMIN' ? 'Admin' : 'Kassierer' }}</td>
+            <td>{{ roleLabel(user.role) }}</td>
             <td>
               <button @click="deleteUser(user.id)" class="btn-small btn-danger">
                 Löschen
@@ -71,6 +72,12 @@ const formData = reactive({
   password: '',
   role: 'CASHIER',
 })
+
+const roleLabel = (role) => ({
+  ADMIN: 'Admin',
+  CASHIER: 'Kassierer',
+  KASSENMITGLIED: 'Kassenmitglied',
+}[role] || role)
 
 const handleSaveUser = async () => {
   try {
@@ -144,7 +151,7 @@ onMounted(async () => {
 
     &:focus {
       outline: none;
-      border-color: #1976d2;
+      border-color: var(--app-highlight-color);
     }
   }
 }
@@ -185,16 +192,8 @@ onMounted(async () => {
   border-radius: 4px;
   cursor: pointer;
 
-  &:hover {
-    background: #0b7dda;
-  }
-
   &.btn-danger {
     background: #f44336;
-
-    &:hover {
-      background: #da190b;
-    }
   }
 }
 
@@ -207,20 +206,12 @@ onMounted(async () => {
 }
 
 .btn-primary {
-  background: #1976d2;
+  background: var(--app-highlight-color);
   color: white;
-
-  &:hover {
-    background: #1565c0;
-  }
 }
 
 .btn-success {
-  background: #4caf50;
+  background: var(--app-banner-color);
   color: white;
-
-  &:hover {
-    background: #45a049;
-  }
 }
 </style>

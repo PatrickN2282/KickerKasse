@@ -17,44 +17,50 @@ const routes = [
     path: '/admin',
     name: 'Admin',
     component: () => import('@/views/admin/Admin.vue'),
-    meta: { requiresAuth: true, requiresAdmin: true },
+    meta: { requiresAuth: true, allowedRoles: ['ADMIN', 'KASSENMITGLIED'] },
     redirect: '/admin/members',
     children: [
       {
         path: 'members',
         name: 'AdminMembers',
         component: () => import('@/views/admin/Members.vue'),
-        meta: { requiresAuth: true, requiresAdmin: true },
+        meta: { requiresAuth: true, allowedRoles: ['ADMIN', 'KASSENMITGLIED'] },
       },
       {
         path: 'products',
         name: 'AdminProducts',
         component: () => import('@/views/admin/Products.vue'),
-        meta: { requiresAuth: true, requiresAdmin: true },
+        meta: { requiresAuth: true, allowedRoles: ['ADMIN'] },
       },
       {
         path: 'categories',
         name: 'AdminCategories',
         component: () => import('@/views/admin/Categories.vue'),
-        meta: { requiresAuth: true, requiresAdmin: true },
+        meta: { requiresAuth: true, allowedRoles: ['ADMIN'] },
       },
       {
         path: 'users',
         name: 'AdminUsers',
         component: () => import('@/views/admin/Users.vue'),
-        meta: { requiresAuth: true, requiresAdmin: true },
+        meta: { requiresAuth: true, allowedRoles: ['ADMIN'] },
       },
       {
         path: 'vouchers',
         name: 'AdminVouchers',
         component: () => import('@/views/admin/Vouchers.vue'),
-        meta: { requiresAuth: true, requiresAdmin: true },
+        meta: { requiresAuth: true, allowedRoles: ['ADMIN'] },
       },
       {
         path: 'finance',
         name: 'AdminFinance',
         component: () => import('@/views/admin/Finance.vue'),
-        meta: { requiresAuth: true, requiresAdmin: true },
+        meta: { requiresAuth: true, allowedRoles: ['ADMIN', 'KASSENMITGLIED'] },
+      },
+      {
+        path: 'settings',
+        name: 'AdminSettings',
+        component: () => import('@/views/admin/Settings.vue'),
+        meta: { requiresAuth: true, allowedRoles: ['ADMIN'] },
       },
     ],
   },
@@ -69,7 +75,6 @@ router.beforeEach(async (to, from, next) => {
   const authStore = useAuthStore()
 
   if (to.meta.requiresAuth && !authStore.isAuthenticated) {
-    // Check if we still have a valid session
     await authStore.checkAuth()
 
     if (!authStore.isAuthenticated) {
@@ -78,7 +83,7 @@ router.beforeEach(async (to, from, next) => {
     }
   }
 
-  if (to.meta.requiresAdmin && authStore.user?.role !== 'ADMIN') {
+  if (to.meta.allowedRoles?.length && !to.meta.allowedRoles.includes(authStore.role)) {
     next('/')
     return
   }

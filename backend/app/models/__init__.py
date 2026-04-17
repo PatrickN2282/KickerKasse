@@ -1,5 +1,6 @@
 from .base import Base
 from .user import User, UserRole
+from .app_settings import AppSettings
 from .member import Member
 from .product import Product
 from .category import Category, product_category
@@ -13,6 +14,7 @@ __all__ = [
     "Base",
     "User",
     "UserRole",
+    "AppSettings",
     "Member",
     "Product",
     "Category",

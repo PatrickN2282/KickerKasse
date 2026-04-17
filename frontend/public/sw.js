@@ -1,21 +1,33 @@
-// Service Worker für PWA
-const CACHE_NAME = 'kasse-v1'
+const CACHE_NAME = 'kickerkasse-v2'
 const urlsToCache = [
   '/',
   '/index.html',
+  '/api/app-settings/manifest.webmanifest',
+  '/api/app-settings/logo',
+  '/api/app-settings/favicon.png',
+  '/api/app-settings/icon-192.png',
+  '/api/app-settings/icon-512.png',
 ]
+
+const isCacheableAppSettingsAsset = (url) => {
+  return url.includes('/api/app-settings/manifest.webmanifest')
+    || url.includes('/api/app-settings/logo')
+    || url.includes('/api/app-settings/favicon.png')
+    || url.includes('/api/app-settings/icon-192.png')
+    || url.includes('/api/app-settings/icon-512.png')
+    || url.includes('/api/app-settings/apple-touch-icon.png')
+}
 
 self.addEventListener('install', event => {
   event.waitUntil(
-    caches.open(CACHE_NAME).then(cache => {
-      return cache.addAll(urlsToCache)
-    })
+    caches.open(CACHE_NAME).then(cache => cache.addAll(urlsToCache))
   )
 })
 
 self.addEventListener('fetch', event => {
-  // Skip API calls
-  if (event.request.url.includes('/api/')) {
+  const requestUrl = event.request.url
+
+  if (requestUrl.includes('/api/') && !isCacheableAppSettingsAsset(requestUrl)) {
     return
   }
 
@@ -24,35 +36,29 @@ self.addEventListener('fetch', event => {
       if (response) {
         return response
       }
-      return fetch(event.request).then(response => {
-        // Clone response
-        const responseToCache = response.clone()
-        
-        // Cache if successful
-        if (response.status === 200) {
+
+      return fetch(event.request).then(networkResponse => {
+        if (networkResponse.status === 200 && event.request.method === 'GET') {
+          const responseToCache = networkResponse.clone()
           caches.open(CACHE_NAME).then(cache => {
             cache.put(event.request, responseToCache)
           })
         }
-        
-        return response
-      }).catch(() => {
-        return caches.match('/index.html')
-      })
+
+        return networkResponse
+      }).catch(() => caches.match('/index.html'))
     })
   )
 })
 
 self.addEventListener('activate', event => {
   event.waitUntil(
-    caches.keys().then(cacheNames => {
-      return Promise.all(
-        cacheNames.map(cacheName => {
-          if (cacheName !== CACHE_NAME) {
-            return caches.delete(cacheName)
-          }
-        })
-      )
-    })
+    caches.keys().then(cacheNames => Promise.all(
+      cacheNames.map(cacheName => {
+        if (cacheName !== CACHE_NAME) {
+          return caches.delete(cacheName)
+        }
+      })
+    ))
   )
 })

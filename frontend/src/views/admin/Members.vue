@@ -21,28 +21,33 @@
         <input v-model="formData.phone" id="phone" type="tel" class="form-input" />
       </div>
 
-      <!-- Balance recharge section (only when editing) -->
       <div v-if="editingId" class="form-group recharge-section">
         <label for="recharge">Guthaben aufladen:</label>
         <div class="recharge-input-group">
-          <input 
-            v-model.number="rechargeAmount" 
-            id="recharge" 
-            type="number" 
+          <input
+            v-model.number="rechargeAmount"
+            id="recharge"
+            type="number"
             placeholder="0.00"
             step="0.01"
             min="0"
-            class="form-input" 
+            class="form-input"
           />
-          <button 
+          <button
             @click="handleRecharge"
             type="button"
             class="btn btn-info"
-            :disabled="!rechargeAmount || rechargeAmount <= 0"
+            :disabled="!rechargeAmount || rechargeAmount <= 0 || !rechargePassword"
           >
             + Aufladen
           </button>
         </div>
+        <input
+          v-model="rechargePassword"
+          type="password"
+          class="form-input recharge-password"
+          placeholder="Passwort des angemeldeten Benutzers"
+        />
         <small v-if="editingId && currentMemberBalance !== null">
           Aktuelles Guthaben: {{ formatBalance(currentMemberBalance) }}
         </small>
@@ -83,7 +88,7 @@
             <td class="balance">{{ formatBalance(member.balance_cents) }}</td>
             <td>
               <button @click="editMember(member)" class="btn-small">Bearbeiten</button>
-              <button @click="deleteMember(member.id)" class="btn-small btn-danger">
+              <button @click="deleteMember(member.id)" class="btn-small btn-danger" :disabled="!authStore.isAdmin">
                 Löschen
               </button>
             </td>
@@ -96,10 +101,13 @@
 
 <script setup>
 import { ref, reactive, onMounted } from 'vue'
+import { useAuthStore } from '@/stores/auth'
 import { useMemberStore } from '@/stores/member'
 import { useNotificationStore } from '@/stores/notification'
 import { formatBalance } from '@/services/utils'
+import apiService from '@/services/api'
 
+const authStore = useAuthStore()
 const memberStore = useMemberStore()
 const notificationStore = useNotificationStore()
 
@@ -108,6 +116,7 @@ const editingId = ref(null)
 const photoFile = ref(null)
 const photoPreview = ref(null)
 const rechargeAmount = ref(null)
+const rechargePassword = ref('')
 const currentMemberBalance = ref(null)
 const formData = reactive({
   name: '',
@@ -128,25 +137,25 @@ const handlePhotoUpload = (event) => {
 }
 
 const uploadPhotoToMember = async (memberId) => {
-  if (!photoFile.value) return true // No photo to upload
-  
+  if (!photoFile.value) return true
+
   try {
     const formDataUpload = new FormData()
     formDataUpload.append('file', photoFile.value)
-    
+
     const response = await fetch(`/api/members/${memberId}/photo`, {
       method: 'POST',
       body: formDataUpload,
       credentials: 'include',
     })
-    
+
     if (response.ok) {
       photoFile.value = null
       return true
-    } else {
-      notificationStore.error('Foto-Upload fehlgeschlagen')
-      return false
     }
+
+    notificationStore.error('Foto-Upload fehlgeschlagen')
+    return false
   } catch (error) {
     console.error('Photo upload error:', error)
     notificationStore.error('Fehler beim Foto-Upload')
@@ -156,13 +165,11 @@ const uploadPhotoToMember = async (memberId) => {
 
 const handleSaveMember = async () => {
   if (editingId.value) {
-    // Upload photo first if exists
     const photoUploadSuccess = await uploadPhotoToMember(editingId.value)
     if (!photoUploadSuccess && photoFile.value) {
       return
     }
-    
-    // Update existing member
+
     const result = await memberStore.updateMember(editingId.value, formData)
     if (result) {
       notificationStore.success('Mitglied aktualisiert')
@@ -171,10 +178,8 @@ const handleSaveMember = async () => {
       notificationStore.error(memberStore.error)
     }
   } else {
-    // Create new member
     const result = await memberStore.createMember(formData)
     if (result) {
-      // Upload photo after creation
       if (photoFile.value) {
         const photoUploadSuccess = await uploadPhotoToMember(result.id)
         if (!photoUploadSuccess) {
@@ -198,6 +203,9 @@ const resetForm = () => {
   formData.phone = ''
   photoFile.value = null
   photoPreview.value = null
+  rechargeAmount.value = null
+  rechargePassword.value = ''
+  currentMemberBalance.value = null
   editingId.value = null
   showForm.value = false
 }
@@ -208,6 +216,8 @@ const editMember = (member) => {
   formData.email = member.email || ''
   formData.phone = member.phone || ''
   currentMemberBalance.value = member.balance_cents
+  rechargeAmount.value = null
+  rechargePassword.value = ''
   showForm.value = true
 }
 
@@ -217,20 +227,20 @@ const handleRecharge = async () => {
     return
   }
 
+  if (!rechargePassword.value) {
+    notificationStore.error('Bitte das Passwort des angemeldeten Benutzers eingeben')
+    return
+  }
+
   try {
-    // Convert to cents (if user entered euros)
     const amountCents = Math.round(rechargeAmount.value * 100)
-    
-    console.log(`[Members] Recharging member ${editingId.value} with ${amountCents} cents`)
-    
-    // Use store function to recharge
-    const updatedMember = await memberStore.rechargeMember(editingId.value, amountCents)
-    
+    const updatedMember = await memberStore.rechargeMember(editingId.value, amountCents, rechargePassword.value)
+
     if (updatedMember) {
       currentMemberBalance.value = updatedMember.balance_cents
       rechargeAmount.value = null
+      rechargePassword.value = ''
       notificationStore.success(`Guthaben aufgeladen! Neuer Betrag: ${formatBalance(updatedMember.balance_cents)}`)
-      console.log('[Members] Recharge successful, balance is now:', updatedMember.balance_cents)
     } else {
       notificationStore.error(memberStore.error || 'Fehler beim Aufladen')
     }
@@ -241,10 +251,19 @@ const handleRecharge = async () => {
 }
 
 const deleteMember = async (memberId) => {
+  if (!authStore.isAdmin) {
+    notificationStore.error('Nur Admins dürfen Mitglieder löschen')
+    return
+  }
+
   if (confirm('Wirklich löschen?')) {
-    // API call would go here
-    notificationStore.success('Mitglied gelöscht')
-    await memberStore.getMembers()
+    try {
+      await apiService.delete(`/members/${memberId}`)
+      notificationStore.success('Mitglied gelöscht')
+      await memberStore.getMembers()
+    } catch (error) {
+      notificationStore.error(error.response?.data?.detail || 'Fehler beim Löschen')
+    }
   }
 }
 
@@ -284,174 +303,84 @@ onMounted(async () => {
 
     &:focus {
       outline: none;
-      border-color: #1976d2;
+      border-color: var(--app-highlight-color);
     }
   }
+}
+
+.recharge-input-group {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: 0.75rem;
+}
+
+.recharge-password {
+  margin-top: 0.75rem;
 }
 
 .members-table {
   overflow-x: auto;
   margin-top: 2rem;
-
-  table {
-    width: 100%;
-    border-collapse: collapse;
-
-    th {
-      background: #f0f0f0;
-      padding: 1rem;
-      text-align: left;
-      font-weight: 600;
-      border-bottom: 2px solid #ddd;
-    }
-
-    td {
-      padding: 1rem;
-      border-bottom: 1px solid #ddd;
-
-      &.balance {
-        font-weight: 600;
-        color: #667eea;
-      }
-    }
-
-    tr:hover {
-      background: #fafafa;
-    }
-  }
 }
 
+.photo-cell,
+.balance {
+  font-weight: 600;
+}
+
+.member-thumb {
+  width: 44px;
+  height: 44px;
+  object-fit: cover;
+  border-radius: 50%;
+}
+
+.btn,
 .btn-small {
-  padding: 0.4rem 0.8rem;
-  font-size: 0.85rem;
-  background: #2196f3;
-  color: white;
-  border: none;
-  border-radius: 4px;
-  cursor: pointer;
-  margin-right: 0.5rem;
-
-  &:hover {
-    background: #0b7dda;
-  }
-
-  &.btn-danger {
-    background: #f44336;
-
-    &:hover {
-      background: #da190b;
-    }
-  }
-}
-
-.btn {
-  padding: 0.75rem 1.5rem;
   border: none;
   border-radius: 4px;
   cursor: pointer;
   font-weight: 600;
 }
 
-.btn-primary {
-  background: #1976d2;
-  color: white;
+.btn {
+  padding: 0.75rem 1.5rem;
+}
 
-  &:hover {
-    background: #1565c0;
-  }
+.btn-small {
+  padding: 0.4rem 0.8rem;
+  margin-right: 0.5rem;
+}
+
+.btn-primary,
+.btn-info {
+  background: var(--app-highlight-color);
+  color: white;
 }
 
 .btn-success {
-  background: #4caf50;
+  background: var(--app-banner-color);
   color: white;
-
-  &:hover {
-    background: #45a049;
-  }
 }
 
-.btn-info {
-  background: #29b6f6;
+.btn-danger {
+  background: #f44336;
   color: white;
-
-  &:hover:not(:disabled) {
-    background: #0288d1;
-  }
-
-  &:disabled {
-    background: #ccc;
-    cursor: not-allowed;
-  }
 }
 
-.recharge-section {
-  background: #e8f5e9;
-  padding: 1rem;
-  border-radius: 4px;
-  border-left: 4px solid #4caf50;
+table {
+  width: 100%;
+  border-collapse: collapse;
 
-  .recharge-input-group {
-    display: flex;
-    gap: 0.75rem;
-    align-items: center;
-
-    .form-input {
-      flex: 1;
-      padding: 0.75rem;
-      border: 1px solid #ddd;
-      border-radius: 4px;
-      font-size: 1rem;
-
-      &:focus {
-        outline: none;
-        border-color: #4caf50;
-        box-shadow: 0 0 4px rgba(76, 175, 80, 0.3);
-      }
-    }
-
-    .btn {
-      white-space: nowrap;
-    }
+  th,
+  td {
+    padding: 1rem;
+    border-bottom: 1px solid #ddd;
+    text-align: left;
   }
 
-  small {
-    display: block;
-    margin-top: 0.5rem;
-    color: #2e7d32;
-    font-weight: 600;
-  }
-}
-
-.loading {
-  text-align: center;
-  padding: 2rem;
-  color: #999;
-}
-
-.photo-cell {
-  text-align: center;
-
-  .member-thumb {
-    width: 50px;
-    height: 50px;
-    border-radius: 4px;
-    object-fit: contain;
-    border: 1px solid #ddd;
-  }
-
-  .no-photo {
-    color: #999;
-    font-size: 0.9rem;
-  }
-}
-
-.photo-preview {
-  margin-top: 1rem;
-  display: inline-block;
-
-  img {
-    border-radius: 4px;
-    border: 1px solid #ddd;
+  th {
+    background: #f0f0f0;
   }
 }
 </style>

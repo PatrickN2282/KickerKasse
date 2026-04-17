@@ -1,15 +1,10 @@
-// Global Styles with Modern Design System
-// Color Palette
-$color-dark: #1a1a1a;
-$color-black: #2d2d2d;
-$color-white: #ffffff;
-$color-light-gray: #dfe3e8;
-$color-medium-gray: #cfd5dc;
-$color-dark-gray: #888888;
-$color-accent: #ff6b35;
-$color-accent-light: #ff8c5a;
-$color-text-primary: #1a1a1a;
-$color-text-secondary: #666666;
+:root {
+  --app-background-color: #d7dce2;
+  --app-banner-color: #131820;
+  --app-highlight-color: #5c8f3a;
+  --app-surface-color: #ffffff;
+  --app-text-color: #1a1a1a;
+}
 
 * {
   margin: 0;
@@ -18,29 +13,39 @@ $color-text-secondary: #666666;
 }
 
 html,
+body,
+#app {
+  min-height: 100%;
+}
+
 body {
-  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue',
-    Arial, sans-serif;
-  background: linear-gradient(135deg, #d7dce2 0%, #c5cbd3 100%);
-  color: $color-text-primary;
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+  background: var(--app-background-color);
+  color: var(--app-text-color);
   line-height: 1.5;
 }
 
-// Scrollbar
+button,
+input,
+select,
+textarea {
+  font: inherit;
+}
+
+img {
+  max-width: 100%;
+}
+
 ::-webkit-scrollbar {
   width: 8px;
   height: 8px;
 }
 
 ::-webkit-scrollbar-track {
-  background: #c7cdd4;
+  background: rgba(0, 0, 0, 0.08);
 }
 
 ::-webkit-scrollbar-thumb {
-  background: #888;
+  background: rgba(0, 0, 0, 0.3);
   border-radius: 4px;
-
-  &:hover {
-    background: #555;
-  }
 }

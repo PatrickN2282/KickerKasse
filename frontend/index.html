@@ -4,20 +4,17 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <meta name="description" content="Kassensoftware für Vereine" />
-    <meta name="theme-color" content="#1976d2" />
-    <title>Kassensoftware</title>
-    <link rel="manifest" href="/manifest.json" />
+    <meta id="theme-color-meta" name="theme-color" content="#131820" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="default" />
+    <title>KGB - KickerKasse</title>
+    <link id="app-manifest-link" rel="manifest" href="/api/app-settings/manifest.webmanifest" />
+    <link id="app-favicon" rel="icon" type="image/png" href="/api/app-settings/favicon.png" />
+    <link id="app-favicon-32" rel="icon" type="image/png" href="/api/app-settings/favicon.png" />
+    <link id="app-apple-touch-icon" rel="apple-touch-icon" href="/api/app-settings/apple-touch-icon.png" />
   </head>
   <body>
     <div id="app"></div>
     <script type="module" src="/src/main.js"></script>
-    <script>
-      // Register PWA service worker
-      if ('serviceWorker' in navigator) {
-        navigator.serviceWorker.register('/sw.js').catch(err => {
-          console.log('ServiceWorker registration failed: ', err)
-        })
-      }
-    </script>
   </body>
 </html>

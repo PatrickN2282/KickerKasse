@@ -614,14 +614,23 @@
         <p v-if="cashCountData" class="cash-count-hint">
           Gezählter Barbestand: <strong>{{ formatEuroValue(getCashCountTotal(cashCountData)) }}</strong>
         </p>
+        <div class="filter-group">
+          <label>Passwort bestätigen</label>
+          <input
+            v-model="zbonForm.authPassword"
+            type="password"
+            class="form-input"
+            placeholder="Passwort des angemeldeten Benutzers"
+          />
+        </div>
         <div class="confirmation-buttons">
-          <button @click="showZbonCreateModal = false" class="btn btn-secondary">
+          <button @click="closeZbonCreateModal" class="btn btn-secondary">
             Abbrechen
           </button>
           <button @click="openCashCounterModal" class="btn btn-secondary">
             💰 Kasse zählen
           </button>
-          <button @click="createZBon" class="btn btn-primary">
+          <button @click="createZBon" class="btn btn-primary" :disabled="!zbonForm.authPassword">
             ✓ Erstellen
           </button>
         </div>
@@ -724,6 +733,7 @@ const memberSearch = ref('')
 const zbonForm = ref({
   employeeMemberId: null,
   checkerMemberId: null,
+  authPassword: '',
 })
 const withdrawalForm = ref({
   amount: '',
@@ -1098,7 +1108,13 @@ const openZbonCreateModal = async () => {
   if (!memberStore.members.length) {
     await memberStore.getMembers()
   }
+  zbonForm.value.authPassword = ''
   showZbonCreateModal.value = true
+}
+
+const closeZbonCreateModal = () => {
+  zbonForm.value.authPassword = ''
+  showZbonCreateModal.value = false
 }
 
 const openWithdrawalModal = async () => {
@@ -1169,11 +1185,17 @@ const createZBon = async () => {
     return
   }
 
+  if (!zbonForm.value.authPassword) {
+    notificationStore.error('Bitte das Passwort des angemeldeten Benutzers eingeben')
+    return
+  }
+
   try {
     loading.value = true
     await apiService.post('/transactions/zbon/create', {
       created_by_name: employeeName,
       cash_counted_by_name: checkerName,
+      auth_password: zbonForm.value.authPassword,
       cash_count: cashCountData.value
         ? {
           coins: cashCountData.value.coins,
@@ -1182,7 +1204,7 @@ const createZBon = async () => {
         : null,
     })
     notificationStore.success('Z-Bon erfolgreich erstellt')
-    showZbonCreateModal.value = false
+    closeZbonCreateModal()
     cashCountData.value = null
     await loadDailyStats()
     if (activeTab.value === 'zbons') {

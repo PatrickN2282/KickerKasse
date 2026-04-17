@@ -62,13 +62,14 @@ export const useMemberStore = defineStore('member', () => {
     }
   }
 
-  const rechargeMember = async (memberId, amountCents) => {
+  const rechargeMember = async (memberId, amountCents, authPassword) => {
     error.value = null
 
     try {
-      const response = await apiService.post(
-        `/members/${memberId}/recharge?amount_cents=${amountCents}`
-      )
+      const response = await apiService.post(`/members/${memberId}/recharge`, {
+        amount_cents: amountCents,
+        auth_password: authPassword,
+      })
       const index = members.value.findIndex(m => m.id === memberId)
       if (index !== -1) {
         members.value[index] = response.data
