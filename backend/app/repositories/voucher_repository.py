@@ -176,8 +176,9 @@ class VoucherRepository:
         if not voucher:
             raise ValueError(f"Voucher {voucher_id} not found")
 
+        allowed_fields = {"value_cents", "reason", "description"}
         for key, value in kwargs.items():
-            if hasattr(voucher, key):
+            if key in allowed_fields:
                 setattr(voucher, key, value)
 
         if commit:

@@ -342,7 +342,7 @@
               :disabled="redeemingVoucher"
               class="btn btn-primary"
             >
-              {{ redeemingVoucher ? '⏳ Wird verarbeitet...' : voucherValidation.covers_cart_total ? '✓ Kauf abschließen' : '✓ Als Rabatt anwenden' }}
+              {{ voucherActionLabel }}
             </button>
             <button @click="resetVoucher" class="btn btn-secondary">
               {{ voucherValidation.valid ? 'Neue Nummer' : 'Abbrechen' }}
@@ -503,6 +503,15 @@ const selectedMember = computed(() => {
 const cartSubtotal = computed(() => cartStore.getSubtotalAmount())
 const voucherAppliedAmount = computed(() => cartStore.getVoucherAppliedAmount())
 const hasAppliedVoucher = computed(() => !!cartStore.appliedVoucher)
+const voucherActionLabel = computed(() => {
+  if (redeemingVoucher.value) {
+    return '⏳ Wird verarbeitet...'
+  }
+
+  return voucherValidation.value?.covers_cart_total
+    ? '✓ Kauf abschließen'
+    : '✓ Als Rabatt anwenden'
+})
 
 const filteredMembers = computed(() => {
   return memberStore.members.filter(m =>
