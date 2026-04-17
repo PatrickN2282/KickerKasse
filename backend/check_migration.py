@@ -42,7 +42,7 @@ def check_migration():
             'voucher_type': 'GIFT or PREPAID',
             'status': 'CREATED or REDEEMED',
             'value_cents': 'amount in cents',
-            'reason': 'gift reason',
+            'reason': 'gift category',
             'created_by_user_id': 'foreign key',
             'created_at': 'timestamp',
             'updated_at': 'timestamp',
@@ -98,7 +98,7 @@ def check_migration():
             ))
             
             found_enums = [row[0] for row in result]
-            required_enums = ['voucherreason', 'voucherstatus', 'vouchertype']
+            required_enums = ['paymentmethod', 'transactiontype', 'voucherreason', 'voucherstatus', 'vouchertype']
             
             for enum_name in required_enums:
                 if enum_name in found_enums:

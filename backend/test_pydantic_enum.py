@@ -18,10 +18,8 @@ class VoucherStatus(str, Enum):
     REDEEMED = "REDEEMED"
 
 class VoucherReason(str, Enum):
-    COURTESY = "COURTESY"
-    PROMOTIONAL = "PROMOTIONAL"
-    STAFF_BENEFIT = "STAFF_BENEFIT"
-    OTHER = "OTHER"
+    DYP_SIEGER = "DYP_SIEGER"
+    PROMOTION = "PROMOTION"
 
 # Updated VoucherResponse matching the actual code
 class VoucherResponse(BaseModel):
@@ -77,7 +75,7 @@ class MockVoucher:
     voucher_type = VoucherType.GIFT
     value_cents = 1000
     status = VoucherStatus.CREATED
-    reason = VoucherReason.COURTESY
+    reason = VoucherReason.PROMOTION
     created_by_user_id = 1
     created_at = datetime.now()
     redeemed_by_user_id = None
@@ -92,7 +90,8 @@ try:
     print(f"  reason: {response.reason}")
     print(f"  Created success message would show:")
     print(f"    ✅ Gutschein erstellt!")
-    print(f"    {response.voucher_code or f'V-2026-{str(response.id).padStart(3, \"0\")}'}")
+    fallback_code = response.voucher_code or f"V-2026-{str(response.id).zfill(3)}"
+    print(f"    {fallback_code}")
 except Exception as e:
     print(f"✗ from_orm() failed: {e}")
     import traceback
@@ -172,4 +171,3 @@ print("\nExpected behavior:")
 print("1. If DB has voucher_code column → Use it directly")
 print("2. If DB is old (no column) → Generate from ID")
 print("3. Frontend fallback → Uses API value or generates from ID")
-

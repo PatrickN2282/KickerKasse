@@ -22,7 +22,7 @@ class VoucherService:
         
         Args:
             value_cents: Value in cents
-            reason: Reason (COURTESY, MARKETING, LOSS, OTHER)
+            reason: Reason (DYP_SIEGER, PROMOTION)
             created_by_user_id: User who created this
             description: Optional description
             
@@ -46,34 +46,26 @@ class VoucherService:
         logger.info(f"Created GIFT voucher #{voucher.voucher_number}: {value_cents/100:.2f}€ ({reason})")
         return voucher
 
-    def create_prepaid_voucher(self, value_cents: int, reason: str, created_by_user_id: int, description: str = None) -> Voucher:
+    def create_prepaid_voucher(self, value_cents: int, created_by_user_id: int, description: str = None) -> Voucher:
         """
         Create a PREPAID voucher (wird später gekauft)
         
         Args:
             value_cents: Value in cents
-            reason: Reason (COURTESY, PROMOTIONAL, STAFF_BENEFIT, OTHER)
             created_by_user_id: User who created this
             description: Optional description
             
         Returns:
             Created Voucher with number
         """
-        # Validate reason
-        try:
-            reason_enum = VoucherReason(reason)
-        except ValueError:
-            raise ValueError(f"Invalid reason: {reason}")
-
         voucher = self.repository.create(
             voucher_type=VoucherType.PREPAID,
             value_cents=value_cents,
             created_by_user_id=created_by_user_id,
-            reason=reason_enum,
             description=description,
         )
 
-        logger.info(f"Created PREPAID voucher #{voucher.voucher_number}: {value_cents/100:.2f}€ ({reason})")
+        logger.info(f"Created PREPAID voucher #{voucher.voucher_number}: {value_cents/100:.2f}€")
         return voucher
 
     def _format_voucher_identifier(self, voucher: Voucher) -> str:

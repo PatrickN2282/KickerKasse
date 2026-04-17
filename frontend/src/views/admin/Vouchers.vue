@@ -34,8 +34,9 @@
                 min="0.01"
                 step="0.01"
                 placeholder="z.B. 10.00"
-                :value="giftForm.valueDisplay"
+                v-model="giftForm.valueDisplay"
                 @input="handleGiftValueInput"
+                @blur="formatGiftValue"
                 required
               />
             </div>
@@ -43,10 +44,8 @@
             <div class="form-group">
               <label>Grund</label>
               <select v-model="giftForm.reason" required>
-                <option value="COURTESY">Kulanz</option>
-                <option value="PROMOTIONAL">Aktion/Werbung</option>
-                <option value="STAFF_BENEFIT">Mitarbeitervorteil</option>
-                <option value="OTHER">Sonstig</option>
+                <option value="DYP_SIEGER">Dyp-Sieger</option>
+                <option value="PROMOTION">Promotion</option>
               </select>
             </div>
 
@@ -77,20 +76,11 @@
                 min="0.01"
                 step="0.01"
                 placeholder="z.B. 20.00"
-                :value="prepaidForm.valueDisplay"
+                v-model="prepaidForm.valueDisplay"
                 @input="handlePrepaidValueInput"
+                @blur="formatPrepaidValue"
                 required
               />
-            </div>
-
-            <div class="form-group">
-              <label>Grund</label>
-              <select v-model="prepaidForm.reason" required>
-                <option value="COURTESY">Kulanz</option>
-                <option value="PROMOTIONAL">Aktion/Werbung</option>
-                <option value="STAFF_BENEFIT">Mitarbeitervorteil</option>
-                <option value="OTHER">Sonstig</option>
-              </select>
             </div>
 
             <button type="submit" class="btn-primary" :disabled="creatingPrepaid">
@@ -174,7 +164,7 @@
                   {{ voucher.status === 'CREATED' ? '✅ Erstellt' : '✓ Eingelöst' }}
                 </span>
               </td>
-              <td>{{ voucher.reason || '-' }}</td>
+              <td>{{ formatReason(voucher.reason) }}</td>
               <td class="date">{{ formatDate(voucher.created_at) }}</td>
               <td class="date">{{ voucher.redeemed_at ? formatDate(voucher.redeemed_at) : '-' }}</td>
               <td class="actions">
@@ -223,31 +213,63 @@ const activeSubTab = ref('create')
 // Form data
 const giftForm = ref({
   valueCents: 1000, // 10€ default
-  reason: 'COURTESY',
+  reason: 'PROMOTION',
   valueDisplay: '10.00',
 })
 
 const prepaidForm = ref({
   valueCents: 2000, // 20€ default
-  reason: 'COURTESY',
   valueDisplay: '20.00',
 })
 
-// Handle value input changes
-const handleGiftValueInput = (event) => {
-  const euroValue = parseFloat(event.target.value)
-  if (!isNaN(euroValue) && euroValue > 0) {
-    giftForm.value.valueCents = Math.round(euroValue * 100)
-    giftForm.value.valueDisplay = euroValue.toFixed(2)
-  }
+const reasonLabels = {
+  DYP_SIEGER: 'Dyp-Sieger',
+  PROMOTION: 'Promotion',
 }
 
-const handlePrepaidValueInput = (event) => {
-  const euroValue = parseFloat(event.target.value)
-  if (!isNaN(euroValue) && euroValue > 0) {
-    prepaidForm.value.valueCents = Math.round(euroValue * 100)
-    prepaidForm.value.valueDisplay = euroValue.toFixed(2)
+// Handle value input changes
+const syncVoucherValue = (form) => {
+  const euroValue = parseFloat(form.valueDisplay)
+
+  if (Number.isNaN(euroValue) || euroValue <= 0) {
+    form.valueCents = 0
+    return
   }
+
+  form.valueCents = Math.round(euroValue * 100)
+}
+
+const formatVoucherValue = (form) => {
+  if (!form.valueDisplay) {
+    form.valueCents = 0
+    return
+  }
+
+  const euroValue = parseFloat(form.valueDisplay)
+  if (Number.isNaN(euroValue) || euroValue <= 0) {
+    form.valueCents = 0
+    form.valueDisplay = ''
+    return
+  }
+
+  form.valueCents = Math.round(euroValue * 100)
+  form.valueDisplay = euroValue.toFixed(2)
+}
+
+const handleGiftValueInput = () => {
+  syncVoucherValue(giftForm.value)
+}
+
+const handlePrepaidValueInput = () => {
+  syncVoucherValue(prepaidForm.value)
+}
+
+const formatGiftValue = () => {
+  formatVoucherValue(giftForm.value)
+}
+
+const formatPrepaidValue = () => {
+  formatVoucherValue(prepaidForm.value)
 }
 
 // States
@@ -303,7 +325,7 @@ const createGiftVoucher = async () => {
     console.log('[Vouchers]   response.status:', payload?.status)
     
     createdGiftVoucher.value = payload
-    giftForm.value = { valueCents: 1000, reason: 'COURTESY', valueDisplay: '10.00' }
+    giftForm.value = { valueCents: 1000, reason: 'PROMOTION', valueDisplay: '10.00' }
     // Always refresh list after creating a voucher
     console.log('[Vouchers] Refreshing voucher list...')
     await loadVouchers()
@@ -325,7 +347,6 @@ const createPrepaidVoucher = async () => {
   try {
     const response = await apiService.post('/admin/vouchers/prepaid/', {
       value_cents: prepaidForm.value.valueCents,
-      reason: prepaidForm.value.reason || 'COURTESY',
     })
     const payload = response.data
     console.log('[Vouchers] Create PREPAID response:', JSON.stringify(payload, null, 2))
@@ -415,6 +436,11 @@ const formatDate = (date) => {
   return new Date(date).toLocaleDateString('de-DE')
 }
 
+const formatReason = (reason) => {
+  if (!reason) return '-'
+  return reasonLabels[reason] || reason
+}
+
 const copyToClipboard = (text) => {
   navigator.clipboard.writeText(text)
   // Could add a toast notification here
@@ -429,7 +455,7 @@ const exportAsCSV = () => {
     v.voucher_type,
     (v.value_cents / 100).toFixed(2),
     v.status,
-    v.reason || '',
+    formatReason(v.reason),
     formatDate(v.created_at),
     v.redeemed_at ? formatDate(v.redeemed_at) : '',
   ])

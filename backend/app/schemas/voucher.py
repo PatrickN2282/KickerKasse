@@ -6,13 +6,12 @@ from typing import Optional, Literal
 class VoucherCreateGift(BaseModel):
     """Create a gift voucher"""
     value_cents: int = Field(..., ge=1, description="Value in cents")
-    reason: Literal["COURTESY", "PROMOTIONAL", "STAFF_BENEFIT", "OTHER"] = "COURTESY"
+    reason: Literal["DYP_SIEGER", "PROMOTION"] = "PROMOTION"
 
 
 class VoucherCreatePrepaid(BaseModel):
     """Create a prepaid voucher"""
     value_cents: int = Field(..., ge=1, description="Value in cents")
-    reason: Literal["COURTESY", "PROMOTIONAL", "STAFF_BENEFIT", "OTHER"] = "COURTESY"
 
 
 class VoucherValidateRequest(BaseModel):

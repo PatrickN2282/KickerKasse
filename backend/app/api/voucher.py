@@ -1,6 +1,5 @@
 from fastapi import APIRouter, HTTPException, Depends, Request, status, Query
 from sqlalchemy.orm import Session
-from datetime import datetime
 import logging
 
 from app.core import get_db
@@ -16,7 +15,7 @@ from app.schemas import (
 )
 from app.services import VoucherService
 from app.repositories import VoucherRepository
-from app.models import Transaction, TransactionType, PaymentMethod
+from app.models import VoucherStatus, VoucherType
 
 logger = logging.getLogger(__name__)
 
@@ -106,7 +105,6 @@ async def create_prepaid_voucher(
         service = VoucherService(db)
         voucher = service.create_prepaid_voucher(
             value_cents=voucher_data.value_cents,
-            reason=voucher_data.reason,
             created_by_user_id=user_id,
         )
         logger.debug(f"[DEBUG] Voucher object after create: id={voucher.id}, voucher_code={voucher.voucher_code}")
@@ -349,14 +347,14 @@ async def redeem_voucher(
                 detail=f"Voucher {request_data.voucher_number} not found",
             )
         
-        if voucher.status == "REDEEMED":
+        if voucher.status == VoucherStatus.REDEEMED:
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
                 detail=f"Voucher {request_data.voucher_number} has already been redeemed",
             )
-        
+
         # Perform redemption based on voucher type
-        if voucher.voucher_type == "GIFT":
+        if voucher.voucher_type == VoucherType.GIFT:
             transaction = service.redeem_gift_voucher(
                 voucher_number=request_data.voucher_number,
                 redeemed_by=user_id,
@@ -367,7 +365,7 @@ async def redeem_voucher(
                 f"(value: {voucher.value_cents} cents) by user {user_id}, "
                 f"transaction_id={transaction.id}"
             )
-        elif voucher.voucher_type == "PREPAID":
+        elif voucher.voucher_type == VoucherType.PREPAID:
             transaction = service.redeem_prepaid_voucher(
                 voucher_number=request_data.voucher_number,
                 redeemed_by=user_id,

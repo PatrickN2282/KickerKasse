@@ -19,10 +19,8 @@ class VoucherStatus(str, enum.Enum):
 
 class VoucherReason(str, enum.Enum):
     """Reason for GIFT vouchers (Grund für Geschenk-Gutschein)"""
-    COURTESY = "COURTESY"          # Kulanz
-    PROMOTIONAL = "PROMOTIONAL"    # Aktion/Werbung
-    STAFF_BENEFIT = "STAFF_BENEFIT" # Mitarbeitervorteil
-    OTHER = "OTHER"                # Sonstiges
+    DYP_SIEGER = "DYP_SIEGER"
+    PROMOTION = "PROMOTION"
 
 
 class Voucher(BaseModel):

@@ -4,7 +4,6 @@ Run automatically on app startup to add missing columns/tables
 """
 
 from sqlalchemy import inspect, text
-from sqlalchemy.orm import Session
 from sqlalchemy.engine import Engine
 import logging
 
@@ -57,59 +56,89 @@ class DatabaseMigrator:
         """Update enum types to match current version"""
         with self.engine.connect() as conn:
             try:
-                # Check if voucherreason enum exists
-                result = conn.execute(text(
-                    "SELECT EXISTS(SELECT 1 FROM pg_type WHERE typname = 'voucherreason')"
-                ))
-                enum_exists = result.scalar()
-                
-                if enum_exists:
-                    logger.info("Updating voucherreason enum type...")
-                    try:
-                        # Get current enum values
-                        result = conn.execute(text(
-                            "SELECT enumlabel FROM pg_enum WHERE enumtypid = (SELECT oid FROM pg_type WHERE typname = 'voucherreason') ORDER BY enumsortorder"
-                        ))
-                        current_values = [row[0] for row in result.fetchall()]
-                        logger.debug(f"Current enum values: {current_values}")
-                        
-                        # Define expected values in correct order
-                        expected_values = ['COURTESY', 'PROMOTIONAL', 'STAFF_BENEFIT', 'OTHER']
-                        
-                        # Check if we need to update
-                        if current_values != expected_values:
-                            # We need to recreate the enum
-                            logger.info("Recreating voucherreason enum with updated values...")
-                            
-                            # Rename old enum
-                            conn.execute(text("ALTER TYPE voucherreason RENAME TO voucherreason_old"))
-                            
-                            # Create new enum with correct values
-                            values_str = ", ".join([f"'{v}'" for v in expected_values])
-                            conn.execute(text(f"CREATE TYPE voucherreason AS ENUM ({values_str})"))
-                            
-                            # Update columns to use new enum
-                            conn.execute(text(
-                                "ALTER TABLE vouchers ALTER COLUMN reason TYPE voucherreason USING reason::text::voucherreason"
-                            ))
-                            
-                            # Drop old enum
-                            conn.execute(text("DROP TYPE voucherreason_old"))
-                            
-                            logger.info("✓ Successfully updated voucherreason enum")
-                        else:
-                            logger.debug("voucherreason enum already has correct values")
-                    
-                    except Exception as e:
-                        logger.debug(f"Enum already up to date or error: {str(e)}")
-                    
-                    conn.commit()
+                self._sync_enum_type(
+                    conn=conn,
+                    enum_name="transactiontype",
+                    expected_values=["SALE", "STORNO", "RECHARGE", "VOUCHER_SALE", "VOUCHER_REDEMPTION"],
+                    column_specs=[("transactions", "type")],
+                )
+                self._sync_enum_type(
+                    conn=conn,
+                    enum_name="paymentmethod",
+                    expected_values=["CASH", "BALANCE", "VOUCHER_GIFT", "VOUCHER_PREPAID"],
+                    column_specs=[("transactions", "payment_method")],
+                )
+                self._sync_enum_type(
+                    conn=conn,
+                    enum_name="voucherreason",
+                    expected_values=["DYP_SIEGER", "PROMOTION"],
+                    column_specs=[("vouchers", "reason")],
+                    using_expressions={
+                        ("vouchers", "reason"): (
+                            "CASE "
+                            "WHEN reason IS NULL THEN NULL "
+                            "WHEN reason::text = 'DYP_SIEGER' THEN 'DYP_SIEGER'::voucherreason "
+                            "ELSE 'PROMOTION'::voucherreason "
+                            "END"
+                        )
+                    },
+                )
             except Exception as e:
                 logger.warning(f"Could not update enum types: {str(e)}")
                 try:
                     conn.rollback()
                 except:
                     pass
+
+    def _sync_enum_type(
+        self,
+        conn,
+        enum_name: str,
+        expected_values: list[str],
+        column_specs: list[tuple[str, str]],
+        using_expressions: dict[tuple[str, str], str] | None = None,
+    ):
+        """Recreate enum types when legacy databases are missing values."""
+        result = conn.execute(text(
+            "SELECT EXISTS(SELECT 1 FROM pg_type WHERE typname = :enum_name)"
+        ), {"enum_name": enum_name})
+        enum_exists = result.scalar()
+
+        if not enum_exists:
+            logger.debug(f"Enum {enum_name} does not exist yet")
+            return
+
+        result = conn.execute(text(
+            "SELECT enumlabel FROM pg_enum WHERE enumtypid = (SELECT oid FROM pg_type WHERE typname = :enum_name) ORDER BY enumsortorder"
+        ), {"enum_name": enum_name})
+        current_values = [row[0] for row in result.fetchall()]
+
+        if current_values == expected_values:
+            logger.debug(f"{enum_name} enum already has correct values")
+            return
+
+        logger.info(f"Recreating {enum_name} enum with values {expected_values}...")
+        temp_name = f"{enum_name}_old"
+        values_sql = ", ".join([f"'{value}'" for value in expected_values])
+
+        conn.execute(text(f"ALTER TYPE {enum_name} RENAME TO {temp_name}"))
+        conn.execute(text(f"CREATE TYPE {enum_name} AS ENUM ({values_sql})"))
+
+        for table_name, column_name in column_specs:
+            using_expression = (
+                using_expressions.get((table_name, column_name))
+                if using_expressions
+                else None
+            ) or f"{column_name}::text::{enum_name}"
+            conn.execute(text(
+                f"ALTER TABLE {table_name} "
+                f"ALTER COLUMN {column_name} TYPE {enum_name} "
+                f"USING {using_expression}"
+            ))
+
+        conn.execute(text(f"DROP TYPE {temp_name}"))
+        conn.commit()
+        logger.info(f"✓ Successfully updated {enum_name} enum")
     
     def _add_missing_columns(self):
         """Add missing columns to existing tables"""
