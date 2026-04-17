@@ -103,8 +103,8 @@ class VoucherService:
             remainder = cart_context["remaining_value_cents"]
             if remainder > 0:
                 return (
-                    f"Voucher deckt den Warenkorb ab. Restwert von {remainder / 100:.2f}€ "
-                    "verfällt bei Einlösung."
+                    f"Voucher deckt den Warenkorb ab. "
+                    f"Restwert von {remainder / 100:.2f}€ verfällt bei Einlösung."
                 )
             return "Voucher deckt den Warenkorb vollständig ab."
 
