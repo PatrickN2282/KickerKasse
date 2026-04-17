@@ -34,8 +34,9 @@
                 min="0.01"
                 step="0.01"
                 placeholder="z.B. 10.00"
-                :value="giftForm.valueDisplay"
+                v-model="giftForm.valueDisplay"
                 @input="handleGiftValueInput"
+                @blur="formatGiftValue"
                 required
               />
             </div>
@@ -75,8 +76,9 @@
                 min="0.01"
                 step="0.01"
                 placeholder="z.B. 20.00"
-                :value="prepaidForm.valueDisplay"
+                v-model="prepaidForm.valueDisplay"
                 @input="handlePrepaidValueInput"
+                @blur="formatPrepaidValue"
                 required
               />
             </div>
@@ -226,20 +228,48 @@ const reasonLabels = {
 }
 
 // Handle value input changes
-const handleGiftValueInput = (event) => {
-  const euroValue = parseFloat(event.target.value)
-  if (!isNaN(euroValue) && euroValue > 0) {
-    giftForm.value.valueCents = Math.round(euroValue * 100)
-    giftForm.value.valueDisplay = euroValue.toFixed(2)
+const syncVoucherValue = (form) => {
+  const euroValue = parseFloat(form.valueDisplay)
+
+  if (Number.isNaN(euroValue) || euroValue <= 0) {
+    form.valueCents = 0
+    return
   }
+
+  form.valueCents = Math.round(euroValue * 100)
 }
 
-const handlePrepaidValueInput = (event) => {
-  const euroValue = parseFloat(event.target.value)
-  if (!isNaN(euroValue) && euroValue > 0) {
-    prepaidForm.value.valueCents = Math.round(euroValue * 100)
-    prepaidForm.value.valueDisplay = euroValue.toFixed(2)
+const formatVoucherValue = (form) => {
+  if (!form.valueDisplay) {
+    form.valueCents = 0
+    return
   }
+
+  const euroValue = parseFloat(form.valueDisplay)
+  if (Number.isNaN(euroValue) || euroValue <= 0) {
+    form.valueCents = 0
+    form.valueDisplay = ''
+    return
+  }
+
+  form.valueCents = Math.round(euroValue * 100)
+  form.valueDisplay = euroValue.toFixed(2)
+}
+
+const handleGiftValueInput = () => {
+  syncVoucherValue(giftForm.value)
+}
+
+const handlePrepaidValueInput = () => {
+  syncVoucherValue(prepaidForm.value)
+}
+
+const formatGiftValue = () => {
+  formatVoucherValue(giftForm.value)
+}
+
+const formatPrepaidValue = () => {
+  formatVoucherValue(prepaidForm.value)
 }
 
 // States
