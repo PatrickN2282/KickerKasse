@@ -1,6 +1,7 @@
 """Enhanced Z-Bon Generation Service with comprehensive reporting"""
 from datetime import datetime, date
 import json
+from jinja2 import Template
 from sqlalchemy.orm import Session
 from sqlalchemy import func, desc
 from app.models import (
@@ -8,6 +9,7 @@ from app.models import (
     ZBonHistory, Member, Product, Voucher, VoucherType, VoucherStatus, CashEntry, CashEntryType
 )
 from app.repositories import TransactionRepository
+from app.templates.zbon_template import ZBON_HTML_TEMPLATE
 from collections import defaultdict
 import logging
 
@@ -85,6 +87,21 @@ class ZBonService:
             "open_total": sum(v.remaining_value_cents or 0 for v in open_vouchers) / 100,
         }
 
+    def _get_open_member_balance_total(self) -> float:
+        total_balance_cents = self.db.query(func.sum(Member.balance_cents)).scalar() or 0
+        return total_balance_cents / 100
+
+    def _format_datetime_display(self, value: str | datetime | None, fallback: str = "-") -> str:
+        if not value:
+            return fallback
+
+        if isinstance(value, datetime):
+            dt_value = value
+        else:
+            dt_value = datetime.fromisoformat(value)
+
+        return dt_value.strftime("%d.%m.%Y %H:%M")
+
     def build_current_zbon_preview(
         self,
         created_by_name: str | None = None,
@@ -96,6 +113,7 @@ class ZBonService:
         transactions = self._get_transactions_for_period(period_start, period_end)
         cash_summary = self._get_cash_entry_summary(period_start, period_end)
         voucher_summary = self._get_voucher_summary(period_start, period_end)
+        open_balance_total = self._get_open_member_balance_total()
 
         sales = [t for t in transactions if t.type == TransactionType.SALE]
         recharges = [t for t in transactions if t.type == TransactionType.RECHARGE]
@@ -107,10 +125,13 @@ class ZBonService:
         cash_sales_total = sum(
             t.total_amount_cents for t in sales if t.payment_method == PaymentMethod.CASH
         ) / 100
+        cash_sales_count = len([t for t in sales if t.payment_method == PaymentMethod.CASH])
         balance_sales_total = sum(
             t.total_amount_cents for t in sales if t.payment_method == PaymentMethod.BALANCE
         ) / 100
+        balance_sales_count = len([t for t in sales if t.payment_method == PaymentMethod.BALANCE])
         voucher_sales_total = sum(t.voucher_applied_cents or 0 for t in sales) / 100
+        voucher_sales_count = len([t for t in sales if (t.voucher_applied_cents or 0) > 0])
         recharge_total = sum(t.total_amount_cents for t in recharges) / 100
         storno_total = sum(t.total_amount_cents for t in stornos) / 100
         opening_balance = self._get_opening_cash_balance(last_zbon)
@@ -173,6 +194,9 @@ class ZBonService:
                 "sales_count": len(sales),
                 "recharge_count": len(recharges),
                 "storno_count": len(stornos),
+                "cash_sales_count": cash_sales_count,
+                "balance_sales_count": balance_sales_count,
+                "voucher_sales_count": voucher_sales_count,
                 "gross_sales_total": gross_sales_total,
                 "cash_sales_total": cash_sales_total,
                 "balance_sales_total": balance_sales_total,
@@ -193,7 +217,19 @@ class ZBonService:
                 "voucher_redeemed_total": voucher_summary["redeemed_total"],
                 "voucher_open_count": voucher_summary["open_count"],
                 "voucher_open_total": voucher_summary["open_total"],
+                "balance_open_total": open_balance_total,
+                "withdrawals": [
+                    {
+                        "created_at": entry.created_at.isoformat(),
+                        "amount": entry.amount_cents / 100,
+                        "reason": entry.reason,
+                        "performed_by": entry.user.username if entry.user else None,
+                    }
+                    for entry in cash_summary["entries"]
+                    if entry.entry_type == CashEntryType.WITHDRAWAL
+                ],
             },
+            "cash_count": include_cash_count,
         }
 
         payload["report_content"] = self._render_current_zbon_html(payload)
@@ -263,75 +299,79 @@ class ZBonService:
 
     def _render_current_zbon_html(self, payload: dict) -> str:
         summary = payload["summary"]
-        period_start = payload["period_start"] or "Beginn"
-        cash_counted_display = (
-            f"{summary['cash_counted']:.2f} €"
-            if summary["cash_counted"] is not None
-            else "-"
-        )
-        transactions_html = "".join(
-            [
-                (
-                    "<tr>"
-                    f"<td>{transaction['created_at']}</td>"
-                    f"<td>{transaction['receipt_number'] or '-'}</td>"
-                    f"<td>{transaction['member_name']}</td>"
-                    f"<td>{transaction['payment_method']}</td>"
-                    f"<td style='text-align:right'>{transaction['gross_amount_cents'] / 100:.2f} €</td>"
-                    "</tr>"
-                )
-                for transaction in payload["transactions"]
-            ]
-        ) or "<tr><td colspan='5'>Keine Transaktionen</td></tr>"
+        cash_count = payload.get("cash_count") or {}
+        coins = cash_count.get("coins") or {}
+        notes = cash_count.get("notes") or {}
+        withdrawals = summary.get("withdrawals") or []
 
-        return f"""
-        <html>
-          <head>
-            <meta charset="utf-8" />
-            <title>Z-Bon #{payload['sequence_number']}</title>
-            <style>
-              body {{ font-family: Arial, sans-serif; margin: 24px; color: #1f2937; }}
-              h1, h2 {{ margin-bottom: 8px; }}
-              .meta, .summary {{ margin-bottom: 20px; padding: 16px; background: #f8fafc; border-radius: 8px; }}
-              table {{ width: 100%; border-collapse: collapse; }}
-              th, td {{ padding: 8px; border-bottom: 1px solid #e5e7eb; text-align: left; }}
-              th {{ background: #eef2f7; }}
-            </style>
-          </head>
-          <body>
-            <h1>Z-Bon #{payload['sequence_number']}</h1>
-            <div class="meta">
-              <div><strong>Erstellt am:</strong> {payload['generated_at']}</div>
-              <div><strong>Zeitraum:</strong> {period_start} bis {payload['period_end']}</div>
-              <div><strong>Erstellt von:</strong> {payload.get('created_by_name') or '-'}</div>
-              <div><strong>Abschöpfung durchgeführt von:</strong> {payload.get('skimmed_by_name') or '-'}</div>
-              <div><strong>Kassensturz durchgeführt von:</strong> {payload.get('cash_counted_by_name') or '-'}</div>
-            </div>
-            <div class="summary">
-              <h2>Zusammenfassung</h2>
-              <div>Gesamtumsatz brutto: <strong>{summary['gross_sales_total']:.2f} €</strong></div>
-              <div>Zahlungsarten: Bar {summary['cash_sales_total']:.2f} €, Guthaben {summary['balance_sales_total']:.2f} €, Gutscheine {summary['voucher_sales_total']:.2f} €</div>
-              <div>Guthaben verkauft: {summary['recharge_total']:.2f} €</div>
-              <div>Offene Gutscheine: {summary['voucher_open_count']} / {summary['voucher_open_total']:.2f} €</div>
-              <div>Soll-Bestand: {summary['cash_calculated']:.2f} €</div>
-              <div>Ist-Bestand: {cash_counted_display}</div>
-            </div>
-            <h2>Transaktionen</h2>
-            <table>
-              <thead>
-                <tr>
-                  <th>Zeit</th>
-                  <th>Beleg</th>
-                  <th>Kunde</th>
-                  <th>Zahlungsart</th>
-                  <th style="text-align:right">Brutto</th>
-                </tr>
-              </thead>
-              <tbody>{transactions_html}</tbody>
-            </table>
-          </body>
-        </html>
-        """
+        template = Template(ZBON_HTML_TEMPLATE)
+        return template.render(
+            seq_number=payload["sequence_number"],
+            business_date=datetime.fromisoformat(payload["business_date"]).strftime("%d.%m.%Y"),
+            created_at=self._format_datetime_display(payload["generated_at"]),
+            period_start=self._format_datetime_display(payload["period_start"], "Beginn"),
+            period_end=self._format_datetime_display(payload["period_end"]),
+            receipt_min=summary.get("receipt_number_min") or "-",
+            receipt_max=summary.get("receipt_number_max") or "-",
+            transaction_count_total=summary.get("transaction_count", 0),
+            created_by_name=payload.get("created_by_name") or "-",
+            cash_counted_by_name=payload.get("cash_counted_by_name") or "-",
+            cash_sales_count=summary.get("cash_sales_count", 0),
+            cash_sales_net=f"{summary.get('cash_sales_total', 0):.2f}",
+            cash_sales_tax="0.00",
+            cash_sales_gross=f"{summary.get('cash_sales_total', 0):.2f}",
+            balance_sales_count=summary.get("balance_sales_count", 0),
+            balance_sales_net=f"{summary.get('balance_sales_total', 0):.2f}",
+            balance_sales_tax="0.00",
+            balance_sales_gross=f"{summary.get('balance_sales_total', 0):.2f}",
+            voucher_sales_count=summary.get("voucher_sales_count", 0),
+            voucher_sales_total=f"{summary.get('voucher_sales_total', 0):.2f}",
+            recharge_count=summary.get("recharge_count", 0),
+            recharge_total=f"{summary.get('recharge_total', 0):.2f}",
+            balance_open_total=f"{summary.get('balance_open_total', 0):.2f}",
+            total_items_count=summary.get("sales_count", 0),
+            total_net=f"{summary.get('gross_sales_total', 0):.2f}",
+            total_tax="0.00",
+            total_gross=f"{summary.get('gross_sales_total', 0):.2f}",
+            total_revenue=f"{summary.get('gross_sales_total', 0):.2f}",
+            voucher_created_count=summary.get("voucher_created_count", 0),
+            voucher_created_total=f"{summary.get('voucher_created_total', 0):.2f}",
+            voucher_redeemed_count=summary.get("voucher_redeemed_count", 0),
+            voucher_redeemed_total=f"{summary.get('voucher_redeemed_total', 0):.2f}",
+            voucher_open_count=summary.get("voucher_open_count", 0),
+            voucher_open_total=f"{summary.get('voucher_open_total', 0):.2f}",
+            storno_count=summary.get("storno_count", 0),
+            storno_total=f"{summary.get('storno_total', 0):.2f}",
+            cash_opening_balance=f"{summary.get('opening_cash_balance', 0):.2f}",
+            cash_revenue=f"{summary.get('cash_sales_total', 0):.2f}",
+            cash_withdrawals_total=f"{summary.get('cash_withdrawals_total', 0):.2f}",
+            cash_calculated=f"{summary.get('cash_calculated', 0):.2f}",
+            cash_counted=f"{summary.get('cash_counted', 0):.2f}" if summary.get("cash_counted") is not None else "-",
+            cash_difference=f"{summary.get('cash_difference', 0):.2f}" if summary.get("cash_difference") is not None else None,
+            withdrawals=withdrawals,
+            cash_count=bool(cash_count),
+            coins={
+                denomination: {
+                    "count": count,
+                    "subtotal": float(denomination) * count,
+                }
+                for denomination, count in coins.items()
+            },
+            notes={
+                denomination: {
+                    "count": count,
+                    "subtotal": float(denomination) * count,
+                }
+                for denomination, count in notes.items()
+            },
+            coins_total=f"{sum(float(denomination) * count for denomination, count in coins.items()):.2f}",
+            notes_total=f"{sum(float(denomination) * count for denomination, count in notes.items()):.2f}",
+            categories_breakdown={},
+            customer_groups={},
+            customers={},
+            stornos=[],
+            report_type_label="Z-BON",
+        )
     
     def generate_zbon(
         self,
