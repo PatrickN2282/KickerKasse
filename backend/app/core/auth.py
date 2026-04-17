@@ -63,3 +63,31 @@ def require_password_confirmation(user: User, password: str | None) -> None:
             status_code=status.HTTP_403_FORBIDDEN,
             detail="Password confirmation failed",
         )
+
+
+def require_auth(f):
+    async def decorated(*args, **kwargs):
+        request: Request = kwargs.get("request")
+        db: Session = kwargs.get("db")
+        if not request or not db:
+            raise HTTPException(
+                status_code=status.HTTP_401_UNAUTHORIZED,
+                detail="Not authenticated",
+            )
+        require_authenticated_user(request, db)
+        return await f(*args, **kwargs)
+    return decorated
+
+
+def require_admin(f):
+    async def decorated(*args, **kwargs):
+        request: Request = kwargs.get("request")
+        db: Session = kwargs.get("db")
+        if not request or not db:
+            raise HTTPException(
+                status_code=status.HTTP_401_UNAUTHORIZED,
+                detail="Not authenticated",
+            )
+        require_roles(request, db, UserRole.ADMIN)
+        return await f(*args, **kwargs)
+    return decorated

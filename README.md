@@ -50,14 +50,20 @@ Vollständige Anleitung siehe: [DOCKER_QUICKSTART.md](DOCKER_QUICKSTART.md)
 - Top-Produkte übersicht
 
 ### 👤 Benutzerverwaltung
-- Admin & Kassierer-Rollen
+- Admin-, Kassenmitglied- & Kassierer-Rollen
 - Passwort-Hashing (bcrypt)
 - Session-basierte Authentifizierung
+- Passwort-Bestätigung für kritische Aktionen (z. B. Guthaben aufbuchen, Z-Bon erstellen)
+
+### 🎨 Branding & Design
+- Konfigurierbare Hintergrund-, Banner- und Highlight-Farbe
+- Austauschbares Logo für Header, Login, Favicon und PWA-Icons
 
 ### 📱 Cross-Platform
 - Progressive Web App (PWA)
 - Responsive Design
 - Installierbar auf Mobil-Geräten
+- Install-Button im UI, sobald der Browser die Installation anbietet
 
 ## 🛠️ Tech-Stack
 

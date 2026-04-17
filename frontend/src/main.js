@@ -11,15 +11,19 @@ const pinia = createPinia()
 app.use(pinia)
 app.use(router)
 
-const appSettingsStore = useAppSettingsStore(pinia)
-await appSettingsStore.loadPublicSettings()
+const bootstrap = async () => {
+  const appSettingsStore = useAppSettingsStore(pinia)
+  await appSettingsStore.loadPublicSettings()
 
-if ('serviceWorker' in navigator) {
-  window.addEventListener('load', () => {
-    navigator.serviceWorker.register('/sw.js').catch(err => {
-      console.log('ServiceWorker registration failed: ', err)
+  if ('serviceWorker' in navigator) {
+    window.addEventListener('load', () => {
+      navigator.serviceWorker.register('/sw.js').catch(err => {
+        console.log('ServiceWorker registration failed: ', err)
+      })
     })
-  })
+  }
+
+  app.mount('#app')
 }
 
-app.mount('#app')
+bootstrap()
