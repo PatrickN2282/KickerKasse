@@ -9,7 +9,7 @@
   - `Voucher` - Basis-Tabelle mit Nummernverwaltung
   - `VoucherType` enum: GIFT | PREPAID
   - `VoucherStatus` enum: CREATED | REDEEMED
-  - `VoucherReason` enum: COURTESY | MARKETING | LOSS | OTHER
+- `VoucherReason` enum: DYP_SIEGER | PROMOTION
 
 #### Repositories (Data Access)
 - ✅ `backend/app/repositories/voucher_repository.py`

@@ -293,7 +293,7 @@
               </tr>
               <tr v-if="voucherValidation.reason">
                 <td>Grund:</td>
-                <td>{{ voucherValidation.reason }}</td>
+                <td>{{ formatVoucherReason(voucherValidation.reason) }}</td>
               </tr>
             </table>
             <p v-if="voucherValidation.message" class="info-text">
@@ -382,6 +382,11 @@ const voucherRedeemed = ref(null)
 const voucherError = ref(null)
 const validatingVoucher = ref(false)
 const redeemingVoucher = ref(false)
+
+const voucherReasonLabels = {
+  DYP_SIEGER: 'Dyp-Sieger',
+  PROMOTION: 'Promotion',
+}
 
 const loadNextReceiptNumber = async () => {
   try {
@@ -563,6 +568,11 @@ const resetVoucher = () => {
   voucherRedeemed.value = null
   voucherError.value = null
   showVoucherModal.value = false
+}
+
+const formatVoucherReason = (reason) => {
+  if (!reason) return '-'
+  return voucherReasonLabels[reason] || reason
 }
 
 const handleCheckout = async () => {

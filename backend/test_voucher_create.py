@@ -71,7 +71,7 @@ try:
         voucher_type="GIFT",
         value_cents=1000,
         created_by_user_id=admin_id,
-        reason="COURTESY",
+        reason="PROMOTION",
     )
     
     print(f"   ✓ Created voucher!")

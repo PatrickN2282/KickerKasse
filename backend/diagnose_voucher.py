@@ -102,7 +102,7 @@ try:
         voucher_type="GIFT",
         value_cents=5000,
         created_by_user_id=1,
-        reason="COURTESY",
+        reason="PROMOTION",
     )
     
     print(f"  ✓ Voucher created via Repository:")
@@ -146,7 +146,7 @@ print("""
     "voucher_type": "GIFT",
     "value_cents": 1000,
     "status": "CREATED",
-    "reason": "COURTESY",
+    "reason": "PROMOTION",
     "created_by_user_id": 1,
     "created_at": "2026-04-15T...",
     ...

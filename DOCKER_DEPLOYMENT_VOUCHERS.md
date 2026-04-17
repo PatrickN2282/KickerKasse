@@ -40,7 +40,7 @@ Base.metadata.create_all(bind=engine)
 -- Überprüft voucherreason enum
 SELECT enumlabel FROM pg_enum WHERE enumtypid = ...
 -- Falls UPDATE nötig: Recreates enum mit korrekten Werten
--- COURTESY, PROMOTIONAL, STAFF_BENEFIT, OTHER
+-- DYP_SIEGER, PROMOTION
 ```
 
 #### Schritt 3: Fehlende Spalten hinzufügen
