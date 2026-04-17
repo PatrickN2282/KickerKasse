@@ -30,8 +30,8 @@
       </div>
 
       <div v-if="loading" class="loading">Läuft...</div>
-      <div v-else class="zbon-summary">
-        <div class="summary-grid">
+        <div v-else class="zbon-summary">
+          <div class="summary-grid">
           <div class="summary-card">
             <div class="card-label">Umsatz (BAR)</div>
             <div class="card-value">{{ formatPrice(dailyStats.cash_total) }}</div>
@@ -56,14 +56,32 @@
             <div class="card-label">Offene Gutscheine</div>
             <div class="card-value">{{ formatEuroValue(dailyStats.voucher_open_total) }}</div>
           </div>
-          <div class="summary-card">
-            <div class="card-label">Anzahl Transaktionen</div>
-            <div class="card-value">{{ dailyStats.transaction_count }}</div>
+            <div class="summary-card">
+              <div class="card-label">Anzahl Transaktionen</div>
+              <div class="card-value">{{ dailyStats.transaction_count }}</div>
+            </div>
           </div>
-        </div>
 
-        <div class="daily-transactions">
-          <h4>Transaktionen seit dem letzten Z-Bon</h4>
+          <div class="zbon-actions">
+            <button @click="loadDailyStats" class="btn btn-primary">
+              👁️ Z-Bon Vorschau
+            </button>
+            <button @click="handleDownloadZBon" class="btn btn-success">
+              ⬇️ Als HTML herunterladen
+            </button>
+            <button @click="openZbonCreateModal" class="btn btn-info">
+              ✅ Z-Bon erstellen
+            </button>
+            <button @click="openWithdrawalModal" class="btn btn-warning">
+              💸 Abschöpfung
+            </button>
+            <button @click="openCashCounterModal" class="btn btn-secondary">
+              💰 Kasse zählen
+            </button>
+          </div>
+
+          <div class="daily-transactions">
+            <h4>Transaktionen seit dem letzten Z-Bon</h4>
           <div v-if="dailyStats.transactions.length === 0" class="empty">
             Keine Transaktionen im aktuellen Z-Bon-Zeitraum
           </div>
@@ -112,25 +130,10 @@
                 </tr>
               </template>
             </tbody>
-          </table>
-        </div>
+            </table>
+          </div>
 
-        <div class="zbon-actions">
-          <button @click="loadDailyStats" class="btn btn-primary">
-            👁️ Z-Bon Vorschau
-          </button>
-          <button @click="handleDownloadZBon" class="btn btn-success">
-            ⬇️ Als HTML herunterladen
-          </button>
-          <button @click="openZbonCreateModal" class="btn btn-info">
-            ✅ Z-Bon erstellen
-          </button>
-          <button @click="openCashCounterModal" class="btn btn-warning">
-            💰 Kasse zählen
-          </button>
-        </div>
-
-        <!-- Z-Bon HTML Preview -->
+          <!-- Z-Bon HTML Preview -->
         <div v-if="zBonHtml" class="zbon-preview" style="margin-top: 2rem; border: 1px solid #ddd; border-radius: 8px; padding: 1.5rem; background: #f9f9f9;">
           <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem;">
             <h4 style="margin: 0;">📋 Z-Bon Vorschau</h4>
@@ -286,15 +289,11 @@
               <td>{{ formatDate(selectedZbon.generated_at) }}, {{ formatTime(selectedZbon.generated_at) }}</td>
             </tr>
             <tr>
-              <td>Z-Bon erstellt von:</td>
+              <td>Mitarbeiter:</td>
               <td>{{ selectedZbon.created_by_name || '-' }}</td>
             </tr>
             <tr>
-              <td>Abschöpfung durchgeführt von:</td>
-              <td>{{ selectedZbon.skimmed_by_name || '-' }}</td>
-            </tr>
-            <tr>
-              <td>Kassensturz durchgeführt von:</td>
+              <td>Sichtkontrolle:</td>
               <td>{{ selectedZbon.cash_counted_by_name || '-' }}</td>
             </tr>
             <tr class="section-row">
@@ -361,7 +360,7 @@
               <td colspan="2" style="text-align: center; font-weight: bold; padding-top: 1rem;">BEWEGUNGEN</td>
             </tr>
             <tr>
-              <td>Entnahmen:</td>
+              <td>Abschöpfung:</td>
               <td class="currency withdrawal">{{ formatPrice(selectedZbon.cash_withdrawals * 100) }}</td>
             </tr>
             <tr>
@@ -600,17 +599,17 @@
     <div v-if="showZbonCreateModal" class="confirmation-overlay">
       <div class="confirmation-dialog">
         <h3>Z-Bon erstellen</h3>
-        <div class="filter-group">
-          <label>Z-Bon erstellt von</label>
-          <input v-model="zbonForm.created_by_name" type="text" class="form-input" />
+        <div class="selection-group">
+          <label>Mitarbeiter</label>
+          <button @click="openMemberPicker('employeeMemberId')" class="member-select-btn">
+            {{ getSelectedMemberName(zbonForm.employeeMemberId, 'Mitglied auswählen') }}
+          </button>
         </div>
-        <div class="filter-group">
-          <label>Abschöpfung durchgeführt von</label>
-          <input v-model="zbonForm.skimmed_by_name" type="text" class="form-input" />
-        </div>
-        <div class="filter-group">
-          <label>Kassensturz durchgeführt von</label>
-          <input v-model="zbonForm.cash_counted_by_name" type="text" class="form-input" />
+        <div class="selection-group">
+          <label>Sichtkontrolle</label>
+          <button @click="openMemberPicker('checkerMemberId')" class="member-select-btn">
+            {{ getSelectedMemberName(zbonForm.checkerMemberId, 'Mitglied auswählen') }}
+          </button>
         </div>
         <p v-if="cashCountData" class="cash-count-hint">
           Gezählter Barbestand: <strong>{{ formatEuroValue(getCashCountTotal(cashCountData)) }}</strong>
@@ -628,6 +627,68 @@
         </div>
       </div>
     </div>
+
+    <div v-if="showWithdrawalModal" class="confirmation-overlay">
+      <div class="confirmation-dialog">
+        <h3>Abschöpfung</h3>
+        <div class="filter-group">
+          <label>Betrag in EUR</label>
+          <input v-model="withdrawalForm.amount" type="number" min="0" step="0.01" class="form-input" />
+        </div>
+        <div class="selection-group">
+          <label>Durchgeführt von</label>
+          <button @click="openMemberPicker('withdrawalMemberId')" class="member-select-btn">
+            {{ getSelectedMemberName(selectedWithdrawalMemberId, 'Mitglied auswählen') }}
+          </button>
+        </div>
+        <div class="filter-group">
+          <label>Notiz (optional)</label>
+          <input v-model="withdrawalForm.note" type="text" class="form-input" placeholder="z. B. Vereinskasse" />
+        </div>
+        <div class="confirmation-buttons">
+          <button @click="closeWithdrawalModal" class="btn btn-secondary">
+            Abbrechen
+          </button>
+          <button @click="submitWithdrawal" class="btn btn-warning">
+            💸 Abschöpfen
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <div v-if="showMemberPickerModal" class="confirmation-overlay member-picker-overlay">
+      <div class="confirmation-dialog member-picker-dialog">
+        <h3>Mitglied auswählen</h3>
+        <input
+          v-model="memberSearch"
+          type="text"
+          placeholder="Nach Name suchen..."
+          class="form-input member-search-input"
+        />
+        <div class="member-picker-list">
+          <button
+            v-for="member in filteredPickerMembers"
+            :key="member.id"
+            @click="selectMemberForTarget(member)"
+            class="member-picker-item"
+          >
+            <div v-if="member.photo_path" class="member-picker-photo">
+              <img :src="`/api/members/${member.id}/photo`" :alt="member.name" />
+            </div>
+            <div v-else class="member-picker-photo placeholder">👤</div>
+            <span>{{ member.name }}</span>
+          </button>
+          <div v-if="!filteredPickerMembers.length" class="empty member-picker-empty">
+            Keine Mitglieder gefunden
+          </div>
+        </div>
+        <div class="confirmation-buttons">
+          <button @click="closeMemberPicker" class="btn btn-secondary">
+            Abbrechen
+          </button>
+        </div>
+      </div>
+    </div>
   </div>
 </template>
 
@@ -637,8 +698,10 @@ import { formatPrice } from '@/services/utils'
 import apiService from '@/services/api'
 import CashCounterModal from '@/components/CashCounterModal.vue'
 import { useNotificationStore } from '@/stores/notification'
+import { useMemberStore } from '@/stores/member'
 
 const notificationStore = useNotificationStore()
+const memberStore = useMemberStore()
 
 const activeTab = ref('zbon')
 const loading = ref(false)
@@ -654,10 +717,18 @@ const filterEndDate = ref(new Date().toISOString().split('T')[0])
 const filterPaymentMethod = ref('')
 
 const showZbonCreateModal = ref(false)
+const showWithdrawalModal = ref(false)
+const showMemberPickerModal = ref(false)
+const memberPickerTarget = ref(null)
+const memberSearch = ref('')
 const zbonForm = ref({
-  created_by_name: '',
-  skimmed_by_name: '',
-  cash_counted_by_name: '',
+  employeeMemberId: null,
+  checkerMemberId: null,
+})
+const withdrawalForm = ref({
+  amount: '',
+  memberId: null,
+  note: '',
 })
 // Expanded transactions state
 const expandedTransactions = ref(new Set())
@@ -806,13 +877,32 @@ const currentReceiptLabel = computed(() => {
   return `#${dailyStats.value.receipt_min} bis #${dailyStats.value.receipt_max}`
 })
 
+const filteredPickerMembers = computed(() => {
+  const search = memberSearch.value.trim().toLowerCase()
+  if (!search) {
+    return memberStore.members
+  }
+
+  return memberStore.members.filter(member => member.name.toLowerCase().includes(search))
+})
+
+const selectedWithdrawalMemberId = computed(() => withdrawalForm.value.memberId)
+
+const getMemberById = (memberId) => {
+  if (!memberId) return null
+  return memberStore.members.find(member => member.id === memberId)
+}
+
+const getSelectedMemberName = (memberId, fallback = '-') => {
+  return getMemberById(memberId)?.name || fallback
+}
+
 const loadDailyStats = async () => {
   loading.value = true
   try {
     const payload = {
-      created_by_name: zbonForm.value.created_by_name || null,
-      skimmed_by_name: zbonForm.value.skimmed_by_name || null,
-      cash_counted_by_name: zbonForm.value.cash_counted_by_name || null,
+      created_by_name: getMemberById(zbonForm.value.employeeMemberId)?.name || null,
+      cash_counted_by_name: getMemberById(zbonForm.value.checkerMemberId)?.name || null,
       cash_count: cashCountData.value
         ? {
           coins: cashCountData.value.coins,
@@ -956,6 +1046,33 @@ const onCashCounterConfirm = (data) => {
   loadDailyStats()
 }
 
+const openMemberPicker = async (target) => {
+  memberPickerTarget.value = target
+  memberSearch.value = ''
+  if (!memberStore.members.length) {
+    await memberStore.getMembers()
+  }
+  showMemberPickerModal.value = true
+}
+
+const closeMemberPicker = () => {
+  showMemberPickerModal.value = false
+  memberPickerTarget.value = null
+  memberSearch.value = ''
+}
+
+const selectMemberForTarget = (member) => {
+  if (memberPickerTarget.value === 'employeeMemberId') {
+    zbonForm.value.employeeMemberId = member.id
+  } else if (memberPickerTarget.value === 'checkerMemberId') {
+    zbonForm.value.checkerMemberId = member.id
+  } else if (memberPickerTarget.value === 'withdrawalMemberId') {
+    withdrawalForm.value.memberId = member.id
+  }
+
+  closeMemberPicker()
+}
+
 // Download Z-Bon as HTML file
 const handleDownloadZBon = async () => {
   try {
@@ -977,20 +1094,86 @@ const handleDownloadZBon = async () => {
   }
 }
 
-const openZbonCreateModal = () => {
+const openZbonCreateModal = async () => {
+  if (!memberStore.members.length) {
+    await memberStore.getMembers()
+  }
   showZbonCreateModal.value = true
 }
 
+const openWithdrawalModal = async () => {
+  if (!memberStore.members.length) {
+    await memberStore.getMembers()
+  }
+  showWithdrawalModal.value = true
+}
+
+const closeWithdrawalModal = () => {
+  withdrawalForm.value = {
+    amount: '',
+    memberId: null,
+    note: '',
+  }
+  showWithdrawalModal.value = false
+}
+
+const submitWithdrawal = async () => {
+  const amount = Number(withdrawalForm.value.amount)
+  if (Number.isNaN(amount) || amount <= 0) {
+    notificationStore.error('Bitte einen gültigen Betrag eingeben')
+    return
+  }
+
+  const memberName = getMemberById(withdrawalForm.value.memberId)?.name
+  if (!memberName) {
+    notificationStore.error('Bitte eine Person auswählen')
+    return
+  }
+
+  const note = withdrawalForm.value.note?.trim()
+  const reason = note
+    ? `Abschöpfung - ${memberName} - ${note}`
+    : `Abschöpfung - ${memberName}`
+
+  try {
+    loading.value = true
+    await apiService.post('/transactions/cash/withdrawal', {
+      amount_cents: Math.round(amount * 100),
+      reason,
+    })
+    notificationStore.success('Abschöpfung erfolgreich gespeichert')
+    closeWithdrawalModal()
+    await loadDailyStats()
+    if (activeTab.value === 'zbons') {
+      await loadZbonsHistory()
+    }
+  } catch (error) {
+    console.error('Error recording withdrawal:', error)
+    notificationStore.error(`Fehler beim Speichern: ${error.response?.data?.detail || error.message}`)
+  } finally {
+    loading.value = false
+  }
+}
+
 const createZBon = async () => {
-  if (!zbonForm.value.created_by_name) {
-    notificationStore.error('Bitte "Z-Bon erstellt von" ausfüllen')
+  const employeeName = getMemberById(zbonForm.value.employeeMemberId)?.name
+  const checkerName = getMemberById(zbonForm.value.checkerMemberId)?.name
+
+  if (!employeeName) {
+    notificationStore.error('Bitte einen Mitarbeiter auswählen')
+    return
+  }
+
+  if (!checkerName) {
+    notificationStore.error('Bitte eine Sichtkontrolle auswählen')
     return
   }
 
   try {
     loading.value = true
     await apiService.post('/transactions/zbon/create', {
-      ...zbonForm.value,
+      created_by_name: employeeName,
+      cash_counted_by_name: checkerName,
       cash_count: cashCountData.value
         ? {
           coins: cashCountData.value.coins,
@@ -1145,6 +1328,7 @@ watch([zbonsFilterStartDate, zbonsFilterEndDate, zbonsCurrentPage], () => {
 
 onMounted(() => {
   console.log('Finance component mounted, loading data...')
+  memberStore.getMembers()
   loadDailyStats()
   applyFilters()
   loadRevenueStats()
@@ -1523,7 +1707,7 @@ onMounted(() => {
 .zbon-actions {
   display: flex;
   gap: 0.75rem;
-  margin-top: 1.5rem;
+  margin: 0 0 1.5rem 0;
   flex-wrap: wrap;
 }
 .form-input {
@@ -1622,6 +1806,7 @@ onMounted(() => {
   border-radius: 8px;
   padding: 2rem;
   max-width: 400px;
+  width: min(100%, 520px);
   box-shadow: 0 10px 40px rgba(0, 0, 0, 0.3);
   text-align: center;
 
@@ -1640,6 +1825,106 @@ onMounted(() => {
   display: flex;
   gap: 1rem;
   justify-content: center;
+}
+
+.selection-group {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  margin-bottom: 1rem;
+  text-align: left;
+
+  label {
+    font-weight: 600;
+    font-size: 0.9rem;
+  }
+}
+
+.member-select-btn {
+  padding: 0.85rem 1rem;
+  border: 1px solid #cbd5e1;
+  border-radius: 8px;
+  background: #f8fafc;
+  text-align: left;
+  font-weight: 600;
+  color: #1e293b;
+  cursor: pointer;
+  transition: all 0.2s;
+
+  &:hover {
+    background: #eef2f7;
+    border-color: #94a3b8;
+  }
+}
+
+.member-picker-overlay {
+  z-index: 1600;
+}
+
+.member-picker-dialog {
+  max-width: 520px;
+}
+
+.member-search-input {
+  width: 100%;
+  margin-bottom: 1rem;
+}
+
+.member-picker-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  max-height: 360px;
+  overflow-y: auto;
+  margin-bottom: 1rem;
+}
+
+.member-picker-item {
+  display: flex;
+  align-items: center;
+  gap: 0.85rem;
+  width: 100%;
+  padding: 0.75rem 0.9rem;
+  border: 1px solid #cbd5e1;
+  border-radius: 10px;
+  background: #f8fafc;
+  cursor: pointer;
+  text-align: left;
+  font-weight: 600;
+  color: #1e293b;
+  transition: all 0.2s;
+
+  &:hover {
+    background: #eef2f7;
+    border-color: #94a3b8;
+  }
+}
+
+.member-picker-photo {
+  width: 42px;
+  height: 42px;
+  border-radius: 50%;
+  overflow: hidden;
+  background: #cbd5e1;
+  display: grid;
+  place-items: center;
+  flex-shrink: 0;
+
+  img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+  }
+
+  &.placeholder {
+    color: #475569;
+    font-size: 1.1rem;
+  }
+}
+
+.member-picker-empty {
+  margin: 0;
+  padding: 1rem 0;
 }
 .transaction-row {
   &:hover {

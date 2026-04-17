@@ -342,6 +342,18 @@ ZBON_HTML_TEMPLATE = """
                 <span class="meta-label">Belegnummern:</span>
                 <span class="meta-value">#{{ receipt_min }} bis #{{ receipt_max }}</span>
             </div>
+            <div class="meta-row">
+                <span class="meta-label">Anzahl Transaktionen:</span>
+                <span class="meta-value">{{ transaction_count_total|default(0) }}</span>
+            </div>
+            <div class="meta-row">
+                <span class="meta-label">Mitarbeiter:</span>
+                <span class="meta-value">{{ created_by_name|default('-') }}</span>
+            </div>
+            <div class="meta-row">
+                <span class="meta-label">Sichtkontrolle:</span>
+                <span class="meta-value">{{ cash_counted_by_name|default('-') }}</span>
+            </div>
         </div>
         
         <div class="separator-heavy"></div>
@@ -353,8 +365,6 @@ ZBON_HTML_TEMPLATE = """
                 <tr>
                     <th>Beschreibung</th>
                     <th class="amount">Anzahl</th>
-                    <th class="amount">Netto</th>
-                    <th class="amount">Steuern</th>
                     <th class="amount">Brutto</th>
                 </tr>
             </thead>
@@ -362,93 +372,212 @@ ZBON_HTML_TEMPLATE = """
                 <tr>
                     <td>Verkäufe (Bargeld)</td>
                     <td class="amount">{{ cash_sales_count }}</td>
-                    <td class="amount">{{ cash_sales_net }}</td>
-                    <td class="amount">{{ cash_sales_tax }}</td>
                     <td class="amount"><strong>{{ cash_sales_gross }}</strong></td>
                 </tr>
                 <tr>
                     <td>Verkäufe (Guthaben)</td>
                     <td class="amount">{{ balance_sales_count }}</td>
-                    <td class="amount">{{ balance_sales_net }}</td>
-                    <td class="amount">{{ balance_sales_tax }}</td>
                     <td class="amount"><strong>{{ balance_sales_gross }}</strong></td>
+                </tr>
+                <tr>
+                    <td>Verkäufe (Gutscheine)</td>
+                    <td class="amount">{{ voucher_sales_count|default(0) }}</td>
+                    <td class="amount"><strong>{{ voucher_sales_total|default("0.00") }}</strong></td>
                 </tr>
                 <tr class="total-row">
                     <td>Gesamtumsatz Artikel</td>
                     <td class="amount">{{ total_items_count }}</td>
-                    <td class="amount">{{ total_net }}</td>
-                    <td class="amount">{{ total_tax }}</td>
                     <td class="amount">{{ total_gross }}</td>
                 </tr>
             </tbody>
         </table>
         
-        <!-- Customer Balance Transactions -->
-        <div class="section-title">💰 Kundenguthabenumsatz</div>
+        <div class="section-title">💳 Zahlungsarten</div>
         <table>
             <thead>
                 <tr>
                     <th>Beschreibung</th>
-                    <th class="amount">Anzahl</th>
-                    <th class="amount">Netto</th>
                     <th class="amount">Brutto</th>
                 </tr>
             </thead>
             <tbody>
                 <tr>
-                    <td>Guthabenaufladungen</td>
-                    <td class="amount">{{ recharge_count }}</td>
-                    <td class="amount">{{ recharge_total }}</td>
-                    <td class="amount"><strong>{{ recharge_total }}</strong></td>
+                    <td>Barzahlung</td>
+                    <td class="amount"><strong>{{ cash_sales_gross }}</strong></td>
                 </tr>
                 <tr>
-                    <td>Guthabeneinlösungen</td>
-                    <td class="amount">{{ balance_sales_count }}</td>
-                    <td class="amount">-{{ balance_sales_net }}</td>
-                    <td class="amount"><strong>-{{ balance_sales_gross }}</strong></td>
+                    <td>Guthaben</td>
+                    <td class="amount"><strong>{{ balance_sales_gross }}</strong></td>
+                </tr>
+                <tr>
+                    <td>Gutscheine</td>
+                    <td class="amount"><strong>{{ voucher_sales_total|default("0.00") }}</strong></td>
                 </tr>
                 <tr class="total-row">
-                    <td>Guthaben Netto</td>
-                    <td class="amount"></td>
-                    <td class="amount">{{ guthaben_net }}</td>
-                    <td class="amount">{{ guthaben_gross }}</td>
+                    <td>Gesamtsumme Zahlungsarten</td>
+                    <td class="amount">{{ total_gross }}</td>
                 </tr>
             </tbody>
         </table>
         
-        <div class="separator"></div>
-        
-        <!-- Summary Box -->
+        <div class="section-title">💰 Guthaben</div>
+        <table>
+            <thead>
+                <tr>
+                    <th>Beschreibung</th>
+                    <th class="amount">Anzahl</th>
+                    <th class="amount">Betrag</th>
+                </tr>
+            </thead>
+            <tbody>
+                <tr>
+                    <td>Guthaben verkauft</td>
+                    <td class="amount">{{ recharge_count }}</td>
+                    <td class="amount"><strong>{{ recharge_total }}</strong></td>
+                </tr>
+                <tr>
+                    <td>Guthaben eingelöst</td>
+                    <td class="amount">{{ balance_sales_count }}</td>
+                    <td class="amount"><strong>{{ balance_sales_gross }}</strong></td>
+                </tr>
+                <tr class="total-row">
+                    <td>Offenes Guthaben</td>
+                    <td class="amount">-</td>
+                    <td class="amount">{{ balance_open_total|default("0.00") }}</td>
+                </tr>
+            </tbody>
+        </table>
+
+        <div class="section-title">🎁 Gutscheine</div>
+        <table>
+            <thead>
+                <tr>
+                    <th>Beschreibung</th>
+                    <th class="amount">Anzahl</th>
+                    <th class="amount">Betrag</th>
+                </tr>
+            </thead>
+            <tbody>
+                <tr>
+                    <td>Gutscheine erstellt</td>
+                    <td class="amount">{{ voucher_created_count|default(0) }}</td>
+                    <td class="amount"><strong>{{ voucher_created_total|default("0.00") }}</strong></td>
+                </tr>
+                <tr>
+                    <td>Gutscheine eingelöst</td>
+                    <td class="amount">{{ voucher_redeemed_count|default(0) }}</td>
+                    <td class="amount"><strong>{{ voucher_redeemed_total|default("0.00") }}</strong></td>
+                </tr>
+                <tr class="total-row">
+                    <td>Offene Gutscheine</td>
+                    <td class="amount">{{ voucher_open_count|default(0) }}</td>
+                    <td class="amount">{{ voucher_open_total|default("0.00") }}</td>
+                </tr>
+            </tbody>
+        </table>
+
+        <div class="section-title">🏦 Kassenbestand</div>
+        <table>
+            <thead>
+                <tr>
+                    <th>Beschreibung</th>
+                    <th class="amount">Betrag</th>
+                </tr>
+            </thead>
+            <tbody>
+                <tr>
+                    <td>Anfangsbestand</td>
+                    <td class="amount">{{ cash_opening_balance|default("0.00") }}</td>
+                </tr>
+                <tr>
+                    <td>Bareinnahmen</td>
+                    <td class="amount">{{ cash_revenue|default("0.00") }}</td>
+                </tr>
+                <tr>
+                    <td>Einnahmen aus Guthabenverkäufen</td>
+                    <td class="amount">{{ recharge_total }}</td>
+                </tr>
+                <tr>
+                    <td>Abschöpfung</td>
+                    <td class="amount">{{ cash_withdrawals_total|default("0.00") }}</td>
+                </tr>
+                <tr class="total-row">
+                    <td>Soll-Endbestand</td>
+                    <td class="amount">{{ cash_calculated }}</td>
+                </tr>
+                <tr>
+                    <td>Ist-Bestand</td>
+                    <td class="amount">{{ cash_counted|default("-") }}</td>
+                </tr>
+                {% if cash_difference is not none %}
+                <tr>
+                    <td>Differenz</td>
+                    <td class="amount">{{ cash_difference }}</td>
+                </tr>
+                {% endif %}
+            </tbody>
+        </table>
+
+        <div class="section-title">💸 Abschöpfung</div>
+        {% if withdrawals|default([]) %}
+        <table>
+            <thead>
+                <tr>
+                    <th>Zeitpunkt</th>
+                    <th>Grund</th>
+                    <th>Person</th>
+                    <th class="amount">Betrag</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for withdrawal in withdrawals %}
+                <tr>
+                    <td>{{ withdrawal.created_at }}</td>
+                    <td>{{ withdrawal.reason }}</td>
+                    <td>{{ withdrawal.performed_by|default("-") }}</td>
+                    <td class="amount">{{ "%.2f"|format(withdrawal.amount) }} EUR</td>
+                </tr>
+                {% endfor %}
+                <tr class="total-row">
+                    <td colspan="3">Gesamt</td>
+                    <td class="amount">{{ cash_withdrawals_total|default("0.00") }} EUR</td>
+                </tr>
+            </tbody>
+        </table>
+        {% else %}
         <div class="summary-box">
             <div class="summary-row">
-                <span class="label">Artikel-Bruttoumsatz:</span>
-                <span class="value">{{ cash_sales_gross }} EUR</span>
-            </div>
-            <div class="summary-row">
-                <span class="label">Guthabenaufladungen:</span>
-                <span class="value">{{ recharge_total }} EUR</span>
-            </div>
-            <div class="summary-row">
-                <span class="label">Kasseneinnahme (BAR):</span>
-                <span class="value highlight-success">{{ cash_revenue }} EUR</span>
-            </div>
-            <div class="summary-row">
-                <span class="label">Guthabentransaktionen:</span>
-                <span class="value">{{ balance_sales_gross }} EUR</span>
-            </div>
-            <div class="summary-total">
-                <div class="summary-row">
-                    <span class="label">GESAMTUMSATZ:</span>
-                    <span class="value">{{ total_revenue }} EUR</span>
-                </div>
+                <span class="label">Keine Abschöpfungen im Zeitraum</span>
+                <span class="value">0.00 EUR</span>
             </div>
         </div>
-        
+        {% endif %}
+
+        <div class="section-title">❌ Stornos / Korrekturen</div>
+        <table>
+            <thead>
+                <tr>
+                    <th>Beschreibung</th>
+                    <th class="amount">Wert</th>
+                </tr>
+            </thead>
+            <tbody>
+                <tr>
+                    <td>Anzahl Stornos</td>
+                    <td class="amount">{{ storno_count|default(0) }}</td>
+                </tr>
+                <tr>
+                    <td>Gesamtbetrag stornierter Umsätze</td>
+                    <td class="amount">{{ storno_total|default("0.00") }}</td>
+                </tr>
+            </tbody>
+        </table>
+
         {% if cash_count %}
         <div class="page-break"></div>
         
         <!-- Cash Count Section -->
-        <div class="section-title">🪙 Geldzählprotokoll</div>
+        <div class="section-title">🪙 Bargeldzählung</div>
         <div class="cash-count">
             <div style="margin-bottom: 12px; border-bottom: 1px solid #0275d8; padding-bottom: 8px;">
                 <strong>Münzen</strong>
@@ -483,28 +612,6 @@ ZBON_HTML_TEMPLATE = """
             <div class="cash-line" style="border-top: 1px solid #0275d8; margin-top: 8px; padding-top: 8px; font-weight: bold;">
                 <span>Scheine Summe</span>
                 <span class="subtotal">{{ notes_total }} EUR</span>
-            </div>
-            {% endif %}
-        </div>
-        
-        <div class="cash-count" style="background-color: #d4edda; border-left-color: #28a745; margin-top: 15px;">
-            <div class="cash-line" style="font-weight: bold; font-size: 13px;">
-                <span>Gezählter Gesamtbetrag</span>
-                <span class="subtotal" style="font-size: 14px;">{{ cash_counted }} EUR</span>
-            </div>
-            <div class="cash-line" style="margin-top: 8px;">
-                <span>Sollbestand (Umsätze)</span>
-                <span class="subtotal">{{ cash_calculated }} EUR</span>
-            </div>
-            {% if cash_difference >= 0 %}
-            <div class="cash-line">
-                <span>Zähldifferenz</span>
-                <span class="subtotal highlight-success">+{{ cash_difference }} EUR</span>
-            </div>
-            {% else %}
-            <div class="cash-line">
-                <span>Zähldifferenz</span>
-                <span class="subtotal highlight-error">{{ cash_difference }} EUR</span>
             </div>
             {% endif %}
         </div>
@@ -615,7 +722,7 @@ ZBON_HTML_TEMPLATE = """
         <!-- Footer -->
         <div class="footer">
             <div class="footer-text">Vielen Dank für Deinen Besuch!</div>
-            <div class="footer-text">Berichtstyp: Z-BON | Geschäftsjahr 2026</div>
+            <div class="footer-text">Berichtstyp: {{ report_type_label|default("Z-BON") }} | Geschäftsjahr 2026</div>
             <div class="footer-text">Erzeugt: {{ created_at }}</div>
             <div class="footer-text" style="margin-top: 15px; color: #999; font-size: 10px;">
                 Dieser Z-Bon wurde automatisch generiert und archiviert.
