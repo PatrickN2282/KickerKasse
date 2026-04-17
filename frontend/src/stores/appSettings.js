@@ -1,6 +1,7 @@
 import { defineStore } from 'pinia'
 import { computed, ref } from 'vue'
 import apiService from '@/services/api'
+import { getContrastColor } from '@/services/utils'
 
 const fallbackSettings = {
   app_name: 'KGB - KickerKasse',
@@ -12,20 +13,6 @@ const fallbackSettings = {
   apple_touch_icon_url: '/api/app-settings/apple-touch-icon.png',
   manifest_url: '/api/app-settings/manifest.webmanifest',
   asset_version: '1',
-}
-
-const getContrastColor = (hexColor, dark = '#111827', light = '#FFFFFF') => {
-  const hex = (hexColor || '').replace('#', '')
-  if (hex.length !== 6) {
-    return light
-  }
-
-  const red = parseInt(hex.slice(0, 2), 16)
-  const green = parseInt(hex.slice(2, 4), 16)
-  const blue = parseInt(hex.slice(4, 6), 16)
-  const brightness = ((red * 299) + (green * 587) + (blue * 114)) / 1000
-
-  return brightness >= 160 ? dark : light
 }
 
 const setLinkTag = (id, rel, href, type = null) => {

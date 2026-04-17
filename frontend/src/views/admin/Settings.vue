@@ -55,23 +55,10 @@
 import { computed, onMounted, reactive, ref } from 'vue'
 import { useAppSettingsStore } from '@/stores/appSettings'
 import { useNotificationStore } from '@/stores/notification'
+import { getContrastColor } from '@/services/utils'
 
 const appSettingsStore = useAppSettingsStore()
 const notificationStore = useNotificationStore()
-
-const getPreviewContrast = (hexColor, dark = '#111827', light = '#FFFFFF') => {
-  const hex = (hexColor || '').replace('#', '')
-  if (hex.length !== 6) {
-    return light
-  }
-
-  const red = parseInt(hex.slice(0, 2), 16)
-  const green = parseInt(hex.slice(2, 4), 16)
-  const blue = parseInt(hex.slice(4, 6), 16)
-  const brightness = ((red * 299) + (green * 587) + (blue * 114)) / 1000
-
-  return brightness >= 160 ? dark : light
-}
 
 const form = reactive({
   app_name: 'KGB - KickerKasse',
@@ -93,8 +80,8 @@ const previewStyle = computed(() => ({
   '--preview-background': form.background_color,
   '--preview-banner': form.banner_color,
   '--preview-highlight': form.highlight_color,
-  '--preview-banner-contrast': getPreviewContrast(form.banner_color),
-  '--preview-highlight-contrast': getPreviewContrast(form.highlight_color),
+  '--preview-banner-contrast': getContrastColor(form.banner_color),
+  '--preview-highlight-contrast': getContrastColor(form.highlight_color),
 }))
 
 const previewLogoUrl = computed(() => selectedLogoPreview.value || appSettingsStore.logoUrl)

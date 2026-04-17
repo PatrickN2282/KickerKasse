@@ -166,7 +166,6 @@ class DatabaseMigrator:
         """Add missing columns to existing tables"""
         with self.engine.connect() as conn:
             inspector = inspect(self.engine)
-            default_app_name = DEFAULT_APP_NAME.replace("'", "''")
             
             # ============================================================================
             # VOUCHER_CODE COLUMN - CRITICAL FOR VOUCHER SYSTEM
@@ -238,8 +237,8 @@ class DatabaseMigrator:
                     try:
                         conn.execute(text(
                             "ALTER TABLE app_settings "
-                            f"ADD COLUMN app_name VARCHAR(120) DEFAULT '{default_app_name}' NOT NULL"
-                        ))
+                            "ADD COLUMN app_name VARCHAR(120) DEFAULT :default_app_name NOT NULL"
+                        ), {"default_app_name": DEFAULT_APP_NAME})
                         conn.commit()
                         logger.info("✓ Added app_name column to app_settings")
                     except Exception as e:
@@ -252,9 +251,9 @@ class DatabaseMigrator:
                     try:
                         conn.execute(text(
                             "UPDATE app_settings "
-                            f"SET app_name = '{default_app_name}' "
+                            "SET app_name = :default_app_name "
                             "WHERE app_name IS NULL OR TRIM(app_name) = ''"
-                        ))
+                        ), {"default_app_name": DEFAULT_APP_NAME})
                         conn.commit()
                     except Exception as e:
                         logger.warning(f"Could not backfill app_name values: {str(e)}")
