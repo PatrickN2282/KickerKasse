@@ -75,18 +75,26 @@ class VoucherService:
         year = voucher.created_at.year if voucher.created_at else date.today().year
         return f"V-{year}-{str(voucher.voucher_number).zfill(3)}"
 
+    @staticmethod
+    def _get_available_value_cents(voucher: Voucher) -> int:
+        if voucher.remaining_value_cents is None:
+            return voucher.value_cents
+        return voucher.remaining_value_cents
+
     def _build_cart_context(self, voucher: Voucher, cart_total_cents: Optional[int] = None) -> dict:
         """Calculate applicable voucher amount for the current cart."""
+        available_value_cents = self._get_available_value_cents(voucher)
+
         if cart_total_cents is None:
             return {
-                "applicable_amount_cents": voucher.value_cents,
+                "applicable_amount_cents": available_value_cents,
                 "remaining_value_cents": 0,
                 "covers_cart_total": True,
             }
 
-        applicable_amount_cents = min(voucher.value_cents, max(cart_total_cents, 0))
-        remaining_value_cents = max(voucher.value_cents - applicable_amount_cents, 0)
-        covers_cart_total = voucher.value_cents >= cart_total_cents
+        applicable_amount_cents = min(available_value_cents, max(cart_total_cents, 0))
+        remaining_value_cents = max(available_value_cents - applicable_amount_cents, 0)
+        covers_cart_total = available_value_cents >= cart_total_cents
 
         return {
             "applicable_amount_cents": applicable_amount_cents,
@@ -104,7 +112,7 @@ class VoucherService:
             if remainder > 0:
                 return (
                     f"Voucher deckt den Warenkorb ab. "
-                    f"Restwert von {remainder / 100:.2f}€ verfällt bei Einlösung."
+                    f"Restwert von {remainder / 100:.2f}€ bleibt erhalten."
                 )
             return "Voucher deckt den Warenkorb vollständig ab."
 
@@ -119,6 +127,9 @@ class VoucherService:
 
         if voucher.status == VoucherStatus.REDEEMED:
             raise ValueError(f"Voucher #{voucher_number} already redeemed")
+
+        if self._get_available_value_cents(voucher) <= 0:
+            raise ValueError(f"Voucher #{voucher_number} has no remaining value")
 
         return voucher
 
@@ -157,7 +168,7 @@ class VoucherService:
                 "valid": False,
                 "voucher_number": self._format_voucher_identifier(voucher),
                 "voucher_type": voucher.voucher_type.value,
-                "value_cents": voucher.value_cents,
+                "value_cents": 0,
                 "status": voucher.status.value,
                 "message": f"Voucher already redeemed on {redeemed_str}",
                 "reason": voucher.reason.value if voucher.reason else None,
@@ -173,7 +184,7 @@ class VoucherService:
             "valid": True,
             "voucher_number": self._format_voucher_identifier(voucher),
             "voucher_type": voucher.voucher_type.value,
-            "value_cents": voucher.value_cents,
+            "value_cents": self._get_available_value_cents(voucher),
             "status": voucher.status.value,
             "message": message,
             "reason": voucher.reason.value if voucher.reason else None,
@@ -192,8 +203,8 @@ class VoucherService:
         if not voucher:
             raise ValueError(f"Voucher {voucher_id} not found")
 
-        if voucher.status == VoucherStatus.REDEEMED:
-            raise ValueError("Eingelöste Gutscheine können nicht mehr bearbeitet werden")
+        if voucher.status != VoucherStatus.CREATED or (voucher.redeemed_amount_cents or 0) > 0:
+            raise ValueError("Bereits genutzte Gutscheine können nicht mehr bearbeitet werden")
 
         if voucher.voucher_type == VoucherType.GIFT and not reason:
             raise ValueError("Gift-Gutscheine benötigen einen Grund")
@@ -236,7 +247,7 @@ class VoucherService:
         transaction = Transaction(
             type=TransactionType.VOUCHER_REDEMPTION,
             payment_method=PaymentMethod.VOUCHER_GIFT,
-            total_amount_cents=-voucher.value_cents,  # Negative = loss
+            total_amount_cents=-self._get_available_value_cents(voucher),  # Negative = loss
             user_id=redeemed_by,
             member_id=member_id,
         )
@@ -246,7 +257,7 @@ class VoucherService:
         # Mark voucher as redeemed
         self.repository.redeem(voucher.id, redeemed_by, transaction.id)
 
-        logger.info(f"Redeemed GIFT voucher #{voucher_number} ({voucher.value_cents/100:.2f}€) in transaction {transaction.id}")
+        logger.info(f"Redeemed GIFT voucher #{voucher_number} ({self._get_available_value_cents(voucher)/100:.2f}€) in transaction {transaction.id}")
         return transaction
 
     def redeem_prepaid_voucher(self, voucher_number: str, redeemed_by: int, member_id: Optional[int] = None) -> Transaction:

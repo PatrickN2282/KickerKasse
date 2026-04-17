@@ -1,5 +1,5 @@
 from fastapi import APIRouter, HTTPException, Depends, Request, status
-from fastapi.responses import HTMLResponse, FileResponse
+from fastapi.responses import HTMLResponse, FileResponse, Response
 from sqlalchemy.orm import Session
 from datetime import date, datetime
 from sqlalchemy import func, desc
@@ -44,6 +44,20 @@ class ZBonEmailRequest(BaseModel):
     recipient: Optional[str] = None  # defaults to EMAIL_RECIPIENT_ZBON
     report_type: str = "full-zbon"  # "full-zbon", "short-zbon", or "daily-report"
     include_cash_count: bool = False
+
+
+class ZBonCreateRequest(BaseModel):
+    created_by_name: str
+    skimmed_by_name: Optional[str] = None
+    cash_counted_by_name: Optional[str] = None
+    cash_count: Optional[CashCountRequest] = None
+
+
+class ZBonPreviewRequest(BaseModel):
+    created_by_name: Optional[str] = None
+    skimmed_by_name: Optional[str] = None
+    cash_counted_by_name: Optional[str] = None
+    cash_count: Optional[CashCountRequest] = None
 
 
 @router.get("/next-receipt-number")
@@ -113,7 +127,12 @@ async def create_sale(
                 detail=str(e),
             )
 
-        voucher_applied_cents = min(voucher.value_cents, total_amount)
+        available_voucher_cents = (
+            voucher.remaining_value_cents
+            if voucher.remaining_value_cents is not None
+            else voucher.value_cents
+        )
+        voucher_applied_cents = min(available_voucher_cents, total_amount)
 
         if voucher_applied_cents <= 0:
             raise HTTPException(
@@ -170,7 +189,7 @@ async def create_sale(
 
     if voucher:
         voucher_service = VoucherService(db)
-        voucher_service.repository.redeem(
+        voucher_service.repository.apply_redemption(
             voucher.id,
             user_id,
             transaction.id,
@@ -451,6 +470,68 @@ async def generate_zbon(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Error generating Z-Bon: {str(e)}",
         )
+
+
+@router.post("/zbon/preview")
+@router.post("/zbon/preview/")
+async def preview_current_zbon(
+    zbon_req: ZBonPreviewRequest,
+    request: Request,
+    db: Session = Depends(get_db),
+):
+    """Preview the current Z-Bon period since the last generated Z-Bon."""
+    user_id = request.session.get("user_id")
+    if not user_id:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Not authenticated",
+        )
+
+    cash_count = None
+    if zbon_req.cash_count:
+        cash_count = {
+            "coins": zbon_req.cash_count.coins or {},
+            "notes": zbon_req.cash_count.notes or {},
+        }
+
+    service = ZBonService(db)
+    return service.build_current_zbon_preview(
+        created_by_name=zbon_req.created_by_name,
+        skimmed_by_name=zbon_req.skimmed_by_name,
+        cash_counted_by_name=zbon_req.cash_counted_by_name,
+        include_cash_count=cash_count,
+    )
+
+
+@router.post("/zbon/create")
+@router.post("/zbon/create/")
+async def create_zbon(
+    zbon_req: ZBonCreateRequest,
+    request: Request,
+    db: Session = Depends(get_db),
+):
+    """Create and archive a new immutable Z-Bon."""
+    user_id = request.session.get("user_id")
+    if not user_id:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Not authenticated",
+        )
+
+    cash_count = None
+    if zbon_req.cash_count:
+        cash_count = {
+            "coins": zbon_req.cash_count.coins or {},
+            "notes": zbon_req.cash_count.notes or {},
+        }
+
+    service = ZBonService(db)
+    return service.create_zbon(
+        created_by_name=zbon_req.created_by_name,
+        skimmed_by_name=zbon_req.skimmed_by_name,
+        cash_counted_by_name=zbon_req.cash_counted_by_name,
+        include_cash_count=cash_count,
+    )
 
 
 @router.post("/zbon/send-email")
@@ -1250,3 +1331,65 @@ async def get_zbon_history_detail(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Error retrieving Z-Bon: {str(e)}",
         )
+
+
+@router.get("/zbon/history/{sequence_number}/html")
+@router.get("/zbon/history/{sequence_number}/html/")
+async def get_zbon_history_html(
+    sequence_number: int,
+    request: Request,
+    db: Session = Depends(get_db),
+):
+    """Return archived Z-Bon content as HTML/text."""
+    user_id = request.session.get("user_id")
+    if not user_id:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Not authenticated",
+        )
+
+    history = db.query(ZBonHistory).filter(ZBonHistory.sequence_number == sequence_number).first()
+    if not history or not history.report_content:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"Z-Bon #{sequence_number} not found",
+        )
+
+    return HTMLResponse(content=history.report_content)
+
+
+@router.get("/zbon/history/{sequence_number}/pdf")
+@router.get("/zbon/history/{sequence_number}/pdf/")
+async def get_zbon_history_pdf(
+    sequence_number: int,
+    request: Request,
+    db: Session = Depends(get_db),
+):
+    """Render archived Z-Bon content as PDF when PDF export is available."""
+    user_id = request.session.get("user_id")
+    if not user_id:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Not authenticated",
+        )
+
+    history = db.query(ZBonHistory).filter(ZBonHistory.sequence_number == sequence_number).first()
+    if not history or not history.report_content:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"Z-Bon #{sequence_number} not found",
+        )
+
+    try:
+        pdf_file = ZBonHTMLExporter.export_pdf(history.report_content)
+    except RuntimeError as exc:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=str(exc),
+        )
+
+    return Response(
+        content=pdf_file.getvalue(),
+        media_type="application/pdf",
+        headers={"Content-Disposition": f'attachment; filename="Z-Bon-{sequence_number}.pdf"'},
+    )

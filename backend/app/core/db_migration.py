@@ -83,6 +83,20 @@ class DatabaseMigrator:
                         )
                     },
                 )
+                self._sync_enum_type(
+                    conn=conn,
+                    enum_name="voucherstatus",
+                    expected_values=["CREATED", "PARTIALLY_REDEEMED", "REDEEMED"],
+                    column_specs=[("vouchers", "status")],
+                    using_expressions={
+                        ("vouchers", "status"): (
+                            "CASE "
+                            "WHEN status::text = 'REDEEMED' THEN 'REDEEMED'::voucherstatus "
+                            "ELSE 'CREATED'::voucherstatus "
+                            "END"
+                        )
+                    },
+                )
             except Exception as e:
                 logger.warning(f"Could not update enum types: {str(e)}")
                 try:
@@ -282,16 +296,121 @@ class DatabaseMigrator:
             if 'vouchers' in inspector.get_table_names():
                 voucher_columns = {col['name'] for col in inspector.get_columns('vouchers')}
 
-                if 'redeemed_amount_cents' not in voucher_columns:
-                    logger.info("Adding redeemed_amount_cents column to vouchers table...")
+                missing_voucher_columns = [
+                    (
+                        'redeemed_amount_cents',
+                        "ALTER TABLE vouchers ADD COLUMN redeemed_amount_cents INTEGER"
+                    ),
+                    (
+                        'original_value_cents',
+                        "ALTER TABLE vouchers ADD COLUMN original_value_cents INTEGER DEFAULT 0 NOT NULL"
+                    ),
+                    (
+                        'remaining_value_cents',
+                        "ALTER TABLE vouchers ADD COLUMN remaining_value_cents INTEGER DEFAULT 0 NOT NULL"
+                    ),
+                ]
+
+                for column_name, sql in missing_voucher_columns:
+                    if column_name in voucher_columns:
+                        continue
+
+                    logger.info(f"Adding {column_name} column to vouchers table...")
                     try:
-                        conn.execute(text(
-                            "ALTER TABLE vouchers ADD COLUMN redeemed_amount_cents INTEGER"
-                        ))
+                        conn.execute(text(sql))
                         conn.commit()
-                        logger.info("✓ Added redeemed_amount_cents column to vouchers")
+                        logger.info(f"✓ Added {column_name} column to vouchers")
                     except Exception as e:
-                        logger.warning(f"Could not add redeemed_amount_cents column: {str(e)}")
+                        logger.warning(f"Could not add {column_name} column: {str(e)}")
+                        try:
+                            conn.rollback()
+                        except:
+                            pass
+
+                try:
+                    logger.info("Backfilling voucher original/remaining values...")
+                    conn.execute(text("""
+                        UPDATE vouchers
+                        SET
+                            original_value_cents = CASE
+                                WHEN original_value_cents IS NULL
+                                    THEN value_cents
+                                ELSE original_value_cents
+                            END,
+                            remaining_value_cents = CASE
+                                WHEN status::text = 'REDEEMED' THEN 0
+                                WHEN remaining_value_cents IS NULL
+                                    THEN GREATEST(
+                                        value_cents - COALESCE(redeemed_amount_cents, 0),
+                                        0
+                                    )
+                                ELSE remaining_value_cents
+                            END,
+                            redeemed_amount_cents = COALESCE(redeemed_amount_cents, CASE
+                                WHEN status::text = 'REDEEMED' THEN value_cents
+                                ELSE 0
+                            END)
+                    """))
+                    conn.commit()
+                    logger.info("✓ Backfilled voucher original/remaining values")
+                except Exception as e:
+                    logger.warning(f"Could not backfill voucher values: {str(e)}")
+                    try:
+                        conn.rollback()
+                    except:
+                        pass
+
+                try:
+                    logger.info("Normalizing partial voucher statuses...")
+                    conn.execute(text("""
+                        UPDATE vouchers
+                        SET status = CASE
+                            WHEN remaining_value_cents <= 0 THEN 'REDEEMED'::voucherstatus
+                            WHEN COALESCE(redeemed_amount_cents, 0) > 0 THEN 'PARTIALLY_REDEEMED'::voucherstatus
+                            ELSE 'CREATED'::voucherstatus
+                        END
+                    """))
+                    conn.commit()
+                    logger.info("✓ Normalized voucher statuses")
+                except Exception as e:
+                    logger.warning(f"Could not normalize voucher statuses: {str(e)}")
+                    try:
+                        conn.rollback()
+                    except:
+                        pass
+
+            if 'zbon_history' in inspector.get_table_names():
+                zbon_columns = {col['name'] for col in inspector.get_columns('zbon_history')}
+
+                missing_zbon_columns = [
+                    ('report_type', "ALTER TABLE zbon_history ADD COLUMN report_type VARCHAR(50) DEFAULT 'zbon' NOT NULL"),
+                    ('gross_revenue_voucher', "ALTER TABLE zbon_history ADD COLUMN gross_revenue_voucher FLOAT DEFAULT 0.0 NOT NULL"),
+                    ('total_revenue', "ALTER TABLE zbon_history ADD COLUMN total_revenue FLOAT DEFAULT 0.0 NOT NULL"),
+                    ('voucher_created_total', "ALTER TABLE zbon_history ADD COLUMN voucher_created_total FLOAT DEFAULT 0.0 NOT NULL"),
+                    ('voucher_redeemed_total', "ALTER TABLE zbon_history ADD COLUMN voucher_redeemed_total FLOAT DEFAULT 0.0 NOT NULL"),
+                    ('voucher_open_total', "ALTER TABLE zbon_history ADD COLUMN voucher_open_total FLOAT DEFAULT 0.0 NOT NULL"),
+                    ('transaction_count_total', "ALTER TABLE zbon_history ADD COLUMN transaction_count_total INTEGER DEFAULT 0 NOT NULL"),
+                    ('voucher_created_count', "ALTER TABLE zbon_history ADD COLUMN voucher_created_count INTEGER DEFAULT 0 NOT NULL"),
+                    ('voucher_redeemed_count', "ALTER TABLE zbon_history ADD COLUMN voucher_redeemed_count INTEGER DEFAULT 0 NOT NULL"),
+                    ('voucher_open_count', "ALTER TABLE zbon_history ADD COLUMN voucher_open_count INTEGER DEFAULT 0 NOT NULL"),
+                    ('created_by_name', "ALTER TABLE zbon_history ADD COLUMN created_by_name VARCHAR(255)"),
+                    ('skimmed_by_name', "ALTER TABLE zbon_history ADD COLUMN skimmed_by_name VARCHAR(255)"),
+                    ('cash_counted_by_name', "ALTER TABLE zbon_history ADD COLUMN cash_counted_by_name VARCHAR(255)"),
+                    ('cash_count_details', "ALTER TABLE zbon_history ADD COLUMN cash_count_details TEXT"),
+                    ('report_data', "ALTER TABLE zbon_history ADD COLUMN report_data TEXT"),
+                ]
+
+                for column_name, sql in missing_zbon_columns:
+                    if column_name in zbon_columns:
+                        continue
+
+                    logger.info(f"Adding {column_name} column to zbon_history table...")
+                    try:
+                        conn.execute(text(sql))
+                        conn.commit()
+                        logger.info(f"✓ Added {column_name} column to zbon_history")
+                    except Exception as e:
+                        logger.warning(f"Could not add {column_name} column: {str(e)}")
                         try:
                             conn.rollback()
                         except:

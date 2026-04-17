@@ -48,6 +48,8 @@ class VoucherResponse(BaseModel):
     voucher_code: Optional[str] = None
     voucher_type: str  # GIFT or PREPAID
     value_cents: int
+    original_value_cents: int
+    remaining_value_cents: int
     status: str  # CREATED or REDEEMED
     reason: Optional[str] = None  # For GIFT vouchers
     description: Optional[str] = None
