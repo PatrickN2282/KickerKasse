@@ -349,10 +349,7 @@
             >
               {{ voucherActionLabel }}
             </button>
-            <button
-              @click="voucherValidation.valid ? backToVoucherInput() : closeVoucherModal()"
-              class="btn btn-secondary"
-            >
+            <button @click="handleVoucherSecondaryAction" class="btn btn-secondary">
               {{ voucherValidation.valid ? 'Zurück' : 'Abbrechen' }}
             </button>
           </div>
@@ -656,6 +653,15 @@ const closeVoucherModal = () => {
 const backToVoucherInput = () => {
   resetVoucherState()
   showVoucherModal.value = true
+}
+
+const handleVoucherSecondaryAction = () => {
+  if (voucherValidation.value?.valid) {
+    backToVoucherInput()
+    return
+  }
+
+  closeVoucherModal()
 }
 
 const removeAppliedVoucher = () => {

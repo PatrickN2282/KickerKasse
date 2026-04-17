@@ -333,13 +333,13 @@ class DatabaseMigrator:
                         UPDATE vouchers
                         SET
                             original_value_cents = CASE
-                                WHEN original_value_cents IS NULL OR original_value_cents = 0
+                                WHEN original_value_cents IS NULL
                                     THEN value_cents
                                 ELSE original_value_cents
                             END,
                             remaining_value_cents = CASE
                                 WHEN status::text = 'REDEEMED' THEN 0
-                                WHEN remaining_value_cents IS NULL OR remaining_value_cents = 0
+                                WHEN remaining_value_cents IS NULL
                                     THEN GREATEST(
                                         value_cents - COALESCE(redeemed_amount_cents, 0),
                                         0

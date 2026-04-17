@@ -100,6 +100,10 @@ class ZBonService:
         sales = [t for t in transactions if t.type == TransactionType.SALE]
         recharges = [t for t in transactions if t.type == TransactionType.RECHARGE]
         stornos = [t for t in transactions if t.type == TransactionType.STORNO]
+        first_transaction_at = period_end
+        if transactions:
+            first_transaction_at = transactions[0].created_at
+        effective_period_start = period_start or first_transaction_at
 
         gross_sales_total = sum(self._calculate_sale_gross_cents(t) for t in sales) / 100
         cash_sales_total = sum(
@@ -159,7 +163,7 @@ class ZBonService:
             "sequence_number": (last_zbon.sequence_number + 1) if last_zbon else 1,
             "generated_at": period_end.isoformat(),
             "report_type": "zbon",
-            "period_start": period_start.isoformat() if period_start else None,
+            "period_start": effective_period_start.isoformat() if effective_period_start else None,
             "period_end": period_end.isoformat(),
             "business_date": period_end.date().isoformat(),
             "created_by_name": created_by_name,

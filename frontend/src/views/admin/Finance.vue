@@ -613,7 +613,7 @@
           <input v-model="zbonForm.cash_counted_by_name" type="text" class="form-input" />
         </div>
         <p v-if="cashCountData" class="cash-count-hint">
-          Gezählter Barbestand: <strong>{{ formatEuroValue(cashCountData.total) }}</strong>
+          Gezählter Barbestand: <strong>{{ formatEuroValue(getCashCountTotal(cashCountData)) }}</strong>
         </p>
         <div class="confirmation-buttons">
           <button @click="showZbonCreateModal = false" class="btn btn-secondary">
@@ -766,6 +766,24 @@ function formatEuroValue(value) {
   }
 
   return `${Number(value).toFixed(2)} €`
+}
+
+function getCashCountTotal(cashCount) {
+  if (!cashCount) return null
+  if (cashCount.total !== undefined && cashCount.total !== null) {
+    return cashCount.total
+  }
+
+  const coinTotal = Object.entries(cashCount.coins || {}).reduce(
+    (sum, [denomination, count]) => sum + (parseFloat(denomination) * count),
+    0,
+  )
+  const noteTotal = Object.entries(cashCount.notes || {}).reduce(
+    (sum, [denomination, count]) => sum + (parseFloat(denomination) * count),
+    0,
+  )
+
+  return coinTotal + noteTotal
 }
 
 const currentPeriodLabel = computed(() => {
