@@ -888,7 +888,7 @@ const filteredPickerMembers = computed(() => {
 
 const getMemberById = (memberId) => {
   if (!memberId) return null
-  return memberStore.members.find(member => member.id === memberId) || null
+  return memberStore.members.find(member => member.id === memberId)
 }
 
 const getSelectedMemberName = (memberId, fallback = '-') => {
@@ -1117,7 +1117,7 @@ const closeWithdrawalModal = () => {
 
 const submitWithdrawal = async () => {
   const amount = Number(withdrawalForm.value.amount)
-  if (!amount || amount <= 0) {
+  if (Number.isNaN(amount) || amount <= 0) {
     notificationStore.error('Bitte einen gültigen Betrag eingeben')
     return
   }

@@ -344,7 +344,7 @@ ZBON_HTML_TEMPLATE = """
             </div>
             <div class="meta-row">
                 <span class="meta-label">Anzahl Transaktionen:</span>
-                <span class="meta-value">{{ transaction_count_total|default(total_items_count|default(0)) }}</span>
+                <span class="meta-value">{{ transaction_count_total|default(0) }}</span>
             </div>
             <div class="meta-row">
                 <span class="meta-label">Mitarbeiter:</span>
