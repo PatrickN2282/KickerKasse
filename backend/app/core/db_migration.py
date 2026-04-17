@@ -7,6 +7,8 @@ from sqlalchemy import inspect, text
 from sqlalchemy.engine import Engine
 import logging
 
+from app.services.app_settings_service import DEFAULT_APP_NAME
+
 logger = logging.getLogger(__name__)
 
 
@@ -164,6 +166,7 @@ class DatabaseMigrator:
         """Add missing columns to existing tables"""
         with self.engine.connect() as conn:
             inspector = inspect(self.engine)
+            default_app_name = DEFAULT_APP_NAME.replace("'", "''")
             
             # ============================================================================
             # VOUCHER_CODE COLUMN - CRITICAL FOR VOUCHER SYSTEM
@@ -235,7 +238,7 @@ class DatabaseMigrator:
                     try:
                         conn.execute(text(
                             "ALTER TABLE app_settings "
-                            "ADD COLUMN app_name VARCHAR(120) DEFAULT 'KGB - KickerKasse' NOT NULL"
+                            f"ADD COLUMN app_name VARCHAR(120) DEFAULT '{default_app_name}' NOT NULL"
                         ))
                         conn.commit()
                         logger.info("✓ Added app_name column to app_settings")
@@ -249,7 +252,7 @@ class DatabaseMigrator:
                     try:
                         conn.execute(text(
                             "UPDATE app_settings "
-                            "SET app_name = 'KGB - KickerKasse' "
+                            f"SET app_name = '{default_app_name}' "
                             "WHERE app_name IS NULL OR TRIM(app_name) = ''"
                         ))
                         conn.commit()

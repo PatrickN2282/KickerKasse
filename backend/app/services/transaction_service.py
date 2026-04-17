@@ -1,6 +1,6 @@
 from sqlalchemy.orm import Session, joinedload
 from sqlalchemy import func, and_
-from datetime import date
+from datetime import date, datetime, time, timedelta
 from app.repositories import TransactionRepository, BalanceLogRepository
 from app.models import Transaction, TransactionType, PaymentMethod, Product, CashEntry, CashEntryType
 
@@ -293,7 +293,6 @@ class TransactionService:
     
     def get_revenue_stats(self):
         """Get revenue statistics"""
-        from datetime import datetime, timedelta, time
         from app.models import TransactionItem, Product
         
         today = date.today()
