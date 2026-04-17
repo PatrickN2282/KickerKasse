@@ -1,8 +1,10 @@
 from fastapi import APIRouter, HTTPException, Depends, Request, status, File, UploadFile
 from fastapi.responses import FileResponse
+from pydantic import BaseModel
 from sqlalchemy.orm import Session
 from sqlalchemy.exc import IntegrityError
 from app.core import get_db
+from app.core.auth import require_password_confirmation, require_roles
 from app.schemas import MemberCreate, MemberUpdate, MemberResponse
 from app.services import MemberService
 from app.services.file_service import save_member_photo, get_full_path
@@ -10,6 +12,11 @@ from app.repositories import MemberRepository, UserRepository
 from app.models import UserRole
 
 router = APIRouter(prefix="/api/members", tags=["Members"])
+
+
+class MemberRechargeRequest(BaseModel):
+    amount_cents: int
+    auth_password: str
 
 
 @router.post("/", response_model=MemberResponse, status_code=status.HTTP_201_CREATED)
@@ -20,11 +27,7 @@ async def create_member(
     db: Session = Depends(get_db),
 ):
     """Create a new member"""
-    if not request.session.get("user_id"):
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Not authenticated",
-        )
+    require_roles(request, db, UserRole.ADMIN, UserRole.KASSENMITGLIED)
     
     try:
         service = MemberService(db)
@@ -174,11 +177,7 @@ async def update_member(
     db: Session = Depends(get_db),
 ):
     """Update member"""
-    if not request.session.get("user_id"):
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Not authenticated",
-        )
+    require_roles(request, db, UserRole.ADMIN, UserRole.KASSENMITGLIED)
     
     try:
         service = MemberService(db)
@@ -208,19 +207,16 @@ async def update_member(
 @router.post("/{member_id}/recharge/")
 async def recharge_member_balance(
     member_id: int,
-    amount_cents: int,
+    recharge_request: MemberRechargeRequest,
     request: Request,
     db: Session = Depends(get_db),
 ):
     """Recharge member balance"""
-    user_id = request.session.get("user_id")
-    if not user_id:
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Not authenticated",
-        )
+    current_user = require_roles(request, db, UserRole.ADMIN, UserRole.KASSENMITGLIED)
+    user_id = current_user.id
+    require_password_confirmation(current_user, recharge_request.auth_password)
     
-    if amount_cents <= 0:
+    if recharge_request.amount_cents <= 0:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="Amount must be positive",
@@ -231,7 +227,7 @@ async def recharge_member_balance(
     
     try:
         service = MemberService(db)
-        member = service.recharge_balance(member_id, amount_cents, "RECHARGE")
+        member = service.recharge_balance(member_id, recharge_request.amount_cents, "RECHARGE")
         
         if not member:
             raise HTTPException(
@@ -244,7 +240,7 @@ async def recharge_member_balance(
         transaction_repo.create(
             type=TransactionType.RECHARGE,
             payment_method=PaymentMethod.CASH,  # Recharge is recorded as cash transaction
-            total_amount_cents=amount_cents,
+            total_amount_cents=recharge_request.amount_cents,
             user_id=user_id,
             member_id=member_id,
             items=[],  # No items for recharge
@@ -256,7 +252,7 @@ async def recharge_member_balance(
         # Refresh member to get latest balance from DB
         db.refresh(member)
         
-        print(f"[API] Member {member_id} recharged with {amount_cents} cents. New balance: {member.balance_cents}")
+        print(f"[API] Member {member_id} recharged with {recharge_request.amount_cents} cents. New balance: {member.balance_cents}")
         
         return member
     except Exception as e:
@@ -311,12 +307,7 @@ async def upload_member_photo(
     db: Session = Depends(get_db),
 ):
     """Upload member photo"""
-    user_id = request.session.get("user_id") if request else None
-    if not user_id:
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Not authenticated",
-        )
+    require_roles(request, db, UserRole.ADMIN, UserRole.KASSENMITGLIED)
     
     # Check if member exists
     member_repo = MemberRepository(db)

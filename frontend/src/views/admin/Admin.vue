@@ -1,10 +1,10 @@
 <template>
   <div class="admin-container">
     <h1>Admin Panel</h1>
-    
+
     <div class="admin-tabs">
-      <router-link 
-        v-for="tab in tabs" 
+      <router-link
+        v-for="tab in visibleTabs"
         :key="tab.path"
         :to="tab.path"
         :class="['tab-button', { active: isTabActive(tab.path) }]"
@@ -22,21 +22,24 @@
 <script setup>
 import { computed } from 'vue'
 import { useRoute } from 'vue-router'
+import { useAuthStore } from '@/stores/auth'
 
 const route = useRoute()
+const authStore = useAuthStore()
 
 const tabs = [
-  { path: '/admin/members', label: '👥 Mitglieder' },
-  { path: '/admin/products', label: '📦 Produkte' },
-  { path: '/admin/categories', label: '🏷️ Kategorien' },
-  { path: '/admin/users', label: '👤 Benutzer' },
-  { path: '/admin/vouchers', label: '🎫 Gutscheine' },
-  { path: '/admin/finance', label: '💰 Finanzen' },
+  { path: '/admin/members', label: '👥 Mitglieder', roles: ['ADMIN', 'KASSENMITGLIED'] },
+  { path: '/admin/products', label: '📦 Produkte', roles: ['ADMIN'] },
+  { path: '/admin/categories', label: '🏷️ Kategorien', roles: ['ADMIN'] },
+  { path: '/admin/users', label: '👤 Benutzer', roles: ['ADMIN'] },
+  { path: '/admin/vouchers', label: '🎫 Gutscheine', roles: ['ADMIN'] },
+  { path: '/admin/finance', label: '💰 Finanzen', roles: ['ADMIN', 'KASSENMITGLIED'] },
+  { path: '/admin/settings', label: '🎨 Design', roles: ['ADMIN'] },
 ]
 
-const isTabActive = (path) => {
-  return route.path === path
-}
+const visibleTabs = computed(() => tabs.filter(tab => tab.roles.includes(authStore.role)))
+
+const isTabActive = (path) => route.path === path
 </script>
 
 <style scoped lang="scss">
@@ -72,13 +75,10 @@ const isTabActive = (path) => {
   text-decoration: none;
   display: block;
 
-  &:hover {
-    color: #1976d2;
-  }
-
+  &:hover,
   &.active {
-    color: #1976d2;
-    border-bottom-color: #1976d2;
+    color: var(--app-highlight-color);
+    border-bottom-color: var(--app-highlight-color);
   }
 }
 

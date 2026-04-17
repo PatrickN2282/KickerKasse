@@ -7,6 +7,7 @@ from .base import BaseModel
 class UserRole(str, enum.Enum):
     ADMIN = "ADMIN"
     CASHIER = "CASHIER"
+    KASSENMITGLIED = "KASSENMITGLIED"
 
 
 class User(BaseModel):
@@ -18,12 +19,11 @@ class User(BaseModel):
     role = Column(Enum(UserRole), nullable=False, default=UserRole.CASHIER)
     is_active = Column(Boolean, default=True, nullable=False)
     created_at = Column(DateTime, default=func.now(), nullable=False)
+    updated_at = Column(DateTime, default=func.now(), onupdate=func.now(), nullable=False)
 
     @property
     def is_admin(self) -> bool:
-        """Check if user is admin"""
         return self.role == UserRole.ADMIN
-    updated_at = Column(DateTime, default=func.now(), onupdate=func.now(), nullable=False)
 
     def __repr__(self):
         return f"<User {self.username}>"

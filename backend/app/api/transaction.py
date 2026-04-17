@@ -8,6 +8,7 @@ from typing import Optional
 import logging
 
 from app.core import get_db
+from app.core.auth import require_password_confirmation, require_roles
 from app.schemas import (
     TransactionCreate,
     TransactionResponse,
@@ -19,7 +20,7 @@ from app.schemas import (
 from app.services import TransactionService, ProductService, ZBonService, EmailService, VoucherService
 from app.services.zbon_html_exporter import ZBonHTMLExporter
 from app.repositories import MemberRepository, ProductRepository
-from app.models import PaymentMethod, Transaction, ZBonHistory
+from app.models import PaymentMethod, Transaction, ZBonHistory, UserRole
 
 from app.services import SchedulerService
 
@@ -51,6 +52,7 @@ class ZBonCreateRequest(BaseModel):
     skimmed_by_name: Optional[str] = None
     cash_counted_by_name: Optional[str] = None
     cash_count: Optional[CashCountRequest] = None
+    auth_password: str
 
 
 class ZBonPreviewRequest(BaseModel):
@@ -58,6 +60,10 @@ class ZBonPreviewRequest(BaseModel):
     skimmed_by_name: Optional[str] = None
     cash_counted_by_name: Optional[str] = None
     cash_count: Optional[CashCountRequest] = None
+
+
+def _require_finance_access(request: Request, db: Session):
+    return require_roles(request, db, UserRole.ADMIN, UserRole.KASSENMITGLIED)
 
 
 @router.get("/next-receipt-number")
@@ -259,12 +265,7 @@ async def get_daily_summary(
     db: Session = Depends(get_db),
 ):
     """Get daily summary (Z-Bon) - requires password"""
-    user_id = request.session.get("user_id")
-    if not user_id:
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Not authenticated",
-        )
+    _require_finance_access(request, db)
     
     # Password check (should be passed as query or body)
     # For now, just check if user is authenticated
@@ -297,12 +298,7 @@ async def get_daily_stats(
     db: Session = Depends(get_db),
 ):
     """Get daily statistics with transaction list"""
-    user_id = request.session.get("user_id")
-    if not user_id:
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Not authenticated",
-        )
+    _require_finance_access(request, db)
     
     try:
         summary_date = datetime.strptime(date, "%Y-%m-%d").date()
@@ -328,12 +324,7 @@ async def get_filtered_transactions(
     db: Session = Depends(get_db),
 ):
     """Get filtered transactions"""
-    user_id = request.session.get("user_id")
-    if not user_id:
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Not authenticated",
-        )
+    _require_finance_access(request, db)
     
     try:
         start = datetime.strptime(start_date, "%Y-%m-%d").date()
@@ -357,12 +348,7 @@ async def get_revenue_stats(
     db: Session = Depends(get_db),
 ):
     """Get revenue statistics"""
-    user_id = request.session.get("user_id")
-    if not user_id:
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Not authenticated",
-        )
+    _require_finance_access(request, db)
     
     try:
         service = TransactionService(db)
@@ -435,12 +421,7 @@ async def generate_zbon(
     db: Session = Depends(get_db),
 ):
     """Generate Z-Bon or daily report"""
-    user_id = request.session.get("user_id")
-    if not user_id:
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Not authenticated",
-        )
+    _require_finance_access(request, db)
     
     try:
         target_date = None
@@ -480,12 +461,7 @@ async def preview_current_zbon(
     db: Session = Depends(get_db),
 ):
     """Preview the current Z-Bon period since the last generated Z-Bon."""
-    user_id = request.session.get("user_id")
-    if not user_id:
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Not authenticated",
-        )
+    _require_finance_access(request, db)
 
     cash_count = None
     if zbon_req.cash_count:
@@ -511,12 +487,8 @@ async def create_zbon(
     db: Session = Depends(get_db),
 ):
     """Create and archive a new immutable Z-Bon."""
-    user_id = request.session.get("user_id")
-    if not user_id:
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Not authenticated",
-        )
+    current_user = _require_finance_access(request, db)
+    require_password_confirmation(current_user, zbon_req.auth_password)
 
     cash_count = None
     if zbon_req.cash_count:
@@ -542,12 +514,7 @@ async def send_zbon_email(
     db: Session = Depends(get_db),
 ):
     """Send Z-Bon via email"""
-    user_id = request.session.get("user_id")
-    if not user_id:
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Not authenticated",
-        )
+    _require_finance_access(request, db)
     
     try:
         from app.core.config import settings
@@ -607,12 +574,7 @@ async def get_zbon_html(
     db: Session = Depends(get_db),
 ):
     """Get Z-Bon as HTML for preview"""
-    user_id = request.session.get("user_id")
-    if not user_id:
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Not authenticated",
-        )
+    _require_finance_access(request, db)
     
     try:
         from app.services.zbon_html_exporter import ZBonHTMLExporter
@@ -715,12 +677,7 @@ async def get_zbon_pdf(
     db: Session = Depends(get_db),
 ):
     """Download Z-Bon as PDF"""
-    user_id = request.session.get("user_id")
-    if not user_id:
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Not authenticated",
-        )
+    _require_finance_access(request, db)
     
     try:
         from app.services.zbon_html_exporter import ZBonHTMLExporter
@@ -1023,12 +980,8 @@ async def record_cash_withdrawal(
     db: Session = Depends(get_db),
 ):
     """Record a cash withdrawal (Entnahme)"""
-    user_id = request.session.get("user_id")
-    if not user_id:
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Not authenticated",
-        )
+    current_user = _require_finance_access(request, db)
+    user_id = current_user.id
     
     try:
         from app.repositories import CashEntryRepository
@@ -1065,12 +1018,8 @@ async def record_cash_deposit(
     db: Session = Depends(get_db),
 ):
     """Record a cash deposit (Einlage)"""
-    user_id = request.session.get("user_id")
-    if not user_id:
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Not authenticated",
-        )
+    current_user = _require_finance_access(request, db)
+    user_id = current_user.id
     
     try:
         from app.repositories import CashEntryRepository
@@ -1107,12 +1056,7 @@ async def get_cash_entries(
     db: Session = Depends(get_db),
 ):
     """Get cash entries (withdrawals and deposits) for a date"""
-    user_id = request.session.get("user_id")
-    if not user_id:
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Not authenticated",
-        )
+    _require_finance_access(request, db)
     
     try:
         from app.repositories import CashEntryRepository
@@ -1158,12 +1102,7 @@ async def get_cash_balance(
     db: Session = Depends(get_db),
 ):
     """Get cash balance snapshot for a date"""
-    user_id = request.session.get("user_id")
-    if not user_id:
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Not authenticated",
-        )
+    _require_finance_access(request, db)
     
     try:
         from app.repositories import CashBalanceRepository
@@ -1226,12 +1165,7 @@ async def get_zbon_history(
     - start_date: Filter from date (YYYY-MM-DD)
     - end_date: Filter to date (YYYY-MM-DD)
     """
-    user_id = request.session.get("user_id")
-    if not user_id:
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Not authenticated",
-        )
+    _require_finance_access(request, db)
     
     try:
         query = db.query(ZBonHistory)
@@ -1301,12 +1235,7 @@ async def get_zbon_history_detail(
     db: Session = Depends(get_db),
 ):
     """Get Z-Bon history detail by sequence number"""
-    user_id = request.session.get("user_id")
-    if not user_id:
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Not authenticated",
-        )
+    _require_finance_access(request, db)
     
     try:
         history = db.query(ZBonHistory).filter(
@@ -1341,12 +1270,7 @@ async def get_zbon_history_html(
     db: Session = Depends(get_db),
 ):
     """Return archived Z-Bon content as HTML/text."""
-    user_id = request.session.get("user_id")
-    if not user_id:
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Not authenticated",
-        )
+    _require_finance_access(request, db)
 
     history = db.query(ZBonHistory).filter(ZBonHistory.sequence_number == sequence_number).first()
     if not history or not history.report_content:
@@ -1366,12 +1290,7 @@ async def get_zbon_history_pdf(
     db: Session = Depends(get_db),
 ):
     """Render archived Z-Bon content as PDF when PDF export is available."""
-    user_id = request.session.get("user_id")
-    if not user_id:
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Not authenticated",
-        )
+    _require_finance_access(request, db)
 
     history = db.query(ZBonHistory).filter(ZBonHistory.sequence_number == sequence_number).first()
     if not history or not history.report_content:

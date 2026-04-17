@@ -3,15 +3,18 @@
     <NotificationCenter />
     <nav v-if="authStore.isAuthenticated" class="navbar">
       <div class="navbar-content">
-        <h1 class="navbar-title">KGB - Kickerkasse</h1>
+        <div class="navbar-brand">
+          <img :src="appSettingsStore.logoUrl" alt="KGB - KickerKasse" class="navbar-logo" />
+        </div>
         <div class="navbar-menu">
           <router-link to="/" class="nav-link">Kasse</router-link>
-          <router-link to="/admin" class="nav-link" v-if="isAdmin">Admin</router-link>
+          <router-link to="/admin" class="nav-link" v-if="authStore.canAccessAdminPanel">Admin</router-link>
+          <PwaInstallButton />
           <button @click="logout" class="btn-logout">Logout</button>
         </div>
       </div>
     </nav>
-    
+
     <main class="main-content">
       <router-view />
     </main>
@@ -19,70 +22,82 @@
 </template>
 
 <script setup>
+import { onMounted } from 'vue'
 import { useAuthStore } from '@/stores/auth'
+import { useAppSettingsStore } from '@/stores/appSettings'
 import { useRouter } from 'vue-router'
-import { computed } from 'vue'
 import NotificationCenter from '@/components/NotificationCenter.vue'
+import PwaInstallButton from '@/components/PwaInstallButton.vue'
 
 const authStore = useAuthStore()
+const appSettingsStore = useAppSettingsStore()
 const router = useRouter()
-
-const isAdmin = computed(() => authStore.user?.role === 'ADMIN')
 
 const logout = async () => {
   await authStore.logout()
   router.push('/login')
 }
+
+onMounted(() => {
+  appSettingsStore.applyToDocument()
+})
 </script>
 
 <style scoped lang="scss">
 .app {
   display: flex;
   flex-direction: column;
-  height: 100vh;
-  background-color: #f5f5f5;
+  min-height: 100vh;
+  background-color: var(--app-background-color);
 }
 
 .navbar {
-  background: linear-gradient(135deg, #1a1a1a 0%, #2d2d2d 100%);
+  background: var(--app-banner-color);
   color: white;
-  padding: 1rem;
+  padding: 0.85rem 1rem;
   box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
-  border-bottom: 3px solid #ff6b35;
+  border-bottom: 3px solid var(--app-highlight-color);
 
   .navbar-content {
     display: flex;
     justify-content: space-between;
     align-items: center;
+    gap: 1rem;
     max-width: 1200px;
     margin: 0 auto;
   }
 
-  .navbar-title {
-    margin: 0;
-    font-size: 1.5rem;
+  .navbar-brand {
+    display: flex;
+    align-items: center;
+    gap: 0.85rem;
+  }
+
+  .navbar-logo {
+    width: min(300px, 62vw);
+    height: 58px;
+    object-fit: contain;
   }
 
   .navbar-menu {
     display: flex;
-    gap: 1rem;
+    gap: 0.75rem;
     align-items: center;
+    flex-wrap: wrap;
+    justify-content: flex-end;
   }
 
   .nav-link {
     color: white;
     text-decoration: none;
-    padding: 0.5rem 1rem;
-    border-radius: 4px;
+    padding: 0.5rem 0.9rem;
+    border-radius: 999px;
     transition: all 0.2s;
 
-    &:hover {
-      background-color: #ff6b35;
-      color: #fff;
-    }
-
+    &:hover,
     &.router-link-active {
-      background-color: rgba(0, 0, 0, 0.2);
+      background-color: var(--app-highlight-color);
+      color: #fff;
     }
   }
 
@@ -91,13 +106,8 @@ const logout = async () => {
     color: white;
     border: none;
     padding: 0.5rem 1rem;
-    border-radius: 4px;
+    border-radius: 999px;
     cursor: pointer;
-    transition: background-color 0.2s;
-
-    &:hover {
-      background-color: #c62828;
-    }
   }
 }
 
@@ -107,14 +117,17 @@ const logout = async () => {
   padding: 0;
 }
 
-@media (max-width: 600px) {
-  .navbar-content {
+@media (max-width: 700px) {
+  .navbar .navbar-content {
     flex-direction: column;
-    gap: 1rem;
+    align-items: stretch;
   }
 
-  .navbar-menu {
-    width: 100%;
+  .navbar .navbar-brand {
+    justify-content: center;
+  }
+
+  .navbar .navbar-menu {
     justify-content: center;
   }
 }

@@ -70,6 +70,12 @@ class DatabaseMigrator:
                 )
                 self._sync_enum_type(
                     conn=conn,
+                    enum_name="userrole",
+                    expected_values=["ADMIN", "CASHIER", "KASSENMITGLIED"],
+                    column_specs=[("users", "role")],
+                )
+                self._sync_enum_type(
+                    conn=conn,
                     enum_name="voucherreason",
                     expected_values=["DYP_SIEGER", "PROMOTION"],
                     column_specs=[("vouchers", "reason")],

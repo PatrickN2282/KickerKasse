@@ -9,6 +9,12 @@ export const useAuthStore = defineStore('auth', () => {
   const error = ref(null)
 
   const isAuthenticated = computed(() => !!user.value)
+  const role = computed(() => user.value?.role || null)
+  const isAdmin = computed(() => role.value === 'ADMIN')
+  const isKassenmitglied = computed(() => role.value === 'KASSENMITGLIED')
+  const canAccessAdminPanel = computed(() => ['ADMIN', 'KASSENMITGLIED'].includes(role.value))
+
+  const hasRole = (...roles) => roles.includes(role.value)
 
   const login = async (username, password) => {
     isLoading.value = true
@@ -60,6 +66,11 @@ export const useAuthStore = defineStore('auth', () => {
     isLoading,
     error,
     isAuthenticated,
+    role,
+    isAdmin,
+    isKassenmitglied,
+    canAccessAdminPanel,
+    hasRole,
     login,
     logout,
     checkAuth,
