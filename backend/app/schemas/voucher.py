@@ -1,4 +1,4 @@
-from pydantic import BaseModel, Field, field_validator, computed_field, ConfigDict
+from pydantic import BaseModel, Field, field_validator, model_validator, ConfigDict
 from datetime import datetime
 from typing import Optional, Literal
 
@@ -40,7 +40,8 @@ class VoucherValidationResponse(BaseModel):
 class VoucherResponse(BaseModel):
     """Voucher response model"""
     id: int
-    voucher_code: Optional[str] = None  # Can be None if DB column missing, frontend generates fallback
+    voucher_number: int
+    voucher_code: Optional[str] = None
     voucher_type: str  # GIFT or PREPAID
     value_cents: int
     status: str  # CREATED or REDEEMED
@@ -62,34 +63,15 @@ class VoucherResponse(BaseModel):
             return v.value
         return str(v)
     
-    @field_validator('voucher_code', mode='before')
-    @classmethod
-    def fallback_voucher_code(cls, v, info):
-        """Fallback: generate voucher_code from ID if not in DB"""
-        import logging
-        logger = logging.getLogger(__name__)
-        
-        logger.debug(f"[Validator] voucher_code value: {v}, type: {type(v)}")
-        logger.debug(f"[Validator] info.data: {info.data if hasattr(info, 'data') else 'NO DATA'}")
-        
-        # If already set, use it
-        if v is not None and str(v).strip():
-            logger.debug(f"[Validator] Using provided voucher_code: {v}")
-            return v
-        
-        # Fallback: generate from ID if available
-        if hasattr(info, 'data') and isinstance(info.data, dict):
-            id_val = info.data.get('id')
-            if id_val:
-                code = f"V-2026-{str(id_val).zfill(3)}"
-                logger.debug(f"[Validator] Generated code from ID {id_val}: {code}")
-                return code
-            else:
-                logger.debug(f"[Validator] No ID in data: {info.data.keys() if info.data else 'empty'}")
-        
-        # Last resort: return None and let frontend handle it
-        logger.debug(f"[Validator] Returning None (frontend fallback)")
-        return None
+    @model_validator(mode='after')
+    def ensure_voucher_code(self):
+        """Generate voucher_code fallback for legacy rows if missing"""
+        if self.voucher_code is not None and str(self.voucher_code).strip():
+            return self
+
+        year = self.created_at.year if self.created_at else datetime.now().year
+        self.voucher_code = f"V-{year}-{str(self.voucher_number).zfill(3)}"
+        return self
 
 
 class VoucherListResponse(BaseModel):

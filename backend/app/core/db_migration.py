@@ -142,14 +142,14 @@ class DatabaseMigrator:
                     # Generate codes for existing vouchers
                     try:
                         logger.info("Generating voucher codes for existing vouchers...")
-                        conn.execute(text("""
+                        result = conn.execute(text("""
                             UPDATE vouchers 
-                            SET voucher_code = 'V-2026-' || LPAD(CAST(voucher_number AS TEXT), 3, '0') 
+                            SET voucher_code = 'V-' || CAST(EXTRACT(YEAR FROM COALESCE(created_at, NOW())) AS INTEGER)::TEXT || '-' || LPAD(CAST(voucher_number AS TEXT), 3, '0') 
                             WHERE voucher_code IS NULL
                         """))
                         conn.commit()
-                        logger.info("✓ Generated codes for existing vouchers")
-                            
+                        logger.info(f"✓ Generated codes for existing vouchers ({result.rowcount} rows)")
+                             
                     except Exception as e:
                         logger.warning(f"Could not generate codes: {str(e)}")
                         try:
@@ -158,6 +158,21 @@ class DatabaseMigrator:
                             pass
                 else:
                     logger.debug("✓ voucher_code column already exists")
+                    try:
+                        logger.info("Backfilling missing voucher_code values...")
+                        result = conn.execute(text("""
+                            UPDATE vouchers
+                            SET voucher_code = 'V-' || CAST(EXTRACT(YEAR FROM COALESCE(created_at, NOW())) AS INTEGER)::TEXT || '-' || LPAD(CAST(voucher_number AS TEXT), 3, '0')
+                            WHERE voucher_code IS NULL
+                        """))
+                        conn.commit()
+                        logger.info(f"✓ Backfilled missing voucher_code values ({result.rowcount} rows)")
+                    except Exception as e:
+                        logger.warning(f"Could not backfill voucher_code values: {str(e)}")
+                        try:
+                            conn.rollback()
+                        except:
+                            pass
             
             # ============================================================================
             # OTHER COLUMNS

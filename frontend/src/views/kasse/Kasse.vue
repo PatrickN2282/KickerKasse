@@ -517,9 +517,9 @@ const validateVoucher = async () => {
     const response = await apiService.post('/transactions/voucher/validate', {
       voucher_number: voucherNumber.value
     })
-    voucherValidation.value = response
+    voucherValidation.value = response.data
     voucherValidated.value = true
-    console.log('[Kasse] Voucher validated:', response)
+    console.log('[Kasse] Voucher validated:', response.data)
   } catch (error) {
     const detail = error.response?.data?.detail || error.message || 'Fehler bei der Validierung'
     voucherError.value = detail
@@ -541,8 +541,8 @@ const redeemVoucher = async () => {
       voucher_number: voucherNumber.value,
       member_id: cartStore.selectedMemberId || null
     })
-    voucherRedeemed.value = response
-    console.log('[Kasse] Voucher redeemed:', response)
+    voucherRedeemed.value = response.data
+    console.log('[Kasse] Voucher redeemed:', response.data)
     
     // Reload members to update balances (for PREPAID vouchers)
     await memberStore.getMembers()
