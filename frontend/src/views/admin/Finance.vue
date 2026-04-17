@@ -16,11 +16,17 @@
 
     <!-- Z-BON / Tagesabrechnung -->
     <div v-if="activeTab === 'zbon'" class="tab-content">
-      <h3>Z-Bon (Tagesabrechnung)</h3>
-      
+      <h3>Z-Bon</h3>
+
       <div class="date-picker">
-        <label>Datum:</label>
-        <input v-model="selectedDate" type="date" class="form-input" />
+        <div>
+          <strong>Aktueller Zeitraum:</strong>
+          {{ currentPeriodLabel }}
+        </div>
+        <div>
+          <strong>Letzter Belegbereich:</strong>
+          {{ currentReceiptLabel }}
+        </div>
       </div>
 
       <div v-if="loading" class="loading">Läuft...</div>
@@ -43,15 +49,23 @@
             <div class="card-value">{{ formatPrice(dailyStats.total_amount) }}</div>
           </div>
           <div class="summary-card">
+            <div class="card-label">Soll-Bestand Kasse</div>
+            <div class="card-value">{{ formatEuroValue(dailyStats.cash_calculated) }}</div>
+          </div>
+          <div class="summary-card">
+            <div class="card-label">Offene Gutscheine</div>
+            <div class="card-value">{{ formatEuroValue(dailyStats.voucher_open_total) }}</div>
+          </div>
+          <div class="summary-card">
             <div class="card-label">Anzahl Transaktionen</div>
             <div class="card-value">{{ dailyStats.transaction_count }}</div>
           </div>
         </div>
 
         <div class="daily-transactions">
-          <h4>Transaktionen am {{ formatDateDE(selectedDate) }}</h4>
+          <h4>Transaktionen seit dem letzten Z-Bon</h4>
           <div v-if="dailyStats.transactions.length === 0" class="empty">
-            Keine Transaktionen für diesen Tag
+            Keine Transaktionen im aktuellen Z-Bon-Zeitraum
           </div>
           <table v-else class="transactions-table">
             <thead>
@@ -68,8 +82,8 @@
                 <tr class="transaction-row" @click="toggleTransaction(transaction.id)" style="cursor: pointer;">
                   <td>{{ formatTime(transaction.created_at) }}</td>
                   <td><strong>{{ transaction.receipt_number }}</strong></td>
-                  <td>{{ transaction.member?.name || 'Gast' }}</td>
-                  <td class="amount">{{ formatPrice(transaction.total_amount_cents) }}</td>
+                  <td>{{ transaction.member?.name || transaction.member_name || 'Gast' }}</td>
+                  <td class="amount">{{ formatPrice(transaction.gross_amount_cents || transaction.total_amount_cents) }}</td>
                   <td>
                     <span v-if="transaction.type === 'RECHARGE'" class="payment-badge recharge">
                       ⬆️ Aufladen
@@ -102,17 +116,14 @@
         </div>
 
         <div class="zbon-actions">
-          <button @click="loadZBonHTML" class="btn btn-primary">
+          <button @click="loadDailyStats" class="btn btn-primary">
             👁️ Z-Bon Vorschau
           </button>
           <button @click="handleDownloadZBon" class="btn btn-success">
             ⬇️ Als HTML herunterladen
           </button>
-          <button @click="downloadZBonAsPDF" class="btn btn-info">
-            📄 Als PDF herunterladen
-          </button>
-          <button @click="askForCashCount" class="btn btn-secondary">
-            📧 Z-Bon per Email
+          <button @click="openZbonCreateModal" class="btn btn-info">
+            ✅ Z-Bon erstellen
           </button>
           <button @click="openCashCounterModal" class="btn btn-warning">
             💰 Kasse zählen
@@ -274,6 +285,18 @@
               <td>Erstellt:</td>
               <td>{{ formatDate(selectedZbon.generated_at) }}, {{ formatTime(selectedZbon.generated_at) }}</td>
             </tr>
+            <tr>
+              <td>Z-Bon erstellt von:</td>
+              <td>{{ selectedZbon.created_by_name || '-' }}</td>
+            </tr>
+            <tr>
+              <td>Abschöpfung durchgeführt von:</td>
+              <td>{{ selectedZbon.skimmed_by_name || '-' }}</td>
+            </tr>
+            <tr>
+              <td>Kassensturz durchgeführt von:</td>
+              <td>{{ selectedZbon.cash_counted_by_name || '-' }}</td>
+            </tr>
             <tr class="section-row">
               <td colspan="2" style="text-align: center; font-weight: bold; padding-top: 1rem;">UMSÄTZE</td>
             </tr>
@@ -286,12 +309,32 @@
               <td class="currency">{{ formatPrice(selectedZbon.gross_revenue_balance * 100) }}</td>
             </tr>
             <tr>
+              <td>Umsatz Gutscheine:</td>
+              <td class="currency">{{ formatPrice(selectedZbon.gross_revenue_voucher * 100) }}</td>
+            </tr>
+            <tr>
+              <td>Gesamtumsatz brutto:</td>
+              <td class="currency">{{ formatPrice(selectedZbon.total_revenue * 100) }}</td>
+            </tr>
+            <tr>
               <td>Guthabenaufladungen:</td>
               <td class="currency">{{ formatPrice(selectedZbon.recharge_total * 100) }}</td>
             </tr>
             <tr>
               <td>Stornierungen:</td>
               <td class="currency">{{ formatPrice(selectedZbon.storno_total * 100) }}</td>
+            </tr>
+            <tr>
+              <td>Gutscheine erstellt:</td>
+              <td class="currency">{{ selectedZbon.voucher_created_count }} / {{ formatPrice(selectedZbon.voucher_created_total * 100) }}</td>
+            </tr>
+            <tr>
+              <td>Gutscheine eingelöst:</td>
+              <td class="currency">{{ selectedZbon.voucher_redeemed_count }} / {{ formatPrice(selectedZbon.voucher_redeemed_total * 100) }}</td>
+            </tr>
+            <tr>
+              <td>Offene Gutscheine:</td>
+              <td class="currency">{{ selectedZbon.voucher_open_count }} / {{ formatPrice(selectedZbon.voucher_open_total * 100) }}</td>
             </tr>
             <tr class="section-row">
               <td colspan="2" style="text-align: center; font-weight: bold; padding-top: 1rem;">KASSENBESTAND</td>
@@ -327,6 +370,10 @@
             </tr>
             <tr class="section-row">
               <td colspan="2" style="text-align: center; font-weight: bold; padding-top: 1rem;">TRANSAKTIONEN</td>
+            </tr>
+            <tr>
+              <td>Transaktionen gesamt:</td>
+              <td>{{ selectedZbon.transaction_count_total }}</td>
             </tr>
             <tr>
               <td>Verkäufe:</td>
@@ -550,16 +597,33 @@
       @confirm="onCashCounterConfirm"
     />
 
-    <div v-if="showCashCountConfirm" class="confirmation-overlay">
+    <div v-if="showZbonCreateModal" class="confirmation-overlay">
       <div class="confirmation-dialog">
-        <h3>Kassenzählung erforderlich?</h3>
-        <p>Soll die Kasse vor der Z-Bon-Generierung gezählt werden?</p>
+        <h3>Z-Bon erstellen</h3>
+        <div class="filter-group">
+          <label>Z-Bon erstellt von</label>
+          <input v-model="zbonForm.created_by_name" type="text" class="form-input" />
+        </div>
+        <div class="filter-group">
+          <label>Abschöpfung durchgeführt von</label>
+          <input v-model="zbonForm.skimmed_by_name" type="text" class="form-input" />
+        </div>
+        <div class="filter-group">
+          <label>Kassensturz durchgeführt von</label>
+          <input v-model="zbonForm.cash_counted_by_name" type="text" class="form-input" />
+        </div>
+        <p v-if="cashCountData" class="cash-count-hint">
+          Gezählter Barbestand: <strong>{{ formatEuroValue(cashCountData.total) }}</strong>
+        </p>
         <div class="confirmation-buttons">
-          <button @click="proceedWithoutCashCount" class="btn btn-secondary">
-            ✕ Nein, ohne Zählung
+          <button @click="showZbonCreateModal = false" class="btn btn-secondary">
+            Abbrechen
           </button>
-          <button @click="proceedWithCashCount" class="btn btn-primary">
-            ✓ Ja, Kasse zählen
+          <button @click="openCashCounterModal" class="btn btn-secondary">
+            💰 Kasse zählen
+          </button>
+          <button @click="createZBon" class="btn btn-primary">
+            ✓ Erstellen
           </button>
         </div>
       </div>
@@ -579,7 +643,6 @@ const notificationStore = useNotificationStore()
 const activeTab = ref('zbon')
 const loading = ref(false)
 const loadingHistory = ref(false)
-const selectedDate = ref(new Date().toISOString().split('T')[0])
 
 // Cash counter modal state
 const showCashCounterModal = ref(false)
@@ -590,8 +653,12 @@ const filterStartDate = ref(getDateDaysAgo(30))
 const filterEndDate = ref(new Date().toISOString().split('T')[0])
 const filterPaymentMethod = ref('')
 
-// Pre-dialog for cash counting confirmation
-const showCashCountConfirm = ref(false)
+const showZbonCreateModal = ref(false)
+const zbonForm = ref({
+  created_by_name: '',
+  skimmed_by_name: '',
+  cash_counted_by_name: '',
+})
 // Expanded transactions state
 const expandedTransactions = ref(new Set())
 
@@ -614,6 +681,13 @@ const dailyStats = ref({
   voucher_total: 0,
   total_amount: 0,
   transaction_count: 0,
+  cash_calculated: 0,
+  voucher_open_total: 0,
+  period_start: null,
+  period_end: null,
+  receipt_min: null,
+  receipt_max: null,
+  report_content: '',
   transactions: [],
 })
 
@@ -686,23 +760,84 @@ function formatTime(dateStr) {
   return date.toLocaleTimeString('de-DE', { hour: '2-digit', minute: '2-digit' })
 }
 
+function formatEuroValue(value) {
+  if (value === null || value === undefined || Number.isNaN(Number(value))) {
+    return '-'
+  }
+
+  return `${Number(value).toFixed(2)} €`
+}
+
+const currentPeriodLabel = computed(() => {
+  if (!dailyStats.value.period_end) {
+    return 'noch kein Zeitraum geladen'
+  }
+
+  const start = dailyStats.value.period_start
+    ? `${formatDate(dailyStats.value.period_start)} ${formatTime(dailyStats.value.period_start)}`
+    : 'Beginn'
+  const end = `${formatDate(dailyStats.value.period_end)} ${formatTime(dailyStats.value.period_end)}`
+  return `${start} bis ${end}`
+})
+
+const currentReceiptLabel = computed(() => {
+  if (!dailyStats.value.receipt_min || !dailyStats.value.receipt_max) {
+    return 'keine Belege'
+  }
+
+  return `#${dailyStats.value.receipt_min} bis #${dailyStats.value.receipt_max}`
+})
+
 const loadDailyStats = async () => {
   loading.value = true
   try {
-    console.log('Loading daily stats for date:', selectedDate.value)
-    const data = await apiService.get(`/transactions/daily-stats?date=${selectedDate.value}`)
-    console.log('Daily stats loaded:', data.data)
-    dailyStats.value = data.data
+    const payload = {
+      created_by_name: zbonForm.value.created_by_name || null,
+      skimmed_by_name: zbonForm.value.skimmed_by_name || null,
+      cash_counted_by_name: zbonForm.value.cash_counted_by_name || null,
+      cash_count: cashCountData.value
+        ? {
+          coins: cashCountData.value.coins,
+          notes: cashCountData.value.notes,
+        }
+        : null,
+    }
+    const response = await apiService.post('/transactions/zbon/preview', payload)
+    const preview = response.data
+    dailyStats.value = {
+      cash_total: Math.round((preview.summary?.cash_sales_total || 0) * 100),
+      balance_total: Math.round((preview.summary?.balance_sales_total || 0) * 100),
+      voucher_total: Math.round((preview.summary?.voucher_sales_total || 0) * 100),
+      total_amount: Math.round((preview.summary?.gross_sales_total || 0) * 100),
+      transaction_count: preview.summary?.transaction_count || 0,
+      cash_calculated: preview.summary?.cash_calculated || 0,
+      voucher_open_total: preview.summary?.voucher_open_total || 0,
+      period_start: preview.period_start,
+      period_end: preview.period_end,
+      receipt_min: preview.summary?.receipt_number_min,
+      receipt_max: preview.summary?.receipt_number_max,
+      report_content: preview.report_content || '',
+      transactions: preview.transactions || [],
+    }
+    zBonHtml.value = preview.report_content || ''
   } catch (error) {
-    console.error('Error loading daily stats:', error)
+    console.error('Error loading Z-Bon preview:', error)
     dailyStats.value = {
       cash_total: 0,
       balance_total: 0,
       voucher_total: 0,
       total_amount: 0,
       transaction_count: 0,
+      cash_calculated: 0,
+      voucher_open_total: 0,
+      period_start: null,
+      period_end: null,
+      receipt_min: null,
+      receipt_max: null,
+      report_content: '',
       transactions: [],
     }
+    zBonHtml.value = ''
   } finally {
     loading.value = false
   }
@@ -798,128 +933,67 @@ const toggleTransaction = (transactionId) => {
 const openCashCounterModal = () => {
   showCashCounterModal.value = true
 }
-
-const askForCashCount = () => {
-  showCashCountConfirm.value = true
-}
-
-const proceedWithCashCount = () => {
-  showCashCountConfirm.value = false
-  openCashCounterModal()
-}
-
-const proceedWithoutCashCount = () => {
-  showCashCountConfirm.value = false
-  cashCountData.value = null
-  sendZBonEmail()
-}
 const onCashCounterConfirm = (data) => {
   cashCountData.value = data
-  sendZBonEmail()
-}
-
-const sendZBonEmail = async () => {
-  try {
-    loading.value = true
-    const email = prompt('E-Mail-Adresse eingeben:')
-    if (!email) return
-
-    console.log('Sending Z-Bon email to:', email)
-    const emailResponse = await apiService.post('/transactions/zbon/email', null, {
-      params: {
-        recipient: email,
-        report_date: selectedDate.value,
-        include_pdf: true
-      }
-    })
-    
-    // Show success notification
-    alert(`✓ Z-Bon erfolgreich versendet an ${email}`)
-    console.log('Email sent successfully:', emailResponse.data)
-    
-    // Reset cash count
-    cashCountData.value = null
-  } catch (error) {
-    console.error('Error sending Z-Bon:', error)
-    alert(`✗ Fehler beim Versenden: ${error.response?.data?.detail || error.message}`)
-  } finally {
-    loading.value = false
-  }
-}
-// Load Z-Bon as HTML for preview
-const loadZBonHTML = async () => {
-  try {
-    loading.value = true
-    console.log('Loading Z-Bon HTML for date:', selectedDate.value)
-    const response = await apiService.get(`/transactions/zbon/html?report_date=${selectedDate.value}`)
-    zBonHtml.value = response.data || response
-    console.log('Z-Bon HTML loaded successfully')
-  } catch (error) {
-    console.error('Error loading Z-Bon HTML:', error)
-    alert(`✗ Fehler beim Laden: ${error.response?.data?.detail || error.message}`)
-    zBonHtml.value = ''
-  } finally {
-    loading.value = false
-  }
+  loadDailyStats()
 }
 
 // Download Z-Bon as HTML file
 const handleDownloadZBon = async () => {
   try {
-    loading.value = true
-    console.log('Downloading Z-Bon HTML for date:', selectedDate.value)
-    const response = await apiService.get(`/transactions/zbon/html?report_date=${selectedDate.value}`, {
-      responseType: 'text'
-    })
-    
-    const blob = new Blob([response.data || response], { type: 'text/html;charset=utf-8' })
+    if (!zBonHtml.value) {
+      await loadDailyStats()
+    }
+
+    const blob = new Blob([zBonHtml.value], { type: 'text/html;charset=utf-8' })
     const url = window.URL.createObjectURL(blob)
     const a = document.createElement('a')
     a.href = url
-    a.download = `Z-Bon_${selectedDate.value}.html`
+    a.download = `Z-Bon-Vorschau.html`
     a.click()
     window.URL.revokeObjectURL(url)
-    alert('✓ Z-Bon HTML erfolgreich heruntergeladen')
+    notificationStore.success('Z-Bon HTML erfolgreich heruntergeladen')
   } catch (error) {
     console.error('Error downloading Z-Bon HTML:', error)
-    alert(`✗ Fehler beim Download: ${error.response?.data?.detail || error.message}`)
-  } finally {
-    loading.value = false
+    notificationStore.error(`Fehler beim Download: ${error.response?.data?.detail || error.message}`)
   }
 }
 
-// Download Z-Bon as PDF
-const downloadZBonAsPDF = async () => {
+const openZbonCreateModal = () => {
+  showZbonCreateModal.value = true
+}
+
+const createZBon = async () => {
+  if (!zbonForm.value.created_by_name) {
+    notificationStore.error('Bitte "Z-Bon erstellt von" ausfüllen')
+    return
+  }
+
   try {
     loading.value = true
-    console.log('Downloading Z-Bon PDF for date:', selectedDate.value)
-    const response = await apiService.get(`/transactions/zbon/pdf?report_date=${selectedDate.value}`, {
-      responseType: 'blob'
+    await apiService.post('/transactions/zbon/create', {
+      ...zbonForm.value,
+      cash_count: cashCountData.value
+        ? {
+          coins: cashCountData.value.coins,
+          notes: cashCountData.value.notes,
+        }
+        : null,
     })
-    
-    const url = window.URL.createObjectURL(response.data)
-    const a = document.createElement('a')
-    a.href = url
-    a.download = `Z-Bon_${selectedDate.value}.pdf`
-    a.click()
-    window.URL.revokeObjectURL(url)
-    alert('✓ Z-Bon PDF erfolgreich heruntergeladen')
-  } catch (error) {
-    console.error('Error downloading Z-Bon PDF:', error)
-    if (error.response?.status === 500) {
-      alert('⚠️ PDF-Export nicht verfügbar. Nutzen Sie "Drucken" zum Speichern als PDF.')
-    } else {
-      alert(`✗ Fehler beim Download: ${error.response?.data?.detail || error.message}`)
+    notificationStore.success('Z-Bon erfolgreich erstellt')
+    showZbonCreateModal.value = false
+    cashCountData.value = null
+    await loadDailyStats()
+    if (activeTab.value === 'zbons') {
+      await loadZbonsHistory()
     }
+  } catch (error) {
+    console.error('Error creating Z-Bon:', error)
+    notificationStore.error(`Fehler beim Erstellen: ${error.response?.data?.detail || error.message}`)
   } finally {
     loading.value = false
   }
 }
-
-// Watch für Datumänderungen
-watch(selectedDate, () => {
-  loadDailyStats()
-})
 
 // Watch für Filteränderungen
 watch([filterStartDate, filterEndDate, filterPaymentMethod], () => {
@@ -944,19 +1018,9 @@ const loadZbonsHistory = async () => {
     
     console.log('[Finance] Loading Z-Böns history with params:', params)
     const response = await apiService.get('/transactions/zbon/history', { params })
-    console.log('[Finance] Z-Böns history response:', response)
-    
-    // Handle different possible response structures
-    const historyData = response.histories || response.data || response
-    if (Array.isArray(historyData)) {
-      zbonsList.value = historyData
-    } else if (historyData && Array.isArray(historyData.histories)) {
-      zbonsList.value = historyData.histories
-    } else {
-      throw new Error(`Unexpected response structure: ${JSON.stringify(response)}`)
-    }
-    
-    zbonsTotalPages.value = response.total_pages || 1
+    const payload = response.data
+    zbonsList.value = payload.histories || []
+    zbonsTotalPages.value = payload.total_pages || 1
     console.log('[Finance] Z-Böns history loaded:', zbonsList.value.length, 'entries, total pages:', zbonsTotalPages.value)
   } catch (error) {
     console.error('[Finance] Error loading Z-Böns history:', error)
@@ -967,22 +1031,29 @@ const loadZbonsHistory = async () => {
   }
 }
 
-const selectZbon = (zbon) => {
-  selectedZbon.value = selectedZbon.value?.id === zbon.id ? null : zbon
+const selectZbon = async (zbon) => {
+  if (selectedZbon.value?.id === zbon.id) {
+    selectedZbon.value = null
+    return
+  }
+
+  try {
+    const response = await apiService.get(`/transactions/zbon/history/${zbon.sequence_number}`)
+    selectedZbon.value = response.data
+  } catch (error) {
+    console.error('[Finance] Error loading Z-Bon detail:', error)
+    notificationStore.error('Fehler beim Laden der Z-Bon-Details')
+  }
 }
 
 const downloadZbonHTML = async (zbon) => {
   try {
-    // Fetch the Z-Bon HTML for this specific date
-    const response = await apiService.get('/transactions/zbon/html', {
-      params: {
-        report_date: zbon.business_date.split('T')[0]
-      },
-      responseType: 'text'
+    const response = await apiService.get(`/transactions/zbon/history/${zbon.sequence_number}/html`, {
+      responseType: 'text',
     })
-    
+
     const element = document.createElement('a')
-    element.setAttribute('href', 'data:text/html;charset=utf-8,' + encodeURIComponent(response))
+    element.setAttribute('href', 'data:text/html;charset=utf-8,' + encodeURIComponent(response.data))
     element.setAttribute('download', `Z-Bon-${zbon.sequence_number}.html`)
     element.style.display = 'none'
     document.body.appendChild(element)
@@ -997,15 +1068,11 @@ const downloadZbonHTML = async (zbon) => {
 
 const downloadZbonPDF = async (zbon) => {
   try {
-    // Request PDF export
-    const response = await apiService.get('/transactions/zbon/pdf', {
-      params: {
-        report_date: zbon.business_date.split('T')[0]
-      },
-      responseType: 'blob'
+    const response = await apiService.get(`/transactions/zbon/history/${zbon.sequence_number}/pdf`, {
+      responseType: 'blob',
     })
     
-    const url = window.URL.createObjectURL(new Blob([response]))
+    const url = window.URL.createObjectURL(new Blob([response.data]))
     const link = document.createElement('a')
     link.href = url
     link.setAttribute('download', `Z-Bon-${zbon.sequence_number}.pdf`)
@@ -1032,7 +1099,7 @@ const zbonsTotalBalance = computed(() => {
 })
 
 const zbonsTotalRevenue = computed(() => {
-  return zbonsTotalCash.value + zbonsTotalBalance.value
+  return zbonsList.value.reduce((sum, zbon) => sum + ((zbon.total_revenue || 0) * 100), 0)
 })
 
 // Watch für Tab-Wechsel

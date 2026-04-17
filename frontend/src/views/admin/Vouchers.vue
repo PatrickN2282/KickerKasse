@@ -122,6 +122,7 @@
           <select v-model="filters.status">
             <option value="">Alle</option>
             <option value="CREATED">Erstellt</option>
+            <option value="PARTIALLY_REDEEMED">Teilweise eingelöst</option>
             <option value="REDEEMED">Eingelöst</option>
           </select>
         </div>
@@ -158,10 +159,15 @@
                   {{ voucher.voucher_type === 'GIFT' ? '🎁 Geschenk' : '💳 Guthaben' }}
                 </span>
               </td>
-              <td class="currency">{{ (voucher.value_cents / 100).toFixed(2) }}€</td>
+              <td class="currency">
+                <div>{{ (voucher.original_value_cents / 100).toFixed(2) }}€</div>
+                <small v-if="voucher.remaining_value_cents !== voucher.original_value_cents">
+                  Rest: {{ (voucher.remaining_value_cents / 100).toFixed(2) }}€
+                </small>
+              </td>
               <td>
                 <span :class="['status-badge', voucher.status.toLowerCase()]">
-                  {{ voucher.status === 'CREATED' ? '✅ Erstellt' : '✓ Eingelöst' }}
+                  {{ getStatusLabel(voucher.status) }}
                 </span>
               </td>
               <td>{{ formatReason(voucher.reason) }}</td>
@@ -174,9 +180,6 @@
                   class="btn-small btn-edit"
                 >
                   ✏️
-                </button>
-                <button @click="copyToClipboard(getVoucherCode(voucher))" class="btn-small">
-                  📋
                 </button>
               </td>
             </tr>
@@ -487,6 +490,12 @@ const formatDate = (date) => {
 const formatReason = (reason) => {
   if (!reason) return '-'
   return reasonLabels[reason] || reason
+}
+
+const getStatusLabel = (status) => {
+  if (status === 'PARTIALLY_REDEEMED') return '🟡 Teilweise eingelöst'
+  if (status === 'REDEEMED') return '✓ Eingelöst'
+  return '✅ Erstellt'
 }
 
 const copyToClipboard = (text) => {
@@ -823,10 +832,23 @@ onMounted(() => {
       background: #d4edda;
       color: #155724;
     }
+
+    &.partially_redeemed {
+      background: #fff3cd;
+      color: #856404;
+    }
   }
 
   .currency {
     font-weight: 500;
+
+    small {
+      display: block;
+      margin-top: 0.15rem;
+      color: #666;
+      font-size: 0.8rem;
+      font-weight: 400;
+    }
   }
 
   .date {

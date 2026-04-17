@@ -14,6 +14,7 @@ class VoucherType(str, enum.Enum):
 class VoucherStatus(str, enum.Enum):
     """Voucher Status"""
     CREATED = "CREATED"        # Erzeugt, noch nicht eingelöst
+    PARTIALLY_REDEEMED = "PARTIALLY_REDEEMED"  # Teilweise eingelöst, Restguthaben vorhanden
     REDEEMED = "REDEEMED"      # Eingelöst
 
 
@@ -34,6 +35,8 @@ class Voucher(BaseModel):
     
     # Value in cents
     value_cents = Column(Integer, nullable=False)  # Betrag in Cent
+    original_value_cents = Column(Integer, nullable=False, default=0)  # Ursprünglicher Wert
+    remaining_value_cents = Column(Integer, nullable=False, default=0)  # Verbleibender Restwert
     
     # For GIFT vouchers: Reason
     reason = Column(Enum(VoucherReason), nullable=True)  # Grund (nur bei GIFT)

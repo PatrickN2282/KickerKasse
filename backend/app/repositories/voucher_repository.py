@@ -36,10 +36,13 @@ class VoucherRepository:
             voucher_code=voucher_code,
             voucher_type=voucher_type,
             value_cents=value_cents,
+            original_value_cents=value_cents,
+            remaining_value_cents=value_cents,
             created_by_user_id=created_by_user_id,
             reason=reason,
             description=description,
             status=VoucherStatus.CREATED,
+            redeemed_amount_cents=0,
         )
         
         logger.debug(f"[DEBUG] Before add: voucher_code={voucher.voucher_code}, type={type(voucher.voucher_code)}")
@@ -139,15 +142,15 @@ class VoucherRepository:
             .all()
         )
 
-    def redeem(
+    def apply_redemption(
         self,
         voucher_id: int,
         redeemed_by_user_id: int,
         transaction_id: int,
-        applied_amount_cents: int = None,
+        applied_amount_cents: int,
         commit: bool = True,
     ) -> Voucher:
-        """Mark voucher as redeemed"""
+        """Apply a partial or full redemption."""
         voucher = self.get_by_id(voucher_id)
         if not voucher:
             raise ValueError(f"Voucher {voucher_id} not found")
@@ -155,11 +158,23 @@ class VoucherRepository:
         if voucher.status == VoucherStatus.REDEEMED:
             raise ValueError(f"Voucher {voucher.voucher_number} already redeemed")
 
-        voucher.status = VoucherStatus.REDEEMED
+        available_amount_cents = voucher.remaining_value_cents or voucher.value_cents
+        if applied_amount_cents <= 0:
+            raise ValueError("Applied voucher amount must be greater than zero")
+        if applied_amount_cents > available_amount_cents:
+            raise ValueError("Applied voucher amount exceeds remaining voucher value")
+
+        remaining_value_cents = available_amount_cents - applied_amount_cents
+        voucher.remaining_value_cents = remaining_value_cents
         voucher.redeemed_by_user_id = redeemed_by_user_id
         voucher.redeemed_at = datetime.now()
         voucher.redeemed_in_transaction_id = transaction_id
-        voucher.redeemed_amount_cents = applied_amount_cents if applied_amount_cents is not None else voucher.value_cents
+        voucher.redeemed_amount_cents = (voucher.redeemed_amount_cents or 0) + applied_amount_cents
+        voucher.status = (
+            VoucherStatus.REDEEMED
+            if remaining_value_cents == 0
+            else VoucherStatus.PARTIALLY_REDEEMED
+        )
 
         if commit:
             self.db.commit()
@@ -169,6 +184,27 @@ class VoucherRepository:
         
         logger.info(f"Redeemed voucher #{voucher.voucher_number} in transaction {transaction_id}")
         return voucher
+
+    def redeem(
+        self,
+        voucher_id: int,
+        redeemed_by_user_id: int,
+        transaction_id: int,
+        applied_amount_cents: int = None,
+        commit: bool = True,
+    ) -> Voucher:
+        """Mark voucher as fully redeemed."""
+        voucher = self.get_by_id(voucher_id)
+        if not voucher:
+            raise ValueError(f"Voucher {voucher_id} not found")
+
+        return self.apply_redemption(
+            voucher_id=voucher_id,
+            redeemed_by_user_id=redeemed_by_user_id,
+            transaction_id=transaction_id,
+            applied_amount_cents=applied_amount_cents or (voucher.remaining_value_cents or voucher.value_cents),
+            commit=commit,
+        )
 
     def update(self, voucher_id: int, commit: bool = True, **kwargs) -> Voucher:
         """Update editable voucher fields"""
@@ -180,6 +216,12 @@ class VoucherRepository:
         for key, value in kwargs.items():
             if key in allowed_fields:
                 setattr(voucher, key, value)
+
+        if "value_cents" in kwargs:
+            voucher.original_value_cents = kwargs["value_cents"]
+            voucher.remaining_value_cents = kwargs["value_cents"]
+            voucher.redeemed_amount_cents = 0
+            voucher.status = VoucherStatus.CREATED
 
         if commit:
             self.db.commit()
@@ -201,9 +243,9 @@ class VoucherRepository:
 
     def sum_redeemed_by_type_and_date(self, voucher_type: VoucherType, start_date: date, end_date: date) -> int:
         """Sum value of redeemed vouchers by type and date (in cents)"""
-        result = self.db.query(func.sum(Voucher.value_cents)).filter(
+        result = self.db.query(func.sum(Voucher.redeemed_amount_cents)).filter(
             Voucher.voucher_type == voucher_type,
-            Voucher.status == VoucherStatus.REDEEMED,
+            Voucher.status.in_([VoucherStatus.PARTIALLY_REDEEMED, VoucherStatus.REDEEMED]),
             Voucher.redeemed_at >= datetime.combine(start_date, datetime.min.time()),
             Voucher.redeemed_at <= datetime.combine(end_date, datetime.max.time()),
         ).scalar()

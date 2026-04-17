@@ -80,7 +80,12 @@
       </div>
     </div>
 
-    <div class="kasse-bon">
+    <div
+      class="kasse-resizer"
+      @mousedown="startResizing"
+    ></div>
+
+    <div class="kasse-bon" :style="bonPanelStyle">
       <!-- Current receipt number -->
       <div v-if="currentReceiptNumber" class="bon-header">
         <div class="receipt-number-current">
@@ -288,7 +293,7 @@
             >
               {{ validatingVoucher ? '⏳ Wird überprüft...' : '✓ Überprüfen' }}
             </button>
-            <button @click="resetVoucher" class="btn btn-secondary">
+            <button @click="closeVoucherModal" class="btn btn-secondary">
               Abbrechen
             </button>
           </div>
@@ -344,8 +349,11 @@
             >
               {{ voucherActionLabel }}
             </button>
-            <button @click="resetVoucher" class="btn btn-secondary">
-              {{ voucherValidation.valid ? 'Neue Nummer' : 'Abbrechen' }}
+            <button
+              @click="voucherValidation.valid ? backToVoucherInput() : closeVoucherModal()"
+              class="btn btn-secondary"
+            >
+              {{ voucherValidation.valid ? 'Zurück' : 'Abbrechen' }}
             </button>
           </div>
         </div>
@@ -374,7 +382,7 @@
           </div>
 
           <div class="button-group">
-            <button @click="resetVoucher" class="btn btn-primary">
+            <button @click="closeVoucherModal" class="btn btn-primary">
               ✓ Fertig
             </button>
           </div>
@@ -385,7 +393,7 @@
 </template>
 
 <script setup>
-import { ref, computed, onMounted, watch } from 'vue'
+import { ref, computed, onMounted, onBeforeUnmount, watch } from 'vue'
 import { useProductStore } from '@/stores/product'
 import { useMemberStore } from '@/stores/member'
 import { useCartStore } from '@/stores/cart'
@@ -406,6 +414,7 @@ const lastTransaction = ref(null)
 const currentReceiptNumber = ref(null)
 const expandedCategories = ref([])
 const categories = ref([])
+const bonWidth = ref(420)
 
 // Voucher redemption
 const showVoucherModal = ref(false)
@@ -513,6 +522,11 @@ const voucherActionLabel = computed(() => {
     : '✓ Als Rabatt anwenden'
 })
 
+const bonPanelStyle = computed(() => ({
+  width: `${bonWidth.value}px`,
+  flexBasis: `${bonWidth.value}px`,
+}))
+
 const filteredMembers = computed(() => {
   return memberStore.members.filter(m =>
     m.name.toLowerCase().includes(memberSearch.value.toLowerCase())
@@ -602,14 +616,19 @@ const redeemVoucher = async () => {
     if (voucherValidation.value.covers_cart_total) {
       voucherRedeemed.value = appliedVoucher
       cartStore.paymentMethod = 'CASH'
-      await handleCheckout('Verkauf mit Gutschein abgeschlossen')
-      resetVoucher()
+      const successMessage = voucherValidation.value.remaining_value_cents > 0
+        ? 'Verkauf mit Gutschein abgeschlossen. Restguthaben bleibt erhalten.'
+        : 'Verkauf mit Gutschein abgeschlossen'
+      await handleCheckout(successMessage)
+      closeVoucherModal()
       return
     }
 
     voucherRedeemed.value = {
       ...appliedVoucher,
-      message: `Gutschein ${voucherValidation.value.voucher_number} wurde als Rabatt übernommen.`,
+      message: voucherValidation.value.remaining_value_cents > 0
+        ? `Gutschein ${voucherValidation.value.voucher_number} wurde übernommen. Restguthaben bleibt erhalten.`
+        : `Gutschein ${voucherValidation.value.voucher_number} wurde als Rabatt übernommen.`,
     }
     notificationStore.success(`Gutschein ${voucherValidation.value.voucher_number} als Rabatt übernommen`)
   } catch (error) {
@@ -621,18 +640,57 @@ const redeemVoucher = async () => {
   }
 }
 
-const resetVoucher = () => {
+const resetVoucherState = () => {
   voucherNumber.value = ''
   voucherValidation.value = null
   voucherValidated.value = false
   voucherRedeemed.value = null
   voucherError.value = null
+}
+
+const closeVoucherModal = () => {
+  resetVoucherState()
   showVoucherModal.value = false
+}
+
+const backToVoucherInput = () => {
+  resetVoucherState()
+  showVoucherModal.value = true
 }
 
 const removeAppliedVoucher = () => {
   cartStore.removeVoucher()
   notificationStore.success('Gutschein aus dem Bon entfernt')
+}
+
+const clampBonWidth = (width) => {
+  const minWidth = 340
+  const maxWidth = Math.min(window.innerWidth * 0.7, 720)
+  bonWidth.value = Math.min(Math.max(width, minWidth), maxWidth)
+}
+
+const stopResizing = () => {
+  document.body.style.cursor = ''
+  document.body.style.userSelect = ''
+  window.removeEventListener('mousemove', handleResize)
+  window.removeEventListener('mouseup', stopResizing)
+}
+
+const handleResize = (event) => {
+  const nextWidth = window.innerWidth - event.clientX - 16
+  clampBonWidth(nextWidth)
+}
+
+const startResizing = (event) => {
+  if (window.innerWidth <= 768) {
+    return
+  }
+
+  event.preventDefault()
+  document.body.style.cursor = 'col-resize'
+  document.body.style.userSelect = 'none'
+  window.addEventListener('mousemove', handleResize)
+  window.addEventListener('mouseup', stopResizing)
 }
 
 const formatVoucherReason = (reason) => {
@@ -709,14 +767,19 @@ onMounted(async () => {
   await productStore.getProducts()
   await memberStore.getMembers()
   await loadCategories()
+  clampBonWidth(bonWidth.value)
   console.log('[Kasse] Initial members loaded:', memberStore.members.length)
+})
+
+onBeforeUnmount(() => {
+  stopResizing()
 })
 </script>
 
 <style scoped lang="scss">
 .kasse-container {
   display: flex;
-  gap: 1rem;
+  gap: 0;
   padding: 1rem;
   height: calc(100vh - 70px);
   background: #cfd3d8;
@@ -729,6 +792,7 @@ onMounted(async () => {
 .kasse-products {
   flex: 1 1 auto;
   min-width: 0;
+  margin-right: 1rem;
   background: linear-gradient(135deg, #c4c8cf 0%, #aeb4bc 100%);
   border-radius: 8px;
   padding: 1.5rem;
@@ -742,12 +806,30 @@ onMounted(async () => {
   }
 }
 
+.kasse-resizer {
+  width: 12px;
+  margin: 0 0.5rem;
+  border-radius: 999px;
+  background: linear-gradient(180deg, rgba(255, 107, 53, 0.55) 0%, rgba(255, 107, 53, 0.2) 100%);
+  cursor: col-resize;
+  flex: 0 0 12px;
+  align-self: stretch;
+  transition: background 0.2s ease;
+
+  &:hover {
+    background: linear-gradient(180deg, rgba(255, 107, 53, 0.8) 0%, rgba(255, 107, 53, 0.35) 100%);
+  }
+
+  @media (max-width: 768px) {
+    display: none;
+  }
+}
+
 .kasse-bon {
-  flex: 0 0 clamp(340px, 30vw, 520px);
-  width: clamp(340px, 30vw, 520px);
+  flex: 0 0 420px;
+  width: 420px;
   min-width: 320px;
   max-width: min(70vw, 720px);
-  resize: horizontal;
   background: linear-gradient(135deg, #c4c8cf 0%, #aeb4bc 100%);
   border-radius: 8px;
   padding: 1.5rem;
@@ -765,7 +847,7 @@ onMounted(async () => {
     width: 100%;
     min-width: 0;
     max-width: 100%;
-    resize: none;
+    flex-basis: auto !important;
   }
 }
 
