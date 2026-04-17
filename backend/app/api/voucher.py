@@ -66,11 +66,16 @@ async def create_gift_voucher(
             reason=voucher_data.reason,
             created_by_user_id=user_id,
         )
+        logger.debug(f"[DEBUG] Voucher object after create: id={voucher.id}, voucher_code={voucher.voucher_code}")
+        
+        response = VoucherResponse.from_orm(voucher)
+        
+        logger.debug(f"[DEBUG] Response object: voucher_code={response.voucher_code}")
         logger.info(
             f"[ADMIN] Created GIFT voucher {voucher.voucher_code} "
             f"(value: {voucher.value_cents} cents) by user {user_id}"
         )
-        return VoucherResponse.from_orm(voucher)
+        return response
     except Exception as e:
         logger.error(f"[ADMIN] Error creating GIFT voucher: {str(e)}", exc_info=True)
         raise HTTPException(
@@ -104,11 +109,16 @@ async def create_prepaid_voucher(
             reason=voucher_data.reason,
             created_by_user_id=user_id,
         )
+        logger.debug(f"[DEBUG] Voucher object after create: id={voucher.id}, voucher_code={voucher.voucher_code}")
+        
+        response = VoucherResponse.from_orm(voucher)
+        
+        logger.debug(f"[DEBUG] Response object: voucher_code={response.voucher_code}")
         logger.info(
             f"[ADMIN] Created PREPAID voucher {voucher.voucher_code} "
             f"(value: {voucher.value_cents} cents) by user {user_id}"
         )
-        return VoucherResponse.from_orm(voucher)
+        return response
     except Exception as e:
         logger.error(f"[ADMIN] Error creating PREPAID voucher: {str(e)}", exc_info=True)
         raise HTTPException(

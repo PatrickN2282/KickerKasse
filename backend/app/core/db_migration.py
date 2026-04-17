@@ -116,7 +116,54 @@ class DatabaseMigrator:
         with self.engine.connect() as conn:
             inspector = inspect(self.engine)
             
-            # Migration: Add tax_rate column to products table if missing
+            # ============================================================================
+            # VOUCHER_CODE COLUMN - CRITICAL FOR VOUCHER SYSTEM
+            # ============================================================================
+            if 'vouchers' in inspector.get_table_names():
+                vouchers_columns = {col['name'] for col in inspector.get_columns('vouchers')}
+                
+                if 'voucher_code' not in vouchers_columns:
+                    logger.critical("🚨 CRITICAL: voucher_code column MISSING from vouchers table!")
+                    logger.info("Adding voucher_code column...")
+                    
+                    try:
+                        conn.execute(text(
+                            "ALTER TABLE vouchers ADD COLUMN voucher_code VARCHAR(20) UNIQUE"
+                        ))
+                        conn.commit()
+                        logger.info("✓ Added voucher_code column to vouchers")
+                    except Exception as e:
+                        logger.error(f"Failed to add voucher_code column: {str(e)}")
+                        try:
+                            conn.rollback()
+                        except:
+                            pass
+                    
+                    # Generate codes for existing vouchers
+                    try:
+                        logger.info("Generating voucher codes for existing vouchers...")
+                        conn.execute(text("""
+                            UPDATE vouchers 
+                            SET voucher_code = 'V-2026-' || LPAD(CAST(voucher_number AS TEXT), 3, '0') 
+                            WHERE voucher_code IS NULL
+                        """))
+                        conn.commit()
+                        logger.info("✓ Generated codes for existing vouchers")
+                            
+                    except Exception as e:
+                        logger.warning(f"Could not generate codes: {str(e)}")
+                        try:
+                            conn.rollback()
+                        except:
+                            pass
+                else:
+                    logger.debug("✓ voucher_code column already exists")
+            
+            # ============================================================================
+            # OTHER COLUMNS
+            # ============================================================================
+            
+            # Tax rate column
             if 'products' in inspector.get_table_names():
                 products_columns = {col['name'] for col in inspector.get_columns('products')}
                 
@@ -130,9 +177,12 @@ class DatabaseMigrator:
                         logger.info("✓ Added tax_rate column to products")
                     except Exception as e:
                         logger.warning(f"Could not add tax_rate column: {str(e)}")
-                        conn.rollback()
+                        try:
+                            conn.rollback()
+                        except:
+                            pass
             
-            # Migration: Add description column to categories if missing
+            # Display order column
             if 'categories' in inspector.get_table_names():
                 categories_columns = {col['name'] for col in inspector.get_columns('categories')}
                 
@@ -146,40 +196,6 @@ class DatabaseMigrator:
                         logger.info("✓ Added display_order column to categories")
                     except Exception as e:
                         logger.warning(f"Could not add display_order column: {str(e)}")
-                        conn.rollback()
-
-
-            # Migration: Add voucher_code column to vouchers if missing
-            if 'vouchers' in inspector.get_table_names():
-                vouchers_columns = {col['name'] for col in inspector.get_columns('vouchers')}
-                
-                if 'voucher_code' not in vouchers_columns:
-                    logger.info("Adding voucher_code column to vouchers table...")
-                    try:
-                        # First add the column as nullable
-                        try:
-                            conn.execute(text(
-                                "ALTER TABLE vouchers ADD COLUMN voucher_code VARCHAR(20) UNIQUE"
-                            ))
-                            conn.commit()
-                            logger.info("✓ Added voucher_code column to vouchers")
-                        except Exception as e:
-                            logger.debug(f"Column might already exist: {str(e)}")
-                            conn.rollback()
-                        
-                        # Update existing vouchers with generated codes
-                        try:
-                            conn.execute(text(
-                                "UPDATE vouchers SET voucher_code = 'V-2026-' || LPAD(CAST(voucher_number AS TEXT), 3, '0') WHERE voucher_code IS NULL"
-                            ))
-                            conn.commit()
-                            logger.info("✓ Updated existing vouchers with codes (V-2026-NNN format)")
-                        except Exception as e:
-                            logger.debug(f"Could not update vouchers: {str(e)}")
-                            conn.rollback()
-                            
-                    except Exception as e:
-                        logger.warning(f"Could not add voucher_code column: {str(e)}")
                         try:
                             conn.rollback()
                         except:

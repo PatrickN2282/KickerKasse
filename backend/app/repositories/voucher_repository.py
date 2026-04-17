@@ -1,6 +1,6 @@
 """Repository for Voucher operations"""
 from sqlalchemy.orm import Session
-from sqlalchemy import desc, func
+from sqlalchemy import desc, func, text
 from datetime import datetime, date
 from app.models import Voucher, VoucherType, VoucherStatus
 import logging
@@ -42,17 +42,40 @@ class VoucherRepository:
             status=VoucherStatus.CREATED,
         )
         
+        logger.debug(f"[DEBUG] Before add: voucher_code={voucher.voucher_code}, type={type(voucher.voucher_code)}")
+        
         try:
             self.db.add(voucher)
-            self.db.flush()  # Force flush to catch errors early
-            self.db.commit()
-            self.db.refresh(voucher)
+            logger.debug(f"[DEBUG] After add (before flush): voucher_code={voucher.voucher_code}, id={getattr(voucher, 'id', 'NOT SET')}")
             
-            logger.info(f"Created {voucher_type} voucher {voucher_code} (seq: {next_number}) for {value_cents/100:.2f}€")
+            self.db.flush()  # Force flush to catch errors early
+            logger.debug(f"[DEBUG] After flush: voucher_code={voucher.voucher_code}, id={voucher.id}")
+            
+            self.db.commit()
+            logger.debug(f"[DEBUG] After commit: voucher_code={voucher.voucher_code}")
+            
+            self.db.refresh(voucher)
+            logger.debug(f"[DEBUG] After refresh: voucher_code={voucher.voucher_code}, status={voucher.status}")
+            
+            # CRITICAL CHECK: Ensure voucher_code is set before returning
+            if not voucher.voucher_code:
+                logger.error(f"[CRITICAL] voucher_code is NULL after create! ID={voucher.id}")
+                logger.info(f"Setting voucher_code manually to {voucher_code}...")
+                
+                # Update the database directly to ensure it's set
+                self.db.execute(text("UPDATE vouchers SET voucher_code = :code WHERE id = :id"), 
+                               {"code": voucher_code, "id": voucher.id})
+                self.db.commit()
+                self.db.refresh(voucher)
+                
+                logger.info(f"After manual update: voucher_code={voucher.voucher_code}")
+            
+            logger.info(f"Created {voucher_type} voucher {voucher.voucher_code} (#{voucher.voucher_number}, ID:{voucher.id}) for {value_cents/100:.2f}€")
             return voucher
+            
         except Exception as e:
             self.db.rollback()
-            logger.error(f"Error creating voucher: {str(e)}", exc_info=True)
+            logger.error(f"[ERROR] Error creating voucher: {str(e)}", exc_info=True)
             raise
 
     def get_by_id(self, voucher_id: int) -> Voucher:

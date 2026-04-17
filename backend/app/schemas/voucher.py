@@ -66,17 +66,29 @@ class VoucherResponse(BaseModel):
     @classmethod
     def fallback_voucher_code(cls, v, info):
         """Fallback: generate voucher_code from ID if not in DB"""
+        import logging
+        logger = logging.getLogger(__name__)
+        
+        logger.debug(f"[Validator] voucher_code value: {v}, type: {type(v)}")
+        logger.debug(f"[Validator] info.data: {info.data if hasattr(info, 'data') else 'NO DATA'}")
+        
         # If already set, use it
-        if v is not None:
+        if v is not None and str(v).strip():
+            logger.debug(f"[Validator] Using provided voucher_code: {v}")
             return v
         
         # Fallback: generate from ID if available
         if hasattr(info, 'data') and isinstance(info.data, dict):
             id_val = info.data.get('id')
             if id_val:
-                return f"V-2026-{str(id_val).zfill(3)}"
+                code = f"V-2026-{str(id_val).zfill(3)}"
+                logger.debug(f"[Validator] Generated code from ID {id_val}: {code}")
+                return code
+            else:
+                logger.debug(f"[Validator] No ID in data: {info.data.keys() if info.data else 'empty'}")
         
-        # Return None, frontend will handle the fallback
+        # Last resort: return None and let frontend handle it
+        logger.debug(f"[Validator] Returning None (frontend fallback)")
         return None
 
 
