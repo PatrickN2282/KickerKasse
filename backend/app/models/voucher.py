@@ -63,5 +63,9 @@ class Voucher(BaseModel):
     redeemed_by_user = relationship("User", foreign_keys=[redeemed_by_user_id])
     redeemed_in_transaction = relationship("Transaction")
 
+    @property
+    def created_by_username(self):
+        return self.created_by_user.username if self.created_by_user else None
+
     def __repr__(self):
         return f"<Voucher #{self.voucher_number} {self.voucher_type} {self.value_cents/100:.2f}€ [{self.status}]>"

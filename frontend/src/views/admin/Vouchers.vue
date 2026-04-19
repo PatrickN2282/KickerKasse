@@ -25,6 +25,7 @@
         <div class="form-card">
           <h3>🎁 Geschenk-Gutschein</h3>
           <p class="form-description">Kostenlos erstellt, wird bei Einlösung als Verlust verbucht</p>
+          <p class="form-help">Gutscheinwert eintragen, Passwort des angemeldeten Benutzers eintragen, Bestätigen</p>
 
           <form @submit.prevent="createGiftVoucher">
             <div class="form-group">
@@ -49,7 +50,17 @@
               </select>
             </div>
 
-            <button type="submit" class="btn-primary" :disabled="creatingGift">
+            <div class="form-group">
+              <label>Passwort</label>
+              <input
+                type="password"
+                v-model="giftForm.authPassword"
+                placeholder="Passwort des angemeldeten Benutzers"
+                required
+              />
+            </div>
+
+            <button type="submit" class="btn-primary" :disabled="creatingGift || !giftForm.authPassword">
               {{ creatingGift ? '⏳ Wird erstellt...' : '✓ Erstellen' }}
             </button>
           </form>
@@ -67,8 +78,19 @@
         <div class="form-card">
           <h3>💳 Guthaben-Gutschein</h3>
           <p class="form-description">Sofort bezahlt, wird später - eingelöst</p>
+          <p class="form-help">Gutscheinwert eintragen, Passwort des angemeldeten Benutzers eintragen, Bestätigen</p>
 
           <form @submit.prevent="createPrepaidVoucher">
+            <div class="form-group">
+              <label>Passwort</label>
+              <input
+                type="password"
+                v-model="prepaidForm.authPassword"
+                placeholder="Passwort des angemeldeten Benutzers"
+                required
+              />
+            </div>
+
             <div class="form-group">
               <label>Wert (€)</label>
               <input
@@ -83,7 +105,7 @@
               />
             </div>
 
-            <button type="submit" class="btn-primary" :disabled="creatingPrepaid">
+            <button type="submit" class="btn-primary" :disabled="creatingPrepaid || !prepaidForm.authPassword">
               {{ creatingPrepaid ? '⏳ Wird erstellt...' : '✓ Erstellen' }}
             </button>
           </form>
@@ -144,10 +166,11 @@
               <th>Nummer</th>
               <th>Typ</th>
               <th>Wert</th>
-              <th>Status</th>
-              <th>Grund</th>
-              <th>Erstellt</th>
-              <th>Eingelöst</th>
+                <th>Status</th>
+                <th>Grund</th>
+                <th>Erstellt von</th>
+                <th>Erstellt</th>
+                <th>Eingelöst</th>
               <th>Aktionen</th>
             </tr>
           </thead>
@@ -170,9 +193,10 @@
                   {{ getStatusLabel(voucher.status) }}
                 </span>
               </td>
-              <td>{{ formatReason(voucher.reason) }}</td>
-              <td class="date">{{ formatDate(voucher.created_at) }}</td>
-              <td class="date">{{ voucher.redeemed_at ? formatDate(voucher.redeemed_at) : '-' }}</td>
+               <td>{{ formatReason(voucher.reason) }}</td>
+               <td>{{ formatVoucherCreator(voucher) }}</td>
+               <td class="date">{{ formatDate(voucher.created_at) }}</td>
+               <td class="date">{{ voucher.redeemed_at ? formatDate(voucher.redeemed_at) : '-' }}</td>
               <td class="actions">
                 <button
                   v-if="voucher.status === 'CREATED'"
@@ -257,11 +281,13 @@ const giftForm = ref({
   valueCents: 1000, // 10€ default
   reason: 'PROMOTION',
   valueDisplay: '10.00',
+  authPassword: '',
 })
 
 const prepaidForm = ref({
   valueCents: 2000, // 20€ default
   valueDisplay: '20.00',
+  authPassword: '',
 })
 
 const reasonLabels = {
@@ -366,6 +392,7 @@ const createGiftVoucher = async () => {
     const response = await apiService.post('/admin/vouchers/gift/', {
       value_cents: giftForm.value.valueCents,
       reason: giftForm.value.reason,
+      auth_password: giftForm.value.authPassword,
     })
     const payload = response.data
     console.log('[Vouchers] Create GIFT response received:')
@@ -376,7 +403,7 @@ const createGiftVoucher = async () => {
     console.log('[Vouchers]   response.status:', payload?.status)
     
     createdGiftVoucher.value = payload
-    giftForm.value = { valueCents: 1000, reason: 'PROMOTION', valueDisplay: '10.00' }
+    giftForm.value = { valueCents: 1000, reason: 'PROMOTION', valueDisplay: '10.00', authPassword: '' }
     // Always refresh list after creating a voucher
     console.log('[Vouchers] Refreshing voucher list...')
     await loadVouchers()
@@ -398,11 +425,12 @@ const createPrepaidVoucher = async () => {
   try {
     const response = await apiService.post('/admin/vouchers/prepaid/', {
       value_cents: prepaidForm.value.valueCents,
+      auth_password: prepaidForm.value.authPassword,
     })
     const payload = response.data
     console.log('[Vouchers] Create PREPAID response:', JSON.stringify(payload, null, 2))
     createdPrepaidVoucher.value = payload
-    prepaidForm.value = { valueCents: 2000, valueDisplay: '20.00' }
+    prepaidForm.value = { valueCents: 2000, valueDisplay: '20.00', authPassword: '' }
     // Always refresh list after creating a voucher
     await loadVouchers()
   } catch (error) {
@@ -498,6 +526,10 @@ const getStatusLabel = (status) => {
   return '✅ Erstellt'
 }
 
+const formatVoucherCreator = (voucher) => {
+  return voucher.created_by_username || `#${voucher.created_by_user_id}`
+}
+
 const copyToClipboard = (text) => {
   navigator.clipboard.writeText(text)
   // Could add a toast notification here
@@ -550,13 +582,14 @@ const saveVoucherEdit = async () => {
 const exportAsCSV = () => {
   if (vouchers.value.length === 0) return
 
-  const headers = ['Nummer', 'Typ', 'Wert (€)', 'Status', 'Grund', 'Erstellt', 'Eingelöst']
+  const headers = ['Nummer', 'Typ', 'Wert (€)', 'Status', 'Grund', 'Erstellt von', 'Erstellt', 'Eingelöst']
   const rows = vouchers.value.map((v) => [
     getVoucherCode(v),
     v.voucher_type,
     (v.value_cents / 100).toFixed(2),
     v.status,
     formatReason(v.reason),
+    formatVoucherCreator(v),
     formatDate(v.created_at),
     v.redeemed_at ? formatDate(v.redeemed_at) : '',
   ])
@@ -669,6 +702,12 @@ onMounted(() => {
     color: #666;
     font-size: 0.85rem;
     margin-bottom: 1.5rem;
+  }
+
+  .form-help {
+    color: #555;
+    font-size: 0.85rem;
+    margin-bottom: 1rem;
   }
 }
 

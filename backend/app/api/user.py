@@ -1,5 +1,6 @@
 from fastapi import APIRouter, HTTPException, Depends, Request, status
 from sqlalchemy.orm import Session
+from sqlalchemy.exc import IntegrityError
 
 from app.core import get_db
 from app.core.auth import require_roles
@@ -36,6 +37,12 @@ async def create_user(
             user_data.password,
             user_data.role,
         )
+    except IntegrityError as exc:
+        db.rollback()
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Benutzername oder E-Mail existiert bereits",
+        ) from exc
     except ValueError as exc:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(exc)) from exc
 
@@ -63,10 +70,19 @@ async def update_user(
     db: Session = Depends(get_db),
 ):
     require_roles(request, db, UserRole.ADMIN)
-    user = UserService(db).update_user(user_id, **user_data.model_dump(exclude_unset=True))
-    if not user:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="User not found")
-    return user
+    try:
+        user = UserService(db).update_user(user_id, **user_data.model_dump(exclude_unset=True))
+        if not user:
+            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="User not found")
+        return user
+    except IntegrityError as exc:
+        db.rollback()
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Benutzername oder E-Mail existiert bereits",
+        ) from exc
+    except ValueError as exc:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(exc)) from exc
 
 
 @router.delete("/{user_id}", status_code=status.HTTP_204_NO_CONTENT)

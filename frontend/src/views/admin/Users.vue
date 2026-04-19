@@ -12,8 +12,8 @@
         <input v-model="formData.username" id="username" type="text" class="form-input" required />
       </div>
       <div class="form-group">
-        <label for="email">Email*:</label>
-        <input v-model="formData.email" id="email" type="email" class="form-input" required />
+        <label for="email">Email:</label>
+        <input v-model="formData.email" id="email" type="email" class="form-input" />
       </div>
       <div class="form-group">
         <label for="password">Passwort*:</label>
@@ -43,7 +43,7 @@
         <tbody>
           <tr v-for="user in users" :key="user.id">
             <td>{{ user.username }}</td>
-            <td>{{ user.email }}</td>
+            <td>{{ user.email || '-' }}</td>
             <td>{{ roleLabel(user.role) }}</td>
             <td>
               <button @click="deleteUser(user.id)" class="btn-small btn-danger">
@@ -81,7 +81,10 @@ const roleLabel = (role) => ({
 
 const handleSaveUser = async () => {
   try {
-    await apiService.post('/users', formData)
+    await apiService.post('/users', {
+      ...formData,
+      email: formData.email?.trim() || null,
+    })
     notificationStore.success('Benutzer erstellt')
     formData.username = ''
     formData.email = ''

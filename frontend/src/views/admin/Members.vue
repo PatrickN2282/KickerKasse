@@ -23,6 +23,9 @@
 
       <div v-if="editingId" class="form-group recharge-section">
         <label for="recharge">Guthaben aufladen:</label>
+        <small class="form-help">
+          Aufzuladenden Wert eintragen, Passwort des angemeldeten Benutzers eintragen, Bestätigen
+        </small>
         <div class="recharge-input-group">
           <input
             v-model.number="rechargeAmount"
@@ -69,6 +72,7 @@
         <thead>
           <tr>
             <th style="width: 60px;">Foto</th>
+            <th>Nr.</th>
             <th>Name</th>
             <th>Email</th>
             <th>Telefon</th>
@@ -82,6 +86,7 @@
               <img v-if="member.photo_path" :src="`/api/members/${member.id}/photo`" :alt="member.name" class="member-thumb" />
               <span v-else class="no-photo">-</span>
             </td>
+            <td>{{ member.member_number }}</td>
             <td>{{ member.name }}</td>
             <td>{{ member.email || '-' }}</td>
             <td>{{ member.phone || '-' }}</td>
@@ -306,6 +311,12 @@ onMounted(async () => {
       border-color: var(--app-highlight-color);
     }
   }
+}
+
+.form-help {
+  display: block;
+  margin-bottom: 0.5rem;
+  color: #666;
 }
 
 .recharge-input-group {

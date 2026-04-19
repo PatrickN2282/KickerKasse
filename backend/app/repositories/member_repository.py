@@ -1,5 +1,9 @@
+from sqlalchemy import func
 from sqlalchemy.orm import Session
+from sqlalchemy.exc import IntegrityError
 from app.models import Member
+
+MAX_MEMBER_NUMBER_RETRIES = 3
 
 
 class MemberRepository:
@@ -8,19 +12,51 @@ class MemberRepository:
     def __init__(self, db: Session):
         self.db = db
     
+    @staticmethod
+    def _normalize_email(email: str | None) -> str | None:
+        if email is None:
+            return None
+        email = email.strip()
+        return email or None
+
+    @staticmethod
+    def _is_member_number_conflict(error: IntegrityError) -> bool:
+        constraint_name = getattr(getattr(error.orig, "diag", None), "constraint_name", None)
+        if constraint_name:
+            return "member_number" in constraint_name
+        return "member_number" in str(error)
+
+    def get_next_member_number(self) -> int:
+        current_max = self.db.query(func.max(Member.member_number)).scalar()
+        return (current_max or 0) + 1
+
     def create(self, name: str, email: str = None, phone: str = None, notes: str = None) -> Member:
         """Create a new member"""
-        member = Member(
-            name=name,
-            email=email,
-            phone=phone,
-            notes=notes,
-            balance_cents=0,
-        )
-        self.db.add(member)
-        self.db.commit()
-        self.db.refresh(member)
-        return member
+        normalized_email = self._normalize_email(email)
+        last_exception = None
+
+        for _ in range(MAX_MEMBER_NUMBER_RETRIES):
+            member = Member(
+                member_number=self.get_next_member_number(),
+                name=name,
+                email=normalized_email,
+                phone=phone,
+                notes=notes,
+                balance_cents=0,
+            )
+            self.db.add(member)
+
+            try:
+                self.db.commit()
+                self.db.refresh(member)
+                return member
+            except IntegrityError as exc:
+                self.db.rollback()
+                if not self._is_member_number_conflict(exc):
+                    raise
+                last_exception = exc
+
+        raise last_exception
     
     def get_by_id(self, member_id: int) -> Member | None:
         """Get member by ID"""
@@ -28,7 +64,7 @@ class MemberRepository:
     
     def get_all(self) -> list[Member]:
         """Get all members"""
-        return self.db.query(Member).order_by(Member.name).all()
+        return self.db.query(Member).order_by(Member.member_number, Member.name).all()
     
     def update(self, member_id: int, **kwargs) -> Member | None:
         """Update member"""
@@ -38,6 +74,8 @@ class MemberRepository:
         
         for key, value in kwargs.items():
             if hasattr(member, key) and key != "id":
+                if key == "email":
+                    value = self._normalize_email(value)
                 setattr(member, key, value)
         
         self.db.commit()

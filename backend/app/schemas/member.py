@@ -1,4 +1,4 @@
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, field_validator
 from datetime import datetime
 from typing import Optional
 
@@ -8,6 +8,16 @@ class MemberBase(BaseModel):
     email: Optional[str] = None
     phone: Optional[str] = None
     notes: Optional[str] = None
+
+    @field_validator("email", mode="before")
+    @classmethod
+    def normalize_email(cls, value):
+        if value is None:
+            return None
+        if isinstance(value, str):
+            value = value.strip()
+            return value or None
+        return value
 
 
 class MemberCreate(MemberBase):
@@ -24,6 +34,7 @@ class MemberUpdate(BaseModel):
 
 class MemberResponse(MemberBase):
     id: int
+    member_number: int
     balance_cents: int
     photo_path: Optional[str] = None  # Path to member photo file
     created_at: datetime

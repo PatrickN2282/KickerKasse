@@ -261,6 +261,101 @@ class DatabaseMigrator:
                             conn.rollback()
                         except:
                             pass
+
+            if 'users' in inspector.get_table_names():
+                users_columns = {col['name']: col for col in inspector.get_columns('users')}
+                if 'email' in users_columns:
+                    try:
+                        conn.execute(text(
+                            "UPDATE users SET email = NULL WHERE email IS NOT NULL AND TRIM(email) = ''"
+                        ))
+                        if not users_columns['email'].get('nullable', True):
+                            conn.execute(text("ALTER TABLE users ALTER COLUMN email DROP NOT NULL"))
+                        conn.commit()
+                    except Exception as e:
+                        logger.warning(f"Could not update users.email nullability: {str(e)}")
+                        try:
+                            conn.rollback()
+                        except:
+                            pass
+
+            if 'members' in inspector.get_table_names():
+                members_columns = {col['name']: col for col in inspector.get_columns('members')}
+
+                try:
+                    conn.execute(text(
+                        "UPDATE members SET email = NULL WHERE email IS NOT NULL AND TRIM(email) = ''"
+                    ))
+                    conn.commit()
+                except Exception as e:
+                    logger.warning(f"Could not normalize member emails: {str(e)}")
+                    try:
+                        conn.rollback()
+                    except:
+                        pass
+
+                if 'member_number' not in members_columns:
+                    logger.info("Adding member_number column to members table...")
+                    try:
+                        conn.execute(text("ALTER TABLE members ADD COLUMN member_number INTEGER"))
+                        conn.execute(text("""
+                            WITH missing_members AS (
+                                SELECT id, ROW_NUMBER() OVER (ORDER BY created_at, id) AS row_number
+                                FROM members
+                                WHERE member_number IS NULL
+                            ),
+                            current_max AS (
+                                SELECT COALESCE(MAX(member_number), 0) AS max_member_number
+                                FROM members
+                            )
+                            UPDATE members
+                            SET member_number = current_max.max_member_number + missing_members.row_number
+                            FROM missing_members, current_max
+                            WHERE members.id = missing_members.id
+                              AND members.member_number IS NULL
+                        """))
+                        conn.execute(text("ALTER TABLE members ALTER COLUMN member_number SET NOT NULL"))
+                        conn.execute(text(
+                            "CREATE UNIQUE INDEX IF NOT EXISTS ix_members_member_number ON members (member_number)"
+                        ))
+                        conn.commit()
+                        logger.info("✓ Added member_number column to members")
+                    except Exception as e:
+                        logger.warning(f"Could not add member_number column: {str(e)}")
+                        try:
+                            conn.rollback()
+                        except:
+                            pass
+                else:
+                    try:
+                        conn.execute(text("""
+                            WITH missing_members AS (
+                                SELECT id, ROW_NUMBER() OVER (ORDER BY created_at, id) AS row_number
+                                FROM members
+                                WHERE member_number IS NULL
+                            ),
+                            current_max AS (
+                                SELECT COALESCE(MAX(member_number), 0) AS max_member_number
+                                FROM members
+                                WHERE member_number IS NOT NULL
+                            )
+                            UPDATE members
+                            SET member_number = current_max.max_member_number + missing_members.row_number
+                            FROM missing_members, current_max
+                            WHERE members.id = missing_members.id
+                              AND members.member_number IS NULL
+                        """))
+                        conn.execute(text("ALTER TABLE members ALTER COLUMN member_number SET NOT NULL"))
+                        conn.execute(text(
+                            "CREATE UNIQUE INDEX IF NOT EXISTS ix_members_member_number ON members (member_number)"
+                        ))
+                        conn.commit()
+                    except Exception as e:
+                        logger.warning(f"Could not backfill member_number values: {str(e)}")
+                        try:
+                            conn.rollback()
+                        except:
+                            pass
              
             # Tax rate column
             if 'products' in inspector.get_table_names():

@@ -6,6 +6,7 @@ from .base import BaseModel
 class Member(BaseModel):
     __tablename__ = "members"
 
+    member_number = Column(Integer, unique=True, nullable=False, index=True)
     name = Column(String(120), nullable=False)
     email = Column(String(120), unique=True, nullable=True, index=True)
     phone = Column(String(20), nullable=True)
@@ -16,4 +17,4 @@ class Member(BaseModel):
     updated_at = Column(DateTime, default=func.now(), onupdate=func.now(), nullable=False)
 
     def __repr__(self):
-        return f"<Member {self.name}>"
+        return f"<Member #{self.member_number} {self.name}>"
