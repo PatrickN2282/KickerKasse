@@ -300,8 +300,12 @@ class DatabaseMigrator:
                         conn.execute(text("ALTER TABLE members ADD COLUMN member_number INTEGER"))
                         conn.execute(text("""
                             UPDATE members
-                            SET member_number = id
-                            WHERE member_number IS NULL
+                            SET member_number = numbered.member_number
+                            FROM (
+                                SELECT id, ROW_NUMBER() OVER (ORDER BY created_at, id) AS member_number
+                                FROM members
+                            ) AS numbered
+                            WHERE members.id = numbered.id
                         """))
                         conn.execute(text("ALTER TABLE members ALTER COLUMN member_number SET NOT NULL"))
                         conn.execute(text(
@@ -319,8 +323,13 @@ class DatabaseMigrator:
                     try:
                         conn.execute(text("""
                             UPDATE members
-                            SET member_number = id
-                            WHERE member_number IS NULL
+                            SET member_number = numbered.member_number
+                            FROM (
+                                SELECT id, ROW_NUMBER() OVER (ORDER BY created_at, id) AS member_number
+                                FROM members
+                            ) AS numbered
+                            WHERE members.id = numbered.id
+                              AND members.member_number IS NULL
                         """))
                         conn.execute(text("ALTER TABLE members ALTER COLUMN member_number SET NOT NULL"))
                         conn.execute(text(

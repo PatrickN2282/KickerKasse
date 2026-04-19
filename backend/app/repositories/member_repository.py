@@ -17,9 +17,7 @@ class MemberRepository:
         return email or None
 
     def get_next_member_number(self) -> int:
-        current_max = self.db.query(
-            func.max(func.coalesce(Member.member_number, Member.id))
-        ).scalar()
+        current_max = self.db.query(func.max(Member.member_number)).scalar()
         return (current_max or 0) + 1
 
     def create(self, name: str, email: str = None, phone: str = None, notes: str = None) -> Member:
