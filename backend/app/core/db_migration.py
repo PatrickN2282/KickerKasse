@@ -299,13 +299,20 @@ class DatabaseMigrator:
                     try:
                         conn.execute(text("ALTER TABLE members ADD COLUMN member_number INTEGER"))
                         conn.execute(text("""
-                            UPDATE members
-                            SET member_number = numbered.member_number
-                            FROM (
-                                SELECT id, ROW_NUMBER() OVER (ORDER BY created_at, id) AS member_number
+                            WITH missing_members AS (
+                                SELECT id, ROW_NUMBER() OVER (ORDER BY created_at, id) AS row_number
                                 FROM members
-                            ) AS numbered
-                            WHERE members.id = numbered.id
+                                WHERE member_number IS NULL
+                            ),
+                            current_max AS (
+                                SELECT COALESCE(MAX(member_number), 0) AS max_member_number
+                                FROM members
+                            )
+                            UPDATE members
+                            SET member_number = current_max.max_member_number + missing_members.row_number
+                            FROM missing_members, current_max
+                            WHERE members.id = missing_members.id
+                              AND members.member_number IS NULL
                         """))
                         conn.execute(text("ALTER TABLE members ALTER COLUMN member_number SET NOT NULL"))
                         conn.execute(text(
@@ -322,13 +329,20 @@ class DatabaseMigrator:
                 else:
                     try:
                         conn.execute(text("""
-                            UPDATE members
-                            SET member_number = numbered.member_number
-                            FROM (
-                                SELECT id, ROW_NUMBER() OVER (ORDER BY created_at, id) AS member_number
+                            WITH missing_members AS (
+                                SELECT id, ROW_NUMBER() OVER (ORDER BY created_at, id) AS row_number
                                 FROM members
-                            ) AS numbered
-                            WHERE members.id = numbered.id
+                                WHERE member_number IS NULL
+                            ),
+                            current_max AS (
+                                SELECT COALESCE(MAX(member_number), 0) AS max_member_number
+                                FROM members
+                                WHERE member_number IS NOT NULL
+                            )
+                            UPDATE members
+                            SET member_number = current_max.max_member_number + missing_members.row_number
+                            FROM missing_members, current_max
+                            WHERE members.id = missing_members.id
                               AND members.member_number IS NULL
                         """))
                         conn.execute(text("ALTER TABLE members ALTER COLUMN member_number SET NOT NULL"))

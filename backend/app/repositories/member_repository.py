@@ -1,5 +1,6 @@
 from sqlalchemy import func
 from sqlalchemy.orm import Session
+from sqlalchemy.exc import IntegrityError
 from app.models import Member
 
 
@@ -22,18 +23,31 @@ class MemberRepository:
 
     def create(self, name: str, email: str = None, phone: str = None, notes: str = None) -> Member:
         """Create a new member"""
-        member = Member(
-            member_number=self.get_next_member_number(),
-            name=name,
-            email=self._normalize_email(email),
-            phone=phone,
-            notes=notes,
-            balance_cents=0,
-        )
-        self.db.add(member)
-        self.db.commit()
-        self.db.refresh(member)
-        return member
+        normalized_email = self._normalize_email(email)
+        last_exception = None
+
+        for _ in range(3):
+            member = Member(
+                member_number=self.get_next_member_number(),
+                name=name,
+                email=normalized_email,
+                phone=phone,
+                notes=notes,
+                balance_cents=0,
+            )
+            self.db.add(member)
+
+            try:
+                self.db.commit()
+                self.db.refresh(member)
+                return member
+            except IntegrityError as exc:
+                self.db.rollback()
+                if "member_number" not in str(exc):
+                    raise
+                last_exception = exc
+
+        raise last_exception
     
     def get_by_id(self, member_id: int) -> Member | None:
         """Get member by ID"""
