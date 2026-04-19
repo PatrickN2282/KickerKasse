@@ -1,5 +1,6 @@
 """Repository for Voucher operations"""
 from sqlalchemy.orm import Session
+from sqlalchemy.orm import joinedload
 from sqlalchemy import desc, func, text
 from datetime import datetime, date
 from app.models import Voucher, VoucherType, VoucherStatus
@@ -89,38 +90,53 @@ class VoucherRepository:
 
     def get_by_id(self, voucher_id: int) -> Voucher:
         """Get voucher by ID"""
-        return self.db.query(Voucher).filter(Voucher.id == voucher_id).first()
+        return (
+            self.db.query(Voucher)
+            .options(joinedload(Voucher.created_by_user))
+            .filter(Voucher.id == voucher_id)
+            .first()
+        )
 
     def get_by_number(self, voucher_number) -> Voucher:
         """Get voucher by number or code (handles both V-2026-001 and numeric formats)"""
         if isinstance(voucher_number, str) and voucher_number.startswith('V-'):
             # It's a voucher code
-            return self.db.query(Voucher).filter(Voucher.voucher_code == voucher_number).first()
+            return (
+                self.db.query(Voucher)
+                .options(joinedload(Voucher.created_by_user))
+                .filter(Voucher.voucher_code == voucher_number)
+                .first()
+            )
         else:
             # Try as numeric
             try:
                 num = int(voucher_number)
-                return self.db.query(Voucher).filter(Voucher.voucher_number == num).first()
+                return (
+                    self.db.query(Voucher)
+                    .options(joinedload(Voucher.created_by_user))
+                    .filter(Voucher.voucher_number == num)
+                    .first()
+                )
             except (ValueError, TypeError):
                 return None
 
     def get_all(self, limit: int = 100, offset: int = 0) -> tuple:
         """Get all vouchers, returns (vouchers, total)"""
-        query = self.db.query(Voucher)
+        query = self.db.query(Voucher).options(joinedload(Voucher.created_by_user))
         total = query.count()
         vouchers = query.order_by(desc(Voucher.voucher_number)).limit(limit).offset(offset).all()
         return vouchers, total
 
     def get_all_by_status(self, status: VoucherStatus, skip: int = 0, limit: int = 100) -> tuple:
         """Get all vouchers by status, returns (vouchers, total)"""
-        query = self.db.query(Voucher).filter(Voucher.status == status)
+        query = self.db.query(Voucher).options(joinedload(Voucher.created_by_user)).filter(Voucher.status == status)
         total = query.count()
         vouchers = query.order_by(desc(Voucher.voucher_number)).offset(skip).limit(limit).all()
         return vouchers, total
 
     def get_all_by_type(self, voucher_type: VoucherType, skip: int = 0, limit: int = 100) -> tuple:
         """Get all vouchers by type, returns (vouchers, total)"""
-        query = self.db.query(Voucher).filter(Voucher.voucher_type == voucher_type)
+        query = self.db.query(Voucher).options(joinedload(Voucher.created_by_user)).filter(Voucher.voucher_type == voucher_type)
         total = query.count()
         vouchers = query.order_by(desc(Voucher.voucher_number)).offset(skip).limit(limit).all()
         return vouchers, total
@@ -129,7 +145,11 @@ class VoucherRepository:
         self, voucher_type: VoucherType, status: VoucherStatus, skip: int = 0, limit: int = 100
     ) -> tuple:
         """Get vouchers by type and status, returns (vouchers, total)"""
-        query = self.db.query(Voucher).filter(Voucher.voucher_type == voucher_type, Voucher.status == status)
+        query = (
+            self.db.query(Voucher)
+            .options(joinedload(Voucher.created_by_user))
+            .filter(Voucher.voucher_type == voucher_type, Voucher.status == status)
+        )
         total = query.count()
         vouchers = query.order_by(desc(Voucher.voucher_number)).offset(skip).limit(limit).all()
         return vouchers, total

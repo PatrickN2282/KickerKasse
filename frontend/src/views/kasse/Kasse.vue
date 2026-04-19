@@ -86,13 +86,6 @@
     ></div>
 
     <div class="kasse-bon" :style="bonPanelStyle">
-      <!-- Current receipt number -->
-      <div v-if="currentReceiptNumber" class="bon-header">
-        <div class="receipt-number-current">
-          <strong>Belegnr.: {{ currentReceiptNumber }}</strong>
-        </div>
-      </div>
-
       <div class="bon-content">
         <!-- Top section: Items -->
         <div class="bon-items">
@@ -152,10 +145,6 @@
           </button>
         </div>
 
-        <div v-if="lastTransaction && lastTransaction.receipt_number" class="receipt-number">
-          <strong>Belegnummer: {{ lastTransaction.receipt_number }}</strong>
-        </div>
-
         <!-- Bottom section: Member selection -->
         <div class="member-selection-bottom">
           <div v-if="!cartStore.selectedMemberId" class="member-selector">
@@ -197,7 +186,7 @@
           <div class="payment-section">
             <div class="payment-buttons">
               <button
-                @click="handlePaymentAndCheckout('CASH')"
+                @click="openPaymentConfirmation('CASH')"
                 :disabled="cartStore.items.length === 0"
                 :style="getPaymentButtonStyle('CASH')"
                 class="payment-btn"
@@ -206,7 +195,7 @@
               </button>
 
               <button
-                @click="handlePaymentAndCheckout('BALANCE')"
+                @click="openPaymentConfirmation('BALANCE')"
                 :disabled="!cartStore.selectedMemberId || cartStore.items.length === 0 || selectedMemberBalance < cartStore.total"
                 :style="getPaymentButtonStyle('BALANCE')"
                 class="payment-btn"
@@ -235,15 +224,15 @@
 
     <!-- Member Selection Modal -->
     <div v-if="showMemberModal" class="modal">
-      <div class="modal-content">
+      <div class="modal-content member-modal">
         <h3>Mitglied auswählen</h3>
         <input
           v-model="memberSearch"
           type="text"
-          placeholder="Nach Name suchen..."
+          placeholder="Nach Name oder Nummer suchen..."
           class="form-input"
         />
-        <div class="member-list">
+        <div v-if="filteredMembers.length > 0" class="member-grid">
           <button
             v-for="member in filteredMembers"
             :key="member.id"
@@ -253,15 +242,61 @@
             <div v-if="member.photo_path" class="member-photo">
               <img :src="`/api/members/${member.id}/photo`" :alt="member.name" />
             </div>
+            <div v-else class="member-photo member-photo-placeholder">👤</div>
             <div class="member-info-box">
+              <div class="member-number-badge">Nr. {{ member.member_number }}</div>
               <div class="member-name-modal">{{ member.name }}</div>
               <div class="balance">{{ formatBalance(member.balance_cents) }}</div>
             </div>
           </button>
         </div>
-        <button @click="showMemberModal = false" class="btn btn-danger">
-          Abbrechen
-        </button>
+        <div v-else class="empty-bon">Keine Mitglieder gefunden</div>
+        <div class="modal-actions">
+          <button @click="showMemberModal = false" class="btn btn-danger">
+            Abbrechen
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <div v-if="showPaymentConfirmModal" class="modal">
+      <div class="modal-content payment-modal">
+        <h3>Zahlung bestätigen</h3>
+        <div class="payment-method-chip">
+          {{ getPaymentMethodLabel(pendingPaymentMethod) }}
+        </div>
+        <div class="payment-summary-list">
+          <div v-for="item in cartStore.items" :key="item.product_id" class="payment-summary-item">
+            <span>{{ item.quantity }}× {{ item.product_name }}</span>
+            <strong>{{ formatPrice(item.total_price_cents) }}</strong>
+          </div>
+        </div>
+        <div class="payment-summary-totals">
+          <div class="total-row">
+            <span>Zwischensumme</span>
+            <strong>{{ formatPrice(cartSubtotal) }}</strong>
+          </div>
+          <div v-if="hasAppliedVoucher" class="total-row">
+            <span>Gutschein</span>
+            <strong>-{{ formatPrice(voucherAppliedAmount) }}</strong>
+          </div>
+          <div v-if="pendingPaymentMethod === 'BALANCE'" class="total-row">
+            <span>Mitglied</span>
+            <strong>{{ selectedMemberName }}</strong>
+          </div>
+          <div class="total-row grand-total">
+            <span>Zu zahlen</span>
+            <strong>{{ formatPrice(cartStore.getTotalAmount()) }}</strong>
+          </div>
+        </div>
+        <div class="modal-actions">
+          <button @click="confirmPayment" class="btn btn-info" :disabled="processingPayment">
+            {{ processingPayment ? '⏳ Wird verarbeitet...' : 'Bestätigen' }}
+          </button>
+          <button @click="closePaymentConfirmation" class="btn btn-danger" :disabled="processingPayment">
+            Abbrechen
+          </button>
+        </div>
       </div>
     </div>
 
@@ -406,9 +441,10 @@ const notificationStore = useNotificationStore()
 const authStore = useAuthStore()
 
 const showMemberModal = ref(false)
+const showPaymentConfirmModal = ref(false)
 const memberSearch = ref('')
-const lastTransaction = ref(null)
-const currentReceiptNumber = ref(null)
+const pendingPaymentMethod = ref(null)
+const processingPayment = ref(false)
 const expandedCategories = ref([])
 const categories = ref([])
 const bonWidth = ref(420)
@@ -426,16 +462,6 @@ const redeemingVoucher = ref(false)
 const voucherReasonLabels = {
   DYP_SIEGER: 'Dyp-Sieger',
   PROMOTION: 'Promotion',
-}
-
-const loadNextReceiptNumber = async () => {
-  try {
-    const response = await apiService.get('/transactions/next-receipt-number')
-    currentReceiptNumber.value = response.data.receipt_number
-    console.log('[Kasse] Next receipt number loaded:', currentReceiptNumber.value)
-  } catch (err) {
-    console.error('[Kasse] Failed to load receipt number:', err)
-  }
 }
 
 const loadCategories = async () => {
@@ -479,10 +505,6 @@ const getProductsByCategory = (categoryId) => {
   )
 }
 
-onMounted(() => {
-  loadNextReceiptNumber()
-})
-
 const activeCategories = computed(() => {
   return categories.value.filter(c => c.is_active_in_kasse).sort((a, b) => a.display_order - b.display_order)
 })
@@ -525,9 +547,16 @@ const bonPanelStyle = computed(() => ({
 }))
 
 const filteredMembers = computed(() => {
-  return memberStore.members.filter(m =>
-    m.name.toLowerCase().includes(memberSearch.value.toLowerCase())
-  )
+  const search = memberSearch.value.trim().toLowerCase()
+
+  if (!search) {
+    return memberStore.members
+  }
+
+  return memberStore.members.filter((member) => {
+    return member.name.toLowerCase().includes(search)
+      || String(member.member_number || '').includes(search)
+  })
 })
 
 const selectProduct = (product) => {
@@ -538,29 +567,68 @@ const selectCustomer = () => {
   showMemberModal.value = true
 }
 
-const handlePaymentAndCheckout = async (method) => {
-  // Validate balance payment
+const validatePaymentMethod = (method) => {
   if (method === 'BALANCE') {
     if (!cartStore.selectedMemberId) {
       notificationStore.error('Bitte wählen Sie ein Mitglied aus')
-      return
+      return false
     }
     
     if (selectedMemberBalance.value <= 0) {
       notificationStore.error('Das Mitglied hat kein Guthaben')
-      return
+      return false
     }
     
     if (selectedMemberBalance.value < cartStore.total) {
       notificationStore.error(
         `Unzureichendes Guthaben. Verfügbar: ${formatBalance(selectedMemberBalance.value)}, benötigt: ${formatBalance(cartStore.total)}`
       )
-      return
+      return false
     }
   }
-  
+
+  return true
+}
+
+const openPaymentConfirmation = (method) => {
+  if (!validatePaymentMethod(method)) {
+    return
+  }
+
+  pendingPaymentMethod.value = method
+  showPaymentConfirmModal.value = true
+}
+
+const closePaymentConfirmation = () => {
+  if (processingPayment.value) {
+    return
+  }
+
+  showPaymentConfirmModal.value = false
+  pendingPaymentMethod.value = null
+}
+
+const confirmPayment = async () => {
+  if (!pendingPaymentMethod.value) {
+    return
+  }
+
+  processingPayment.value = true
+  const success = await handlePaymentAndCheckout(pendingPaymentMethod.value)
+  processingPayment.value = false
+
+  if (success) {
+    closePaymentConfirmation()
+  }
+}
+
+const handlePaymentAndCheckout = async (method) => {
+  if (!validatePaymentMethod(method)) {
+    return false
+  }
+
   cartStore.paymentMethod = method
-  await handleCheckout()
+  return handleCheckout()
 }
 
 const selectMember = (member) => {
@@ -706,23 +774,29 @@ const formatVoucherReason = (reason) => {
   return voucherReasonLabels[reason] || reason
 }
 
+const getPaymentMethodLabel = (method) => {
+  if (method === 'BALANCE') {
+    return '💳 Zahlung mit Guthaben'
+  }
+
+  return '💰 Zahlung in Bar'
+}
+
 const handleCheckout = async (successMessage = 'Verkauf abgeschlossen') => {
   try {
     console.log('[Kasse] Starting checkout...')
     const transaction = await cartStore.checkout(authStore.user.id)
     console.log('[Kasse] Checkout successful, transaction:', transaction)
-    lastTransaction.value = transaction
-    console.log('[Kasse] Set lastTransaction with receipt_number:', transaction?.receipt_number)
     notificationStore.success(successMessage)
     // Reload members to update balances
     await memberStore.getMembers()
-    // Load next receipt number for the next transaction
-    await loadNextReceiptNumber()
+    return true
   } catch (err) {
     console.error('[Kasse] Checkout failed:', err)
     const errorMessage = err.response?.data?.detail || err.message || 'Fehler bei der Abrechnung'
     console.error('[Kasse] Showing error notification:', errorMessage)
     notificationStore.error(errorMessage)
+    return false
   }
 }
 
@@ -1035,26 +1109,6 @@ onBeforeUnmount(() => {
   overflow: hidden;
 }
 
-.bon-header {
-  flex-shrink: 0;
-  background: color-mix(in srgb, var(--app-banner-color) 12%, white 88%);
-  padding: 0.8rem;
-  border-bottom: 2px solid color-mix(in srgb, var(--app-banner-color) 40%, white 60%);
-  display: flex;
-  justify-content: center;
-  align-items: center;
-}
-
-.receipt-number-current {
-  font-size: 1.1rem;
-  font-weight: bold;
-  color: var(--app-banner-color);
-  padding: 0.5rem;
-  background: #eef1f4;
-  border-radius: 4px;
-  border: 1px solid color-mix(in srgb, var(--app-banner-color) 35%, white 65%);
-}
-
 .payment-section {
   flex-shrink: 0;
   margin-top: 1.5rem;
@@ -1250,17 +1304,6 @@ onBeforeUnmount(() => {
   border-radius: 6px;
   padding: 0.45rem 0.75rem;
   cursor: pointer;
-}
-
-.receipt-number {
-  flex-shrink: 0;
-  text-align: center;
-  padding: 0.75rem;
-  background: #e8f5e9;
-  border: 1px solid #4caf50;
-  border-radius: 4px;
-  color: #2e7d32;
-  font-size: 0.95rem;
 }
 
 .member-selection-bottom {
@@ -1515,6 +1558,14 @@ onBeforeUnmount(() => {
       font-size: 1rem;
     }
 
+    &.member-modal {
+      max-width: 960px;
+    }
+
+    &.payment-modal {
+      max-width: 560px;
+    }
+
     &.voucher-modal {
       max-width: 500px;
 
@@ -1632,12 +1683,19 @@ onBeforeUnmount(() => {
   }
 }
 
-.member-list {
+.modal-actions {
   display: flex;
-  flex-direction: column;
+  justify-content: flex-end;
+  gap: 0.75rem;
+  margin-top: 1rem;
+}
+
+.member-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
   gap: 0.75rem;
   margin-bottom: 1rem;
-  max-height: 350px;
+  max-height: 60vh;
   overflow-y: auto;
 }
 
@@ -1648,8 +1706,8 @@ onBeforeUnmount(() => {
   border-radius: 8px;
   cursor: pointer;
   transition: all 0.2s;
-  display: grid;
-  grid-template-columns: 60px 1fr;
+  display: flex;
+  flex-direction: column;
   gap: 0.75rem;
   align-items: center;
   text-align: left;
@@ -1661,8 +1719,8 @@ onBeforeUnmount(() => {
   }
 
   .member-photo {
-    width: 60px;
-    height: 60px;
+    width: 84px;
+    height: 84px;
     border-radius: 50%;
     overflow: hidden;
     background: #e0e0e0;
@@ -1678,14 +1736,27 @@ onBeforeUnmount(() => {
     }
   }
 
+  .member-photo-placeholder {
+    font-size: 2rem;
+  }
+
   .member-info-box {
     display: flex;
     flex-direction: column;
     gap: 0.25rem;
+    width: 100%;
+    align-items: center;
+
+    .member-number-badge {
+      font-size: 0.8rem;
+      color: var(--app-banner-color);
+      font-weight: 600;
+    }
 
     .member-name-modal {
       font-weight: 600;
       color: #333;
+      text-align: center;
     }
 
     .balance {
@@ -1698,6 +1769,46 @@ onBeforeUnmount(() => {
     color: var(--app-highlight-color);
     font-weight: 600;
   }
+}
+
+.payment-method-chip {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  margin-bottom: 1rem;
+  padding: 0.45rem 0.85rem;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--app-banner-color) 12%, white 88%);
+  color: var(--app-banner-color);
+  font-weight: 600;
+}
+
+.payment-summary-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  max-height: 280px;
+  overflow-y: auto;
+  margin-bottom: 1rem;
+}
+
+.payment-summary-item,
+.payment-summary-totals .total-row {
+  display: flex;
+  justify-content: space-between;
+  gap: 1rem;
+}
+
+.payment-summary-item {
+  padding: 0.65rem 0.75rem;
+  border-radius: 6px;
+  background: #f5f5f5;
+}
+
+.payment-summary-totals {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
 }
 
 .loading {

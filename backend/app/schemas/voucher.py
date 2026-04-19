@@ -7,11 +7,13 @@ class VoucherCreateGift(BaseModel):
     """Create a gift voucher"""
     value_cents: int = Field(..., ge=1, description="Value in cents")
     reason: Literal["DYP_SIEGER", "PROMOTION"] = "PROMOTION"
+    auth_password: str = Field(..., min_length=1)
 
 
 class VoucherCreatePrepaid(BaseModel):
     """Create a prepaid voucher"""
     value_cents: int = Field(..., ge=1, description="Value in cents")
+    auth_password: str = Field(..., min_length=1)
 
 
 class VoucherValidateRequest(BaseModel):
@@ -54,6 +56,7 @@ class VoucherResponse(BaseModel):
     reason: Optional[str] = None  # For GIFT vouchers
     description: Optional[str] = None
     created_by_user_id: int
+    created_by_username: Optional[str] = None
     created_at: datetime
     redeemed_by_user_id: Optional[int] = None
     redeemed_at: Optional[datetime] = None

@@ -3,6 +3,7 @@ from sqlalchemy.orm import Session
 import logging
 
 from app.core import get_db
+from app.core.auth import require_password_confirmation, require_roles
 from app.schemas import (
     VoucherCreateGift,
     VoucherCreatePrepaid,
@@ -16,7 +17,7 @@ from app.schemas import (
 )
 from app.services import VoucherService
 from app.repositories import VoucherRepository
-from app.models import VoucherStatus, VoucherType
+from app.models import VoucherStatus, VoucherType, UserRole
 
 logger = logging.getLogger(__name__)
 
@@ -57,7 +58,9 @@ async def create_gift_voucher(
     db: Session = Depends(get_db),
 ):
     """Create a gift voucher (no payment, loss recording on redemption)"""
-    user_id = get_user_id(request)
+    current_user = require_roles(request, db, UserRole.ADMIN, UserRole.KASSENMITGLIED)
+    user_id = current_user.id
+    require_password_confirmation(current_user, voucher_data.auth_password)
     
     try:
         service = VoucherService(db)
@@ -100,7 +103,9 @@ async def create_prepaid_voucher(
     db: Session = Depends(get_db),
 ):
     """Create a prepaid voucher (purchased now, redeemed later)"""
-    user_id = get_user_id(request)
+    current_user = require_roles(request, db, UserRole.ADMIN, UserRole.KASSENMITGLIED)
+    user_id = current_user.id
+    require_password_confirmation(current_user, voucher_data.auth_password)
     
     try:
         service = VoucherService(db)

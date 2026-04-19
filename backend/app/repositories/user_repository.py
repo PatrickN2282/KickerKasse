@@ -9,12 +9,19 @@ class UserRepository:
     def __init__(self, db: Session):
         self.db = db
     
-    def create(self, username: str, email: str, password: str, role: str = "CASHIER") -> User:
+    @staticmethod
+    def _normalize_email(email: str | None) -> str | None:
+        if email is None:
+            return None
+        email = email.strip()
+        return email or None
+
+    def create(self, username: str, email: str | None, password: str, role: str = "CASHIER") -> User:
         """Create a new user"""
         hasher = get_password_hasher()
         user = User(
             username=username,
-            email=email,
+            email=self._normalize_email(email),
             password_hash=hasher.hash_password(password),
             role=UserRole[role.upper()] if isinstance(role, str) else role,
         )
@@ -31,8 +38,11 @@ class UserRepository:
         """Get user by username"""
         return self.db.query(User).filter(User.username == username).first()
     
-    def get_by_email(self, email: str) -> User | None:
+    def get_by_email(self, email: str | None) -> User | None:
         """Get user by email"""
+        email = self._normalize_email(email)
+        if not email:
+            return None
         return self.db.query(User).filter(User.email == email).first()
     
     def get_all(self) -> list[User]:
@@ -49,7 +59,10 @@ class UserRepository:
         if "password" in kwargs:
             hasher = get_password_hasher()
             kwargs["password_hash"] = hasher.hash_password(kwargs.pop("password"))
-        
+
+        if "email" in kwargs:
+            kwargs["email"] = self._normalize_email(kwargs["email"])
+
         for key, value in kwargs.items():
             if hasattr(user, key):
                 setattr(user, key, value)

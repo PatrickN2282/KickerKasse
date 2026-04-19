@@ -1,12 +1,22 @@
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, field_validator
 from datetime import datetime
 from typing import Optional
 
 
 class UserBase(BaseModel):
     username: str = Field(..., min_length=3, max_length=50)
-    email: str = Field(..., min_length=5, max_length=120)
+    email: Optional[str] = Field(default=None, max_length=120)
     role: str = Field(default="CASHIER")
+
+    @field_validator("email", mode="before")
+    @classmethod
+    def normalize_email(cls, value):
+        if value is None:
+            return None
+        if isinstance(value, str):
+            value = value.strip()
+            return value or None
+        return value
 
 
 class UserCreate(UserBase):
@@ -18,6 +28,16 @@ class UserUpdate(BaseModel):
     email: Optional[str] = None
     role: Optional[str] = None
     password: Optional[str] = None
+
+    @field_validator("email", mode="before")
+    @classmethod
+    def normalize_email(cls, value):
+        if value is None:
+            return None
+        if isinstance(value, str):
+            value = value.strip()
+            return value or None
+        return value
 
 
 class UserResponse(UserBase):
