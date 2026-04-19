@@ -3,6 +3,8 @@ from sqlalchemy.orm import Session
 from sqlalchemy.exc import IntegrityError
 from app.models import Member
 
+MAX_MEMBER_NUMBER_RETRIES = 3
+
 
 class MemberRepository:
     """Repository for Member model"""
@@ -17,6 +19,13 @@ class MemberRepository:
         email = email.strip()
         return email or None
 
+    @staticmethod
+    def _is_member_number_conflict(error: IntegrityError) -> bool:
+        constraint_name = getattr(getattr(error.orig, "diag", None), "constraint_name", None)
+        if constraint_name:
+            return "member_number" in constraint_name
+        return "member_number" in str(error)
+
     def get_next_member_number(self) -> int:
         current_max = self.db.query(func.max(Member.member_number)).scalar()
         return (current_max or 0) + 1
@@ -26,7 +35,7 @@ class MemberRepository:
         normalized_email = self._normalize_email(email)
         last_exception = None
 
-        for _ in range(3):
+        for _ in range(MAX_MEMBER_NUMBER_RETRIES):
             member = Member(
                 member_number=self.get_next_member_number(),
                 name=name,
@@ -43,7 +52,7 @@ class MemberRepository:
                 return member
             except IntegrityError as exc:
                 self.db.rollback()
-                if "member_number" not in str(exc):
+                if not self._is_member_number_conflict(exc):
                     raise
                 last_exception = exc
 
