@@ -9,6 +9,7 @@ from .balance_log import BalanceLog
 from .zbon_history import ZBonHistory
 from .cash_management import CashBalance, CashEntry, CashEntryType
 from .voucher import Voucher, VoucherType, VoucherStatus, VoucherReason
+from .club_account import ClubAccountEntry
 
 __all__ = [
     "Base",
@@ -32,4 +33,5 @@ __all__ = [
     "VoucherType",
     "VoucherStatus",
     "VoucherReason",
+    "ClubAccountEntry",
 ]

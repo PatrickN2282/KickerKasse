@@ -67,7 +67,7 @@
           </div>
 
           <div class="zbon-actions">
-            <button @click="loadDailyStats" class="btn btn-primary">
+            <button @click="openPreviewModal" class="btn btn-primary">
               👁️ Z-Bon Vorschau
             </button>
             <button @click="handleDownloadZBon" class="btn btn-success">
@@ -104,7 +104,7 @@
                 <tr class="transaction-row" @click="toggleTransaction(transaction.id)" style="cursor: pointer;">
                   <td>{{ formatTime(transaction.created_at) }}</td>
                   <td><strong>{{ transaction.receipt_number }}</strong></td>
-                  <td>{{ transaction.member?.name || transaction.member_name || 'Gast' }}</td>
+                  <td>{{ formatMemberLabel(transaction.member || { name: transaction.member_name }) || 'Gast' }}</td>
                   <td class="amount">{{ formatPrice(transaction.gross_amount_cents || transaction.total_amount_cents) }}</td>
                   <td>
                     <span v-if="transaction.type === 'RECHARGE'" class="payment-badge recharge">
@@ -136,24 +136,6 @@
             </tbody>
             </table>
           </div>
-
-          <!-- Z-Bon HTML Preview -->
-        <div v-if="zBonHtml" class="zbon-preview" style="margin-top: 2rem; border: 1px solid #ddd; border-radius: 8px; padding: 1.5rem; background: #f9f9f9;">
-          <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem;">
-            <h4 style="margin: 0;">📋 Z-Bon Vorschau</h4>
-            <button @click="zBonHtml = ''" style="background: none; border: 1px solid #999; padding: 0.5rem 1rem; border-radius: 4px; cursor: pointer;">
-              ✕ Schließen
-            </button>
-          </div>
-          <div class="zbon-preview-frame-shell">
-            <iframe :srcdoc="zBonHtml" class="zbon-preview-frame" title="Z-Bon Vorschau"></iframe>
-          </div>
-          <div style="margin-top: 1rem; text-align: center;">
-            <p style="margin: 0.5rem 0; color: #666; font-size: 0.9rem;">
-              💡 Tipp: Mit Ctrl+P oder Cmd+P zum Drucken / Als PDF speichern
-            </p>
-          </div>
-        </div>
 
         <div class="scheduler-section">
           <h4>⏱️ Automatischer Email-Versand</h4>
@@ -437,7 +419,7 @@
             <option value="CASH">BAR</option>
             <option value="BALANCE">Guthaben</option>
             <option value="VOUCHER_GIFT">Geschenk-Gutschein</option>
-            <option value="VOUCHER_PREPAID">Guthaben-Gutschein</option>
+            <option value="VOUCHER_PREPAID">Guthabenkarte</option>
           </select>
         </div>
         <button @click="applyFilters" class="btn btn-info">Filter anwenden</button>
@@ -477,7 +459,7 @@
               <td>{{ formatDate(transaction.created_at) }}</td>
               <td>{{ formatTime(transaction.created_at) }}</td>
               <td><strong>{{ transaction.receipt_number }}</strong></td>
-              <td>{{ transaction.member?.name || 'Gast' }}</td>
+              <td>{{ formatMemberLabel(transaction.member) || 'Gast' }}</td>
               <td class="amount">{{ formatPrice(transaction.total_amount_cents) }}</td>
               <td>
                 <span v-if="transaction.type === 'RECHARGE'" class="payment-badge recharge">
@@ -592,7 +574,7 @@
         </thead>
         <tbody>
           <tr v-for="member in memberStats.top_members" :key="member.id">
-            <td>{{ member.name }}</td>
+            <td>{{ formatMemberLabel(member) }}</td>
             <td>{{ member.transaction_count }}</td>
             <td>{{ formatPrice(member.total_spent) }}</td>
             <td>{{ formatPrice(member.balance_cents) }}</td>
@@ -623,27 +605,43 @@
             {{ getSelectedMemberName(zbonForm.checkerMemberId, 'Mitglied auswählen') }}
           </button>
         </div>
-        <p v-if="cashCountData" class="cash-count-hint">
-          Gezählter Barbestand: <strong>{{ formatEuroValue(getCashCountTotal(cashCountData)) }}</strong>
-        </p>
+        <div class="summary-grid">
+          <div class="summary-card">
+            <div class="card-label">Vorheriger Barbestand</div>
+            <div class="card-value">{{ formatEuroValue(dailyStats.opening_balance) }}</div>
+          </div>
+          <div class="summary-card">
+            <div class="card-label">Buchungs-Range</div>
+            <div class="card-value">{{ currentReceiptLabel }}</div>
+          </div>
+          <div class="summary-card">
+            <div class="card-label">Neuer Barbestand Soll</div>
+            <div class="card-value">{{ formatEuroValue(dailyStats.cash_calculated) }}</div>
+          </div>
+        </div>
         <div class="filter-group">
-          <label>Passwort bestätigen</label>
-          <input
-            v-model="zbonForm.authPassword"
-            type="password"
-            class="form-input"
-            placeholder="Passwort des angemeldeten Benutzers"
-          />
+          <label>Ist</label>
+          <input v-model="zbonCountedCash" type="number" min="0" step="0.01" class="form-input" placeholder="leer bei Aufruf" />
+        </div>
+        <div class="summary-grid">
+          <div class="summary-card">
+            <div class="card-label">Differenz</div>
+            <div class="card-value">{{ zbonDifferenceDisplay }}</div>
+          </div>
+          <div class="summary-card">
+            <div class="card-label">Neuer Kassenbestand</div>
+            <div class="card-value">{{ zbonNewCashBalanceDisplay }}</div>
+          </div>
         </div>
         <div class="confirmation-buttons">
           <button @click="closeZbonCreateModal" class="btn btn-secondary">
-            Abbrechen
+            Abbrechen / Zurück
           </button>
-          <button @click="openCashCounterModal" class="btn btn-secondary">
-            💰 Kasse zählen
+          <button @click="openWithdrawalModal" class="btn btn-warning">
+            💸 Abschöpfung während Z-Bon
           </button>
-          <button @click="createZBon" class="btn btn-primary" :disabled="!zbonForm.authPassword">
-            ✓ Erstellen
+          <button @click="requestZBonCreate" class="btn btn-primary" :disabled="!canCreateZbon">
+            ✓ Z-Bon erstellen
           </button>
         </div>
       </div>
@@ -668,7 +666,7 @@
         </div>
         <div class="confirmation-buttons">
           <button @click="closeWithdrawalModal" class="btn btn-secondary">
-            Abbrechen
+            Abbrechen / Zurück
           </button>
           <button @click="submitWithdrawal" class="btn btn-warning">
             💸 Abschöpfen
@@ -694,10 +692,10 @@
             class="member-picker-item"
           >
             <div v-if="member.photo_path" class="member-picker-photo">
-              <img :src="`/api/members/${member.id}/photo`" :alt="member.name" />
+              <img :src="`/api/members/${member.id}/photo`" :alt="formatMemberLabel(member)" />
             </div>
             <div v-else class="member-picker-photo placeholder">👤</div>
-            <span>{{ member.name }}</span>
+            <span>{{ formatMemberLabel(member) }}</span>
           </button>
           <div v-if="!filteredPickerMembers.length" class="empty member-picker-empty">
             Keine Mitglieder gefunden
@@ -705,11 +703,31 @@
         </div>
         <div class="confirmation-buttons">
           <button @click="closeMemberPicker" class="btn btn-secondary">
-            Abbrechen
+            Abbrechen / Zurück
           </button>
         </div>
       </div>
     </div>
+    <div v-if="showZbonPreviewModal && zBonHtml" class="confirmation-overlay">
+      <div class="confirmation-dialog" style="max-width: 1100px;">
+        <h3>📋 Z-Bon Vorschau</h3>
+        <div class="zbon-preview-frame-shell">
+          <iframe :srcdoc="zBonHtml" class="zbon-preview-frame" title="Z-Bon Vorschau"></iframe>
+        </div>
+        <div class="confirmation-buttons">
+          <button @click="showZbonPreviewModal = false" class="btn btn-secondary">Abbrechen / Zurück</button>
+        </div>
+      </div>
+    </div>
+    <PasswordConfirmModal
+      :show="showPasswordModal"
+      title="Z-Bon erstellen"
+      message="Bitte Zugangsdaten des aktuell angemeldeten Benutzers bestätigen."
+      :username="authStore.user?.username || ''"
+      confirm-label="Z-Bon erstellen"
+      @close="showPasswordModal = false"
+      @confirm="createZBon"
+    />
   </div>
 </template>
 
@@ -718,11 +736,15 @@ import { ref, computed, onMounted, watch } from 'vue'
 import { formatPrice } from '@/services/utils'
 import apiService from '@/services/api'
 import CashCounterModal from '@/components/CashCounterModal.vue'
+import PasswordConfirmModal from '@/components/PasswordConfirmModal.vue'
 import { useNotificationStore } from '@/stores/notification'
 import { useMemberStore } from '@/stores/member'
+import { getMemberSearchText, getMemberShortName } from '@/services/member'
+import { useAuthStore } from '@/stores/auth'
 
 const notificationStore = useNotificationStore()
 const memberStore = useMemberStore()
+const authStore = useAuthStore()
 
 const activeTab = ref('zbon')
 const loading = ref(false)
@@ -738,15 +760,17 @@ const filterEndDate = ref(new Date().toISOString().split('T')[0])
 const filterPaymentMethod = ref('')
 
 const showZbonCreateModal = ref(false)
+const showZbonPreviewModal = ref(false)
 const showWithdrawalModal = ref(false)
 const showMemberPickerModal = ref(false)
+const showPasswordModal = ref(false)
 const memberPickerTarget = ref(null)
 const memberSearch = ref('')
 const zbonForm = ref({
   employeeMemberId: null,
   checkerMemberId: null,
-  authPassword: '',
 })
+const zbonCountedCash = ref('')
 const withdrawalForm = ref({
   amount: '',
   memberId: null,
@@ -774,6 +798,7 @@ const dailyStats = ref({
   voucher_total: 0,
   total_amount: 0,
   transaction_count: 0,
+  opening_balance: 0,
   cash_calculated: 0,
   withdrawal_total: 0,
   voucher_open_total: 0,
@@ -902,16 +927,42 @@ const currentReceiptLabel = computed(() => {
   return `#${dailyStats.value.receipt_min} bis #${dailyStats.value.receipt_max}`
 })
 
+const zbonCountedCashValue = computed(() => {
+  if (zbonCountedCash.value === '' || zbonCountedCash.value === null) return null
+  const value = Number(zbonCountedCash.value)
+  return Number.isNaN(value) ? null : value
+})
+
+const zbonDifferenceValue = computed(() => {
+  if (zbonCountedCashValue.value === null) return null
+  return zbonCountedCashValue.value - Number(dailyStats.value.cash_calculated || 0)
+})
+
+const zbonDifferenceDisplay = computed(() => {
+  return zbonDifferenceValue.value === null ? '-' : formatEuroValue(zbonDifferenceValue.value)
+})
+
+const zbonNewCashBalanceDisplay = computed(() => {
+  return zbonCountedCashValue.value === null ? '-' : formatEuroValue(zbonCountedCashValue.value)
+})
+
+const canCreateZbon = computed(() => (
+  !!zbonForm.value.employeeMemberId
+  && !!zbonForm.value.checkerMemberId
+  && zbonCountedCashValue.value !== null
+))
+
 const filteredPickerMembers = computed(() => {
   const search = memberSearch.value.trim().toLowerCase()
   if (!search) {
     return memberStore.members
   }
 
-  return memberStore.members.filter(member => member.name.toLowerCase().includes(search))
+  return memberStore.members.filter(member => getMemberSearchText(member).includes(search))
 })
 
 const selectedWithdrawalMemberId = computed(() => withdrawalForm.value.memberId)
+const formatMemberLabel = (member) => getMemberShortName(member)
 
 const getMemberById = (memberId) => {
   if (!memberId) return null
@@ -919,15 +970,15 @@ const getMemberById = (memberId) => {
 }
 
 const getSelectedMemberName = (memberId, fallback = '-') => {
-  return getMemberById(memberId)?.name || fallback
+  return formatMemberLabel(getMemberById(memberId)) || fallback
 }
 
 const loadDailyStats = async () => {
   loading.value = true
   try {
     const payload = {
-      created_by_name: getMemberById(zbonForm.value.employeeMemberId)?.name || null,
-      cash_counted_by_name: getMemberById(zbonForm.value.checkerMemberId)?.name || null,
+      created_by_name: getSelectedMemberName(zbonForm.value.employeeMemberId, null),
+      cash_counted_by_name: getSelectedMemberName(zbonForm.value.checkerMemberId, null),
       cash_count: cashCountData.value
         ? {
           coins: cashCountData.value.coins,
@@ -943,6 +994,7 @@ const loadDailyStats = async () => {
       voucher_total: Math.round((preview.summary?.voucher_sales_total || 0) * 100),
       total_amount: Math.round((preview.summary?.gross_sales_total || 0) * 100),
       transaction_count: preview.summary?.transaction_count || 0,
+      opening_balance: preview.summary?.opening_cash_balance || 0,
       cash_calculated: preview.summary?.cash_calculated || 0,
       withdrawal_total: Math.round((preview.summary?.cash_withdrawals_total || 0) * 100),
       voucher_open_total: preview.summary?.voucher_open_total || 0,
@@ -962,6 +1014,7 @@ const loadDailyStats = async () => {
       voucher_total: 0,
       total_amount: 0,
       transaction_count: 0,
+      opening_balance: 0,
       cash_calculated: 0,
       withdrawal_total: 0,
       voucher_open_total: 0,
@@ -1014,22 +1067,30 @@ const getPaymentBadgeClass = (transaction) => {
     return transaction.voucher_type === 'GIFT' ? 'voucher-gift' : 'voucher-prepaid'
   }
 
+  if (transaction.balance_applied_cents > 0 && transaction.payment_method === 'CASH') {
+    return 'balance'
+  }
+
   return transaction.payment_method.toLowerCase()
 }
 
 const getPaymentBadgeLabel = (transaction) => {
   if (transaction.voucher_applied_cents > 0 && transaction.voucher_type) {
     const baseLabel = transaction.payment_method === 'BALANCE' ? '💳 Guthaben' : '💰 BAR'
-    const voucherLabel = transaction.voucher_type === 'GIFT' ? '🎁 Gutschein' : '🎫 Gutschein'
+    const voucherLabel = transaction.voucher_type === 'GIFT' ? '🎁 Geschenk-Gutschein' : '🎫 Guthabenkarte'
     return `${voucherLabel} + ${baseLabel}`
   }
 
   if (transaction.payment_method === 'VOUCHER_GIFT') {
-    return '🎁 Gutschein'
+    return '🎁 Geschenk-Gutschein'
   }
 
   if (transaction.payment_method === 'VOUCHER_PREPAID') {
-    return '🎫 Gutschein'
+    return '🎫 Guthabenkarte'
+  }
+
+  if (transaction.balance_applied_cents > 0 && transaction.payment_method === 'CASH') {
+    return '💳 Guthaben + 💰 BAR'
   }
 
   return transaction.payment_method === 'CASH' ? '💰 BAR' : '💳 Guthaben'
@@ -1125,13 +1186,19 @@ const openZbonCreateModal = async () => {
   if (!memberStore.members.length) {
     await memberStore.getMembers()
   }
-  zbonForm.value.authPassword = ''
+  zbonCountedCash.value = ''
   showZbonCreateModal.value = true
 }
 
 const closeZbonCreateModal = () => {
-  zbonForm.value.authPassword = ''
   showZbonCreateModal.value = false
+}
+
+const openPreviewModal = async () => {
+  await loadDailyStats()
+  if (zBonHtml.value) {
+    showZbonPreviewModal.value = true
+  }
 }
 
 const openWithdrawalModal = async () => {
@@ -1157,7 +1224,7 @@ const submitWithdrawal = async () => {
     return
   }
 
-  const memberName = getMemberById(withdrawalForm.value.memberId)?.name
+  const memberName = getSelectedMemberName(withdrawalForm.value.memberId, '')
   if (!memberName) {
     notificationStore.error('Bitte eine Person auswählen')
     return
@@ -1188,9 +1255,18 @@ const submitWithdrawal = async () => {
   }
 }
 
-const createZBon = async () => {
-  const employeeName = getMemberById(zbonForm.value.employeeMemberId)?.name
-  const checkerName = getMemberById(zbonForm.value.checkerMemberId)?.name
+const requestZBonCreate = () => {
+  if (!canCreateZbon.value) {
+    notificationStore.error('Bitte Zählung und Auswahl vervollständigen')
+    return
+  }
+  showPasswordModal.value = true
+}
+
+const createZBon = async (password) => {
+  showPasswordModal.value = false
+  const employeeName = getSelectedMemberName(zbonForm.value.employeeMemberId, '')
+  const checkerName = getSelectedMemberName(zbonForm.value.checkerMemberId, '')
 
   if (!employeeName) {
     notificationStore.error('Bitte einen Mitarbeiter auswählen')
@@ -1202,8 +1278,8 @@ const createZBon = async () => {
     return
   }
 
-  if (!zbonForm.value.authPassword) {
-    notificationStore.error('Bitte das Passwort des angemeldeten Benutzers eingeben')
+  if (zbonCountedCashValue.value === null) {
+    notificationStore.error('Bitte den Ist-Barbestand erfassen')
     return
   }
 
@@ -1212,17 +1288,13 @@ const createZBon = async () => {
     await apiService.post('/transactions/zbon/create', {
       created_by_name: employeeName,
       cash_counted_by_name: checkerName,
-      auth_password: zbonForm.value.authPassword,
-      cash_count: cashCountData.value
-        ? {
-          coins: cashCountData.value.coins,
-          notes: cashCountData.value.notes,
-        }
-        : null,
+      auth_password: password,
+      cash_count_total: zbonCountedCashValue.value,
     })
     notificationStore.success('Z-Bon erfolgreich erstellt')
     closeZbonCreateModal()
     cashCountData.value = null
+    zbonCountedCash.value = ''
     await loadDailyStats()
     if (activeTab.value === 'zbons') {
       await loadZbonsHistory()

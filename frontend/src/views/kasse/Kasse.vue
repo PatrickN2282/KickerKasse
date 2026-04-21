@@ -199,6 +199,7 @@
             <button 
                @click="() => { 
                  cartStore.selectedMemberId = null; 
+                 cartStore.selectedMemberHasDiscount = false;
                  cartStore.removeBalanceDiscount();
                  cartStore.recalculatePrices(); 
                }" 
@@ -710,6 +711,7 @@ const handlePaymentAndCheckout = async (method) => {
 const selectMember = (member) => {
   cartStore.removeBalanceDiscount()
   cartStore.selectedMemberId = member.id
+  cartStore.selectedMemberHasDiscount = !!member.has_discount
   cartStore.recalculatePrices()  // Update prices to member prices
   showMemberModal.value = false
 }

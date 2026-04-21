@@ -253,13 +253,27 @@ class DatabaseMigrator:
 
                 if 'first_name' not in member_columns:
                     conn.execute(text("ALTER TABLE members ADD COLUMN first_name VARCHAR(80)"))
-                    conn.execute(text("UPDATE members SET first_name = COALESCE(NULLIF(TRIM(name), ''), 'Unbekannt')"))
+                    conn.execute(text("""
+                        UPDATE members
+                        SET first_name = COALESCE(
+                            NULLIF(SPLIT_PART(TRIM(name), ' ', 1), ''),
+                            'Unbekannt'
+                        )
+                    """))
                     conn.execute(text("ALTER TABLE members ALTER COLUMN first_name SET NOT NULL"))
                     conn.commit()
 
                 if 'last_name' not in member_columns:
                     conn.execute(text("ALTER TABLE members ADD COLUMN last_name VARCHAR(80)"))
-                    conn.execute(text("UPDATE members SET last_name = '' WHERE last_name IS NULL"))
+                    conn.execute(text("""
+                        UPDATE members
+                        SET last_name = CASE
+                            WHEN POSITION(' ' IN TRIM(COALESCE(name, ''))) > 0
+                                THEN TRIM(SUBSTRING(TRIM(name) FROM POSITION(' ' IN TRIM(name)) + 1))
+                            ELSE ''
+                        END
+                        WHERE last_name IS NULL
+                    """))
                     conn.commit()
 
                 if 'membership_number' not in member_columns:

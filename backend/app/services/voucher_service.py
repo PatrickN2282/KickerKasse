@@ -2,7 +2,8 @@
 from sqlalchemy.orm import Session
 from datetime import date
 from typing import Optional
-from app.models import Voucher, VoucherType, VoucherStatus, VoucherReason, Transaction, TransactionType, PaymentMethod
+from app.models import Voucher, VoucherType, VoucherStatus, VoucherReason, Transaction, TransactionType, PaymentMethod, ClubAccountEntry
+from app.repositories.transaction_repository import TransactionRepository
 from app.repositories.voucher_repository import VoucherRepository
 import logging
 
@@ -42,6 +43,15 @@ class VoucherService:
             reason=reason_enum,
             description=description,
         )
+
+        self.db.add(ClubAccountEntry(
+            amount_cents=-value_cents,
+            reason=f"Geschenk-Gutschein {self._format_voucher_identifier(voucher)} erstellt",
+            user_id=created_by_user_id,
+            voucher_id=voucher.id,
+        ))
+        self.db.commit()
+        self.db.refresh(voucher)
 
         logger.info(f"Created GIFT voucher #{voucher.voucher_number}: {value_cents/100:.2f}€ ({reason})")
         return voucher
@@ -333,4 +343,43 @@ class VoucherService:
                 "redeemed_value_cents": prepaid_redeemed_value,
                 "redeemed_value_eur": prepaid_redeemed_value / 100.0,
             },
+        }
+
+    def get_club_account_summary(self) -> dict:
+        entries = self.db.query(ClubAccountEntry).order_by(ClubAccountEntry.created_at.desc()).all()
+        balance_cents = sum(entry.amount_cents for entry in entries)
+        return {
+            "balance_cents": balance_cents,
+            "entries": [
+                {
+                    "id": entry.id,
+                    "amount_cents": entry.amount_cents,
+                    "reason": entry.reason,
+                    "user_name": entry.user.username if entry.user else None,
+                    "created_at": entry.created_at,
+                }
+                for entry in entries
+            ],
+        }
+
+    def top_up_club_account(self, amount_cents: int, user_id: int) -> dict:
+        transaction = TransactionRepository(self.db).create(
+            type=TransactionType.RECHARGE,
+            payment_method=PaymentMethod.CASH,
+            total_amount_cents=amount_cents,
+            user_id=user_id,
+            items=[],
+        )
+        entry = ClubAccountEntry(
+            amount_cents=amount_cents,
+            reason="Vereinskonto aufgeladen",
+            user_id=user_id,
+            transaction_id=transaction.id,
+        )
+        self.db.add(entry)
+        self.db.commit()
+        self.db.refresh(entry)
+        return {
+            "entry_id": entry.id,
+            "transaction_id": transaction.id,
         }

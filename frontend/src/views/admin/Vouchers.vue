@@ -16,6 +16,13 @@
       >
         📋 Verwaltung
       </button>
+      <button
+        v-if="authStore.isAdmin"
+        :class="['subtab-button', { active: activeSubTab === 'club-account' }]"
+        @click="activeSubTab = 'club-account'; loadClubAccount()"
+      >
+        🏦 Vereinskonto
+      </button>
     </div>
 
     <!-- CREATE TAB -->
@@ -215,6 +222,43 @@
       </div>
     </div>
 
+    <div v-if="activeSubTab === 'club-account' && authStore.isAdmin" class="manage-section">
+      <div class="summary-grid">
+        <div class="form-card">
+          <h3>Kontostand</h3>
+          <p class="voucher-number">{{ formatCurrency(clubAccount.balance_cents) }}</p>
+        </div>
+        <div class="form-card">
+          <h3>Konto aufladen</h3>
+          <div class="form-group">
+            <label>Betrag (€)</label>
+            <input v-model="clubAccountTopUp" type="number" min="0.01" step="0.01" />
+          </div>
+          <button class="btn-primary" @click="requestClubAccountTopUp">Als Bareinnahme buchen</button>
+        </div>
+      </div>
+      <div class="table-container">
+        <table v-if="clubAccount.entries.length" class="vouchers-table">
+          <thead>
+            <tr>
+              <th>Datum</th>
+              <th>Betrag</th>
+              <th>Grund</th>
+              <th>Benutzer</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr v-for="entry in clubAccount.entries" :key="entry.id">
+              <td>{{ formatDate(entry.created_at) }}</td>
+              <td>{{ formatCurrency(entry.amount_cents) }}</td>
+              <td>{{ entry.reason }}</td>
+              <td>{{ entry.user_name || '-' }}</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+
     <div v-if="showEditModal" class="modal-overlay">
       <div class="modal-card">
         <h3>🎫 Gutschein bearbeiten</h3>
@@ -252,7 +296,7 @@
       message="Bitte Zugangsdaten des aktuell angemeldeten Benutzers bestätigen."
       :username="authStore.user?.username || ''"
       confirm-label="Bestätigen"
-      :admin-required="pendingVoucherAction === 'gift'"
+      :admin-required="pendingVoucherAction === 'gift' || pendingVoucherAction === 'account'"
       @close="showPasswordModal = false"
       @confirm="handlePasswordConfirmed"
     />
@@ -339,6 +383,8 @@ const createdPrepaidVoucher = ref(null)
 const createError = ref(null)
 const showPasswordModal = ref(false)
 const pendingVoucherAction = ref(null)
+const clubAccount = ref({ balance_cents: 0, entries: [] })
+const clubAccountTopUp = ref('')
 const showEditModal = ref(false)
 const editingVoucher = ref(null)
 const updatingVoucher = ref(false)
@@ -374,7 +420,9 @@ const getVoucherCode = (voucher) => {
 // Methods
 const passwordModalTitle = computed(() => pendingVoucherAction.value === 'gift'
   ? 'Geschenk-Gutschein erstellen'
-  : 'Guthabenkarte erstellen')
+  : pendingVoucherAction.value === 'account'
+    ? 'Vereinskonto aufladen'
+    : 'Guthabenkarte erstellen')
 
 const createGiftVoucher = async () => {
   pendingVoucherAction.value = 'gift'
@@ -454,8 +502,23 @@ const handlePasswordConfirmed = async (password) => {
     await submitGiftVoucher(password)
   } else if (pendingVoucherAction.value === 'prepaid') {
     await submitPrepaidVoucher(password)
+  } else if (pendingVoucherAction.value === 'account') {
+    await apiService.post('/admin/vouchers/club-account/topup', {
+      amount_cents: Math.round(Number(clubAccountTopUp.value) * 100),
+      auth_password: password,
+    })
+    clubAccountTopUp.value = ''
+    await loadClubAccount()
   }
   pendingVoucherAction.value = null
+}
+
+const requestClubAccountTopUp = () => {
+  if (!clubAccountTopUp.value || Number(clubAccountTopUp.value) <= 0) {
+    return
+  }
+  pendingVoucherAction.value = 'account'
+  showPasswordModal.value = true
 }
 
 const loadVouchers = async () => {
@@ -523,6 +586,12 @@ const loadVouchers = async () => {
   }
 }
 
+const loadClubAccount = async () => {
+  if (!authStore.isAdmin) return
+  const response = await apiService.get('/admin/vouchers/club-account')
+  clubAccount.value = response.data
+}
+
 const applyFilters = () => {
   currentPage.value = 1
   loadVouchers()
@@ -531,6 +600,8 @@ const applyFilters = () => {
 const formatDate = (date) => {
   return new Date(date).toLocaleDateString('de-DE')
 }
+
+const formatCurrency = (amountCents) => `${(amountCents / 100).toFixed(2)}€`
 
 const formatReason = (reason) => {
   if (!reason) return '-'
@@ -641,12 +712,16 @@ watch(currentPage, () => {
 watch(() => activeSubTab.value, (newTab) => {
   if (newTab === 'manage') {
     loadVouchers()
+  } else if (newTab === 'club-account') {
+    loadClubAccount()
   }
 })
 
 // Lifecycle
 onMounted(() => {
-  // Don't load initially, load when manage tab is clicked
+  if (authStore.isAdmin) {
+    loadClubAccount()
+  }
 })
 </script>
 

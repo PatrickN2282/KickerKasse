@@ -5,6 +5,7 @@ import apiService from '@/services/api'
 export const useCartStore = defineStore('cart', () => {
   const items = ref([])
   const selectedMemberId = ref(null)
+  const selectedMemberHasDiscount = ref(false)
   const paymentMethod = ref('CASH')
   const appliedVouchers = ref([])
   const appliedBalanceCents = ref(0)
@@ -17,7 +18,9 @@ export const useCartStore = defineStore('cart', () => {
       existingItem.total_price_cents = existingItem.quantity * existingItem.unit_price_cents
     } else {
       // Use member price if member is selected and product has member price
-      const unitPrice = (selectedMemberId.value && product.member_price_cents) ? product.member_price_cents : product.price_cents
+      const unitPrice = (selectedMemberId.value && selectedMemberHasDiscount.value && product.member_price_cents)
+        ? product.member_price_cents
+        : product.price_cents
       items.value.push({
         product_id: product.id,
         product_name: product.name,
@@ -36,7 +39,7 @@ export const useCartStore = defineStore('cart', () => {
      * Updates all items in cart to use member or regular price.
      */
     items.value.forEach(item => {
-      if (selectedMemberId.value && item.member_price_cents) {
+      if (selectedMemberId.value && selectedMemberHasDiscount.value && item.member_price_cents) {
         item.unit_price_cents = item.member_price_cents
       } else {
         item.unit_price_cents = item.regular_price_cents
@@ -129,6 +132,7 @@ export const useCartStore = defineStore('cart', () => {
       console.log('[Cart] Checkout successful:', response.data)
       items.value = []
       selectedMemberId.value = null
+      selectedMemberHasDiscount.value = false
       paymentMethod.value = 'CASH'
       appliedVouchers.value = []
       appliedBalanceCents.value = 0
@@ -143,6 +147,7 @@ export const useCartStore = defineStore('cart', () => {
   const clear = () => {
       items.value = []
       selectedMemberId.value = null
+      selectedMemberHasDiscount.value = false
       paymentMethod.value = 'CASH'
       appliedVouchers.value = []
       appliedBalanceCents.value = 0
@@ -151,6 +156,7 @@ export const useCartStore = defineStore('cart', () => {
   return {
     items,
     selectedMemberId,
+    selectedMemberHasDiscount,
     paymentMethod,
     appliedVouchers,
     appliedBalanceCents,

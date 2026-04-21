@@ -108,6 +108,7 @@ class ZBonService:
         skimmed_by_name: str | None = None,
         cash_counted_by_name: str | None = None,
         include_cash_count: dict | None = None,
+        cash_count_total: float | None = None,
     ) -> dict:
         period_start, period_end, last_zbon = self._get_current_period_bounds()
         transactions = self._get_transactions_for_period(period_start, period_end)
@@ -151,6 +152,7 @@ class ZBonService:
                 sum(float(denom) * count for denom, count in coins.items())
                 + sum(float(denom) * count for denom, count in notes.items())
             )
+        if cash_count_total is not None:
             cash_difference = cash_count_total - cash_calculated
 
         receipt_numbers = [t.receipt_number for t in transactions if t.receipt_number is not None]
@@ -247,12 +249,14 @@ class ZBonService:
         skimmed_by_name: str | None = None,
         cash_counted_by_name: str | None = None,
         include_cash_count: dict | None = None,
+        cash_count_total: float | None = None,
     ) -> dict:
         payload = self.build_current_zbon_preview(
             created_by_name=created_by_name,
             skimmed_by_name=skimmed_by_name,
             cash_counted_by_name=cash_counted_by_name,
             include_cash_count=include_cash_count,
+            cash_count_total=cash_count_total,
         )
 
         summary = payload["summary"]
@@ -757,7 +761,7 @@ class ZBonService:
             f"{stats['gift_voucher_count']}x Geschenk-Gutschein {stats['gift_voucher_total']:>8.2f}"
         )
         lines.append(
-            f"{stats['prepaid_voucher_count']}x Guthaben-Gutschein {stats['prepaid_voucher_total']:>8.2f}"
+            f"{stats['prepaid_voucher_count']}x Guthabenkarte {stats['prepaid_voucher_total']:>8.2f}"
         )
         lines.append(" _____________")
         lines.append(f"Gutscheinwert gesamt {stats['voucher_total']:>8.2f}")

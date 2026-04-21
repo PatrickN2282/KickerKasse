@@ -52,6 +52,7 @@ class ZBonCreateRequest(BaseModel):
     skimmed_by_name: Optional[str] = None
     cash_counted_by_name: Optional[str] = None
     cash_count: Optional[CashCountRequest] = None
+    cash_count_total: Optional[float] = None
     auth_password: str
 
 
@@ -60,6 +61,7 @@ class ZBonPreviewRequest(BaseModel):
     skimmed_by_name: Optional[str] = None
     cash_counted_by_name: Optional[str] = None
     cash_count: Optional[CashCountRequest] = None
+    cash_count_total: Optional[float] = None
 
 
 def _require_finance_access(request: Request, db: Session):
@@ -497,6 +499,7 @@ async def preview_current_zbon(
         skimmed_by_name=zbon_req.skimmed_by_name,
         cash_counted_by_name=zbon_req.cash_counted_by_name,
         include_cash_count=cash_count,
+        cash_count_total=zbon_req.cash_count_total,
     )
 
 
@@ -524,6 +527,7 @@ async def create_zbon(
         skimmed_by_name=zbon_req.skimmed_by_name,
         cash_counted_by_name=zbon_req.cash_counted_by_name,
         include_cash_count=cash_count,
+        cash_count_total=zbon_req.cash_count_total,
     )
 
 
