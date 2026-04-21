@@ -1,8 +1,16 @@
 <template>
-  <div v-if="show" class="modal-overlay">
+  <div
+    v-if="show"
+    class="modal-overlay"
+  >
     <div class="modal-card">
       <h3>{{ title }}</h3>
-      <p v-if="message" class="message">{{ message }}</p>
+      <p
+        v-if="message"
+        class="message"
+      >
+        {{ message }}
+      </p>
 
       <div class="form-group">
         <label>Benutzername</label>
@@ -12,7 +20,7 @@
           :readonly="!allowUsernameEdit"
           type="text"
           class="form-input"
-        />
+        >
       </div>
 
       <div class="form-group">
@@ -24,7 +32,7 @@
           class="form-input"
           placeholder="Passwort eingeben"
           @keyup.enter="submit"
-        />
+        >
       </div>
 
       <div
@@ -38,12 +46,23 @@
           class="form-input"
           :placeholder="confirmationPlaceholder"
           @keyup.enter="submit"
-        />
+        >
       </div>
 
       <div class="button-row">
-        <button @click="close" class="btn btn-secondary">Abbrechen / Zurück</button>
-        <button @click="submit" class="btn btn-primary" :disabled="isSubmitDisabled">{{ confirmLabel }}</button>
+        <button
+          class="btn btn-secondary"
+          @click="close"
+        >
+          Abbrechen / Zurück
+        </button>
+        <button
+          class="btn btn-primary"
+          :disabled="isSubmitDisabled"
+          @click="submit"
+        >
+          {{ confirmLabel }}
+        </button>
       </div>
     </div>
   </div>

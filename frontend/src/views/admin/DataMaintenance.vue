@@ -7,7 +7,10 @@
         Der Hard-Reset entfernt Transaktionen, Benutzer, Mitglieder, Produkte, Statistiken,
         Gutscheine, Guthabenkarten und Kategorien unwiderruflich.
       </p>
-      <p v-if="!authStore.isTopAdmin" class="access-note">
+      <p
+        v-if="!authStore.isTopAdmin"
+        class="access-note"
+      >
         Nur der Top-Admin darf diese Aktion ausführen.
       </p>
     </div>
