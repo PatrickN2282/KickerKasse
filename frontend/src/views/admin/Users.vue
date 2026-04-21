@@ -35,7 +35,6 @@
         <thead>
           <tr>
             <th>Benutzername</th>
-            <th>Typ</th>
             <th>Email</th>
             <th>Rolle</th>
             <th>Aktionen</th>
@@ -44,7 +43,6 @@
         <tbody>
           <tr v-for="user in displayedUsers" :key="user.id">
             <td>{{ user.username }}</td>
-            <td>{{ user.entryType }}</td>
             <td>{{ user.email || '-' }}</td>
             <td>{{ roleLabel(user.role) }}</td>
             <td>
@@ -63,12 +61,10 @@
 <script setup>
 import { ref, reactive, onMounted, computed } from 'vue'
 import { useNotificationStore } from '@/stores/notification'
-import { useMemberStore } from '@/stores/member'
-import { getMemberFullName, getRoleLabel } from '@/services/member'
+import { getRoleLabel } from '@/services/member'
 import apiService from '@/services/api'
 
 const notificationStore = useNotificationStore()
-const memberStore = useMemberStore()
 
 const showForm = ref(false)
 const users = ref([])
@@ -87,23 +83,10 @@ const templateUsers = computed(() => [
   { id: 'template-manager', username: 'Manager', email: '-', role: 'KASSENMITGLIED', entryType: 'Vorlage', deletable: false },
 ])
 
-const memberRoleUsers = computed(() => memberStore.members
-  .filter(member => !!member.role)
-  .map(member => ({
-    id: `member-${member.id}`,
-    username: getMemberFullName(member),
-    email: member.membership_number || '-',
-    role: member.role,
-    entryType: 'Mitglied',
-    deletable: false,
-  })))
-
 const displayedUsers = computed(() => [
   ...templateUsers.value,
-  ...memberRoleUsers.value,
   ...users.value.map(user => ({
     ...user,
-    entryType: 'Benutzer',
     deletable: true,
   })),
 ])
@@ -148,7 +131,6 @@ const loadUsers = async () => {
 }
 
 onMounted(async () => {
-  await memberStore.getMembers()
   await loadUsers()
 })
 </script>

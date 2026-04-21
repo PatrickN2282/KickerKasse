@@ -75,6 +75,16 @@ class VoucherService:
             description=description,
         )
 
+        TransactionRepository(self.db).create(
+            type=TransactionType.VOUCHER_SALE,
+            payment_method=PaymentMethod.CASH,
+            total_amount_cents=value_cents,
+            user_id=created_by_user_id,
+            items=[],
+            voucher_code=self._format_voucher_identifier(voucher),
+            voucher_type=VoucherType.PREPAID.value,
+        )
+
         logger.info(f"Created PREPAID voucher #{voucher.voucher_number}: {value_cents/100:.2f}€")
         return voucher
 

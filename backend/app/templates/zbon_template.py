@@ -436,6 +436,11 @@ ZBON_HTML_TEMPLATE = """
                     <td class="amount"><strong>{{ recharge_total }}</strong></td>
                 </tr>
                 <tr>
+                    <td>Guthabenkarten verkauft</td>
+                    <td class="amount">{{ prepaid_voucher_sales_count|default(0) }}</td>
+                    <td class="amount"><strong>{{ prepaid_voucher_sales_total|default("0.00") }}</strong></td>
+                </tr>
+                <tr>
                     <td>Guthaben eingelöst</td>
                     <td class="amount">{{ balance_sales_count }}</td>
                     <td class="amount"><strong>{{ balance_sales_gross }}</strong></td>
@@ -496,6 +501,10 @@ ZBON_HTML_TEMPLATE = """
                 <tr>
                     <td>Einnahmen aus Guthabenverkäufen</td>
                     <td class="amount">{{ recharge_total }}</td>
+                </tr>
+                <tr>
+                    <td>Einnahmen aus Guthabenkarten</td>
+                    <td class="amount">{{ prepaid_voucher_sales_total|default("0.00") }}</td>
                 </tr>
                 <tr>
                     <td>Abschöpfung</td>

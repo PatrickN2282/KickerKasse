@@ -5,7 +5,7 @@ from sqlalchemy.exc import IntegrityError
 from app.core import get_db
 from app.core.auth import require_roles
 from app.models import UserRole
-from app.schemas import UserCreate, UserResponse, UserUpdate
+from app.schemas import UserCreate, UserFinanceOptionResponse, UserResponse, UserUpdate
 from app.services import UserService
 
 router = APIRouter(prefix="/api/users", tags=["Users"])
@@ -18,6 +18,16 @@ async def get_users(
     db: Session = Depends(get_db),
 ):
     require_roles(request, db, UserRole.ADMIN)
+    return UserService(db).get_all_users()
+
+
+@router.get("/finance-options", response_model=list[UserFinanceOptionResponse])
+@router.get("/finance-options/", response_model=list[UserFinanceOptionResponse])
+async def get_finance_users(
+    request: Request,
+    db: Session = Depends(get_db),
+):
+    require_roles(request, db, UserRole.ADMIN, UserRole.KASSENMITGLIED)
     return UserService(db).get_all_users()
 
 

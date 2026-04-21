@@ -44,6 +44,10 @@
             <div class="card-label">Gutscheine</div>
             <div class="card-value">{{ formatPrice(dailyStats.voucher_total) }}</div>
           </div>
+          <div class="summary-card">
+            <div class="card-label">Guthabenkarten verkauft</div>
+            <div class="card-value">{{ formatPrice(dailyStats.prepaid_voucher_sales_total) }}</div>
+          </div>
           <div class="summary-card highlight">
             <div class="card-label">Umsatz GESAMT</div>
             <div class="card-value">{{ formatPrice(dailyStats.total_amount) }}</div>
@@ -516,6 +520,11 @@
             <div class="stat-percent">{{ revenueStats.balance_percent }}%</div>
           </div>
           <div class="stat-item">
+            <div class="stat-label">💳 Guthabenkarten</div>
+            <div class="stat-value">{{ formatPrice(revenueStats.prepaid_voucher_sales_total) }}</div>
+            <div class="stat-percent">diese Woche</div>
+          </div>
+          <div class="stat-item">
             <div class="stat-label">💸 Abschöpfungen 30 Tage</div>
             <div class="stat-value">{{ formatPrice(revenueStats.month_withdrawals) }}</div>
           </div>
@@ -591,58 +600,70 @@
     />
 
     <div v-if="showZbonCreateModal" class="confirmation-overlay">
-      <div class="confirmation-dialog">
+      <div class="confirmation-dialog zbon-create-dialog">
         <h3>Z-Bon erstellen</h3>
-        <div class="selection-group">
-          <label>Mitarbeiter</label>
-          <button @click="openMemberPicker('employeeMemberId')" class="member-select-btn">
-            {{ getSelectedMemberName(zbonForm.employeeMemberId, 'Mitglied auswählen') }}
-          </button>
-        </div>
-        <div class="selection-group">
-          <label>Sichtkontrolle</label>
-          <button @click="openMemberPicker('checkerMemberId')" class="member-select-btn">
-            {{ getSelectedMemberName(zbonForm.checkerMemberId, 'Mitglied auswählen') }}
-          </button>
-        </div>
-        <div class="summary-grid">
-          <div class="summary-card">
-            <div class="card-label">Vorheriger Barbestand</div>
-            <div class="card-value">{{ formatEuroValue(dailyStats.opening_balance) }}</div>
+        <div class="zbon-create-layout">
+          <div class="zbon-create-main">
+            <div class="selection-grid">
+              <div class="selection-group">
+                <label>Benutzer erstellt Z-Bon</label>
+                <button @click="openUserPicker('employeeUserId')" class="member-select-btn">
+                  {{ getSelectedUserName(zbonForm.employeeUserId, 'Benutzer auswählen') }}
+                </button>
+              </div>
+              <div class="selection-group">
+                <label>Benutzer Sichtkontrolle</label>
+                <button @click="openUserPicker('checkerUserId')" class="member-select-btn">
+                  {{ getSelectedUserName(zbonForm.checkerUserId, 'Benutzer auswählen') }}
+                </button>
+              </div>
+            </div>
+            <div class="summary-grid compact-summary-grid">
+              <div class="summary-card">
+                <div class="card-label">Vorheriger Barbestand</div>
+                <div class="card-value">{{ formatEuroValue(dailyStats.opening_balance) }}</div>
+              </div>
+              <div class="summary-card">
+                <div class="card-label">Buchungs-Range</div>
+                <div class="card-value">{{ currentReceiptLabel }}</div>
+              </div>
+              <div class="summary-card">
+                <div class="card-label">Guthabenkarten verkauft</div>
+                <div class="card-value">{{ formatPrice(dailyStats.prepaid_voucher_sales_total) }}</div>
+              </div>
+              <div class="summary-card">
+                <div class="card-label">Neuer Barbestand Soll</div>
+                <div class="card-value">{{ formatEuroValue(dailyStats.cash_calculated) }}</div>
+              </div>
+            </div>
           </div>
-          <div class="summary-card">
-            <div class="card-label">Buchungs-Range</div>
-            <div class="card-value">{{ currentReceiptLabel }}</div>
+          <div class="zbon-create-side">
+            <div class="filter-group">
+              <label>Gezählter Ist-Bestand</label>
+              <input v-model="zbonCountedCash" type="number" min="0" step="0.01" class="form-input" placeholder="0,00" />
+            </div>
+            <div class="summary-grid zbon-side-summary">
+              <div class="summary-card">
+                <div class="card-label">Differenz</div>
+                <div class="card-value">{{ zbonDifferenceDisplay }}</div>
+              </div>
+              <div class="summary-card">
+                <div class="card-label">Neuer Kassenbestand</div>
+                <div class="card-value">{{ zbonNewCashBalanceDisplay }}</div>
+              </div>
+            </div>
+            <div class="confirmation-buttons zbon-create-buttons">
+              <button @click="requestZBonCreate" class="btn btn-primary" :disabled="!canCreateZbon">
+                ✓ Z-Bon erstellen
+              </button>
+              <button @click="openWithdrawalModal" class="btn btn-warning">
+                💸 Abschöpfung
+              </button>
+              <button @click="closeZbonCreateModal" class="btn btn-secondary">
+                Abbrechen / Zurück
+              </button>
+            </div>
           </div>
-          <div class="summary-card">
-            <div class="card-label">Neuer Barbestand Soll</div>
-            <div class="card-value">{{ formatEuroValue(dailyStats.cash_calculated) }}</div>
-          </div>
-        </div>
-        <div class="filter-group">
-          <label>Ist</label>
-          <input v-model="zbonCountedCash" type="number" min="0" step="0.01" class="form-input" placeholder="leer bei Aufruf" />
-        </div>
-        <div class="summary-grid">
-          <div class="summary-card">
-            <div class="card-label">Differenz</div>
-            <div class="card-value">{{ zbonDifferenceDisplay }}</div>
-          </div>
-          <div class="summary-card">
-            <div class="card-label">Neuer Kassenbestand</div>
-            <div class="card-value">{{ zbonNewCashBalanceDisplay }}</div>
-          </div>
-        </div>
-        <div class="confirmation-buttons">
-          <button @click="closeZbonCreateModal" class="btn btn-secondary">
-            Abbrechen / Zurück
-          </button>
-          <button @click="openWithdrawalModal" class="btn btn-warning">
-            💸 Abschöpfung während Z-Bon
-          </button>
-          <button @click="requestZBonCreate" class="btn btn-primary" :disabled="!canCreateZbon">
-            ✓ Z-Bon erstellen
-          </button>
         </div>
       </div>
     </div>
@@ -677,28 +698,28 @@
 
     <div v-if="showMemberPickerModal" class="confirmation-overlay member-picker-overlay">
       <div class="confirmation-dialog member-picker-dialog">
-        <h3>Mitglied auswählen</h3>
+        <h3>{{ pickerTitle }}</h3>
         <input
           v-model="memberSearch"
           type="text"
-          placeholder="Nach Name suchen..."
+          :placeholder="pickerSearchPlaceholder"
           class="form-input member-search-input"
         />
         <div class="member-picker-list">
           <button
-            v-for="member in filteredPickerMembers"
-            :key="member.id"
-            @click="selectMemberForTarget(member)"
+            v-for="entry in filteredPickerOptions"
+            :key="entry.id"
+            @click="selectPickerOption(entry)"
             class="member-picker-item"
           >
-            <div v-if="member.photo_path" class="member-picker-photo">
-              <img :src="`/api/members/${member.id}/photo`" :alt="formatMemberLabel(member)" />
+            <div v-if="entry.photo_path" class="member-picker-photo">
+              <img :src="`/api/members/${entry.id}/photo`" :alt="formatPickerLabel(entry)" />
             </div>
             <div v-else class="member-picker-photo placeholder">👤</div>
-            <span>{{ formatMemberLabel(member) }}</span>
+            <span>{{ formatPickerLabel(entry) }}</span>
           </button>
-          <div v-if="!filteredPickerMembers.length" class="empty member-picker-empty">
-            Keine Mitglieder gefunden
+          <div v-if="!filteredPickerOptions.length" class="empty member-picker-empty">
+            Keine Einträge gefunden
           </div>
         </div>
         <div class="confirmation-buttons">
@@ -766,9 +787,10 @@ const showMemberPickerModal = ref(false)
 const showPasswordModal = ref(false)
 const memberPickerTarget = ref(null)
 const memberSearch = ref('')
+const financeUsers = ref([])
 const zbonForm = ref({
-  employeeMemberId: null,
-  checkerMemberId: null,
+  employeeUserId: null,
+  checkerUserId: null,
 })
 const zbonCountedCash = ref('')
 const withdrawalForm = ref({
@@ -796,6 +818,7 @@ const dailyStats = ref({
   cash_total: 0,
   balance_total: 0,
   voucher_total: 0,
+  prepaid_voucher_sales_total: 0,
   total_amount: 0,
   transaction_count: 0,
   opening_balance: 0,
@@ -818,6 +841,8 @@ const revenueStats = ref({
   daily_average: 0,
   cash_total: 0,
   balance_total: 0,
+  prepaid_voucher_sales_total: 0,
+  month_prepaid_voucher_sales_total: 0,
   cash_percent: 0,
   balance_percent: 0,
   week_withdrawals: 0,
@@ -947,22 +972,36 @@ const zbonNewCashBalanceDisplay = computed(() => {
 })
 
 const canCreateZbon = computed(() => (
-  !!zbonForm.value.employeeMemberId
-  && !!zbonForm.value.checkerMemberId
+  !!zbonForm.value.employeeUserId
+  && !!zbonForm.value.checkerUserId
   && zbonCountedCashValue.value !== null
 ))
 
-const filteredPickerMembers = computed(() => {
+const isUserPickerTarget = computed(() => ['employeeUserId', 'checkerUserId'].includes(memberPickerTarget.value))
+
+const filteredPickerOptions = computed(() => {
   const search = memberSearch.value.trim().toLowerCase()
+  const options = isUserPickerTarget.value ? financeUsers.value : memberStore.members
+
   if (!search) {
-    return memberStore.members
+    return options
   }
 
-  return memberStore.members.filter(member => getMemberSearchText(member).includes(search))
+  if (isUserPickerTarget.value) {
+    return options.filter(user => `${user.username} ${user.role || ''}`.toLowerCase().includes(search))
+  }
+
+  return options.filter(member => getMemberSearchText(member).includes(search))
 })
 
 const selectedWithdrawalMemberId = computed(() => withdrawalForm.value.memberId)
 const formatMemberLabel = (member) => getMemberShortName(member)
+const formatUserLabel = (user) => user?.username || ''
+const formatPickerLabel = (entry) => isUserPickerTarget.value ? formatUserLabel(entry) : formatMemberLabel(entry)
+const pickerTitle = computed(() => isUserPickerTarget.value ? 'Benutzer auswählen' : 'Mitglied auswählen')
+const pickerSearchPlaceholder = computed(() => (
+  isUserPickerTarget.value ? 'Nach Benutzername suchen...' : 'Nach Name suchen...'
+))
 
 const getMemberById = (memberId) => {
   if (!memberId) return null
@@ -973,12 +1012,21 @@ const getSelectedMemberName = (memberId, fallback = '-') => {
   return formatMemberLabel(getMemberById(memberId)) || fallback
 }
 
+const getUserById = (userId) => {
+  if (!userId) return null
+  return financeUsers.value.find(user => user.id === userId) || null
+}
+
+const getSelectedUserName = (userId, fallback = '-') => {
+  return formatUserLabel(getUserById(userId)) || fallback
+}
+
 const loadDailyStats = async () => {
   loading.value = true
   try {
     const payload = {
-      created_by_name: getSelectedMemberName(zbonForm.value.employeeMemberId, null),
-      cash_counted_by_name: getSelectedMemberName(zbonForm.value.checkerMemberId, null),
+      created_by_name: getSelectedUserName(zbonForm.value.employeeUserId, null),
+      cash_counted_by_name: getSelectedUserName(zbonForm.value.checkerUserId, null),
       cash_count: cashCountData.value
         ? {
           coins: cashCountData.value.coins,
@@ -992,6 +1040,7 @@ const loadDailyStats = async () => {
       cash_total: Math.round((preview.summary?.cash_sales_total || 0) * 100),
       balance_total: Math.round((preview.summary?.balance_sales_total || 0) * 100),
       voucher_total: Math.round((preview.summary?.voucher_sales_total || 0) * 100),
+      prepaid_voucher_sales_total: Math.round((preview.summary?.prepaid_voucher_sales_total || 0) * 100),
       total_amount: Math.round((preview.summary?.gross_sales_total || 0) * 100),
       transaction_count: preview.summary?.transaction_count || 0,
       opening_balance: preview.summary?.opening_cash_balance || 0,
@@ -1012,6 +1061,7 @@ const loadDailyStats = async () => {
       cash_total: 0,
       balance_total: 0,
       voucher_total: 0,
+      prepaid_voucher_sales_total: 0,
       total_amount: 0,
       transaction_count: 0,
       opening_balance: 0,
@@ -1089,6 +1139,10 @@ const getPaymentBadgeLabel = (transaction) => {
     return '🎫 Guthabenkarte'
   }
 
+  if (transaction.type === 'VOUCHER_SALE' && transaction.voucher_type === 'PREPAID') {
+    return '💳 Guthabenkarte Verkauf'
+  }
+
   if (transaction.balance_applied_cents > 0 && transaction.payment_method === 'CASH') {
     return '💳 Guthaben + 💰 BAR'
   }
@@ -1134,11 +1188,25 @@ const onCashCounterConfirm = (data) => {
   loadDailyStats()
 }
 
+const loadFinanceUsers = async () => {
+  const response = await apiService.get('/users/finance-options')
+  financeUsers.value = response.data
+}
+
 const openMemberPicker = async (target) => {
   memberPickerTarget.value = target
   memberSearch.value = ''
   if (!memberStore.members.length) {
     await memberStore.getMembers()
+  }
+  showMemberPickerModal.value = true
+}
+
+const openUserPicker = async (target) => {
+  memberPickerTarget.value = target
+  memberSearch.value = ''
+  if (!financeUsers.value.length) {
+    await loadFinanceUsers()
   }
   showMemberPickerModal.value = true
 }
@@ -1149,13 +1217,13 @@ const closeMemberPicker = () => {
   memberSearch.value = ''
 }
 
-const selectMemberForTarget = (member) => {
-  if (memberPickerTarget.value === 'employeeMemberId') {
-    zbonForm.value.employeeMemberId = member.id
-  } else if (memberPickerTarget.value === 'checkerMemberId') {
-    zbonForm.value.checkerMemberId = member.id
+const selectPickerOption = (entry) => {
+  if (memberPickerTarget.value === 'employeeUserId') {
+    zbonForm.value.employeeUserId = entry.id
+  } else if (memberPickerTarget.value === 'checkerUserId') {
+    zbonForm.value.checkerUserId = entry.id
   } else if (memberPickerTarget.value === 'withdrawalMemberId') {
-    withdrawalForm.value.memberId = member.id
+    withdrawalForm.value.memberId = entry.id
   }
 
   closeMemberPicker()
@@ -1183,8 +1251,8 @@ const handleDownloadZBon = async () => {
 }
 
 const openZbonCreateModal = async () => {
-  if (!memberStore.members.length) {
-    await memberStore.getMembers()
+  if (!financeUsers.value.length) {
+    await loadFinanceUsers()
   }
   zbonCountedCash.value = ''
   showZbonCreateModal.value = true
@@ -1265,8 +1333,8 @@ const requestZBonCreate = () => {
 
 const createZBon = async (password) => {
   showPasswordModal.value = false
-  const employeeName = getSelectedMemberName(zbonForm.value.employeeMemberId, '')
-  const checkerName = getSelectedMemberName(zbonForm.value.checkerMemberId, '')
+  const employeeName = getSelectedUserName(zbonForm.value.employeeUserId, '')
+  const checkerName = getSelectedUserName(zbonForm.value.checkerUserId, '')
 
   if (!employeeName) {
     notificationStore.error('Bitte einen Mitarbeiter auswählen')
@@ -1293,6 +1361,10 @@ const createZBon = async (password) => {
     })
     notificationStore.success('Z-Bon erfolgreich erstellt')
     closeZbonCreateModal()
+    zbonForm.value = {
+      employeeUserId: null,
+      checkerUserId: null,
+    }
     cashCountData.value = null
     zbonCountedCash.value = ''
     await loadDailyStats()
@@ -1440,6 +1512,7 @@ watch([zbonsFilterStartDate, zbonsFilterEndDate, zbonsCurrentPage], () => {
 onMounted(() => {
   console.log('Finance component mounted, loading data...')
   memberStore.getMembers()
+  loadFinanceUsers()
   loadDailyStats()
   applyFilters()
   loadRevenueStats()
@@ -1942,10 +2015,43 @@ onMounted(() => {
   }
 }
 
+.zbon-create-dialog {
+  max-width: min(92vw, 1080px);
+  width: min(92vw, 1080px);
+  text-align: left;
+}
+
+.zbon-create-layout {
+  display: grid;
+  grid-template-columns: minmax(0, 2fr) minmax(280px, 1fr);
+  gap: 1.25rem;
+  align-items: start;
+}
+
+.selection-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 1rem;
+}
+
+.compact-summary-grid {
+  margin-bottom: 0;
+}
+
+.zbon-side-summary {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  margin-bottom: 1rem;
+}
+
 .confirmation-buttons {
   display: flex;
   gap: 1rem;
   justify-content: center;
+}
+
+.zbon-create-buttons {
+  flex-direction: column;
+  align-items: stretch;
 }
 
 .selection-group {
@@ -2047,6 +2153,17 @@ onMounted(() => {
   margin: 0;
   padding: 1rem 0;
 }
+
+@media (max-width: 900px) {
+  .zbon-create-layout {
+    grid-template-columns: 1fr;
+  }
+
+  .zbon-side-summary {
+    grid-template-columns: 1fr;
+  }
+}
+
 .transaction-row {
   &:hover {
     background: #f0f0f0;

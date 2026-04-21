@@ -8,11 +8,13 @@
           <span class="navbar-title">{{ appSettingsStore.settings.app_name }}</span>
         </div>
         <div class="navbar-menu">
-          <router-link to="/" class="nav-link">Kasse</router-link>
-          <router-link to="/admin" class="nav-link" v-if="authStore.canAccessAdminPanel">Admin</router-link>
-          <PwaInstallButton />
+          <div class="navbar-actions">
+            <router-link to="/" class="nav-link">Kasse</router-link>
+            <router-link to="/admin" class="nav-link" v-if="authStore.canAccessAdminPanel">Admin</router-link>
+            <PwaInstallButton />
+            <button @click="logout" class="btn-logout">Logout</button>
+          </div>
           <span class="current-user">Angemeldet: {{ authStore.user?.username }}</span>
-          <button @click="logout" class="btn-logout">Logout</button>
         </div>
       </div>
     </nav>
@@ -90,6 +92,13 @@ onMounted(() => {
 
   .navbar-menu {
     display: flex;
+    flex-direction: column;
+    gap: 0.45rem;
+    align-items: flex-end;
+  }
+
+  .navbar-actions {
+    display: flex;
     gap: 0.75rem;
     align-items: center;
     flex-wrap: wrap;
@@ -122,6 +131,7 @@ onMounted(() => {
   .current-user {
     color: var(--app-banner-contrast);
     font-weight: 600;
+    font-size: 0.95rem;
   }
 }
 
@@ -143,6 +153,10 @@ onMounted(() => {
   }
 
   .navbar .navbar-menu {
+    align-items: center;
+  }
+
+  .navbar .navbar-actions {
     justify-content: center;
   }
 }

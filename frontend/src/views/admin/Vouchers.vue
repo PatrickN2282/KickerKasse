@@ -417,6 +417,16 @@ const getVoucherCode = (voucher) => {
   return `V-${year}-${String(voucher.voucher_number).padStart(3, '0')}`
 }
 
+const showCreatedVoucherInManageTab = async (type) => {
+  filters.value = {
+    type,
+    status: '',
+  }
+  currentPage.value = 1
+  activeSubTab.value = 'manage'
+  await loadVouchers()
+}
+
 // Methods
 const passwordModalTitle = computed(() => pendingVoucherAction.value === 'gift'
   ? 'Geschenk-Gutschein erstellen'
@@ -454,9 +464,7 @@ const submitGiftVoucher = async (password) => {
     
     createdGiftVoucher.value = payload
     giftForm.value = { valueCents: 1000, reason: 'PROMOTION', valueDisplay: '10.00' }
-    // Always refresh list after creating a voucher
-    console.log('[Vouchers] Refreshing voucher list...')
-    await loadVouchers()
+    await showCreatedVoucherInManageTab('GIFT')
   } catch (error) {
     console.error('[Vouchers] Error creating GIFT voucher:', error)
     console.error('[Vouchers]   Status:', error?.response?.status)
@@ -486,8 +494,7 @@ const submitPrepaidVoucher = async (password) => {
     console.log('[Vouchers] Create PREPAID response:', JSON.stringify(payload, null, 2))
     createdPrepaidVoucher.value = payload
     prepaidForm.value = { valueCents: 2000, valueDisplay: '20.00' }
-    // Always refresh list after creating a voucher
-    await loadVouchers()
+    await showCreatedVoucherInManageTab('PREPAID')
   } catch (error) {
     console.error('[Vouchers] Error creating PREPAID voucher:', error)
     createError.value = error.response?.data?.detail || error.message || 'Fehler beim Erstellen'

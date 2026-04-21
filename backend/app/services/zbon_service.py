@@ -130,6 +130,10 @@ class ZBonService:
 
         sales = [t for t in transactions if t.type == TransactionType.SALE]
         recharges = [t for t in transactions if t.type == TransactionType.RECHARGE]
+        prepaid_voucher_sales = [
+            t for t in transactions
+            if t.type == TransactionType.VOUCHER_SALE and t.voucher_type == VoucherType.PREPAID.value
+        ]
         stornos = [t for t in transactions if t.type == TransactionType.STORNO]
         first_transaction_at = transactions[0].created_at if transactions else None
         effective_period_start = period_start or first_transaction_at
@@ -151,9 +155,16 @@ class ZBonService:
         voucher_sales_total = sum(t.voucher_applied_cents or 0 for t in sales) / 100
         voucher_sales_count = len([t for t in sales if (t.voucher_applied_cents or 0) > 0])
         recharge_total = sum(t.total_amount_cents for t in recharges) / 100
+        prepaid_voucher_sales_total = sum(t.total_amount_cents for t in prepaid_voucher_sales) / 100
         storno_total = sum(t.total_amount_cents for t in stornos) / 100
         opening_balance = self._get_opening_cash_balance(last_zbon)
-        cash_calculated = opening_balance + cash_sales_total + recharge_total - cash_summary["withdrawals_total"]
+        cash_calculated = (
+            opening_balance
+            + cash_sales_total
+            + recharge_total
+            + prepaid_voucher_sales_total
+            - cash_summary["withdrawals_total"]
+        )
 
         cash_count_total = None
         cash_difference = None
@@ -213,6 +224,7 @@ class ZBonService:
                 "transaction_count": len(transactions),
                 "sales_count": len(sales),
                 "recharge_count": len(recharges),
+                "prepaid_voucher_sales_count": len(prepaid_voucher_sales),
                 "storno_count": len(stornos),
                 "cash_sales_count": cash_sales_count,
                 "balance_sales_count": balance_sales_count,
@@ -222,6 +234,7 @@ class ZBonService:
                 "balance_sales_total": balance_sales_total,
                 "voucher_sales_total": voucher_sales_total,
                 "recharge_total": recharge_total,
+                "prepaid_voucher_sales_total": prepaid_voucher_sales_total,
                 "storno_total": storno_total,
                 "opening_cash_balance": opening_balance,
                 "cash_withdrawals_total": cash_summary["withdrawals_total"],
@@ -350,6 +363,8 @@ class ZBonService:
             voucher_sales_total=f"{summary.get('voucher_sales_total', 0):.2f}",
             recharge_count=summary.get("recharge_count", 0),
             recharge_total=f"{summary.get('recharge_total', 0):.2f}",
+            prepaid_voucher_sales_count=summary.get("prepaid_voucher_sales_count", 0),
+            prepaid_voucher_sales_total=f"{summary.get('prepaid_voucher_sales_total', 0):.2f}",
             balance_open_total=f"{summary.get('balance_open_total', 0):.2f}",
             total_items_count=summary.get("sales_count", 0),
             total_net=f"{summary.get('gross_sales_total', 0):.2f}",

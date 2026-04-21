@@ -139,6 +139,9 @@ class TransactionService:
                 if transaction.payment_method == PaymentMethod.BALANCE:
                     total_balance += transaction.total_amount_cents
                 count += 1
+            elif transaction.type == TransactionType.VOUCHER_SALE and transaction.payment_method == PaymentMethod.CASH:
+                total_cash += transaction.total_amount_cents
+                count += 1
         
         return {
             "total_cash_cents": total_cash,
@@ -185,6 +188,7 @@ class TransactionService:
         total_balance = 0
         total_voucher_gift = 0
         total_voucher_prepaid = 0
+        total_prepaid_sales = 0
         count = 0
         
         for transaction in transactions:
@@ -194,6 +198,9 @@ class TransactionService:
             total_balance += transaction.balance_applied_cents
             if transaction.payment_method == PaymentMethod.BALANCE:
                 total_balance += transaction.total_amount_cents
+
+            if transaction.type == TransactionType.VOUCHER_SALE and transaction.voucher_type == "PREPAID":
+                total_prepaid_sales += transaction.total_amount_cents
 
             if transaction.voucher_applied_cents:
                 if transaction.voucher_type == "GIFT":
@@ -208,6 +215,7 @@ class TransactionService:
             "voucher_gift_total": total_voucher_gift,
             "voucher_prepaid_total": total_voucher_prepaid,
             "voucher_total": total_voucher_gift + total_voucher_prepaid,
+            "prepaid_voucher_sales_total": total_prepaid_sales,
             "total_amount": total_cash + total_balance,
             "transaction_count": count,
             "transactions": [
@@ -313,12 +321,17 @@ class TransactionService:
         week_transactions = self.db.query(Transaction).filter(
             func.date(Transaction.created_at) >= week_ago,
             func.date(Transaction.created_at) <= today,
-            Transaction.type == TransactionType.SALE
+            Transaction.type.in_([TransactionType.SALE, TransactionType.VOUCHER_SALE])
         ).all()
         
         week_total = sum(t.total_amount_cents for t in week_transactions)
         week_cash = sum(t.total_amount_cents for t in week_transactions if t.payment_method == PaymentMethod.CASH)
         week_balance = sum(t.total_amount_cents for t in week_transactions if t.payment_method == PaymentMethod.BALANCE)
+        week_prepaid_sales = sum(
+            t.total_amount_cents
+            for t in week_transactions
+            if t.type == TransactionType.VOUCHER_SALE and t.voucher_type == "PREPAID"
+        )
 
         week_start = datetime.combine(week_ago, time.min)
         week_end = datetime.combine(today, time.max)
@@ -337,10 +350,15 @@ class TransactionService:
         month_transactions = self.db.query(Transaction).filter(
             func.date(Transaction.created_at) >= month_ago,
             func.date(Transaction.created_at) <= today,
-            Transaction.type == TransactionType.SALE
+            Transaction.type.in_([TransactionType.SALE, TransactionType.VOUCHER_SALE])
         ).all()
         
         month_total = sum(t.total_amount_cents for t in month_transactions)
+        month_prepaid_sales = sum(
+            t.total_amount_cents
+            for t in month_transactions
+            if t.type == TransactionType.VOUCHER_SALE and t.voucher_type == "PREPAID"
+        )
         month_start = datetime.combine(month_ago, time.min)
         month_end = datetime.combine(today, time.max)
         month_withdrawals = (
@@ -380,6 +398,8 @@ class TransactionService:
             "daily_average": daily_average,
             "cash_total": week_cash,
             "balance_total": week_balance,
+            "prepaid_voucher_sales_total": week_prepaid_sales,
+            "month_prepaid_voucher_sales_total": month_prepaid_sales,
             "week_withdrawals": int(week_withdrawals),
             "month_withdrawals": int(month_withdrawals),
             "cash_percent": cash_percent,

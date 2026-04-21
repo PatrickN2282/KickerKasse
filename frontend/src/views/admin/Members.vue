@@ -27,15 +27,18 @@
           <input v-model="formData.has_discount" type="checkbox" />
           Rabatt
         </label>
-        <div v-if="authStore.isAdmin" class="form-group">
-          <label for="role">Rolle:</label>
-          <select v-model="formData.role" id="role" class="form-input">
-            <option value="">Keine Rolle</option>
-            <option value="CASHIER">Verkauf</option>
-            <option value="KASSENMITGLIED">VerkaufAdmin</option>
-            <option value="ADMIN">Admin</option>
-          </select>
+        <div class="form-group">
+          <label for="email">E-Mail:</label>
+          <input v-model="formData.email" id="email" type="email" class="form-input" />
         </div>
+        <div class="form-group">
+          <label for="phone">Telefon:</label>
+          <input v-model="formData.phone" id="phone" type="text" class="form-input" />
+        </div>
+      </div>
+      <div class="form-group">
+        <label for="notes">Notizen:</label>
+        <textarea v-model="formData.notes" id="notes" class="form-input notes-input" rows="3"></textarea>
       </div>
 
       <div v-if="editingId" class="form-group recharge-section">
@@ -87,7 +90,8 @@
             <th>Mitgliedsnummer</th>
             <th>Name</th>
             <th>Rabatt</th>
-            <th>Rolle</th>
+            <th>E-Mail</th>
+            <th>Telefon</th>
             <th>Guthaben</th>
             <th>Aktionen</th>
           </tr>
@@ -100,9 +104,10 @@
             </td>
             <td>{{ member.member_number }}</td>
             <td>{{ member.membership_number || '-' }}</td>
-            <td>{{ getMemberShortName(member) }}</td>
+            <td>{{ getMemberFullName(member) }}</td>
             <td>{{ member.has_discount ? 'Ja' : 'Nein' }}</td>
-            <td>{{ getRoleLabel(member.role) }}</td>
+            <td>{{ member.email || '-' }}</td>
+            <td>{{ member.phone || '-' }}</td>
             <td class="balance">{{ formatBalance(member.balance_cents) }}</td>
             <td>
               <button @click="editMember(member)" class="btn-small">Bearbeiten</button>
@@ -132,7 +137,7 @@ import { useAuthStore } from '@/stores/auth'
 import { useMemberStore } from '@/stores/member'
 import { useNotificationStore } from '@/stores/notification'
 import { formatBalance } from '@/services/utils'
-import { getMemberFullName, getMemberShortName, getRoleLabel } from '@/services/member'
+import { getMemberFullName } from '@/services/member'
 import PasswordConfirmModal from '@/components/PasswordConfirmModal.vue'
 import apiService from '@/services/api'
 
@@ -153,8 +158,8 @@ const formData = reactive({
   membership_number: '',
   email: '',
   phone: '',
+  notes: '',
   has_discount: true,
-  role: '',
 })
 
 const fullFormName = computed(() => [formData.first_name, formData.last_name].filter(Boolean).join(' '))
@@ -199,10 +204,7 @@ const uploadPhotoToMember = async (memberId) => {
 }
 
 const handleSaveMember = async () => {
-  const payload = {
-    ...formData,
-    role: authStore.isAdmin ? formData.role || null : undefined,
-  }
+  const payload = { ...formData }
 
   if (editingId.value) {
     const photoUploadSuccess = await uploadPhotoToMember(editingId.value)
@@ -243,8 +245,8 @@ const resetForm = () => {
   formData.membership_number = ''
   formData.email = ''
   formData.phone = ''
+  formData.notes = ''
   formData.has_discount = true
-  formData.role = ''
   photoFile.value = null
   photoPreview.value = null
   rechargeAmount.value = null
@@ -260,8 +262,8 @@ const editMember = (member) => {
   formData.membership_number = member.membership_number || ''
   formData.email = member.email || ''
   formData.phone = member.phone || ''
+  formData.notes = member.notes || ''
   formData.has_discount = member.has_discount ?? true
-  formData.role = member.role || ''
   currentMemberBalance.value = member.balance_cents
   rechargeAmount.value = null
   showForm.value = true
@@ -357,6 +359,10 @@ onMounted(async () => {
       outline: none;
       border-color: var(--app-highlight-color);
     }
+  }
+
+  .notes-input {
+    resize: vertical;
   }
 }
 
