@@ -33,7 +33,8 @@ class UserService:
         options = []
 
         for user in self.repo.get_all_active():
-            display_name = user.member.name if getattr(user, "member", None) else user.username
+            member = getattr(user, "member", None)
+            display_name = member.name if member is not None else user.username
             options.append({
                 "id": f"user-{user.id}",
                 "username": display_name,

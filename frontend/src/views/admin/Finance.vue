@@ -760,7 +760,7 @@
           <div class="zbon-create-layout">
             <div class="zbon-create-main">
               <div class="zbon-note-box">
-                Kassenprüfer wählen -&gt; Kassenbestand zählen -&gt; Abschöpfung vornehmen und eintragen -&gt; mit neuem Kassenbestand abgleichen -&gt; Z-Bon erstellen
+                Kassenprüfer wählen → Kassenbestand zählen → Abschöpfung vornehmen und eintragen → mit neuem Kassenbestand abgleichen → Z-Bon erstellen
               </div>
               <div class="selection-grid">
                 <div class="selection-group">
@@ -1709,13 +1709,14 @@ const loadZbonsHistory = async () => {
 }
 
 const formatDateForFilename = (value) => {
+  const today = new Date().toISOString().split('T')[0]
   if (!value) {
-    return new Date().toISOString().split('T')[0]
+    return today
   }
 
   const date = new Date(value)
   if (Number.isNaN(date.getTime())) {
-    return new Date().toISOString().split('T')[0]
+    return today
   }
 
   return date.toISOString().split('T')[0]
