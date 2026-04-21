@@ -80,7 +80,8 @@ def resolve_confirmation_user(
     allow_top_admin_override: bool = False,
 ) -> User:
     requested_username = (username or "").strip()
-    if not requested_username or requested_username == current_user.username:
+    current_username = (current_user.username or "").strip()
+    if not requested_username or requested_username.casefold() == current_username.casefold():
         require_password_confirmation(current_user, password)
         return current_user
 

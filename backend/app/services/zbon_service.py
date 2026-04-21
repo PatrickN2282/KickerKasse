@@ -170,19 +170,19 @@ class ZBonService:
             - cash_summary["withdrawals_total"]
         )
 
-        cash_count_total = None
+        resolved_cash_count_total = None
         cash_difference = None
         if include_cash_count:
             coins = include_cash_count.get("coins", {})
             notes = include_cash_count.get("notes", {})
-            cash_count_total = (
+            resolved_cash_count_total = (
                 sum(float(denom) * count for denom, count in coins.items())
                 + sum(float(denom) * count for denom, count in notes.items())
             )
         elif cash_count_total is not None:
-            cash_count_total = float(cash_count_total)
-        if cash_count_total is not None:
-            cash_difference = cash_count_total - cash_calculated
+            resolved_cash_count_total = float(cash_count_total)
+        if resolved_cash_count_total is not None:
+            cash_difference = resolved_cash_count_total - cash_calculated
 
         receipt_numbers = [t.receipt_number for t in transactions if t.receipt_number is not None]
         transaction_rows = [
@@ -246,7 +246,7 @@ class ZBonService:
                 "cash_withdrawals_total": cash_summary["withdrawals_total"],
                 "cash_deposits_total": cash_summary["deposits_total"],
                 "cash_calculated": cash_calculated,
-                "cash_counted": cash_count_total,
+                "cash_counted": resolved_cash_count_total,
                 "cash_difference": cash_difference,
                 "receipt_number_min": min(receipt_numbers) if receipt_numbers else None,
                 "receipt_number_max": max(receipt_numbers) if receipt_numbers else None,

@@ -7,6 +7,7 @@ from app.services.file_service import delete_member_photo
 
 class MemberService:
     """Member management service"""
+    MAX_USERNAME_COLLISION_RETRIES = 1000
     
     def __init__(self, db: Session):
         self.db = db
@@ -19,14 +20,14 @@ class MemberService:
         last_initial = (member.last_name or "").strip()[:1].upper()
         base = " ".join(part for part in [first_name, last_initial] if part).strip() or "Mitglied"
         candidate = base
-        suffix = 2
 
-        while True:
+        for suffix_index in range(self.MAX_USERNAME_COLLISION_RETRIES):
             existing_user = self.user_repo.get_by_username(candidate)
             if not existing_user or existing_user.member_id == member.id:
                 return candidate
-            candidate = f"{base}-{suffix}"
-            suffix += 1
+            candidate = f"{base}-{suffix_index + 2}"
+
+        raise ValueError("Es konnte kein eindeutiger Benutzername generiert werden")
 
     def _validate_linked_user_state(
         self,
