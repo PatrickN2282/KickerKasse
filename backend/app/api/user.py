@@ -103,5 +103,17 @@ async def delete_user(
     db: Session = Depends(get_db),
 ):
     require_roles(request, db, UserRole.ADMIN)
-    if not UserService(db).delete_user(user_id):
+    try:
+        deleted = UserService(db).delete_user(user_id)
+    except IntegrityError as exc:
+        db.rollback()
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=(
+                "Benutzer kann nicht gelöscht werden, da bereits "
+                "Transaktionen oder andere Buchungen darauf verweisen"
+            ),
+        ) from exc
+
+    if not deleted:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="User not found")

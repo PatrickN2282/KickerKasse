@@ -216,6 +216,28 @@ async def list_vouchers(
         )
 
 
+@admin_router.get("/club-account")
+@admin_router.get("/club-account/")
+async def get_club_account(
+    request: Request,
+    db: Session = Depends(get_db),
+):
+    require_roles(request, db, UserRole.ADMIN)
+    return VoucherService(db).get_club_account_summary()
+
+
+@admin_router.post("/club-account/topup")
+@admin_router.post("/club-account/topup/")
+async def top_up_club_account(
+    payload: ClubAccountTopUpRequest,
+    request: Request,
+    db: Session = Depends(get_db),
+):
+    current_user = require_roles(request, db, UserRole.ADMIN)
+    require_password_confirmation(current_user, payload.auth_password)
+    return VoucherService(db).top_up_club_account(payload.amount_cents, current_user.id)
+
+
 @admin_router.get("/{voucher_id}", response_model=VoucherResponse)
 @admin_router.get("/{voucher_id}/", response_model=VoucherResponse)
 async def get_voucher_detail(
@@ -279,28 +301,6 @@ async def update_voucher(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Error updating voucher: {str(e)}",
         )
-
-
-@admin_router.get("/club-account")
-@admin_router.get("/club-account/")
-async def get_club_account(
-    request: Request,
-    db: Session = Depends(get_db),
-):
-    require_roles(request, db, UserRole.ADMIN)
-    return VoucherService(db).get_club_account_summary()
-
-
-@admin_router.post("/club-account/topup")
-@admin_router.post("/club-account/topup/")
-async def top_up_club_account(
-    payload: ClubAccountTopUpRequest,
-    request: Request,
-    db: Session = Depends(get_db),
-):
-    current_user = require_roles(request, db, UserRole.ADMIN)
-    require_password_confirmation(current_user, payload.auth_password)
-    return VoucherService(db).top_up_club_account(payload.amount_cents, current_user.id)
 
 
 @admin_router.get("/by-number/{voucher_number}", response_model=VoucherResponse)
