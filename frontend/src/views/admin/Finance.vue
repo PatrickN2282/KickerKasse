@@ -818,7 +818,7 @@
              </div>
              <div class="zbon-balance-group">
                <div class="filter-group">
-                 <label>Gezählter Bestand vor Abschöpfung</label>
+                 <label>Gezählter Kassenbestand</label>
                  <input
                    v-model="zbonCountedCash"
                    type="number"
@@ -1179,11 +1179,6 @@ const loadSchedulerStatus = async () => {
     console.error('Error loading scheduler status:', error)
   }
 }
-function formatDateDE(dateStr) {
-  const date = new Date(dateStr + 'T00:00:00')
-  return date.toLocaleDateString('de-DE', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })
-}
-
 function formatDate(dateStr) {
   if (!dateStr) return '-'
   const date = new Date(dateStr)

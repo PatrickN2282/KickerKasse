@@ -26,7 +26,8 @@ class MemberService:
 
     def _generate_member_username(self, member: Member) -> str:
         base = self._slugify_username(f"{member.first_name}.{member.last_name}")
-        return f"{base}-{member.member_number}"
+        suffix = member.member_number or member.membership_number or member.id or "konto"
+        return f"{base}-{suffix}"
 
     def _validate_linked_user_state(
         self,
@@ -170,6 +171,7 @@ class MemberService:
 
         linked_user = self.user_repo.get_by_member_id(member_id)
 
+        # Keep historical transactions for statistics/audits while removing the deleted member reference.
         self.db.query(Transaction).filter(Transaction.member_id == member_id).update(
             {Transaction.member_id: None},
             synchronize_session=False,
