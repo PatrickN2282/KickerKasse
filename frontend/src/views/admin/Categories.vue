@@ -53,7 +53,7 @@
             {{ editingId ? 'Aktualisieren' : 'Erstellen' }}
           </button>
           <button type="button" @click="resetForm" class="btn btn-secondary">
-            Abbrechen
+            Abbrechen / Zurück
           </button>
         </div>
       </form>

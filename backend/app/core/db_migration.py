@@ -74,7 +74,7 @@ class DatabaseMigrator:
                     conn=conn,
                     enum_name="userrole",
                     expected_values=["ADMIN", "CASHIER", "KASSENMITGLIED"],
-                    column_specs=[("users", "role")],
+                    column_specs=[("users", "role"), ("members", "role")],
                 )
                 self._sync_enum_type(
                     conn=conn,
@@ -247,6 +247,55 @@ class DatabaseMigrator:
                             conn.rollback()
                         except:
                             pass
+
+            if 'members' in inspector.get_table_names():
+                member_columns = {col['name'] for col in inspector.get_columns('members')}
+
+                if 'first_name' not in member_columns:
+                    conn.execute(text("ALTER TABLE members ADD COLUMN first_name VARCHAR(80)"))
+                    conn.execute(text("""
+                        UPDATE members
+                        SET first_name = COALESCE(
+                            NULLIF(SPLIT_PART(TRIM(name), ' ', 1), ''),
+                            CONCAT('Mitglied ', member_number::text)
+                        )
+                    """))
+                    conn.execute(text("ALTER TABLE members ALTER COLUMN first_name SET NOT NULL"))
+                    conn.commit()
+
+                if 'last_name' not in member_columns:
+                    conn.execute(text("ALTER TABLE members ADD COLUMN last_name VARCHAR(80)"))
+                    conn.execute(text("""
+                        UPDATE members
+                        SET last_name = CASE
+                            WHEN POSITION(' ' IN TRIM(COALESCE(name, ''))) > 0
+                                THEN TRIM(SUBSTRING(TRIM(name) FROM POSITION(' ' IN TRIM(name)) + 1))
+                            ELSE ''
+                        END
+                        WHERE last_name IS NULL
+                    """))
+                    conn.commit()
+
+                if 'membership_number' not in member_columns:
+                    conn.execute(text("ALTER TABLE members ADD COLUMN membership_number VARCHAR(50)"))
+                    conn.commit()
+
+                if 'has_discount' not in member_columns:
+                    conn.execute(text("ALTER TABLE members ADD COLUMN has_discount BOOLEAN DEFAULT TRUE NOT NULL"))
+                    conn.commit()
+
+                if 'role' not in member_columns:
+                    conn.execute(text("ALTER TABLE members ADD COLUMN role userrole"))
+                    conn.commit()
+
+            if 'transactions' in inspector.get_table_names():
+                transaction_columns = {col['name'] for col in inspector.get_columns('transactions')}
+
+                if 'balance_applied_cents' not in transaction_columns:
+                    conn.execute(text(
+                        "ALTER TABLE transactions ADD COLUMN balance_applied_cents INTEGER DEFAULT 0 NOT NULL"
+                    ))
+                    conn.commit()
                 else:
                     try:
                         conn.execute(text(

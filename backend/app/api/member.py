@@ -27,14 +27,24 @@ async def create_member(
     db: Session = Depends(get_db),
 ):
     """Create a new member"""
-    require_roles(request, db, UserRole.ADMIN, UserRole.KASSENMITGLIED)
+    current_user = require_roles(request, db, UserRole.ADMIN, UserRole.KASSENMITGLIED)
+    if member_data.role and current_user.role != UserRole.ADMIN:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Nur Admins dürfen Rollen vergeben",
+        )
     
     try:
         service = MemberService(db)
         member = service.create_member(
-            member_data.name,
+            member_data.first_name,
+            member_data.last_name,
+            member_data.membership_number,
             member_data.email,
             member_data.phone,
+            member_data.notes,
+            member_data.has_discount,
+            member_data.role,
         )
         return member
     except IntegrityError as e:
@@ -177,7 +187,12 @@ async def update_member(
     db: Session = Depends(get_db),
 ):
     """Update member"""
-    require_roles(request, db, UserRole.ADMIN, UserRole.KASSENMITGLIED)
+    current_user = require_roles(request, db, UserRole.ADMIN, UserRole.KASSENMITGLIED)
+    if member_data.role is not None and current_user.role != UserRole.ADMIN:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Nur Admins dürfen Rollen vergeben",
+        )
     
     try:
         service = MemberService(db)

@@ -3,22 +3,39 @@
     <h2>Mitgliederverwaltung</h2>
 
     <button @click="showForm = !showForm" class="btn btn-primary">
-      {{ showForm ? 'Abbrechen' : 'Neues Mitglied' }}
+      {{ showForm ? 'Abbrechen / Zurück' : 'Neues Mitglied' }}
     </button>
 
     <form v-if="showForm" @submit.prevent="handleSaveMember" class="form-section">
       <h3>{{ editingId ? 'Mitglied bearbeiten' : 'Neues Mitglied' }}</h3>
-      <div class="form-group">
-        <label for="name">Name*:</label>
-        <input v-model="formData.name" id="name" type="text" class="form-input" required />
+      <div class="form-grid">
+        <div class="form-group">
+          <label for="first_name">Vorname*:</label>
+          <input v-model="formData.first_name" id="first_name" type="text" class="form-input" required />
+        </div>
+        <div class="form-group">
+          <label for="last_name">Nachname*:</label>
+          <input v-model="formData.last_name" id="last_name" type="text" class="form-input" required />
+        </div>
       </div>
       <div class="form-group">
-        <label for="email">Email:</label>
-        <input v-model="formData.email" id="email" type="email" class="form-input" />
+        <label for="membership_number">Mitgliedsnummer:</label>
+        <input v-model="formData.membership_number" id="membership_number" type="text" class="form-input" />
       </div>
-      <div class="form-group">
-        <label for="phone">Telefon:</label>
-        <input v-model="formData.phone" id="phone" type="tel" class="form-input" />
+      <div class="form-grid">
+        <label class="checkbox-row">
+          <input v-model="formData.has_discount" type="checkbox" />
+          Rabatt
+        </label>
+        <div v-if="authStore.isAdmin" class="form-group">
+          <label for="role">Rolle:</label>
+          <select v-model="formData.role" id="role" class="form-input">
+            <option value="">Keine Rolle</option>
+            <option value="CASHIER">Verkauf</option>
+            <option value="KASSENMITGLIED">VerkaufAdmin</option>
+            <option value="ADMIN">Admin</option>
+          </select>
+        </div>
       </div>
 
       <div v-if="editingId" class="form-group recharge-section">
@@ -37,20 +54,14 @@
             class="form-input"
           />
           <button
-            @click="handleRecharge"
+            @click="openRechargeModal"
             type="button"
             class="btn btn-info"
-            :disabled="!rechargeAmount || rechargeAmount <= 0 || !rechargePassword"
+            :disabled="!rechargeAmount || rechargeAmount <= 0"
           >
             + Aufladen
           </button>
         </div>
-        <input
-          v-model="rechargePassword"
-          type="password"
-          class="form-input recharge-password"
-          placeholder="Passwort des angemeldeten Benutzers"
-        />
         <small v-if="editingId && currentMemberBalance !== null">
           Aktuelles Guthaben: {{ formatBalance(currentMemberBalance) }}
         </small>
@@ -60,7 +71,7 @@
         <label for="photo">Foto:</label>
         <input @change="handlePhotoUpload" id="photo" type="file" accept="image/*" class="form-input" />
         <div v-if="photoPreview" class="photo-preview">
-          <img :src="photoPreview" :alt="formData.name" style="max-width: 150px; max-height: 150px;" />
+          <img :src="photoPreview" :alt="fullFormName" style="max-width: 150px; max-height: 150px;" />
         </div>
       </div>
       <button type="submit" class="btn btn-success">Speichern</button>
@@ -73,9 +84,10 @@
           <tr>
             <th style="width: 60px;">Foto</th>
             <th>Nr.</th>
+            <th>Mitgliedsnummer</th>
             <th>Name</th>
-            <th>Email</th>
-            <th>Telefon</th>
+            <th>Rabatt</th>
+            <th>Rolle</th>
             <th>Guthaben</th>
             <th>Aktionen</th>
           </tr>
@@ -83,13 +95,14 @@
         <tbody>
           <tr v-for="member in memberStore.members" :key="member.id">
             <td class="photo-cell">
-              <img v-if="member.photo_path" :src="`/api/members/${member.id}/photo`" :alt="member.name" class="member-thumb" />
+              <img v-if="member.photo_path" :src="`/api/members/${member.id}/photo`" :alt="getMemberFullName(member)" class="member-thumb" />
               <span v-else class="no-photo">-</span>
             </td>
             <td>{{ member.member_number }}</td>
-            <td>{{ member.name }}</td>
-            <td>{{ member.email || '-' }}</td>
-            <td>{{ member.phone || '-' }}</td>
+            <td>{{ member.membership_number || '-' }}</td>
+            <td>{{ getMemberShortName(member) }}</td>
+            <td>{{ member.has_discount ? 'Ja' : 'Nein' }}</td>
+            <td>{{ getRoleLabel(member.role) }}</td>
             <td class="balance">{{ formatBalance(member.balance_cents) }}</td>
             <td>
               <button @click="editMember(member)" class="btn-small">Bearbeiten</button>
@@ -101,15 +114,26 @@
         </tbody>
       </table>
     </div>
+    <PasswordConfirmModal
+      :show="showRechargeModal"
+      title="Mitgliedsguthaben aufladen"
+      message="Bitte Zugangsdaten des aktuell angemeldeten Benutzers bestätigen."
+      :username="authStore.user?.username || ''"
+      confirm-label="Aufladen"
+      @close="showRechargeModal = false"
+      @confirm="handleRecharge"
+    />
   </div>
 </template>
 
 <script setup>
-import { ref, reactive, onMounted } from 'vue'
+import { ref, reactive, onMounted, computed } from 'vue'
 import { useAuthStore } from '@/stores/auth'
 import { useMemberStore } from '@/stores/member'
 import { useNotificationStore } from '@/stores/notification'
 import { formatBalance } from '@/services/utils'
+import { getMemberFullName, getMemberShortName, getRoleLabel } from '@/services/member'
+import PasswordConfirmModal from '@/components/PasswordConfirmModal.vue'
 import apiService from '@/services/api'
 
 const authStore = useAuthStore()
@@ -121,13 +145,19 @@ const editingId = ref(null)
 const photoFile = ref(null)
 const photoPreview = ref(null)
 const rechargeAmount = ref(null)
-const rechargePassword = ref('')
 const currentMemberBalance = ref(null)
+const showRechargeModal = ref(false)
 const formData = reactive({
-  name: '',
+  first_name: '',
+  last_name: '',
+  membership_number: '',
   email: '',
   phone: '',
+  has_discount: true,
+  role: '',
 })
+
+const fullFormName = computed(() => [formData.first_name, formData.last_name].filter(Boolean).join(' '))
 
 const handlePhotoUpload = (event) => {
   const file = event.target.files[0]
@@ -169,13 +199,18 @@ const uploadPhotoToMember = async (memberId) => {
 }
 
 const handleSaveMember = async () => {
+  const payload = {
+    ...formData,
+    role: authStore.isAdmin ? formData.role || null : undefined,
+  }
+
   if (editingId.value) {
     const photoUploadSuccess = await uploadPhotoToMember(editingId.value)
     if (!photoUploadSuccess && photoFile.value) {
       return
     }
 
-    const result = await memberStore.updateMember(editingId.value, formData)
+    const result = await memberStore.updateMember(editingId.value, payload)
     if (result) {
       notificationStore.success('Mitglied aktualisiert')
       resetForm()
@@ -183,7 +218,7 @@ const handleSaveMember = async () => {
       notificationStore.error(memberStore.error)
     }
   } else {
-    const result = await memberStore.createMember(formData)
+    const result = await memberStore.createMember(payload)
     if (result) {
       if (photoFile.value) {
         const photoUploadSuccess = await uploadPhotoToMember(result.id)
@@ -203,13 +238,16 @@ const handleSaveMember = async () => {
 }
 
 const resetForm = () => {
-  formData.name = ''
+  formData.first_name = ''
+  formData.last_name = ''
+  formData.membership_number = ''
   formData.email = ''
   formData.phone = ''
+  formData.has_discount = true
+  formData.role = ''
   photoFile.value = null
   photoPreview.value = null
   rechargeAmount.value = null
-  rechargePassword.value = ''
   currentMemberBalance.value = null
   editingId.value = null
   showForm.value = false
@@ -217,34 +255,37 @@ const resetForm = () => {
 
 const editMember = (member) => {
   editingId.value = member.id
-  formData.name = member.name
+  formData.first_name = member.first_name || ''
+  formData.last_name = member.last_name || ''
+  formData.membership_number = member.membership_number || ''
   formData.email = member.email || ''
   formData.phone = member.phone || ''
+  formData.has_discount = member.has_discount ?? true
+  formData.role = member.role || ''
   currentMemberBalance.value = member.balance_cents
   rechargeAmount.value = null
-  rechargePassword.value = ''
   showForm.value = true
 }
 
-const handleRecharge = async () => {
+const openRechargeModal = () => {
   if (!editingId.value || !rechargeAmount.value || rechargeAmount.value <= 0) {
     notificationStore.error('Bitte einen gültigen Betrag eingeben')
     return
   }
 
-  if (!rechargePassword.value) {
-    notificationStore.error('Bitte das Passwort des angemeldeten Benutzers eingeben')
-    return
-  }
+  showRechargeModal.value = true
+}
+
+const handleRecharge = async (password) => {
+  showRechargeModal.value = false
 
   try {
     const amountCents = Math.round(rechargeAmount.value * 100)
-    const updatedMember = await memberStore.rechargeMember(editingId.value, amountCents, rechargePassword.value)
+    const updatedMember = await memberStore.rechargeMember(editingId.value, amountCents, password)
 
     if (updatedMember) {
       currentMemberBalance.value = updatedMember.balance_cents
       rechargeAmount.value = null
-      rechargePassword.value = ''
       notificationStore.success(`Guthaben aufgeladen! Neuer Betrag: ${formatBalance(updatedMember.balance_cents)}`)
     } else {
       notificationStore.error(memberStore.error || 'Fehler beim Aufladen')
@@ -291,6 +332,12 @@ onMounted(async () => {
   margin: 1rem 0;
 }
 
+.form-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 1rem;
+}
+
 .form-group {
   margin-bottom: 1rem;
 
@@ -325,8 +372,12 @@ onMounted(async () => {
   gap: 0.75rem;
 }
 
-.recharge-password {
-  margin-top: 0.75rem;
+.checkbox-row {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  font-weight: 600;
+  margin-top: 2rem;
 }
 
 .members-table {

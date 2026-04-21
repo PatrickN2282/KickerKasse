@@ -30,6 +30,7 @@ class Transaction(BaseModel):
     voucher_code = Column(String(20), nullable=True, index=True)
     voucher_type = Column(String(20), nullable=True)
     voucher_applied_cents = Column(Integer, nullable=False, default=0)
+    balance_applied_cents = Column(Integer, nullable=False, default=0)
     
     # Referenzen
     user_id = Column(Integer, ForeignKey("users.id"), nullable=False)  # Kassierer/Admin

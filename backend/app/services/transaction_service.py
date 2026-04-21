@@ -36,6 +36,7 @@ class TransactionService:
         voucher_code: str = None,
         voucher_type: str = None,
         voucher_applied_cents: int = 0,
+        balance_applied_cents: int = 0,
     ) -> Transaction:
         """Create a sale transaction"""
         payment_enum = PaymentMethod[payment_method]
@@ -50,26 +51,27 @@ class TransactionService:
             voucher_code=voucher_code,
             voucher_type=voucher_type,
             voucher_applied_cents=voucher_applied_cents,
+            balance_applied_cents=balance_applied_cents,
         )
         
         return transaction
     
     def process_sale_payment(self, transaction: Transaction, member_repo=None):
         """Process payment and update balances"""
-        if transaction.member_id and transaction.payment_method == PaymentMethod.BALANCE:
+        if transaction.member_id and transaction.balance_applied_cents > 0:
             if not member_repo:
                 from app.repositories import MemberRepository
                 member_repo = MemberRepository(self.db)
             
             # Deduct from member balance
-            if not member_repo.deduct_balance(transaction.member_id, transaction.total_amount_cents):
+            if not member_repo.deduct_balance(transaction.member_id, transaction.balance_applied_cents):
                 raise ValueError("Insufficient balance")
             
             # Log balance change
             member = member_repo.get_by_id(transaction.member_id)
             self.balance_log_repo.create(
                 member_id=transaction.member_id,
-                old_balance_cents=member.balance_cents + transaction.total_amount_cents,
+                old_balance_cents=member.balance_cents + transaction.balance_applied_cents,
                 new_balance_cents=member.balance_cents,
                 reason="SALE",
                 transaction_id=transaction.id,
@@ -93,25 +95,29 @@ class TransactionService:
             user_id=user_id,
             member_id=original.member_id,
             reference_transaction_id=original_transaction_id,
+            voucher_code=original.voucher_code,
+            voucher_type=original.voucher_type,
+            voucher_applied_cents=original.voucher_applied_cents,
+            balance_applied_cents=original.balance_applied_cents,
         )
         
         return storno
     
     def process_storno_payment(self, storno: Transaction, member_repo=None):
         """Process storno payment (reverse the original)"""
-        if storno.member_id and storno.payment_method == PaymentMethod.BALANCE:
+        if storno.member_id and storno.balance_applied_cents > 0:
             if not member_repo:
                 from app.repositories import MemberRepository
                 member_repo = MemberRepository(self.db)
             
             # Add balance back to member
-            member_repo.add_balance(storno.member_id, storno.total_amount_cents)
+            member_repo.add_balance(storno.member_id, storno.balance_applied_cents)
             
             # Log balance change
             member = member_repo.get_by_id(storno.member_id)
             self.balance_log_repo.create(
                 member_id=storno.member_id,
-                old_balance_cents=member.balance_cents - storno.total_amount_cents,
+                old_balance_cents=member.balance_cents - storno.balance_applied_cents,
                 new_balance_cents=member.balance_cents,
                 reason="STORNO",
                 transaction_id=storno.id,
@@ -129,7 +135,8 @@ class TransactionService:
             if transaction.type == TransactionType.SALE:
                 if transaction.payment_method == PaymentMethod.CASH:
                     total_cash += transaction.total_amount_cents
-                elif transaction.payment_method == PaymentMethod.BALANCE:
+                total_balance += transaction.balance_applied_cents
+                if transaction.payment_method == PaymentMethod.BALANCE:
                     total_balance += transaction.total_amount_cents
                 count += 1
         
@@ -184,7 +191,8 @@ class TransactionService:
             print(f"[Service] Transaction: id={transaction.id}, type={transaction.type}, payment={transaction.payment_method}, amount={transaction.total_amount_cents}, items={len(transaction.items)}")
             if transaction.payment_method == PaymentMethod.CASH:
                 total_cash += transaction.total_amount_cents
-            elif transaction.payment_method == PaymentMethod.BALANCE:
+            total_balance += transaction.balance_applied_cents
+            if transaction.payment_method == PaymentMethod.BALANCE:
                 total_balance += transaction.total_amount_cents
 
             if transaction.voucher_applied_cents:
@@ -211,7 +219,8 @@ class TransactionService:
                     "type": t.type.value,
                     "voucher_code": t.voucher_code,
                     "voucher_type": t.voucher_type,
-                    "voucher_applied_cents": t.voucher_applied_cents,
+                         "voucher_applied_cents": t.voucher_applied_cents,
+                         "balance_applied_cents": t.balance_applied_cents,
                     "created_at": t.created_at,
                     "member": {
                         "id": t.member.id,
@@ -276,6 +285,7 @@ class TransactionService:
                     "voucher_code": t.voucher_code,
                     "voucher_type": t.voucher_type,
                     "voucher_applied_cents": t.voucher_applied_cents,
+                    "balance_applied_cents": t.balance_applied_cents,
                     "created_at": t.created_at,
                     "member": {
                         "id": t.member.id,

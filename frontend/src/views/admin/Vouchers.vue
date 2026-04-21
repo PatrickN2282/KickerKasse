@@ -16,6 +16,13 @@
       >
         📋 Verwaltung
       </button>
+      <button
+        v-if="authStore.isAdmin"
+        :class="['subtab-button', { active: activeSubTab === 'club-account' }]"
+        @click="activeSubTab = 'club-account'; loadClubAccount()"
+      >
+        🏦 Vereinskonto
+      </button>
     </div>
 
     <!-- CREATE TAB -->
@@ -25,7 +32,7 @@
         <div class="form-card">
           <h3>🎁 Geschenk-Gutschein</h3>
           <p class="form-description">Kostenlos erstellt, wird bei Einlösung als Verlust verbucht</p>
-          <p class="form-help">Gutscheinwert eintragen, Passwort des angemeldeten Benutzers eintragen, Bestätigen</p>
+          <p class="form-help">Gutscheinwert eintragen und danach die Zugangsdaten bestätigen.</p>
 
           <form @submit.prevent="createGiftVoucher">
             <div class="form-group">
@@ -50,17 +57,7 @@
               </select>
             </div>
 
-            <div class="form-group">
-              <label>Passwort</label>
-              <input
-                type="password"
-                v-model="giftForm.authPassword"
-                placeholder="Passwort des angemeldeten Benutzers"
-                required
-              />
-            </div>
-
-            <button type="submit" class="btn-primary" :disabled="creatingGift || !giftForm.authPassword">
+            <button type="submit" class="btn-primary" :disabled="creatingGift">
               {{ creatingGift ? '⏳ Wird erstellt...' : '✓ Erstellen' }}
             </button>
           </form>
@@ -76,21 +73,11 @@
 
         <!-- PREPAID Voucher Form -->
         <div class="form-card">
-          <h3>💳 Guthaben-Gutschein</h3>
-          <p class="form-description">Sofort bezahlt, wird später - eingelöst</p>
-          <p class="form-help">Gutscheinwert eintragen, Passwort des angemeldeten Benutzers eintragen, Bestätigen</p>
+          <h3>💳 Guthabenkarte</h3>
+          <p class="form-description">Sofort bezahlt, wird später eingelöst</p>
+          <p class="form-help">Gutscheinwert eintragen und danach die Zugangsdaten bestätigen.</p>
 
           <form @submit.prevent="createPrepaidVoucher">
-            <div class="form-group">
-              <label>Passwort</label>
-              <input
-                type="password"
-                v-model="prepaidForm.authPassword"
-                placeholder="Passwort des angemeldeten Benutzers"
-                required
-              />
-            </div>
-
             <div class="form-group">
               <label>Wert (€)</label>
               <input
@@ -105,7 +92,7 @@
               />
             </div>
 
-            <button type="submit" class="btn-primary" :disabled="creatingPrepaid || !prepaidForm.authPassword">
+            <button type="submit" class="btn-primary" :disabled="creatingPrepaid">
               {{ creatingPrepaid ? '⏳ Wird erstellt...' : '✓ Erstellen' }}
             </button>
           </form>
@@ -135,7 +122,7 @@
           <select v-model="filters.type">
             <option value="">Alle</option>
             <option value="GIFT">🎁 Geschenk</option>
-            <option value="PREPAID">💳 Guthaben</option>
+                <option value="PREPAID">💳 Guthabenkarte</option>
           </select>
         </div>
 
@@ -179,7 +166,7 @@
               <td class="voucher-number">{{ getVoucherCode(voucher) }}</td>
               <td>
                 <span :class="['type-badge', voucher.voucher_type.toLowerCase()]">
-                  {{ voucher.voucher_type === 'GIFT' ? '🎁 Geschenk' : '💳 Guthaben' }}
+                  {{ voucher.voucher_type === 'GIFT' ? '🎁 Geschenk' : '💳 Guthabenkarte' }}
                 </span>
               </td>
               <td class="currency">
@@ -235,6 +222,43 @@
       </div>
     </div>
 
+    <div v-if="activeSubTab === 'club-account' && authStore.isAdmin" class="manage-section">
+      <div class="summary-grid">
+        <div class="form-card">
+          <h3>Kontostand</h3>
+          <p class="voucher-number">{{ formatCurrency(clubAccount.balance_cents) }}</p>
+        </div>
+        <div class="form-card">
+          <h3>Konto aufladen</h3>
+          <div class="form-group">
+            <label>Betrag (€)</label>
+            <input v-model="clubAccountTopUp" type="number" min="0.01" step="0.01" />
+          </div>
+          <button class="btn-primary" @click="requestClubAccountTopUp">Als Bareinnahme buchen</button>
+        </div>
+      </div>
+      <div class="table-container">
+        <table v-if="clubAccount.entries.length" class="vouchers-table">
+          <thead>
+            <tr>
+              <th>Datum</th>
+              <th>Betrag</th>
+              <th>Grund</th>
+              <th>Benutzer</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr v-for="entry in clubAccount.entries" :key="entry.id">
+              <td>{{ formatDate(entry.created_at) }}</td>
+              <td>{{ formatCurrency(entry.amount_cents) }}</td>
+              <td>{{ entry.reason }}</td>
+              <td>{{ entry.user_name || '-' }}</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+
     <div v-if="showEditModal" class="modal-overlay">
       <div class="modal-card">
         <h3>🎫 Gutschein bearbeiten</h3>
@@ -261,33 +285,44 @@
             {{ updatingVoucher ? '⏳ Speichert...' : '✓ Speichern' }}
           </button>
           <button @click="closeEditVoucher" class="btn-secondary">
-            Abbrechen
+            Abbrechen / Zurück
           </button>
         </div>
       </div>
     </div>
+    <PasswordConfirmModal
+      :show="showPasswordModal"
+      :title="passwordModalTitle"
+      message="Bitte Zugangsdaten des aktuell angemeldeten Benutzers bestätigen."
+      :username="authStore.user?.username || ''"
+      confirm-label="Bestätigen"
+      :admin-required="pendingVoucherAction === 'gift' || pendingVoucherAction === 'account'"
+      @close="showPasswordModal = false"
+      @confirm="handlePasswordConfirmed"
+    />
   </div>
 </template>
 
 <script setup>
 import { ref, computed, onMounted } from 'vue'
+import { useAuthStore } from '@/stores/auth'
 import apiService from '@/services/api'
+import PasswordConfirmModal from '@/components/PasswordConfirmModal.vue'
 
 // Active sub-tab
 const activeSubTab = ref('create')
+const authStore = useAuthStore()
 
 // Form data
 const giftForm = ref({
   valueCents: 1000, // 10€ default
   reason: 'PROMOTION',
   valueDisplay: '10.00',
-  authPassword: '',
 })
 
 const prepaidForm = ref({
   valueCents: 2000, // 20€ default
   valueDisplay: '20.00',
-  authPassword: '',
 })
 
 const reasonLabels = {
@@ -346,6 +381,10 @@ const creatingPrepaid = ref(false)
 const createdGiftVoucher = ref(null)
 const createdPrepaidVoucher = ref(null)
 const createError = ref(null)
+const showPasswordModal = ref(false)
+const pendingVoucherAction = ref(null)
+const clubAccount = ref({ balance_cents: 0, entries: [] })
+const clubAccountTopUp = ref('')
 const showEditModal = ref(false)
 const editingVoucher = ref(null)
 const updatingVoucher = ref(false)
@@ -379,7 +418,18 @@ const getVoucherCode = (voucher) => {
 }
 
 // Methods
+const passwordModalTitle = computed(() => pendingVoucherAction.value === 'gift'
+  ? 'Geschenk-Gutschein erstellen'
+  : pendingVoucherAction.value === 'account'
+    ? 'Vereinskonto aufladen'
+    : 'Guthabenkarte erstellen')
+
 const createGiftVoucher = async () => {
+  pendingVoucherAction.value = 'gift'
+  showPasswordModal.value = true
+}
+
+const submitGiftVoucher = async (password) => {
   creatingGift.value = true
   createError.value = null
   createdGiftVoucher.value = null
@@ -392,7 +442,7 @@ const createGiftVoucher = async () => {
     const response = await apiService.post('/admin/vouchers/gift/', {
       value_cents: giftForm.value.valueCents,
       reason: giftForm.value.reason,
-      auth_password: giftForm.value.authPassword,
+      auth_password: password,
     })
     const payload = response.data
     console.log('[Vouchers] Create GIFT response received:')
@@ -403,7 +453,7 @@ const createGiftVoucher = async () => {
     console.log('[Vouchers]   response.status:', payload?.status)
     
     createdGiftVoucher.value = payload
-    giftForm.value = { valueCents: 1000, reason: 'PROMOTION', valueDisplay: '10.00', authPassword: '' }
+    giftForm.value = { valueCents: 1000, reason: 'PROMOTION', valueDisplay: '10.00' }
     // Always refresh list after creating a voucher
     console.log('[Vouchers] Refreshing voucher list...')
     await loadVouchers()
@@ -418,6 +468,11 @@ const createGiftVoucher = async () => {
 }
 
 const createPrepaidVoucher = async () => {
+  pendingVoucherAction.value = 'prepaid'
+  showPasswordModal.value = true
+}
+
+const submitPrepaidVoucher = async (password) => {
   creatingPrepaid.value = true
   createError.value = null
   createdPrepaidVoucher.value = null
@@ -425,12 +480,12 @@ const createPrepaidVoucher = async () => {
   try {
     const response = await apiService.post('/admin/vouchers/prepaid/', {
       value_cents: prepaidForm.value.valueCents,
-      auth_password: prepaidForm.value.authPassword,
+      auth_password: password,
     })
     const payload = response.data
     console.log('[Vouchers] Create PREPAID response:', JSON.stringify(payload, null, 2))
     createdPrepaidVoucher.value = payload
-    prepaidForm.value = { valueCents: 2000, valueDisplay: '20.00', authPassword: '' }
+    prepaidForm.value = { valueCents: 2000, valueDisplay: '20.00' }
     // Always refresh list after creating a voucher
     await loadVouchers()
   } catch (error) {
@@ -439,6 +494,31 @@ const createPrepaidVoucher = async () => {
   } finally {
     creatingPrepaid.value = false
   }
+}
+
+const handlePasswordConfirmed = async (password) => {
+  showPasswordModal.value = false
+  if (pendingVoucherAction.value === 'gift') {
+    await submitGiftVoucher(password)
+  } else if (pendingVoucherAction.value === 'prepaid') {
+    await submitPrepaidVoucher(password)
+  } else if (pendingVoucherAction.value === 'account') {
+    await apiService.post('/admin/vouchers/club-account/topup', {
+      amount_cents: Math.round(Number(clubAccountTopUp.value) * 100),
+      auth_password: password,
+    })
+    clubAccountTopUp.value = ''
+    await loadClubAccount()
+  }
+  pendingVoucherAction.value = null
+}
+
+const requestClubAccountTopUp = () => {
+  if (!clubAccountTopUp.value || Number(clubAccountTopUp.value) <= 0) {
+    return
+  }
+  pendingVoucherAction.value = 'account'
+  showPasswordModal.value = true
 }
 
 const loadVouchers = async () => {
@@ -506,6 +586,12 @@ const loadVouchers = async () => {
   }
 }
 
+const loadClubAccount = async () => {
+  if (!authStore.isAdmin) return
+  const response = await apiService.get('/admin/vouchers/club-account')
+  clubAccount.value = response.data
+}
+
 const applyFilters = () => {
   currentPage.value = 1
   loadVouchers()
@@ -514,6 +600,8 @@ const applyFilters = () => {
 const formatDate = (date) => {
   return new Date(date).toLocaleDateString('de-DE')
 }
+
+const formatCurrency = (amountCents) => `${(amountCents / 100).toFixed(2)}€`
 
 const formatReason = (reason) => {
   if (!reason) return '-'
@@ -624,12 +712,16 @@ watch(currentPage, () => {
 watch(() => activeSubTab.value, (newTab) => {
   if (newTab === 'manage') {
     loadVouchers()
+  } else if (newTab === 'club-account') {
+    loadClubAccount()
   }
 })
 
 // Lifecycle
 onMounted(() => {
-  // Don't load initially, load when manage tab is clicked
+  if (authStore.isAdmin) {
+    loadClubAccount()
+  }
 })
 </script>
 

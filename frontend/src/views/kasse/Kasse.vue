@@ -87,6 +87,9 @@
 
     <div class="kasse-bon" :style="bonPanelStyle">
       <div class="bon-content">
+        <div class="receipt-number-banner">
+          Laufende Belegnummer: <strong>#{{ nextReceiptNumber || '-' }}</strong>
+        </div>
         <!-- Top section: Items -->
         <div class="bon-items">
           <div
@@ -120,12 +123,19 @@
             <div class="total-label">Zwischensumme:</div>
             <div class="total-amount">{{ formatPrice(cartSubtotal) }}</div>
           </div>
-          <div v-if="hasAppliedVoucher" class="total-row voucher-row">
+          <div v-for="voucher in cartStore.appliedVouchers" :key="voucher.voucher_number" class="total-row voucher-row">
             <div class="total-label">
               Gutscheineinlösung
-              <small>{{ cartStore.appliedVoucher?.voucher_number }}</small>
+              <small>{{ voucher.voucher_number }}</small>
             </div>
-            <div class="total-amount">-{{ formatPrice(voucherAppliedAmount) }}</div>
+            <div class="total-amount">-{{ formatPrice(voucher.applied_amount_cents) }}</div>
+          </div>
+          <div v-if="hasAppliedBalance" class="total-row voucher-row">
+            <div class="total-label">
+              Mitgliedsguthaben
+              <small>{{ selectedMemberName }}</small>
+            </div>
+            <div class="total-amount">-{{ formatPrice(balanceAppliedAmount) }}</div>
           </div>
           <div class="total-row grand-total">
             <div class="total-label">Zu zahlen:</div>
@@ -133,16 +143,31 @@
           </div>
         </div>
 
-        <div v-if="hasAppliedVoucher" class="voucher-applied-card">
-          <div>
-            <strong>🎫 Gutschein aktiv</strong>
-            <div class="voucher-applied-hint">
-              {{ cartStore.appliedVoucher?.message }}
+        <div v-if="hasAppliedVoucher || hasAppliedBalance" class="voucher-applied-card">
+          <div class="applied-discounts">
+            <div v-for="voucher in cartStore.appliedVouchers" :key="voucher.voucher_number" class="applied-discount-line">
+              <div>
+                <strong>🎫 Gutschein aktiv</strong>
+                <div class="voucher-applied-hint">
+                  {{ voucher.message }}
+                </div>
+              </div>
+              <button @click="removeAppliedVoucher(voucher.voucher_number)" class="btn-remove-voucher">
+                Entfernen
+              </button>
+            </div>
+            <div v-if="hasAppliedBalance" class="applied-discount-line">
+              <div>
+                <strong>💳 Mitgliedsguthaben aktiv</strong>
+                <div class="voucher-applied-hint">
+                  {{ selectedMemberName }}: {{ formatBalance(balanceAppliedAmount) }} angerechnet
+                </div>
+              </div>
+              <button @click="removeAppliedBalance" class="btn-remove-voucher">
+                Entfernen
+              </button>
             </div>
           </div>
-          <button @click="removeAppliedVoucher" class="btn-remove-voucher">
-            Entfernen
-          </button>
         </div>
 
         <!-- Bottom section: Member selection -->
@@ -172,10 +197,12 @@
               </div>
             </div>
             <button 
-              @click="() => { 
-                cartStore.selectedMemberId = null; 
-                cartStore.recalculatePrices(); 
-              }" 
+               @click="() => { 
+                 cartStore.selectedMemberId = null; 
+                 cartStore.selectedMemberHasDiscount = false;
+                 cartStore.removeBalanceDiscount();
+                 cartStore.recalculatePrices(); 
+               }" 
               class="btn-change"
             >
               Wechseln
@@ -196,11 +223,11 @@
 
               <button
                 @click="openPaymentConfirmation('BALANCE')"
-                :disabled="!cartStore.selectedMemberId || cartStore.items.length === 0 || selectedMemberBalance < cartStore.total"
+                :disabled="!cartStore.selectedMemberId || cartStore.items.length === 0 || selectedMemberBalance <= 0"
                 :style="getPaymentButtonStyle('BALANCE')"
                 class="payment-btn"
               >
-                💳 Zahlen - Guthaben
+                💳 Guthaben nutzen
               </button>
 
               <button
@@ -217,7 +244,7 @@
 
       <div class="cancel-section">
         <button @click="cartStore.clear()" class="btn-cancel" title="Kassiervorgang abbrechen">
-          ✕ Abbrechen
+          ✕ Abbrechen / Zurück
         </button>
       </div>
     </div>
@@ -240,12 +267,12 @@
             class="member-item"
           >
             <div v-if="member.photo_path" class="member-photo">
-              <img :src="`/api/members/${member.id}/photo`" :alt="member.name" />
+              <img :src="`/api/members/${member.id}/photo`" :alt="getMemberFullName(member)" />
             </div>
             <div v-else class="member-photo member-photo-placeholder">👤</div>
             <div class="member-info-box">
               <div class="member-number-badge">Nr. {{ member.member_number }}</div>
-              <div class="member-name-modal">{{ member.name }}</div>
+              <div class="member-name-modal">{{ getMemberShortName(member) }}</div>
               <div class="balance">{{ formatBalance(member.balance_cents) }}</div>
             </div>
           </button>
@@ -253,7 +280,7 @@
         <div v-else class="empty-bon">Keine Mitglieder gefunden</div>
         <div class="modal-actions">
           <button @click="showMemberModal = false" class="btn btn-danger">
-            Abbrechen
+            Abbrechen / Zurück
           </button>
         </div>
       </div>
@@ -277,8 +304,12 @@
             <strong>{{ formatPrice(cartSubtotal) }}</strong>
           </div>
           <div v-if="hasAppliedVoucher" class="total-row">
-            <span>Gutschein</span>
+            <span>Gutscheine</span>
             <strong>-{{ formatPrice(voucherAppliedAmount) }}</strong>
+          </div>
+          <div v-if="hasAppliedBalance" class="total-row">
+            <span>Mitgliedsguthaben</span>
+            <strong>-{{ formatPrice(balanceAppliedAmount) }}</strong>
           </div>
           <div v-if="pendingPaymentMethod === 'BALANCE'" class="total-row">
             <span>Mitglied</span>
@@ -289,12 +320,30 @@
             <strong>{{ formatPrice(cartStore.getTotalAmount()) }}</strong>
           </div>
         </div>
+        <div v-if="pendingPaymentMethod === 'CASH'" class="cash-payment-fields">
+          <label>
+            Bar gegeben
+            <input
+              ref="cashGivenInput"
+              v-model="cashGiven"
+              type="number"
+              min="0"
+              step="0.01"
+              class="form-input"
+              @keyup.enter="confirmPayment"
+            />
+          </label>
+          <label>
+            Rückgeld
+            <input :value="cashChangeDisplay" type="text" class="form-input" readonly />
+          </label>
+        </div>
         <div class="modal-actions">
-          <button @click="confirmPayment" class="btn btn-info" :disabled="processingPayment">
+          <button @click="confirmPayment" class="btn btn-confirm-payment" :class="{ selected: true }" :disabled="processingPayment">
             {{ processingPayment ? '⏳ Wird verarbeitet...' : 'Bestätigen' }}
           </button>
           <button @click="closePaymentConfirmation" class="btn btn-danger" :disabled="processingPayment">
-            Abbrechen
+            Abbrechen / Zurück
           </button>
         </div>
       </div>
@@ -329,7 +378,7 @@
               {{ validatingVoucher ? '⏳ Wird überprüft...' : '✓ Überprüfen' }}
             </button>
             <button @click="closeVoucherModal" class="btn btn-secondary">
-              Abbrechen
+              Abbrechen / Zurück
             </button>
           </div>
         </div>
@@ -347,7 +396,7 @@
               </tr>
               <tr>
                 <td>Typ:</td>
-                <td>{{ voucherValidation.voucher_type === 'GIFT' ? '🎁 Geschenk' : '💳 Guthaben' }}</td>
+                <td>{{ voucherValidation.voucher_type === 'GIFT' ? '🎁 Geschenk' : '💳 Guthabenkarte' }}</td>
               </tr>
               <tr>
                 <td>Wert:</td>
@@ -385,7 +434,7 @@
               {{ voucherActionLabel }}
             </button>
             <button @click="handleVoucherSecondaryAction" class="btn btn-secondary">
-              {{ voucherValidation.valid ? 'Zurück' : 'Abbrechen' }}
+              Abbrechen / Zurück
             </button>
           </div>
         </div>
@@ -401,7 +450,7 @@
               </tr>
               <tr>
                 <td>Typ:</td>
-                <td>{{ voucherRedeemed.voucher_type === 'GIFT' ? '🎁 Geschenk' : '💳 Guthaben' }}</td>
+                <td>{{ voucherRedeemed.voucher_type === 'GIFT' ? '🎁 Geschenk' : '💳 Guthabenkarte' }}</td>
               </tr>
               <tr>
                 <td>Wert:</td>
@@ -425,13 +474,14 @@
 </template>
 
 <script setup>
-import { ref, computed, onMounted, onBeforeUnmount, watch } from 'vue'
+import { ref, computed, onMounted, onBeforeUnmount, watch, nextTick } from 'vue'
 import { useProductStore } from '@/stores/product'
 import { useMemberStore } from '@/stores/member'
 import { useCartStore } from '@/stores/cart'
 import { useNotificationStore } from '@/stores/notification'
 import { useAuthStore } from '@/stores/auth'
 import { formatPrice, formatBalance } from '@/services/utils'
+import { getMemberFullName, getMemberShortName, getMemberSearchText } from '@/services/member'
 import apiService from '@/services/api'
 
 const productStore = useProductStore()
@@ -448,6 +498,9 @@ const processingPayment = ref(false)
 const expandedCategories = ref([])
 const categories = ref([])
 const bonWidth = ref(420)
+const nextReceiptNumber = ref(null)
+const cashGiven = ref('')
+const cashGivenInput = ref(null)
 
 // Voucher redemption
 const showVoucherModal = ref(false)
@@ -515,7 +568,7 @@ const productsWithoutCategory = computed(() => {
 
 const selectedMemberName = computed(() => {
   const member = memberStore.members.find(m => m.id === cartStore.selectedMemberId)
-  return member?.name || ''
+  return getMemberShortName(member)
 })
 
 const selectedMemberBalance = computed(() => {
@@ -530,7 +583,14 @@ const selectedMember = computed(() => {
 
 const cartSubtotal = computed(() => cartStore.getSubtotalAmount())
 const voucherAppliedAmount = computed(() => cartStore.getVoucherAppliedAmount())
-const hasAppliedVoucher = computed(() => !!cartStore.appliedVoucher)
+const balanceAppliedAmount = computed(() => cartStore.getBalanceAppliedAmount())
+const hasAppliedVoucher = computed(() => cartStore.appliedVouchers.length > 0)
+const hasAppliedBalance = computed(() => balanceAppliedAmount.value > 0)
+const cashChangeDisplay = computed(() => {
+  const value = Number(cashGiven.value || 0)
+  const change = Math.max(Math.round((value * 100) - cartStore.getTotalAmount()), 0)
+  return formatPrice(change)
+})
 const voucherActionLabel = computed(() => {
   if (redeemingVoucher.value) {
     return '⏳ Wird verarbeitet...'
@@ -554,8 +614,7 @@ const filteredMembers = computed(() => {
   }
 
   return memberStore.members.filter((member) => {
-    return member.name.toLowerCase().includes(search)
-      || String(member.member_number || '').includes(search)
+    return getMemberSearchText(member).includes(search)
   })
 })
 
@@ -579,12 +638,6 @@ const validatePaymentMethod = (method) => {
       return false
     }
     
-    if (selectedMemberBalance.value < cartStore.total) {
-      notificationStore.error(
-        `Unzureichendes Guthaben. Verfügbar: ${formatBalance(selectedMemberBalance.value)}, benötigt: ${formatBalance(cartStore.total)}`
-      )
-      return false
-    }
   }
 
   return true
@@ -597,6 +650,13 @@ const openPaymentConfirmation = (method) => {
 
   pendingPaymentMethod.value = method
   showPaymentConfirmModal.value = true
+  cashGiven.value = method === 'CASH' ? (cartStore.getTotalAmount() / 100).toFixed(2) : ''
+  nextTick(() => {
+    if (method === 'CASH') {
+      cashGivenInput.value?.focus()
+      cashGivenInput.value?.select?.()
+    }
+  })
 }
 
 const closePaymentConfirmation = () => {
@@ -606,11 +666,20 @@ const closePaymentConfirmation = () => {
 
   showPaymentConfirmModal.value = false
   pendingPaymentMethod.value = null
+  cashGiven.value = ''
 }
 
 const confirmPayment = async () => {
   if (!pendingPaymentMethod.value) {
     return
+  }
+
+  if (pendingPaymentMethod.value === 'CASH') {
+    const givenCents = Math.round(Number(cashGiven.value || 0) * 100)
+    if (givenCents < cartStore.getTotalAmount()) {
+      notificationStore.error('Der gegebene Barbetrag reicht nicht aus')
+      return
+    }
   }
 
   processingPayment.value = true
@@ -627,12 +696,22 @@ const handlePaymentAndCheckout = async (method) => {
     return false
   }
 
+  if (method === 'BALANCE' && selectedMemberBalance.value < cartStore.getTotalAmount()) {
+    cartStore.applyBalanceDiscount(selectedMemberBalance.value)
+    notificationStore.success('Mitgliedsguthaben wurde als Rabatt auf den Warenkorb angerechnet')
+    pendingPaymentMethod.value = null
+    showPaymentConfirmModal.value = false
+    return true
+  }
+
   cartStore.paymentMethod = method
   return handleCheckout()
 }
 
 const selectMember = (member) => {
+  cartStore.removeBalanceDiscount()
   cartStore.selectedMemberId = member.id
+  cartStore.selectedMemberHasDiscount = !!member.has_discount
   cartStore.recalculatePrices()  // Update prices to member prices
   showMemberModal.value = false
 }
@@ -647,7 +726,7 @@ const validateVoucher = async () => {
   try {
     const response = await apiService.post('/transactions/voucher/validate', {
       voucher_number: voucherNumber.value,
-      cart_total_cents: cartSubtotal.value,
+      cart_total_cents: cartStore.getTotalAmount(),
     })
     voucherValidation.value = response.data
     voucherValidated.value = true
@@ -673,6 +752,7 @@ const redeemVoucher = async () => {
       voucher_number: voucherValidation.value.voucher_number,
       voucher_type: voucherValidation.value.voucher_type,
       value_cents: voucherValidation.value.value_cents,
+      applied_amount_cents: voucherValidation.value.applicable_amount_cents,
       message: voucherValidation.value.message,
     }
 
@@ -732,9 +812,14 @@ const handleVoucherSecondaryAction = () => {
   closeVoucherModal()
 }
 
-const removeAppliedVoucher = () => {
-  cartStore.removeVoucher()
+const removeAppliedVoucher = (voucherNumber) => {
+  cartStore.removeVoucher(voucherNumber)
   notificationStore.success('Gutschein aus dem Bon entfernt')
+}
+
+const removeAppliedBalance = () => {
+  cartStore.removeBalanceDiscount()
+  notificationStore.success('Mitgliedsguthaben aus dem Bon entfernt')
 }
 
 const clampBonWidth = (width) => {
@@ -776,10 +861,21 @@ const formatVoucherReason = (reason) => {
 
 const getPaymentMethodLabel = (method) => {
   if (method === 'BALANCE') {
-    return '💳 Zahlung mit Guthaben'
+    return selectedMemberBalance.value >= cartStore.getTotalAmount()
+      ? '💳 Zahlung mit Guthaben'
+      : '💳 Guthaben als Rabatt anwenden'
   }
 
   return '💰 Zahlung in Bar'
+}
+
+const loadNextReceiptNumber = async () => {
+  try {
+    const response = await apiService.get('/transactions/next-receipt-number')
+    nextReceiptNumber.value = response.data.receipt_number
+  } catch (error) {
+    console.error('[Kasse] Failed to load next receipt number:', error)
+  }
 }
 
 const handleCheckout = async (successMessage = 'Verkauf abgeschlossen') => {
@@ -790,6 +886,7 @@ const handleCheckout = async (successMessage = 'Verkauf abgeschlossen') => {
     notificationStore.success(successMessage)
     // Reload members to update balances
     await memberStore.getMembers()
+    await loadNextReceiptNumber()
     return true
   } catch (err) {
     console.error('[Kasse] Checkout failed:', err)
@@ -823,7 +920,7 @@ const getPaymentButtonStyle = (method) => {
   if (method === 'CASH') {
     return { background: 'var(--app-highlight-color)', color: 'var(--app-highlight-contrast)' }
   } else {
-    if (hasEnoughBalance) {
+    if (balance > 0) {
       return { background: 'var(--app-banner-color)', color: 'var(--app-banner-contrast)' }
     } else {
       return { background: '#ccc', color: '#999', cursor: 'not-allowed' }
@@ -849,6 +946,7 @@ onMounted(async () => {
   await productStore.getProducts()
   await memberStore.getMembers()
   await loadCategories()
+  await loadNextReceiptNumber()
   clampBonWidth(bonWidth.value)
   console.log('[Kasse] Initial members loaded:', memberStore.members.length)
 })
@@ -1255,6 +1353,15 @@ onBeforeUnmount(() => {
   }
 }
 
+.receipt-number-banner {
+  margin-bottom: 0.75rem;
+  padding: 0.65rem 0.85rem;
+  background: color-mix(in srgb, var(--app-banner-color) 12%, white 88%);
+  border-radius: 8px;
+  color: var(--app-banner-color);
+  font-weight: 600;
+}
+
 .total-row {
   display: flex;
   justify-content: space-between;
@@ -1283,13 +1390,25 @@ onBeforeUnmount(() => {
 
 .voucher-applied-card {
   display: flex;
-  justify-content: space-between;
-  align-items: center;
   gap: 1rem;
   padding: 0.85rem 1rem;
   border-radius: 8px;
   background: color-mix(in srgb, var(--app-highlight-color) 12%, white 88%);
   border: 1px solid color-mix(in srgb, var(--app-highlight-color) 30%, white 70%);
+}
+
+.applied-discounts {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  width: 100%;
+}
+
+.applied-discount-line {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 1rem;
 }
 
 .voucher-applied-hint {
@@ -1564,6 +1683,23 @@ onBeforeUnmount(() => {
 
     &.payment-modal {
       max-width: 560px;
+
+      .cash-payment-fields {
+        display: grid;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: 1rem;
+        margin-bottom: 1rem;
+
+        label {
+          font-weight: 600;
+          color: #334155;
+        }
+
+        .form-input {
+          margin-bottom: 0;
+          margin-top: 0.5rem;
+        }
+      }
     }
 
     &.voucher-modal {
@@ -1680,6 +1816,20 @@ onBeforeUnmount(() => {
         }
       }
     }
+  }
+}
+
+.btn-confirm-payment {
+  background: #2e7d32;
+  color: #fff;
+  box-shadow: 0 0 0 2px rgba(46, 125, 50, 0.2);
+
+  &.selected {
+    box-shadow: 0 0 0 3px rgba(46, 125, 50, 0.24), 0 0 16px rgba(46, 125, 50, 0.45);
+  }
+
+  &:not(:disabled):hover {
+    background: #256a29;
   }
 }
 

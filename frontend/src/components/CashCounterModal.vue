@@ -82,7 +82,7 @@
 
       <div class="modal-footer">
         <button @click="reset" class="btn btn-secondary">Zurücksetzen</button>
-        <button @click="cancel" class="btn btn-secondary">Abbrechen</button>
+        <button @click="cancel" class="btn btn-secondary">Abbrechen / Zurück</button>
         <button @click="confirm" class="btn btn-primary">✓ Bestätigen</button>
       </div>
     </div>

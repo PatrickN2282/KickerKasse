@@ -1,6 +1,7 @@
 from fastapi import APIRouter, HTTPException, Depends, Request, status, Query
 from sqlalchemy.orm import Session
 import logging
+from pydantic import BaseModel, Field
 
 from app.core import get_db
 from app.core.auth import require_password_confirmation, require_roles
@@ -24,6 +25,11 @@ logger = logging.getLogger(__name__)
 # Two routers: one for admin, one for kasse
 admin_router = APIRouter(prefix="/api/admin/vouchers", tags=["Admin - Vouchers"])
 kasse_router = APIRouter(prefix="/api/transactions/voucher", tags=["Kasse - Voucher"])
+
+
+class ClubAccountTopUpRequest(BaseModel):
+    amount_cents: int = Field(..., ge=1)
+    auth_password: str = Field(..., min_length=1)
 
 
 def get_user_id(request: Request) -> int:
@@ -268,6 +274,28 @@ async def update_voucher(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Error updating voucher: {str(e)}",
         )
+
+
+@admin_router.get("/club-account")
+@admin_router.get("/club-account/")
+async def get_club_account(
+    request: Request,
+    db: Session = Depends(get_db),
+):
+    require_roles(request, db, UserRole.ADMIN)
+    return VoucherService(db).get_club_account_summary()
+
+
+@admin_router.post("/club-account/topup")
+@admin_router.post("/club-account/topup/")
+async def top_up_club_account(
+    payload: ClubAccountTopUpRequest,
+    request: Request,
+    db: Session = Depends(get_db),
+):
+    current_user = require_roles(request, db, UserRole.ADMIN)
+    require_password_confirmation(current_user, payload.auth_password)
+    return VoucherService(db).top_up_club_account(payload.amount_cents, current_user.id)
 
 
 @admin_router.get("/by-number/{voucher_number}", response_model=VoucherResponse)

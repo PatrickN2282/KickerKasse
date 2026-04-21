@@ -4,10 +4,14 @@ from typing import Optional
 
 
 class MemberBase(BaseModel):
-    name: str = Field(..., min_length=1, max_length=120)
+    first_name: str = Field(..., min_length=1, max_length=80)
+    last_name: str = Field(..., min_length=1, max_length=80)
+    membership_number: Optional[str] = Field(default=None, max_length=50)
     email: Optional[str] = None
     phone: Optional[str] = None
     notes: Optional[str] = None
+    has_discount: bool = True
+    role: Optional[str] = None
 
     @field_validator("email", mode="before")
     @classmethod
@@ -25,16 +29,21 @@ class MemberCreate(MemberBase):
 
 
 class MemberUpdate(BaseModel):
-    name: Optional[str] = None
+    first_name: Optional[str] = None
+    last_name: Optional[str] = None
+    membership_number: Optional[str] = None
     email: Optional[str] = None
     phone: Optional[str] = None
     notes: Optional[str] = None
+    has_discount: Optional[bool] = None
+    role: Optional[str] = None
     balance_cents: Optional[int] = None
 
 
 class MemberResponse(MemberBase):
     id: int
     member_number: int
+    name: str
     balance_cents: int
     photo_path: Optional[str] = None  # Path to member photo file
     created_at: datetime

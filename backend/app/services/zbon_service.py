@@ -26,6 +26,18 @@ class ZBonService:
     def _calculate_sale_gross_cents(self, transaction: Transaction) -> int:
         return sum(item.total_price_cents for item in transaction.items)
 
+    @staticmethod
+    def _format_member_name(member: Member | None) -> str:
+        if not member:
+            return "Gast"
+
+        first_name = (member.first_name or "").strip()
+        last_name = (member.last_name or "").strip()
+        if first_name or last_name:
+            return " ".join(part for part in [first_name, f"{last_name[:1]}." if last_name else ""] if part)
+
+        return member.name or "Gast"
+
     def _get_current_period_bounds(self) -> tuple[datetime, datetime, ZBonHistory | None]:
         period_end = datetime.now()
         last_zbon = self.db.query(ZBonHistory).order_by(desc(ZBonHistory.sequence_number)).first()
@@ -108,6 +120,7 @@ class ZBonService:
         skimmed_by_name: str | None = None,
         cash_counted_by_name: str | None = None,
         include_cash_count: dict | None = None,
+        cash_count_total: float | None = None,
     ) -> dict:
         period_start, period_end, last_zbon = self._get_current_period_bounds()
         transactions = self._get_transactions_for_period(period_start, period_end)
@@ -127,9 +140,14 @@ class ZBonService:
         ) / 100
         cash_sales_count = len([t for t in sales if t.payment_method == PaymentMethod.CASH])
         balance_sales_total = sum(
-            t.total_amount_cents for t in sales if t.payment_method == PaymentMethod.BALANCE
+            (t.balance_applied_cents or 0)
+            + (t.total_amount_cents if t.payment_method == PaymentMethod.BALANCE else 0)
+            for t in sales
         ) / 100
-        balance_sales_count = len([t for t in sales if t.payment_method == PaymentMethod.BALANCE])
+        balance_sales_count = len([
+            t for t in sales
+            if t.payment_method == PaymentMethod.BALANCE or (t.balance_applied_cents or 0) > 0
+        ])
         voucher_sales_total = sum(t.voucher_applied_cents or 0 for t in sales) / 100
         voucher_sales_count = len([t for t in sales if (t.voucher_applied_cents or 0) > 0])
         recharge_total = sum(t.total_amount_cents for t in recharges) / 100
@@ -146,6 +164,7 @@ class ZBonService:
                 sum(float(denom) * count for denom, count in coins.items())
                 + sum(float(denom) * count for denom, count in notes.items())
             )
+        if cash_count_total is not None:
             cash_difference = cash_count_total - cash_calculated
 
         receipt_numbers = [t.receipt_number for t in transactions if t.receipt_number is not None]
@@ -159,8 +178,9 @@ class ZBonService:
                 "total_amount_cents": t.total_amount_cents,
                 "gross_amount_cents": self._calculate_sale_gross_cents(t) if t.type == TransactionType.SALE else t.total_amount_cents,
                 "voucher_applied_cents": t.voucher_applied_cents or 0,
+                "balance_applied_cents": t.balance_applied_cents or 0,
                 "voucher_type": t.voucher_type,
-                "member_name": t.member.name if t.member else "Gast",
+                "member_name": self._format_member_name(t.member),
                 "items": [
                     {
                         "id": item.id,
@@ -241,12 +261,14 @@ class ZBonService:
         skimmed_by_name: str | None = None,
         cash_counted_by_name: str | None = None,
         include_cash_count: dict | None = None,
+        cash_count_total: float | None = None,
     ) -> dict:
         payload = self.build_current_zbon_preview(
             created_by_name=created_by_name,
             skimmed_by_name=skimmed_by_name,
             cash_counted_by_name=cash_counted_by_name,
             include_cash_count=include_cash_count,
+            cash_count_total=cash_count_total,
         )
 
         summary = payload["summary"]
@@ -751,7 +773,7 @@ class ZBonService:
             f"{stats['gift_voucher_count']}x Geschenk-Gutschein {stats['gift_voucher_total']:>8.2f}"
         )
         lines.append(
-            f"{stats['prepaid_voucher_count']}x Guthaben-Gutschein {stats['prepaid_voucher_total']:>8.2f}"
+            f"{stats['prepaid_voucher_count']}x Guthabenkarte {stats['prepaid_voucher_total']:>8.2f}"
         )
         lines.append(" _____________")
         lines.append(f"Gutscheinwert gesamt {stats['voucher_total']:>8.2f}")
