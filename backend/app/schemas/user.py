@@ -43,6 +43,7 @@ class UserUpdate(BaseModel):
 class UserResponse(UserBase):
     id: int
     is_active: bool
+    member_id: Optional[int] = None
     created_at: datetime
     updated_at: datetime
 
@@ -51,9 +52,11 @@ class UserResponse(UserBase):
 
 
 class UserFinanceOptionResponse(BaseModel):
-    id: int
+    id: str
     username: str
     role: str
+    member_id: Optional[int] = None
+    source: str = "user"
 
     @field_validator("role", mode="before")
     @classmethod

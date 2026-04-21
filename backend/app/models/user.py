@@ -1,4 +1,5 @@
-from sqlalchemy import Column, String, Enum, DateTime, Boolean
+from sqlalchemy import Column, String, Enum, DateTime, Boolean, ForeignKey, Integer
+from sqlalchemy.orm import relationship
 from sqlalchemy.sql import func
 import enum
 from .base import BaseModel
@@ -41,8 +42,11 @@ class User(BaseModel):
     password_hash = Column(String(255), nullable=False)
     role = Column(Enum(UserRole), nullable=False, default=UserRole.VERKAUF)
     is_active = Column(Boolean, default=True, nullable=False)
+    member_id = Column(Integer, ForeignKey("members.id"), nullable=True, unique=True)
     created_at = Column(DateTime, default=func.now(), nullable=False)
     updated_at = Column(DateTime, default=func.now(), onupdate=func.now(), nullable=False)
+
+    member = relationship("Member", back_populates="linked_user")
 
     @property
     def is_admin(self) -> bool:

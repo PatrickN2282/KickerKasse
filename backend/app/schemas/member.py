@@ -25,7 +25,7 @@ class MemberBase(BaseModel):
 
 
 class MemberCreate(MemberBase):
-    pass
+    account_password: Optional[str] = Field(default=None, min_length=8)
 
 
 class MemberUpdate(BaseModel):
@@ -38,6 +38,7 @@ class MemberUpdate(BaseModel):
     has_discount: Optional[bool] = None
     role: Optional[str] = None
     balance_cents: Optional[int] = None
+    account_password: Optional[str] = Field(default=None, min_length=8)
 
 
 class MemberResponse(MemberBase):
@@ -47,6 +48,9 @@ class MemberResponse(MemberBase):
     last_name: str = Field(default="", max_length=80)
     balance_cents: int
     photo_path: Optional[str] = None  # Path to member photo file
+    account_username: Optional[str] = None
+    has_user_account: bool = False
+    user_account_active: bool = False
     created_at: datetime
     updated_at: datetime
 
@@ -75,6 +79,10 @@ class MemberResponse(MemberBase):
                     "photo_path",
                     "created_at",
                     "updated_at",
+                    "account_username",
+                    "has_user_account",
+                    "user_account_active",
+                    "linked_user",
                 ]
             }
 
@@ -95,6 +103,15 @@ class MemberResponse(MemberBase):
         role = data.get("role")
         if hasattr(role, "value"):
             data["role"] = role.value
+
+        linked_user = data.pop("linked_user", None)
+        if linked_user is not None:
+            data["account_username"] = getattr(linked_user, "username", None)
+            data["has_user_account"] = True
+            data["user_account_active"] = bool(getattr(linked_user, "is_active", False))
+        else:
+            data["has_user_account"] = bool(data.get("has_user_account", False))
+            data["user_account_active"] = bool(data.get("user_account_active", False))
 
         return data
 

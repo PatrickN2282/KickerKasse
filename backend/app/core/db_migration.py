@@ -345,6 +345,34 @@ class DatabaseMigrator:
                         except:
                             pass
 
+                if 'member_id' not in users_columns:
+                    try:
+                        conn.execute(text(
+                            "ALTER TABLE users ADD COLUMN member_id INTEGER REFERENCES members(id)"
+                        ))
+                        conn.execute(text(
+                            "CREATE UNIQUE INDEX IF NOT EXISTS ix_users_member_id ON users (member_id) WHERE member_id IS NOT NULL"
+                        ))
+                        conn.commit()
+                    except Exception as e:
+                        logger.warning(f"Could not add users.member_id column: {str(e)}")
+                        try:
+                            conn.rollback()
+                        except:
+                            pass
+                else:
+                    try:
+                        conn.execute(text(
+                            "CREATE UNIQUE INDEX IF NOT EXISTS ix_users_member_id ON users (member_id) WHERE member_id IS NOT NULL"
+                        ))
+                        conn.commit()
+                    except Exception as e:
+                        logger.warning(f"Could not ensure users.member_id index: {str(e)}")
+                        try:
+                            conn.rollback()
+                        except:
+                            pass
+
             if 'members' in inspector.get_table_names():
                 members_columns = {col['name']: col for col in inspector.get_columns('members')}
 

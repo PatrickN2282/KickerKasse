@@ -45,6 +45,7 @@ async def create_member(
             member_data.notes,
             member_data.has_discount,
             member_data.role,
+            member_data.account_password,
         )
         return member
     except IntegrityError as e:
@@ -57,6 +58,11 @@ async def create_member(
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="Daten ungültig oder dupliziert",
+        )
+    except ValueError as e:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=str(e),
         )
 
 
@@ -196,8 +202,9 @@ async def update_member(
     
     try:
         service = MemberService(db)
-        update_dict = member_data.dict(exclude_unset=True)
-        member = service.update_member(member_id, **update_dict)
+        update_dict = member_data.model_dump(exclude_unset=True)
+        account_password = update_dict.pop("account_password", None)
+        member = service.update_member(member_id, account_password=account_password, **update_dict)
         if not member:
             raise HTTPException(
                 status_code=status.HTTP_404_NOT_FOUND,
@@ -215,6 +222,11 @@ async def update_member(
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="Daten ungültig oder dupliziert",
+        )
+    except ValueError as e:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=str(e),
         )
 
 

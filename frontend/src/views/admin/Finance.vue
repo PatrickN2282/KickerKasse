@@ -379,7 +379,7 @@
                 :key="zbon.id"
                 class="transaction-row"
                 style="cursor: pointer;"
-                @click="selectZbon(zbon)"
+                @click="openZbonHistoryModal(zbon)"
               >
                 <td><strong>#{{ zbon.sequence_number }}</strong></td>
                 <td>{{ formatDate(zbon.business_date) }}</td>
@@ -410,209 +410,6 @@
             class="empty"
           >
             Keine Z-Böns für den ausgewählten Zeitraum
-          </div>
-        </div>
-
-        <!-- Z-Bon Detail View -->
-        <div
-          v-if="selectedZbon"
-          class="zbon-detail"
-          style="margin-top: 2rem; border: 1px solid #ddd; border-radius: 8px; padding: 1.5rem; background: #f9f9f9;"
-        >
-          <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1.5rem;">
-            <h4 style="margin: 0;">
-              📑 Z-Bon #{{ selectedZbon.sequence_number }} - Detailansicht
-            </h4>
-            <button
-              style="background: none; border: 1px solid #999; padding: 0.5rem 1rem; border-radius: 4px; cursor: pointer;"
-              @click="selectedZbon = null"
-            >
-              ✕ Schließen
-            </button>
-          </div>
-
-          <table class="detail-table">
-            <tr>
-              <td>Sequenznummer:</td>
-              <td><strong>{{ selectedZbon.sequence_number }}</strong></td>
-            </tr>
-            <tr>
-              <td>Geschäftstag:</td>
-              <td>{{ formatDateDE(selectedZbon.business_date) }}</td>
-            </tr>
-            <tr>
-              <td>Zeitraum:</td>
-              <td>{{ formatTime(selectedZbon.period_start) }} - {{ formatTime(selectedZbon.period_end) }}</td>
-            </tr>
-            <tr>
-              <td>Erstellt:</td>
-              <td>{{ formatDate(selectedZbon.generated_at) }}, {{ formatTime(selectedZbon.generated_at) }}</td>
-            </tr>
-            <tr>
-              <td>Mitarbeiter:</td>
-              <td>{{ selectedZbon.created_by_name || '-' }}</td>
-            </tr>
-            <tr>
-              <td>Sichtkontrolle:</td>
-              <td>{{ selectedZbon.cash_counted_by_name || '-' }}</td>
-            </tr>
-            <tr class="section-row">
-              <td
-                colspan="2"
-                style="text-align: center; font-weight: bold; padding-top: 1rem;"
-              >
-                UMSÄTZE
-              </td>
-            </tr>
-            <tr>
-              <td>Umsatz BAR:</td>
-              <td class="currency">
-                {{ formatPrice(selectedZbon.gross_revenue_cash * 100) }}
-              </td>
-            </tr>
-            <tr>
-              <td>Umsatz Guthaben:</td>
-              <td class="currency">
-                {{ formatPrice(selectedZbon.gross_revenue_balance * 100) }}
-              </td>
-            </tr>
-            <tr>
-              <td>Umsatz Gutscheine:</td>
-              <td class="currency">
-                {{ formatPrice(selectedZbon.gross_revenue_voucher * 100) }}
-              </td>
-            </tr>
-            <tr>
-              <td>Gesamtumsatz brutto:</td>
-              <td class="currency">
-                {{ formatPrice(selectedZbon.total_revenue * 100) }}
-              </td>
-            </tr>
-            <tr>
-              <td>Guthabenaufladungen:</td>
-              <td class="currency">
-                {{ formatPrice(selectedZbon.recharge_total * 100) }}
-              </td>
-            </tr>
-            <tr>
-              <td>Stornierungen:</td>
-              <td class="currency">
-                {{ formatPrice(selectedZbon.storno_total * 100) }}
-              </td>
-            </tr>
-            <tr>
-              <td>Gutscheine erstellt:</td>
-              <td class="currency">
-                {{ selectedZbon.voucher_created_count }} / {{ formatPrice(selectedZbon.voucher_created_total * 100) }}
-              </td>
-            </tr>
-            <tr>
-              <td>Gutscheine eingelöst:</td>
-              <td class="currency">
-                {{ selectedZbon.voucher_redeemed_count }} / {{ formatPrice(selectedZbon.voucher_redeemed_total * 100) }}
-              </td>
-            </tr>
-            <tr>
-              <td>Offene Gutscheine:</td>
-              <td class="currency">
-                {{ selectedZbon.voucher_open_count }} / {{ formatPrice(selectedZbon.voucher_open_total * 100) }}
-              </td>
-            </tr>
-            <tr class="section-row">
-              <td
-                colspan="2"
-                style="text-align: center; font-weight: bold; padding-top: 1rem;"
-              >
-                KASSENBESTAND
-              </td>
-            </tr>
-            <tr>
-              <td>Anfangsbestand:</td>
-              <td class="currency">
-                {{ formatPrice(selectedZbon.cash_opening_balance * 100) }}
-              </td>
-            </tr>
-            <tr>
-              <td>Calculated:</td>
-              <td class="currency">
-                {{ formatPrice((selectedZbon.cash_calculated || 0) * 100) }}
-              </td>
-            </tr>
-            <tr>
-              <td>Gezählt:</td>
-              <td class="currency">
-                {{ formatPrice((selectedZbon.cash_counted || 0) * 100) }}
-              </td>
-            </tr>
-            <tr v-if="selectedZbon.cash_difference !== null">
-              <td>Differenz:</td>
-              <td :class="['currency', selectedZbon.cash_difference >= 0 ? 'positive' : 'negative']">
-                {{ formatPrice(selectedZbon.cash_difference * 100) }}
-              </td>
-            </tr>
-            <tr class="section-row">
-              <td
-                colspan="2"
-                style="text-align: center; font-weight: bold; padding-top: 1rem;"
-              >
-                BEWEGUNGEN
-              </td>
-            </tr>
-            <tr>
-              <td>Abschöpfung:</td>
-              <td class="currency withdrawal">
-                {{ formatPrice(selectedZbon.cash_withdrawals * 100) }}
-              </td>
-            </tr>
-            <tr>
-              <td>Einlagen:</td>
-              <td class="currency deposit">
-                {{ formatPrice(selectedZbon.cash_deposits * 100) }}
-              </td>
-            </tr>
-            <tr class="section-row">
-              <td
-                colspan="2"
-                style="text-align: center; font-weight: bold; padding-top: 1rem;"
-              >
-                TRANSAKTIONEN
-              </td>
-            </tr>
-            <tr>
-              <td>Transaktionen gesamt:</td>
-              <td>{{ selectedZbon.transaction_count_total }}</td>
-            </tr>
-            <tr>
-              <td>Verkäufe:</td>
-              <td>{{ selectedZbon.transaction_count_sales }}</td>
-            </tr>
-            <tr>
-              <td>Aufladungen:</td>
-              <td>{{ selectedZbon.transaction_count_recharge }}</td>
-            </tr>
-            <tr>
-              <td>Stornierungen:</td>
-              <td>{{ selectedZbon.transaction_count_storno }}</td>
-            </tr>
-            <tr>
-              <td>Belegnummern:</td>
-              <td>#{{ selectedZbon.receipt_number_min }} - #{{ selectedZbon.receipt_number_max }}</td>
-            </tr>
-          </table>
-
-          <div style="margin-top: 1.5rem; display: flex; gap: 1rem;">
-            <button
-              class="btn btn-success"
-              @click="downloadZbonHTML(selectedZbon)"
-            >
-              ⬇️ Als HTML herunterladen
-            </button>
-            <button
-              class="btn btn-info"
-              @click="downloadZbonPDF(selectedZbon)"
-            >
-              📄 Als PDF herunterladen
-            </button>
           </div>
         </div>
 
@@ -957,35 +754,38 @@
     <div
       v-if="showZbonCreateModal"
       class="confirmation-overlay"
-    >
-      <div class="confirmation-dialog zbon-create-dialog">
-        <h3>Z-Bon erstellen</h3>
-        <div class="zbon-create-layout">
-          <div class="zbon-create-main">
-            <div class="selection-grid">
-              <div class="selection-group">
-                <label>Benutzer erstellt Z-Bon</label>
-                <button
-                  class="member-select-btn"
-                  @click="openUserPicker('createdByUserId')"
+      >
+        <div class="confirmation-dialog zbon-create-dialog">
+          <h3>Z-Bon erstellen</h3>
+          <div class="zbon-create-layout">
+            <div class="zbon-create-main">
+              <div class="zbon-note-box">
+                Kassenprüfer wählen -&gt; Kassenbestand zählen -&gt; Abschöpfung vornehmen und eintragen -&gt; mit neuem Kassenbestand abgleichen -&gt; Z-Bon erstellen
+              </div>
+              <div class="selection-grid">
+                <div class="selection-group">
+                  <label>Erstellt von</label>
+                  <button
+                    class="member-select-btn"
+                    @click="openUserPicker('createdByUserId')"
                 >
                   {{ getSelectedUserName(zbonForm.createdByUserId, 'Benutzer auswählen') }}
                 </button>
               </div>
               <div class="selection-group">
-                <label>Benutzer Sichtkontrolle</label>
-                <button
-                  class="member-select-btn"
-                  @click="openUserPicker('verifiedByUserId')"
+                 <label>Kassenprüfer</label>
+                 <button
+                   class="member-select-btn"
+                   @click="openUserPicker('verifiedByUserId')"
                 >
                   {{ getSelectedUserName(zbonForm.verifiedByUserId, 'Benutzer auswählen') }}
                 </button>
               </div>
-            </div>
-            <div class="summary-grid compact-summary-grid">
-              <div class="summary-card">
-                <div class="card-label">
-                  Vorheriger Barbestand
+             </div>
+             <div class="summary-grid compact-summary-grid">
+               <div class="summary-card">
+                 <div class="card-label">
+                   Vorheriger Barbestand
                 </div>
                 <div class="card-value">
                   {{ formatEuroValue(dailyStats.opening_balance) }}
@@ -995,75 +795,97 @@
                 <div class="card-label">
                   Buchungs-Range
                 </div>
-                <div class="card-value">
-                  {{ currentReceiptLabel }}
+                 <div class="card-value">
+                   {{ currentReceiptLabel }}
+                 </div>
+               </div>
+               <div class="summary-card">
+                 <div class="card-label">
+                   Abschöpfungen Zeitraum
+                 </div>
+                 <div class="card-value">
+                   {{ formatPrice(dailyStats.withdrawal_total) }}
+                 </div>
+               </div>
+               <div class="summary-card">
+                 <div class="card-label">
+                   Neuer Barbestand Soll
                 </div>
-              </div>
-              <div class="summary-card">
-                <div class="card-label">
-                  Guthabenkarten verkauft
-                </div>
-                <div class="card-value">
-                  {{ formatPrice(dailyStats.prepaid_voucher_sales_total) }}
-                </div>
-              </div>
-              <div class="summary-card">
-                <div class="card-label">
-                  Neuer Barbestand Soll
-                </div>
-                <div class="card-value">
-                  {{ formatEuroValue(dailyStats.cash_calculated) }}
-                </div>
-              </div>
-            </div>
-          </div>
-          <div class="zbon-create-side">
-            <div class="filter-group">
-              <label>Gezählter Ist-Bestand</label>
-              <input
-                v-model="zbonCountedCash"
-                type="number"
-                min="0"
-                step="0.01"
-                class="form-input"
-                placeholder="0,00"
-              >
-            </div>
-            <div class="summary-grid zbon-side-summary">
-              <div class="summary-card">
-                <div class="card-label">
-                  Differenz
-                </div>
-                <div class="card-value">
-                  {{ zbonDifferenceDisplay }}
-                </div>
-              </div>
-              <div class="summary-card">
-                <div class="card-label">
-                  Neuer Kassenbestand
-                </div>
-                <div class="card-value">
-                  {{ zbonNewCashBalanceDisplay }}
-                </div>
-              </div>
-            </div>
-            <div class="confirmation-buttons zbon-create-buttons">
-              <button
-                class="btn btn-primary"
-                :disabled="!canCreateZbon"
-                @click="requestZBonCreate"
-              >
-                ✓ Z-Bon erstellen
-              </button>
-              <button
-                class="btn btn-warning"
-                @click="openWithdrawalModal"
-              >
-                💸 Abschöpfung
-              </button>
-              <button
-                class="btn btn-secondary"
-                @click="closeZbonCreateModal"
+                 <div class="card-value">
+                   {{ formatEuroValue(dailyStats.cash_calculated) }}
+                 </div>
+               </div>
+             </div>
+             <div class="zbon-balance-group">
+               <div class="filter-group">
+                 <label>Gezählter Bestand vor Abschöpfung</label>
+                 <input
+                   v-model="zbonCountedCash"
+                   type="number"
+                   min="0"
+                   step="0.01"
+                   class="form-input"
+                   placeholder="0,00"
+                 >
+               </div>
+               <div class="summary-grid zbon-side-summary">
+                 <div class="summary-card">
+                   <div class="card-label">
+                     Abschöpfung im Modal
+                   </div>
+                   <div class="card-value">
+                     {{ formatPrice(modalWithdrawalDeltaCents) }}
+                   </div>
+                 </div>
+                 <div class="summary-card">
+                   <div class="card-label">
+                     Neuer Ist-Bestand
+                   </div>
+                   <div class="card-value">
+                     {{ zbonNewCashBalanceDisplay }}
+                   </div>
+                 </div>
+                 <div class="summary-card">
+                   <div class="card-label">
+                     Differenz
+                   </div>
+                   <div class="card-value">
+                     {{ zbonDifferenceDisplay }}
+                   </div>
+                 </div>
+               </div>
+               <small
+                 v-if="zbonFinalCashInvalid"
+                 class="zbon-warning-text"
+               >
+                 Der gezählte Bestand darf nicht kleiner als die im Modal vorgenommene Abschöpfung sein.
+               </small>
+             </div>
+           </div>
+           <div class="zbon-create-side">
+             <div class="confirmation-buttons zbon-create-buttons">
+               <button
+                 class="btn btn-info"
+                 @click="openCashCounterModal"
+               >
+                 💰 Kasse zählen
+               </button>
+               <button
+                 class="btn btn-warning"
+                 @click="openWithdrawalModal"
+               >
+                 💸 Abschöpfung
+               </button>
+               <button
+                 :class="['btn', canCreateZbon ? 'btn-ready' : 'btn-disabled']"
+                 :disabled="!canCreateZbon"
+                 @click="requestZBonCreate"
+               >
+                 ✓ Z-Bon erstellen
+               </button>
+               <button
+                 class="btn btn-secondary"
+                 @click="closeZbonCreateModal"
               >
                 Abbrechen / Zurück
               </button>
@@ -1185,7 +1007,7 @@
         class="confirmation-dialog"
         style="max-width: 1100px;"
       >
-        <h3>📋 Z-Bon Vorschau</h3>
+        <h3>{{ zbonHtmlModalTitle }}</h3>
         <div class="zbon-preview-frame-shell">
           <iframe
             :srcdoc="zBonHtml"
@@ -1194,6 +1016,12 @@
           />
         </div>
         <div class="confirmation-buttons">
+          <button
+            class="btn btn-success"
+            @click="downloadCurrentZbonHtml"
+          >
+            ⬇️ HTML herunterladen
+          </button>
           <button
             class="btn btn-secondary"
             @click="showZbonPreviewModal = false"
@@ -1247,9 +1075,12 @@ const showZbonPreviewModal = ref(false)
 const showWithdrawalModal = ref(false)
 const showMemberPickerModal = ref(false)
 const showPasswordModal = ref(false)
+const modalInitialWithdrawalCents = ref(0)
 const memberPickerTarget = ref(null)
 const memberSearch = ref('')
 const financeUsers = ref([])
+const zbonHtmlModalTitle = ref('📋 Z-Bon Vorschau')
+const zbonHtmlDownloadMeta = ref(null)
 const zbonForm = ref({
   createdByUserId: null,
   verifiedByUserId: null,
@@ -1268,7 +1099,6 @@ const zBonHtml = ref('')
 
 // Z-Böns History
 const zbonsList = ref([])
-const selectedZbon = ref(null)
 const loadingZbons = ref(false)
 const zbonsFilterStartDate = ref(getDateDaysAgo(90))
 const zbonsFilterEndDate = ref(new Date().toISOString().split('T')[0])
@@ -1400,9 +1230,30 @@ const zbonCountedCashValue = computed(() => {
   return Number.isNaN(value) ? null : value
 })
 
-const zbonDifferenceValue = computed(() => {
+const modalWithdrawalDeltaCents = computed(() => Math.max(
+  Number(dailyStats.value.withdrawal_total || 0) - Number(modalInitialWithdrawalCents.value || 0),
+  0,
+))
+
+const zbonFinalCashValue = computed(() => {
   if (zbonCountedCashValue.value === null) return null
-  return zbonCountedCashValue.value - Number(dailyStats.value.cash_calculated || 0)
+
+  const finalValue = zbonCountedCashValue.value - (modalWithdrawalDeltaCents.value / 100)
+  if (finalValue < 0) {
+    return null
+  }
+
+  return Number(finalValue.toFixed(2))
+})
+
+const zbonFinalCashInvalid = computed(() => (
+  zbonCountedCashValue.value !== null
+  && zbonFinalCashValue.value === null
+))
+
+const zbonDifferenceValue = computed(() => {
+  if (zbonFinalCashValue.value === null) return null
+  return zbonFinalCashValue.value - Number(dailyStats.value.cash_calculated || 0)
 })
 
 const zbonDifferenceDisplay = computed(() => {
@@ -1410,13 +1261,13 @@ const zbonDifferenceDisplay = computed(() => {
 })
 
 const zbonNewCashBalanceDisplay = computed(() => {
-  return zbonCountedCashValue.value === null ? '-' : formatEuroValue(zbonCountedCashValue.value)
+  return zbonFinalCashValue.value === null ? '-' : formatEuroValue(zbonFinalCashValue.value)
 })
 
 const canCreateZbon = computed(() => (
   !!zbonForm.value.createdByUserId
   && !!zbonForm.value.verifiedByUserId
-  && zbonCountedCashValue.value !== null
+  && zbonFinalCashValue.value !== null
 ))
 
 const isUserPickerTarget = computed(() => ['createdByUserId', 'verifiedByUserId'].includes(memberPickerTarget.value))
@@ -1627,6 +1478,7 @@ const openCashCounterModal = () => {
 }
 const onCashCounterConfirm = (data) => {
   cashCountData.value = data
+  zbonCountedCash.value = data.total.toFixed(2)
   loadDailyStats()
 }
 
@@ -1678,13 +1530,7 @@ const handleDownloadZBon = async () => {
       await loadDailyStats()
     }
 
-    const blob = new Blob([zBonHtml.value], { type: 'text/html;charset=utf-8' })
-    const url = window.URL.createObjectURL(blob)
-    const a = document.createElement('a')
-    a.href = url
-    a.download = `Z-Bon-Vorschau.html`
-    a.click()
-    window.URL.revokeObjectURL(url)
+    triggerHtmlDownload(zBonHtml.value, buildZbonHtmlFilename(zbonHtmlDownloadMeta.value))
     notificationStore.success('Z-Bon HTML erfolgreich heruntergeladen')
   } catch (error) {
     console.error('Error downloading Z-Bon HTML:', error)
@@ -1696,17 +1542,27 @@ const openZbonCreateModal = async () => {
   if (!financeUsers.value.length) {
     await loadFinanceUsers()
   }
+  await loadDailyStats()
   zbonCountedCash.value = ''
+  modalInitialWithdrawalCents.value = Number(dailyStats.value.withdrawal_total || 0)
+  zbonHtmlDownloadMeta.value = {
+    period_end: dailyStats.value.period_end,
+  }
   showZbonCreateModal.value = true
 }
 
 const closeZbonCreateModal = () => {
   showZbonCreateModal.value = false
+  modalInitialWithdrawalCents.value = 0
 }
 
 const openPreviewModal = async () => {
   await loadDailyStats()
   if (zBonHtml.value) {
+    zbonHtmlModalTitle.value = '📋 Z-Bon Vorschau'
+    zbonHtmlDownloadMeta.value = {
+      period_end: dailyStats.value.period_end,
+    }
     showZbonPreviewModal.value = true
   }
 }
@@ -1799,7 +1655,7 @@ const createZBon = async (password) => {
       created_by_name: employeeName,
       cash_counted_by_name: checkerName,
       auth_password: password,
-      cash_count_total: zbonCountedCashValue.value,
+      cash_count_total: zbonFinalCashValue.value,
     })
     notificationStore.success('Z-Bon erfolgreich erstellt')
     closeZbonCreateModal()
@@ -1857,61 +1713,53 @@ const loadZbonsHistory = async () => {
   }
 }
 
-const selectZbon = async (zbon) => {
-  if (selectedZbon.value?.id === zbon.id) {
-    selectedZbon.value = null
-    return
+const formatDateForFilename = (value) => {
+  if (!value) {
+    return new Date().toISOString().split('T')[0]
   }
 
-  try {
-    const response = await apiService.get(`/transactions/zbon/history/${zbon.sequence_number}`)
-    selectedZbon.value = response.data
-  } catch (error) {
-    console.error('[Finance] Error loading Z-Bon detail:', error)
-    notificationStore.error('Fehler beim Laden der Z-Bon-Details')
+  const date = new Date(value)
+  if (Number.isNaN(date.getTime())) {
+    return new Date().toISOString().split('T')[0]
   }
+
+  return date.toISOString().split('T')[0]
 }
 
-const downloadZbonHTML = async (zbon) => {
+const buildZbonHtmlFilename = (zbon) => {
+  const datePart = formatDateForFilename(zbon?.business_date || zbon?.period_end)
+  const baseName = zbon?.sequence_number ? `Z-Bon-${zbon.sequence_number}` : 'Z-Bon-Vorschau'
+  return `${baseName}_${datePart}.html`
+}
+
+const triggerHtmlDownload = (html, filename) => {
+  const blob = new Blob([html], { type: 'text/html;charset=utf-8' })
+  const url = window.URL.createObjectURL(blob)
+  const link = document.createElement('a')
+  link.href = url
+  link.setAttribute('download', filename)
+  document.body.appendChild(link)
+  link.click()
+  link.parentNode.removeChild(link)
+  window.URL.revokeObjectURL(url)
+}
+
+const downloadCurrentZbonHtml = async () => {
+  await handleDownloadZBon()
+}
+
+const openZbonHistoryModal = async (zbon) => {
   try {
     const response = await apiService.get(`/transactions/zbon/history/${zbon.sequence_number}/html`, {
       responseType: 'text',
     })
-
-    const element = document.createElement('a')
-    element.setAttribute('href', 'data:text/html;charset=utf-8,' + encodeURIComponent(response.data))
-    element.setAttribute('download', `Z-Bon-${zbon.sequence_number}.html`)
-    element.style.display = 'none'
-    document.body.appendChild(element)
-    element.click()
-    document.body.removeChild(element)
-    notificationStore.success('Z-Bon HTML heruntergeladen')
+    zBonHtml.value = response.data
+    zbonHtmlModalTitle.value = `📑 Z-Bon #${zbon.sequence_number}`
+    zbonHtmlDownloadMeta.value = zbon
+    showZbonPreviewModal.value = true
   } catch (error) {
-    console.error('[Finance] Error downloading Z-Bon HTML:', error)
-    notificationStore.error('Fehler beim Herunterladen der Z-Bon')
-  }
-}
-
-const downloadZbonPDF = async (zbon) => {
-  try {
-    const response = await apiService.get(`/transactions/zbon/history/${zbon.sequence_number}/pdf`, {
-      responseType: 'blob',
-    })
-    
-    const url = window.URL.createObjectURL(new Blob([response.data]))
-    const link = document.createElement('a')
-    link.href = url
-    link.setAttribute('download', `Z-Bon-${zbon.sequence_number}.pdf`)
-    document.body.appendChild(link)
-    link.click()
-    link.parentNode.removeChild(link)
-    window.URL.revokeObjectURL(url)
-    notificationStore.success('Z-Bon PDF heruntergeladen')
-  } catch (error) {
-    console.error('[Finance] Error downloading Z-Bon PDF:', error)
-    notificationStore.error('PDF-Export nicht verfügbar, als HTML heruntergeladen')
-    // Fallback to HTML
-    downloadZbonHTML(zbon)
+    console.error('[Finance] Error loading Z-Bon HTML detail:', error)
+    notificationStore.error('Fehler beim Laden der Z-Bon-Ansicht')
   }
 }
 
@@ -2470,6 +2318,16 @@ onMounted(() => {
   align-items: start;
 }
 
+.zbon-note-box {
+  margin-bottom: 1rem;
+  padding: 0.9rem 1rem;
+  border-radius: 10px;
+  background: #eef4ff;
+  border: 1px solid #c8d8f2;
+  color: #22446b;
+  font-weight: 500;
+}
+
 .selection-grid {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
@@ -2480,9 +2338,23 @@ onMounted(() => {
   margin-bottom: 0;
 }
 
+.zbon-balance-group {
+  padding: 1rem;
+  border-radius: 10px;
+  background: rgba(255, 255, 255, 0.55);
+  border: 1px solid #cbd5e1;
+}
+
 .zbon-side-summary {
   grid-template-columns: repeat(2, minmax(0, 1fr));
   margin-bottom: 1rem;
+}
+
+.zbon-warning-text {
+  display: block;
+  margin-top: 0.75rem;
+  color: #b91c1c;
+  font-weight: 600;
 }
 
 .confirmation-buttons {
@@ -2794,5 +2666,16 @@ onMounted(() => {
   &:hover {
     background: #e65100;
   }
+}
+
+.btn-ready {
+  background: #2e7d32;
+  color: white;
+}
+
+.btn-disabled {
+  background: #9ca3af;
+  color: white;
+  cursor: not-allowed;
 }
 </style>
