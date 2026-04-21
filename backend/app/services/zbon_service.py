@@ -132,7 +132,11 @@ class ZBonService:
         recharges = [t for t in transactions if t.type == TransactionType.RECHARGE]
         prepaid_voucher_sales = [
             t for t in transactions
-            if t.type == TransactionType.VOUCHER_SALE and t.voucher_type == VoucherType.PREPAID.value
+            if (
+                t.type == TransactionType.VOUCHER_SALE
+                and t.payment_method == PaymentMethod.CASH
+                and t.voucher_type == VoucherType.PREPAID.value
+            )
         ]
         stornos = [t for t in transactions if t.type == TransactionType.STORNO]
         first_transaction_at = transactions[0].created_at if transactions else None

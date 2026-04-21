@@ -5,7 +5,7 @@ from typing import Optional
 
 class MemberBase(BaseModel):
     first_name: str = Field(..., min_length=1, max_length=80)
-    last_name: str = Field(..., max_length=80)
+    last_name: str = Field(..., min_length=1, max_length=80)
     membership_number: Optional[str] = Field(default=None, max_length=50)
     email: Optional[str] = None
     phone: Optional[str] = None
@@ -44,6 +44,7 @@ class MemberResponse(MemberBase):
     id: int
     member_number: int
     name: str
+    last_name: str = Field(default="", max_length=80)
     balance_cents: int
     photo_path: Optional[str] = None  # Path to member photo file
     created_at: datetime
@@ -83,7 +84,8 @@ class MemberResponse(MemberBase):
 
         if not first_name:
             parts = name.split(maxsplit=1)
-            first_name = parts[0] if parts else f"Mitglied {data.get('member_number', '')}".strip()
+            member_number = data.get("member_number")
+            first_name = parts[0] if parts else (f"Mitglied {member_number}" if member_number else "Unbekannt")
             data["first_name"] = first_name
 
         if not last_name and name:
