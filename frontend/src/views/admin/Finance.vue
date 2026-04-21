@@ -760,7 +760,7 @@
           <div class="zbon-create-layout">
             <div class="zbon-create-main">
               <div class="zbon-note-box">
-                Kassenprüfer wählen → Kassenbestand zählen → Abschöpfung vornehmen und eintragen → mit neuem Kassenbestand abgleichen → Z-Bon erstellen
+                Kassenprüfer wählen → Kassenbestand zählen → ggf. Abschöpfung vornehmen → mit neuem Kassenbestand abgleichen → Z-Bon erstellen
               </div>
               <div class="selection-grid">
                 <div class="selection-group">
@@ -834,7 +834,7 @@
                      Abschöpfung im Modal
                    </div>
                    <div class="card-value">
-                     {{ formatPrice(modalWithdrawalDeltaCents) }}
+                     {{ formatPrice(newWithdrawalsCents) }}
                    </div>
                  </div>
                  <div class="summary-card">
@@ -858,7 +858,7 @@
                  v-if="zbonFinalCashInvalid"
                  class="zbon-warning-text"
                >
-                 Der gezählte Bestand darf nicht kleiner als die im Modal vorgenommene Abschöpfung sein.
+                 Der gezählte Bestand darf nicht kleiner als die im Modal vorgenommenen Abschöpfung sein.
                </small>
              </div>
            </div>
@@ -1225,7 +1225,7 @@ const zbonCountedCashValue = computed(() => {
   return Number.isNaN(value) ? null : value
 })
 
-const modalWithdrawalDeltaCents = computed(() => Math.max(
+const newWithdrawalsCents = computed(() => Math.max(
   Number(dailyStats.value.withdrawal_total || 0) - Number(modalInitialWithdrawalCents.value || 0),
   0,
 ))
@@ -1233,7 +1233,7 @@ const modalWithdrawalDeltaCents = computed(() => Math.max(
 const zbonFinalCashValue = computed(() => {
   if (zbonCountedCashValue.value === null) return null
 
-  const finalValue = zbonCountedCashValue.value - (modalWithdrawalDeltaCents.value / 100)
+  const finalValue = zbonCountedCashValue.value - (newWithdrawalsCents.value / 100)
   if (finalValue < 0) {
     return null
   }
