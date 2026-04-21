@@ -27,7 +27,9 @@ def parse_user_role(role: str | UserRole | None, *, default: UserRole | None = N
 
     normalized_role = ROLE_ALIASES.get(str(role).strip().upper())
     if normalized_role is None:
-        raise ValueError(f"Invalid role: {role}")
+        raise ValueError(
+            f"Invalid role: {role}. Valid roles are: ADMIN, VERKAUF, MANAGER"
+        )
     return normalized_role
 
 
