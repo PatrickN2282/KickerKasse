@@ -7,7 +7,7 @@ from app.services.file_service import delete_member_photo
 
 class MemberService:
     """Member management service"""
-    MAX_USERNAME_COLLISION_RETRIES = 1000
+    MAX_USERNAME_COLLISION_RETRIES = 100
     
     def __init__(self, db: Session):
         self.db = db

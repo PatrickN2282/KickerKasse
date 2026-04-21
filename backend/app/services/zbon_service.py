@@ -170,6 +170,7 @@ class ZBonService:
             - cash_summary["withdrawals_total"]
         )
 
+        provided_cash_count_total = cash_count_total
         resolved_cash_count_total = None
         cash_difference = None
         if include_cash_count:
@@ -179,8 +180,8 @@ class ZBonService:
                 sum(float(denom) * count for denom, count in coins.items())
                 + sum(float(denom) * count for denom, count in notes.items())
             )
-        elif cash_count_total is not None:
-            resolved_cash_count_total = float(cash_count_total)
+        elif provided_cash_count_total is not None:
+            resolved_cash_count_total = float(provided_cash_count_total)
         if resolved_cash_count_total is not None:
             cash_difference = resolved_cash_count_total - cash_calculated
 

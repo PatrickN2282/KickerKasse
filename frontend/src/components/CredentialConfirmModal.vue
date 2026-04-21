@@ -18,6 +18,7 @@
           ref="usernameInput"
           v-model="localUsername"
           :readonly="!allowUsernameEdit"
+          :aria-readonly="!allowUsernameEdit ? 'true' : 'false'"
           type="text"
           class="form-input"
         >
