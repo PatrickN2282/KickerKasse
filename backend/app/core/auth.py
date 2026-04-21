@@ -38,7 +38,13 @@ def require_authenticated_user(request: Request, db: Session) -> User:
 
 
 def has_any_role(user: User, *roles: UserRole) -> bool:
+    if user.role == UserRole.TOP_ADMIN:
+        return True
     return user.role in set(roles)
+
+
+def require_top_admin(request: Request, db: Session) -> User:
+    return require_roles(request, db, UserRole.TOP_ADMIN)
 
 
 def require_roles(request: Request, db: Session, *roles: UserRole) -> User:
@@ -63,6 +69,37 @@ def require_password_confirmation(user: User, password: str | None) -> None:
             status_code=status.HTTP_403_FORBIDDEN,
             detail="Password confirmation failed",
         )
+
+
+def resolve_confirmation_user(
+    db: Session,
+    current_user: User,
+    password: str | None,
+    *,
+    username: str | None = None,
+    allow_top_admin_override: bool = False,
+) -> User:
+    requested_username = (username or "").strip()
+    current_username = (current_user.username or "").strip()
+    if not requested_username or requested_username.casefold() == current_username.casefold():
+        require_password_confirmation(current_user, password)
+        return current_user
+
+    if not allow_top_admin_override:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Abweichende Zugangsdaten sind für diese Aktion nicht erlaubt",
+        )
+
+    override_user = UserRepository(db).get_by_username(requested_username)
+    if not override_user or not override_user.is_active or override_user.role != UserRole.TOP_ADMIN:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Nur der Top-Admin darf diese Aktion mit abweichenden Zugangsdaten freigeben",
+        )
+
+    require_password_confirmation(override_user, password)
+    return override_user
 
 
 def require_auth(f):

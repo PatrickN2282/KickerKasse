@@ -18,7 +18,7 @@ def _require_admin(request: Request, db: Session):
         )
 
     current_user = UserRepository(db).get_by_id(user_id)
-    if not current_user or current_user.role != UserRole.ADMIN:
+    if not current_user or not current_user.is_admin:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="Insufficient permissions",

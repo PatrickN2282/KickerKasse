@@ -1,10 +1,66 @@
 from fastapi import APIRouter, HTTPException, Depends, Request, status
 from sqlalchemy.orm import Session
+from sqlalchemy.exc import IntegrityError
 from app.core import get_db
-from app.schemas import LoginRequest, LoginResponse, UserResponse
+from app.schemas import LoginRequest, LoginResponse, UserResponse, SetupStatusResponse, TopAdminSetupRequest
 from app.services import AuthService
+from app.services import UserService
+from app.repositories import UserRepository
 
 router = APIRouter(prefix="/api/auth", tags=["Authentication"])
+
+
+@router.get("/setup-status", response_model=SetupStatusResponse)
+@router.get("/setup-status/", response_model=SetupStatusResponse)
+async def get_setup_status(
+    db: Session = Depends(get_db),
+):
+    top_admin_exists = UserRepository(db).has_top_admin()
+    return SetupStatusResponse(
+        setup_required=not top_admin_exists,
+        top_admin_exists=top_admin_exists,
+    )
+
+
+@router.post("/setup-top-admin", response_model=LoginResponse, status_code=status.HTTP_201_CREATED)
+@router.post("/setup-top-admin/", response_model=LoginResponse, status_code=status.HTTP_201_CREATED)
+async def setup_top_admin(
+    setup_data: TopAdminSetupRequest,
+    request: Request,
+    db: Session = Depends(get_db),
+):
+    if UserRepository(db).has_top_admin():
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail="Top-Admin wurde bereits eingerichtet",
+        )
+
+    try:
+        user = UserService(db).create_top_admin(
+            setup_data.username,
+            setup_data.email,
+            setup_data.password,
+        )
+    except IntegrityError as exc:
+        db.rollback()
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Benutzername oder E-Mail existiert bereits",
+        ) from exc
+    except ValueError as exc:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(exc)) from exc
+
+    request.session["user_id"] = user.id
+    request.session["username"] = user.username
+    request.session["role"] = user.role.value
+
+    return LoginResponse(
+        id=user.id,
+        username=user.username,
+        email=user.email,
+        role=user.role.value,
+        message="Top-Admin erfolgreich eingerichtet",
+    )
 
 
 @router.post("/login", response_model=LoginResponse)

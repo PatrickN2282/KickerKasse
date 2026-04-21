@@ -6,12 +6,14 @@ from .base import BaseModel
 
 
 class UserRole(str, enum.Enum):
+    TOP_ADMIN = "TOP_ADMIN"
     ADMIN = "ADMIN"
     VERKAUF = "VERKAUF"
     MANAGER = "MANAGER"
 
 
 ROLE_ALIASES = {
+    "TOP_ADMIN": UserRole.TOP_ADMIN,
     "ADMIN": UserRole.ADMIN,
     "CASHIER": UserRole.VERKAUF,
     "VERKAUF": UserRole.VERKAUF,
@@ -29,7 +31,7 @@ def parse_user_role(role: str | UserRole | None, *, default: UserRole | None = N
     normalized_role = ROLE_ALIASES.get(str(role).strip().upper())
     if normalized_role is None:
         raise ValueError(
-            f"Invalid role: {role}. Valid roles are: ADMIN, VERKAUF, MANAGER"
+            f"Invalid role: {role}. Valid roles are: TOP_ADMIN, ADMIN, VERKAUF, MANAGER"
         )
     return normalized_role
 
@@ -50,7 +52,11 @@ class User(BaseModel):
 
     @property
     def is_admin(self) -> bool:
-        return self.role == UserRole.ADMIN
+        return self.role in {UserRole.TOP_ADMIN, UserRole.ADMIN}
+
+    @property
+    def is_top_admin(self) -> bool:
+        return self.role == UserRole.TOP_ADMIN
 
     def __repr__(self):
         return f"<User {self.username}>"

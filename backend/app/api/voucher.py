@@ -4,7 +4,7 @@ import logging
 from pydantic import BaseModel, Field
 
 from app.core import get_db
-from app.core.auth import require_password_confirmation, require_roles
+from app.core.auth import require_roles, resolve_confirmation_user
 from app.schemas import (
     VoucherCreateGift,
     VoucherCreatePrepaid,
@@ -29,6 +29,7 @@ kasse_router = APIRouter(prefix="/api/transactions/voucher", tags=["Kasse - Vouc
 
 class ClubAccountTopUpRequest(BaseModel):
     amount_cents: int = Field(..., ge=1)
+    auth_username: str | None = Field(default=None, min_length=1, max_length=50)
     auth_password: str = Field(..., min_length=1)
 
 
@@ -66,7 +67,13 @@ async def create_gift_voucher(
     """Create a gift voucher (no payment, loss recording on redemption)"""
     current_user = require_roles(request, db, UserRole.ADMIN, UserRole.MANAGER)
     user_id = current_user.id
-    require_password_confirmation(current_user, voucher_data.auth_password)
+    resolve_confirmation_user(
+        db,
+        current_user,
+        voucher_data.auth_password,
+        username=voucher_data.auth_username,
+        allow_top_admin_override=True,
+    )
     
     try:
         service = VoucherService(db)
@@ -116,7 +123,13 @@ async def create_prepaid_voucher(
     """Create a prepaid voucher (purchased now, redeemed later)"""
     current_user = require_roles(request, db, UserRole.ADMIN, UserRole.MANAGER)
     user_id = current_user.id
-    require_password_confirmation(current_user, voucher_data.auth_password)
+    resolve_confirmation_user(
+        db,
+        current_user,
+        voucher_data.auth_password,
+        username=voucher_data.auth_username,
+        allow_top_admin_override=True,
+    )
     
     try:
         service = VoucherService(db)
@@ -234,7 +247,13 @@ async def top_up_club_account(
     db: Session = Depends(get_db),
 ):
     current_user = require_roles(request, db, UserRole.ADMIN)
-    require_password_confirmation(current_user, payload.auth_password)
+    resolve_confirmation_user(
+        db,
+        current_user,
+        payload.auth_password,
+        username=payload.auth_username,
+        allow_top_admin_override=True,
+    )
     return VoucherService(db).top_up_club_account(payload.amount_cents, current_user.id)
 
 

@@ -439,13 +439,13 @@
         </div>
       </div>
     </div>
-    <PasswordConfirmModal
+    <CredentialConfirmModal
       :show="showPasswordModal"
       :title="passwordModalTitle"
-      message="Bitte Zugangsdaten des aktuell angemeldeten Benutzers bestätigen."
+      message="Optional können hier die Zugangsdaten des Top-Admin zur Freigabe verwendet werden."
       :username="authStore.user?.username || ''"
+      allow-username-edit
       confirm-label="Bestätigen"
-      :admin-required="pendingVoucherAction === 'gift' || pendingVoucherAction === 'account'"
       @close="showPasswordModal = false"
       @confirm="handlePasswordConfirmed"
     />
@@ -456,7 +456,7 @@
 import { ref, computed, onMounted } from 'vue'
 import { useAuthStore } from '@/stores/auth'
 import apiService from '@/services/api'
-import PasswordConfirmModal from '@/components/PasswordConfirmModal.vue'
+import CredentialConfirmModal from '@/components/CredentialConfirmModal.vue'
 
 // Active sub-tab
 const activeSubTab = ref('create')
@@ -588,7 +588,7 @@ const createGiftVoucher = async () => {
   showPasswordModal.value = true
 }
 
-const submitGiftVoucher = async (password) => {
+const submitGiftVoucher = async ({ username, password }) => {
   creatingGift.value = true
   createError.value = null
   createdGiftVoucher.value = null
@@ -601,6 +601,7 @@ const submitGiftVoucher = async (password) => {
     const response = await apiService.post('/admin/vouchers/gift/', {
       value_cents: giftForm.value.valueCents,
       reason: giftForm.value.reason,
+      auth_username: username,
       auth_password: password,
     })
     const payload = response.data
@@ -629,7 +630,7 @@ const createPrepaidVoucher = async () => {
   showPasswordModal.value = true
 }
 
-const submitPrepaidVoucher = async (password) => {
+const submitPrepaidVoucher = async ({ username, password }) => {
   creatingPrepaid.value = true
   createError.value = null
   createdPrepaidVoucher.value = null
@@ -637,6 +638,7 @@ const submitPrepaidVoucher = async (password) => {
   try {
     const response = await apiService.post('/admin/vouchers/prepaid/', {
       value_cents: prepaidForm.value.valueCents,
+      auth_username: username,
       auth_password: password,
     })
     const payload = response.data
@@ -652,16 +654,17 @@ const submitPrepaidVoucher = async (password) => {
   }
 }
 
-const handlePasswordConfirmed = async (password) => {
+const handlePasswordConfirmed = async (credentials) => {
   showPasswordModal.value = false
   if (pendingVoucherAction.value === 'gift') {
-    await submitGiftVoucher(password)
+    await submitGiftVoucher(credentials)
   } else if (pendingVoucherAction.value === 'prepaid') {
-    await submitPrepaidVoucher(password)
+    await submitPrepaidVoucher(credentials)
   } else if (pendingVoucherAction.value === 'account') {
     await apiService.post('/admin/vouchers/club-account/topup', {
       amount_cents: Math.round(Number(clubAccountTopUp.value) * 100),
-      auth_password: password,
+      auth_username: credentials.username,
+      auth_password: credentials.password,
     })
     clubAccountTopUp.value = ''
     await loadClubAccount()

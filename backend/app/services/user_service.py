@@ -1,6 +1,6 @@
 from sqlalchemy.orm import Session
 from app.repositories import UserRepository
-from app.models import Member
+from app.models import Member, Transaction, Voucher, CashEntry, ClubAccountEntry, UserRole
 
 
 class UserService:
@@ -12,6 +12,10 @@ class UserService:
     
     def create_user(self, username: str, email: str | None, password: str, role: str = "VERKAUF"):
         """Create a new user"""
+        normalized_role = getattr(role, "value", role)
+        if normalized_role == UserRole.TOP_ADMIN.value:
+            raise ValueError("Top-Admin kann nur über den initialen Setup-Flow erstellt werden")
+
         # Check if user already exists
         if self.repo.get_by_username(username):
             raise ValueError(f"User {username} already exists")
@@ -19,6 +23,17 @@ class UserService:
             raise ValueError(f"Email {email} already in use")
         
         return self.repo.create(username, email, password, role)
+
+    def create_top_admin(self, username: str, email: str | None, password: str):
+        """Create the single top admin account during initial setup."""
+        if self.repo.has_top_admin():
+            raise ValueError("Top-Admin existiert bereits")
+        if self.repo.get_by_username(username):
+            raise ValueError(f"User {username} already exists")
+        if email and self.repo.get_by_email(email):
+            raise ValueError(f"Email {email} already in use")
+
+        return self.repo.create(username, email, password, UserRole.TOP_ADMIN.value)
     
     def get_user(self, user_id: int):
         """Get user by ID"""
@@ -26,13 +41,13 @@ class UserService:
     
     def get_all_users(self):
         """Get all users"""
-        return self.repo.get_all()
+        return [user for user in self.repo.get_all_active() if user.role != UserRole.TOP_ADMIN]
 
     def get_finance_options(self):
         """Get finance actor options from users and role-based members."""
         options = []
 
-        for user in self.repo.get_all_active():
+        for user in self.repo.get_active_without_top_admin():
             member = getattr(user, "member", None)
             display_name = member.name if member is not None else user.username
             options.append({
@@ -65,11 +80,18 @@ class UserService:
         if not user:
             return None
 
+        if user.role == UserRole.TOP_ADMIN:
+            raise ValueError("Top-Admin kann nicht über die Benutzerverwaltung geändert werden")
+
         username = kwargs.get("username")
         if username:
             existing_user = self.repo.get_by_username(username)
             if existing_user and existing_user.id != user_id:
                 raise ValueError(f"User {username} already exists")
+
+        role = getattr(kwargs.get("role"), "value", kwargs.get("role"))
+        if role == UserRole.TOP_ADMIN.value:
+            raise ValueError("Top-Admin kann nicht über die Benutzerverwaltung vergeben werden")
 
         if "email" in kwargs and kwargs["email"]:
             existing_user = self.repo.get_by_email(kwargs["email"])
@@ -79,5 +101,23 @@ class UserService:
         return self.repo.update(user_id, **kwargs)
     
     def delete_user(self, user_id: int):
-        """Delete user"""
+        """Soft-delete a user when historical references exist."""
+        user = self.repo.get_by_id(user_id)
+        if not user:
+            return False
+        if user.role == UserRole.TOP_ADMIN:
+            raise ValueError("Top-Admin kann nicht gelöscht werden")
+
+        has_references = any([
+            self.db.query(Transaction.id).filter(Transaction.user_id == user.id).first(),
+            self.db.query(CashEntry.id).filter(CashEntry.user_id == user.id).first(),
+            self.db.query(ClubAccountEntry.id).filter(ClubAccountEntry.user_id == user.id).first(),
+            self.db.query(Voucher.id).filter(Voucher.created_by_user_id == user.id).first(),
+            self.db.query(Voucher.id).filter(Voucher.redeemed_by_user_id == user.id).first(),
+        ])
+
+        if has_references:
+            self.repo.update(user.id, is_active=False, email=None)
+            return True
+
         return self.repo.delete(user_id)

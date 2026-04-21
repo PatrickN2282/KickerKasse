@@ -3,7 +3,7 @@ from .member import MemberCreate, MemberUpdate, MemberResponse
 from .product import ProductCreate, ProductUpdate, ProductResponse
 from .category import CategoryCreate, CategoryUpdate, CategoryResponse
 from .transaction import TransactionCreate, TransactionResponse, TransactionStornoCreate, ZBonResponse
-from .auth import LoginRequest, LoginResponse
+from .auth import LoginRequest, LoginResponse, SetupStatusResponse, TopAdminSetupRequest
 from .app_settings import AppSettingsUpdate, AppSettingsResponse, PublicAppSettingsResponse
 from .voucher import (
     VoucherCreateGift,
@@ -38,6 +38,8 @@ __all__ = [
     "ZBonResponse",
     "LoginRequest",
     "LoginResponse",
+    "SetupStatusResponse",
+    "TopAdminSetupRequest",
     "AppSettingsUpdate",
     "AppSettingsResponse",
     "PublicAppSettingsResponse",

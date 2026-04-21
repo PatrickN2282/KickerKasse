@@ -28,13 +28,14 @@ const route = useRoute()
 const authStore = useAuthStore()
 
 const tabs = [
-  { path: '/admin/members', label: '👥 Mitglieder', roles: ['ADMIN', 'MANAGER'] },
-  { path: '/admin/products', label: '📦 Produkte', roles: ['ADMIN'] },
-  { path: '/admin/categories', label: '🏷️ Kategorien', roles: ['ADMIN'] },
-  { path: '/admin/users', label: '👤 Benutzer', roles: ['ADMIN'] },
-  { path: '/admin/vouchers', label: '🎫 Gutscheine', roles: ['ADMIN'] },
-  { path: '/admin/finance', label: '💰 Finanzen', roles: ['ADMIN', 'MANAGER'] },
-  { path: '/admin/settings', label: '🎨 Design', roles: ['ADMIN'] },
+  { path: '/admin/members', label: '👥 Mitglieder', roles: ['TOP_ADMIN', 'ADMIN', 'MANAGER'] },
+  { path: '/admin/products', label: '📦 Produkte', roles: ['TOP_ADMIN', 'ADMIN'] },
+  { path: '/admin/categories', label: '🏷️ Kategorien', roles: ['TOP_ADMIN', 'ADMIN'] },
+  { path: '/admin/users', label: '👤 Benutzer', roles: ['TOP_ADMIN', 'ADMIN'] },
+  { path: '/admin/vouchers', label: '🎫 Gutscheine', roles: ['TOP_ADMIN', 'ADMIN'] },
+  { path: '/admin/finance', label: '💰 Finanzen', roles: ['TOP_ADMIN', 'ADMIN', 'MANAGER'] },
+  { path: '/admin/settings', label: '🎨 Design', roles: ['TOP_ADMIN', 'ADMIN'] },
+  { path: '/admin/data-maintenance', label: '🧹 Datenpflege', roles: ['TOP_ADMIN', 'ADMIN'] },
 ]
 
 const visibleTabs = computed(() => tabs.filter(tab => tab.roles.includes(authStore.role)))
