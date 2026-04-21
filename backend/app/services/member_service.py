@@ -16,16 +16,16 @@ class MemberService:
         self.user_repo = UserRepository(db)
 
     def _generate_member_username(self, member: Member) -> str:
-        first_name = (member.first_name or "").strip()
-        last_initial = (member.last_name or "").strip()[:1].upper()
-        base = " ".join(part for part in [first_name, last_initial] if part).strip() or "Mitglied"
+        first_name = ".".join((member.first_name or "").split()).strip(".")
+        last_name = ".".join((member.last_name or "").split()).strip(".")
+        base = ".".join(part for part in [first_name, last_name] if part) or "Mitglied"
         candidate = base
 
         for suffix_index in range(self.MAX_USERNAME_COLLISION_RETRIES):
             existing_user = self.user_repo.get_by_username(candidate)
             if not existing_user or existing_user.member_id == member.id:
                 return candidate
-            candidate = f"{base}-{suffix_index + 2}"
+            candidate = f"{base}.{suffix_index + 2}"
 
         raise ValueError("Es konnte kein eindeutiger Benutzername generiert werden")
 

@@ -66,8 +66,7 @@ async def create_gift_voucher(
 ):
     """Create a gift voucher (no payment, loss recording on redemption)"""
     current_user = require_roles(request, db, UserRole.ADMIN, UserRole.MANAGER)
-    user_id = current_user.id
-    resolve_confirmation_user(
+    confirmation_user = resolve_confirmation_user(
         db,
         current_user,
         voucher_data.auth_password,
@@ -80,7 +79,7 @@ async def create_gift_voucher(
         voucher = service.create_gift_voucher(
             value_cents=voucher_data.value_cents,
             reason=voucher_data.reason,
-            created_by_user_id=user_id,
+            created_by_user_id=confirmation_user.id,
         )
         logger.debug(f"[DEBUG] Voucher object after create: id={voucher.id}, voucher_code={voucher.voucher_code}")
         
@@ -89,7 +88,7 @@ async def create_gift_voucher(
         logger.debug(f"[DEBUG] Response object: voucher_code={response.voucher_code}")
         logger.info(
             f"[ADMIN] Created GIFT voucher {voucher.voucher_code} "
-            f"(value: {voucher.value_cents} cents) by user {user_id}"
+            f"(value: {voucher.value_cents} cents) by user {confirmation_user.id}"
         )
         return response
     except ValueError as e:

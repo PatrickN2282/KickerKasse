@@ -44,14 +44,6 @@ class VoucherService:
         except ValueError:
             raise ValueError(f"Invalid reason: {reason}")
 
-        club_account_balance_cents = self._get_club_account_balance_cents()
-        if club_account_balance_cents < value_cents:
-            raise ValueError(
-                "Nicht genügend Guthaben im Vereinskonto. "
-                f"Verfügbar: {club_account_balance_cents / 100:.2f}€, "
-                f"benötigt: {value_cents / 100:.2f}€"
-            )
-
         voucher = self.repository.create(
             voucher_type=VoucherType.GIFT,
             value_cents=value_cents,
