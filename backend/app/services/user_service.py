@@ -1,5 +1,6 @@
 from sqlalchemy.orm import Session
 from app.repositories import UserRepository
+from app.models import Member
 
 
 class UserService:
@@ -26,6 +27,37 @@ class UserService:
     def get_all_users(self):
         """Get all users"""
         return self.repo.get_all()
+
+    def get_finance_options(self):
+        """Get finance actor options from users and role-based members."""
+        options = []
+
+        for user in self.repo.get_all_active():
+            member = getattr(user, "member", None)
+            display_name = member.name if member is not None else user.username
+            options.append({
+                "id": f"user-{user.id}",
+                "username": display_name,
+                "role": user.role,
+                "member_id": user.member_id,
+                "source": "member" if user.member_id else "user",
+            })
+
+        members_with_roles = self.db.query(Member).filter(Member.role.is_not(None)).all()
+        for member in members_with_roles:
+            linked_user = getattr(member, "linked_user", None)
+            if linked_user and linked_user.is_active:
+                continue
+
+            options.append({
+                "id": f"member-{member.id}",
+                "username": member.name,
+                "role": member.role,
+                "member_id": member.id,
+                "source": "member",
+            })
+
+        return sorted(options, key=lambda option: (option["username"] or "").lower())
     
     def update_user(self, user_id: int, **kwargs):
         """Update user"""

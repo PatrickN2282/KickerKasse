@@ -176,7 +176,7 @@ const deleteUser = async (userId) => {
 const loadUsers = async () => {
   try {
     const response = await apiService.get('/users')
-    users.value = response.data
+    users.value = response.data.filter(user => !user.member_id)
   } catch {
     notificationStore.error('Fehler beim Laden der Benutzer')
   }
@@ -189,10 +189,10 @@ const loadRoleMembers = async () => {
       .filter(member => member.role)
       .map(member => ({
         id: `member-${member.id}`,
-        username: getMemberFullName(member),
+        username: member.account_username || getMemberFullName(member),
         email: member.email || '-',
         role: member.role,
-        entryType: 'Mitglied',
+        entryType: member.has_user_account ? 'Mitgliedskonto' : 'Mitglied',
         deletable: false,
       }))
   } catch {

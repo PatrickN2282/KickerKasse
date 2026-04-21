@@ -17,7 +17,16 @@ class UserRepository:
         email = email.strip()
         return email or None
 
-    def create(self, username: str, email: str | None, password: str, role: str = "VERKAUF") -> User:
+    def create(
+        self,
+        username: str,
+        email: str | None,
+        password: str,
+        role: str = "VERKAUF",
+        *,
+        member_id: int | None = None,
+        is_active: bool = True,
+    ) -> User:
         """Create a new user"""
         hasher = get_password_hasher()
         user = User(
@@ -25,6 +34,8 @@ class UserRepository:
             email=self._normalize_email(email),
             password_hash=hasher.hash_password(password),
             role=parse_user_role(role, default=UserRole.VERKAUF),
+            member_id=member_id,
+            is_active=is_active,
         )
         self.db.add(user)
         self.db.commit()
@@ -45,10 +56,18 @@ class UserRepository:
         if not email:
             return None
         return self.db.query(User).filter(User.email == email).first()
-    
+
+    def get_by_member_id(self, member_id: int) -> User | None:
+        """Get user linked to a member"""
+        return self.db.query(User).filter(User.member_id == member_id).first()
+
     def get_all(self) -> list[User]:
         """Get all users"""
         return self.db.query(User).all()
+
+    def get_all_active(self) -> list[User]:
+        """Get all active users"""
+        return self.db.query(User).filter(User.is_active.is_(True)).all()
     
     def update(self, user_id: int, **kwargs) -> User | None:
         """Update user"""

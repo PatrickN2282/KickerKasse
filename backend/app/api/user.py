@@ -28,7 +28,7 @@ async def get_finance_users(
     db: Session = Depends(get_db),
 ):
     require_roles(request, db, UserRole.ADMIN, UserRole.MANAGER)
-    return UserService(db).get_all_users()
+    return UserService(db).get_finance_options()
 
 
 @router.post("/", response_model=UserResponse, status_code=status.HTTP_201_CREATED)

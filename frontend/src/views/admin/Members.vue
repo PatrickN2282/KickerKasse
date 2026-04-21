@@ -97,6 +97,42 @@
           </select>
         </div>
       </div>
+      <div
+        v-if="authStore.isAdmin && formData.role"
+        class="role-account-box"
+      >
+        <div
+          v-if="currentAccountUsername"
+          class="form-group"
+        >
+          <label>Loginname</label>
+          <input
+            :value="currentAccountUsername"
+            type="text"
+            class="form-input"
+            readonly
+          >
+        </div>
+        <div class="form-group">
+          <label for="account_password">
+            {{ hasExistingUserAccount ? 'Neues Passwort (optional)' : 'Passwort für Benutzerkonto*' }}
+          </label>
+          <input
+            id="account_password"
+            v-model="formData.account_password"
+            type="password"
+            class="form-input"
+            :required="!hasExistingUserAccount"
+            minlength="8"
+            placeholder="Mindestens 8 Zeichen"
+          >
+        </div>
+        <small class="form-help">
+          {{ hasExistingUserAccount
+            ? 'Mitglieder mit Rolle können sich damit wie normale Benutzer anmelden. Passwort nur bei Bedarf ändern.'
+            : 'Sobald eine Rolle vergeben wird, wird ein Benutzerkonto angelegt und ein Passwort benötigt.' }}
+        </small>
+      </div>
       <div class="form-group">
         <label for="notes">Notizen:</label>
         <textarea
@@ -273,6 +309,8 @@ const photoPreview = ref(null)
 const rechargeAmount = ref(null)
 const currentMemberBalance = ref(null)
 const showRechargeModal = ref(false)
+const currentAccountUsername = ref('')
+const hasExistingUserAccount = ref(false)
 const formData = reactive({
   first_name: '',
   last_name: '',
@@ -282,6 +320,7 @@ const formData = reactive({
   notes: '',
   has_discount: true,
   role: '',
+  account_password: '',
 })
 
 const fullFormName = computed(() => [formData.first_name, formData.last_name].filter(Boolean).join(' '))
@@ -329,8 +368,17 @@ const handleSaveMember = async () => {
   const payload = { ...formData }
   if (!authStore.isAdmin) {
     delete payload.role
+    delete payload.account_password
   } else if (!payload.role) {
     payload.role = null
+    delete payload.account_password
+  } else if (!payload.account_password) {
+    delete payload.account_password
+  }
+
+  if (authStore.isAdmin && payload.role && !hasExistingUserAccount.value && !formData.account_password) {
+    notificationStore.error('Bitte ein Passwort für das Benutzerkonto vergeben')
+    return
   }
 
   if (editingId.value) {
@@ -375,10 +423,13 @@ const resetForm = () => {
   formData.notes = ''
   formData.has_discount = true
   formData.role = ''
+  formData.account_password = ''
   photoFile.value = null
   photoPreview.value = null
   rechargeAmount.value = null
   currentMemberBalance.value = null
+  currentAccountUsername.value = ''
+  hasExistingUserAccount.value = false
   editingId.value = null
   showForm.value = false
 }
@@ -393,7 +444,10 @@ const editMember = (member) => {
   formData.notes = member.notes || ''
   formData.has_discount = member.has_discount ?? true
   formData.role = member.role || ''
+  formData.account_password = ''
   currentMemberBalance.value = member.balance_cents
+  currentAccountUsername.value = member.account_username || ''
+  hasExistingUserAccount.value = !!member.has_user_account
   rechargeAmount.value = null
   showForm.value = true
 }
@@ -499,6 +553,14 @@ onMounted(async () => {
   display: block;
   margin-bottom: 0.5rem;
   color: #666;
+}
+
+.role-account-box {
+  margin-bottom: 1rem;
+  padding: 1rem;
+  border-radius: 8px;
+  background: #eef4ea;
+  border: 1px solid rgba(92, 143, 58, 0.2);
 }
 
 .recharge-input-group {

@@ -1,4 +1,5 @@
 from sqlalchemy import Column, String, Integer, DateTime, Text, Boolean, Enum
+from sqlalchemy.orm import relationship
 from sqlalchemy.sql import func
 from .base import BaseModel
 from .user import UserRole
@@ -21,6 +22,8 @@ class Member(BaseModel):
     notes = Column(Text, nullable=True)
     created_at = Column(DateTime, default=func.now(), nullable=False)
     updated_at = Column(DateTime, default=func.now(), onupdate=func.now(), nullable=False)
+
+    linked_user = relationship("User", back_populates="member", uselist=False)
 
     def __repr__(self):
         return f"<Member #{self.member_number} {self.name}>"
