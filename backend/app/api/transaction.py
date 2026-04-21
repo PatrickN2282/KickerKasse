@@ -68,6 +68,15 @@ def _require_finance_access(request: Request, db: Session):
     return require_roles(request, db, UserRole.ADMIN, UserRole.KASSENMITGLIED)
 
 
+def _get_combined_voucher_type(vouchers: list[tuple]) -> str | None:
+    if not vouchers:
+        return None
+
+    voucher_types = [voucher.voucher_type.value for voucher, _ in vouchers]
+    first_type = voucher_types[0]
+    return first_type if all(voucher_type == first_type for voucher_type in voucher_types) else "MIXED"
+
+
 @router.get("/next-receipt-number")
 @router.get("/next-receipt-number/")
 async def get_next_receipt_number(
@@ -200,11 +209,7 @@ async def create_sale(
         member_id=transaction_data.member_id,
         items=items_data,
         voucher_code=", ".join(voucher.voucher_code for voucher, _ in vouchers) if vouchers else None,
-        voucher_type=(
-            vouchers[0][0].voucher_type.value
-            if len({voucher.voucher_type.value for voucher, _ in vouchers}) == 1 and vouchers
-            else ("MIXED" if vouchers else None)
-        ),
+        voucher_type=_get_combined_voucher_type(vouchers),
         voucher_applied_cents=voucher_applied_cents,
         balance_applied_cents=balance_applied_cents,
     )

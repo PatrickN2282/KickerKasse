@@ -26,6 +26,18 @@ class ZBonService:
     def _calculate_sale_gross_cents(self, transaction: Transaction) -> int:
         return sum(item.total_price_cents for item in transaction.items)
 
+    @staticmethod
+    def _format_member_name(member: Member | None) -> str:
+        if not member:
+            return "Gast"
+
+        first_name = (member.first_name or "").strip()
+        last_name = (member.last_name or "").strip()
+        if first_name or last_name:
+            return " ".join(part for part in [first_name, f"{last_name[:1]}." if last_name else ""] if part)
+
+        return member.name or "Gast"
+
     def _get_current_period_bounds(self) -> tuple[datetime, datetime, ZBonHistory | None]:
         period_end = datetime.now()
         last_zbon = self.db.query(ZBonHistory).order_by(desc(ZBonHistory.sequence_number)).first()
@@ -168,7 +180,7 @@ class ZBonService:
                 "voucher_applied_cents": t.voucher_applied_cents or 0,
                 "balance_applied_cents": t.balance_applied_cents or 0,
                 "voucher_type": t.voucher_type,
-                "member_name": t.member.name if t.member else "Gast",
+                "member_name": self._format_member_name(t.member),
                 "items": [
                     {
                         "id": item.id,

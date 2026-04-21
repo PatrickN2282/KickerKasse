@@ -257,7 +257,7 @@ class DatabaseMigrator:
                         UPDATE members
                         SET first_name = COALESCE(
                             NULLIF(SPLIT_PART(TRIM(name), ' ', 1), ''),
-                            'Unbekannt'
+                            ''
                         )
                     """))
                     conn.execute(text("ALTER TABLE members ALTER COLUMN first_name SET NOT NULL"))
