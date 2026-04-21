@@ -10,9 +10,19 @@ class MemberService:
         self.repo = MemberRepository(db)
         self.balance_log_repo = BalanceLogRepository(db)
     
-    def create_member(self, name: str, email: str = None, phone: str = None):
+    def create_member(
+        self,
+        first_name: str,
+        last_name: str,
+        membership_number: str = None,
+        email: str = None,
+        phone: str = None,
+        notes: str = None,
+        has_discount: bool = True,
+        role: str | None = None,
+    ):
         """Create a new member"""
-        return self.repo.create(name, email, phone)
+        return self.repo.create(first_name, last_name, membership_number, email, phone, notes, has_discount, role)
     
     def get_member(self, member_id: int):
         """Get member by ID"""

@@ -22,6 +22,7 @@ class TransactionRepository:
         voucher_code: str = None,
         voucher_type: str = None,
         voucher_applied_cents: int = 0,
+        balance_applied_cents: int = 0,
     ) -> Transaction:
         """Create a new transaction"""
         transaction = Transaction(
@@ -34,6 +35,7 @@ class TransactionRepository:
             voucher_code=voucher_code,
             voucher_type=voucher_type,
             voucher_applied_cents=voucher_applied_cents or 0,
+            balance_applied_cents=balance_applied_cents or 0,
         )
         
         if items:

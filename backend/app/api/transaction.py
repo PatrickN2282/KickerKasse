@@ -118,38 +118,41 @@ async def create_sale(
             )
     
     total_amount = sum(item.unit_price_cents * item.quantity for item in transaction_data.items)
-    voucher = None
+    vouchers = []
     voucher_applied_cents = 0
+    voucher_service = VoucherService(db)
 
-    if transaction_data.voucher_redemption:
+    for voucher_redemption in transaction_data.voucher_redemptions:
         try:
-            voucher_service = VoucherService(db)
-            voucher = voucher_service.get_redeemable_voucher(
-                transaction_data.voucher_redemption.voucher_number
-            )
+            voucher = voucher_service.get_redeemable_voucher(voucher_redemption.voucher_number)
         except ValueError as e:
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
                 detail=str(e),
             )
 
+        remaining_cart_value = max(total_amount - voucher_applied_cents, 0)
         available_voucher_cents = (
             voucher.remaining_value_cents
             if voucher.remaining_value_cents is not None
             else voucher.value_cents
         )
-        voucher_applied_cents = min(available_voucher_cents, total_amount)
+        applied_amount = min(available_voucher_cents, remaining_cart_value)
 
-        if voucher_applied_cents <= 0:
+        if applied_amount <= 0:
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
                 detail="Voucher kann bei leerem Warenkorb nicht eingelöst werden",
             )
 
-    payable_amount_cents = max(total_amount - voucher_applied_cents, 0)
+        vouchers.append((voucher, applied_amount))
+        voucher_applied_cents += applied_amount
+
+    payable_after_vouchers_cents = max(total_amount - voucher_applied_cents, 0)
+    balance_applied_cents = 0
 
     # Check member balance if paying with balance
-    if transaction_data.payment_method == "BALANCE":
+    if transaction_data.payment_method == "BALANCE" or transaction_data.balance_discount_cents > 0:
         if not transaction_data.member_id:
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
@@ -163,13 +166,27 @@ async def create_sale(
                 status_code=status.HTTP_404_NOT_FOUND,
                 detail="Member not found",
             )
-        
-        if member.balance_cents < payable_amount_cents:
+
+        requested_balance_cents = (
+            payable_after_vouchers_cents
+            if transaction_data.payment_method == "BALANCE"
+            else transaction_data.balance_discount_cents
+        )
+        balance_applied_cents = min(requested_balance_cents, member.balance_cents, payable_after_vouchers_cents)
+
+        if transaction_data.payment_method == "BALANCE" and balance_applied_cents < payable_after_vouchers_cents:
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
                 detail="Insufficient member balance",
             )
-    
+
+    payable_amount_cents = max(payable_after_vouchers_cents - balance_applied_cents, 0)
+    if transaction_data.payment_method == "BALANCE" and payable_amount_cents != 0:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Balance payment must cover the full remaining amount",
+        )
+
     service = TransactionService(db)
     
     # Create transaction
@@ -180,9 +197,14 @@ async def create_sale(
         payment_method=transaction_data.payment_method,
         member_id=transaction_data.member_id,
         items=items_data,
-        voucher_code=voucher.voucher_code if voucher else None,
-        voucher_type=voucher.voucher_type.value if voucher else None,
+        voucher_code=", ".join(voucher.voucher_code for voucher, _ in vouchers) if vouchers else None,
+        voucher_type=(
+            vouchers[0][0].voucher_type.value
+            if len({voucher.voucher_type.value for voucher, _ in vouchers}) == 1 and vouchers
+            else ("MIXED" if vouchers else None)
+        ),
         voucher_applied_cents=voucher_applied_cents,
+        balance_applied_cents=balance_applied_cents,
     )
     
     # Process payment
@@ -193,13 +215,12 @@ async def create_sale(
     for item in transaction.items:
         product_repo.deduct_stock(item.product_id, item.quantity)
 
-    if voucher:
-        voucher_service = VoucherService(db)
+    for voucher, applied_amount in vouchers:
         voucher_service.repository.apply_redemption(
             voucher.id,
             user_id,
             transaction.id,
-            applied_amount_cents=voucher_applied_cents,
+            applied_amount_cents=applied_amount,
             commit=False,
         )
 
@@ -210,7 +231,7 @@ async def create_sale(
     print(
         f"[API] Sale transaction created successfully: "
         f"id={transaction.id}, receipt_number={transaction.receipt_number}, "
-        f"gross={total_amount}, payable={payable_amount_cents}, voucher={voucher_applied_cents}"
+        f"gross={total_amount}, payable={payable_amount_cents}, voucher={voucher_applied_cents}, balance={balance_applied_cents}"
     )
     
     return transaction

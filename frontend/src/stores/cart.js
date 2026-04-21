@@ -6,7 +6,8 @@ export const useCartStore = defineStore('cart', () => {
   const items = ref([])
   const selectedMemberId = ref(null)
   const paymentMethod = ref('CASH')
-  const appliedVoucher = ref(null)
+  const appliedVouchers = ref([])
+  const appliedBalanceCents = ref(0)
 
   const addItem = (product) => {
     const existingItem = items.value.find(item => item.product_id === product.id)
@@ -64,26 +65,43 @@ export const useCartStore = defineStore('cart', () => {
   }
 
   const getVoucherAppliedAmount = () => {
-    if (!appliedVoucher.value) {
-      return 0
-    }
+    return Math.min(
+      appliedVouchers.value.reduce((sum, voucher) => sum + (voucher.applied_amount_cents || 0), 0),
+      getSubtotalAmount()
+    )
+  }
 
-    return Math.min(appliedVoucher.value.value_cents, getSubtotalAmount())
+  const getBalanceAppliedAmount = () => {
+    const remainingAfterVouchers = Math.max(getSubtotalAmount() - getVoucherAppliedAmount(), 0)
+    return Math.min(appliedBalanceCents.value, remainingAfterVouchers)
   }
 
   const getTotalAmount = () => {
-    return Math.max(getSubtotalAmount() - getVoucherAppliedAmount(), 0)
+    return Math.max(getSubtotalAmount() - getVoucherAppliedAmount() - getBalanceAppliedAmount(), 0)
   }
 
   // Computed-like getter for total
   const total = computed(() => getTotalAmount())
 
   const applyVoucher = (voucher) => {
-    appliedVoucher.value = voucher
+    appliedVouchers.value.push(voucher)
   }
 
-  const removeVoucher = () => {
-    appliedVoucher.value = null
+  const removeVoucher = (voucherNumber = null) => {
+    if (!voucherNumber) {
+      appliedVouchers.value = []
+      return
+    }
+
+    appliedVouchers.value = appliedVouchers.value.filter(voucher => voucher.voucher_number !== voucherNumber)
+  }
+
+  const applyBalanceDiscount = (amountCents) => {
+    appliedBalanceCents.value = Math.max(amountCents, 0)
+  }
+
+  const removeBalanceDiscount = () => {
+    appliedBalanceCents.value = 0
   }
 
   const checkout = async (userId) => {
@@ -97,9 +115,10 @@ export const useCartStore = defineStore('cart', () => {
           user_id: userId,
           payment_method: paymentMethod.value,
           member_id: selectedMemberId.value,
-          voucher_redemption: appliedVoucher.value
-            ? { voucher_number: appliedVoucher.value.voucher_number }
-            : null,
+          voucher_redemptions: appliedVouchers.value.map(voucher => ({
+            voucher_number: voucher.voucher_number,
+          })),
+          balance_discount_cents: appliedBalanceCents.value,
           items: items.value.map(item => ({
             product_id: item.product_id,
             quantity: item.quantity,
@@ -111,7 +130,8 @@ export const useCartStore = defineStore('cart', () => {
       items.value = []
       selectedMemberId.value = null
       paymentMethod.value = 'CASH'
-      appliedVoucher.value = null
+      appliedVouchers.value = []
+      appliedBalanceCents.value = 0
 
       return response.data
     } catch (err) {
@@ -121,17 +141,19 @@ export const useCartStore = defineStore('cart', () => {
   }
 
   const clear = () => {
-    items.value = []
-    selectedMemberId.value = null
-    paymentMethod.value = 'CASH'
-    appliedVoucher.value = null
+      items.value = []
+      selectedMemberId.value = null
+      paymentMethod.value = 'CASH'
+      appliedVouchers.value = []
+      appliedBalanceCents.value = 0
   }
 
   return {
     items,
     selectedMemberId,
     paymentMethod,
-    appliedVoucher,
+    appliedVouchers,
+    appliedBalanceCents,
     total,
     addItem,
     removeItem,
@@ -139,9 +161,12 @@ export const useCartStore = defineStore('cart', () => {
     recalculatePrices,
     getSubtotalAmount,
     getVoucherAppliedAmount,
+    getBalanceAppliedAmount,
     getTotalAmount,
     applyVoucher,
     removeVoucher,
+    applyBalanceDiscount,
+    removeBalanceDiscount,
     checkout,
     clear,
   }

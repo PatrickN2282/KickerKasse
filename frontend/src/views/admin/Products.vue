@@ -3,7 +3,7 @@
     <h2>Produktverwaltung</h2>
 
     <button @click="showForm = !showForm" class="btn btn-primary">
-      {{ showForm ? 'Abbrechen' : 'Neues Produkt' }}
+      {{ showForm ? 'Abbrechen / Zurück' : 'Neues Produkt' }}
     </button>
 
     <form v-if="showForm" @submit.prevent="handleSaveProduct" class="form-section">

@@ -11,6 +11,7 @@
           <router-link to="/" class="nav-link">Kasse</router-link>
           <router-link to="/admin" class="nav-link" v-if="authStore.canAccessAdminPanel">Admin</router-link>
           <PwaInstallButton />
+          <span class="current-user">Angemeldet: {{ authStore.user?.username }}</span>
           <button @click="logout" class="btn-logout">Logout</button>
         </div>
       </div>
@@ -116,6 +117,11 @@ onMounted(() => {
     padding: 0.5rem 1rem;
     border-radius: 999px;
     cursor: pointer;
+  }
+
+  .current-user {
+    color: var(--app-banner-contrast);
+    font-weight: 600;
   }
 }
 

@@ -127,9 +127,14 @@ class ZBonService:
         ) / 100
         cash_sales_count = len([t for t in sales if t.payment_method == PaymentMethod.CASH])
         balance_sales_total = sum(
-            t.total_amount_cents for t in sales if t.payment_method == PaymentMethod.BALANCE
+            (t.balance_applied_cents or 0)
+            + (t.total_amount_cents if t.payment_method == PaymentMethod.BALANCE else 0)
+            for t in sales
         ) / 100
-        balance_sales_count = len([t for t in sales if t.payment_method == PaymentMethod.BALANCE])
+        balance_sales_count = len([
+            t for t in sales
+            if t.payment_method == PaymentMethod.BALANCE or (t.balance_applied_cents or 0) > 0
+        ])
         voucher_sales_total = sum(t.voucher_applied_cents or 0 for t in sales) / 100
         voucher_sales_count = len([t for t in sales if (t.voucher_applied_cents or 0) > 0])
         recharge_total = sum(t.total_amount_cents for t in recharges) / 100
@@ -159,6 +164,7 @@ class ZBonService:
                 "total_amount_cents": t.total_amount_cents,
                 "gross_amount_cents": self._calculate_sale_gross_cents(t) if t.type == TransactionType.SALE else t.total_amount_cents,
                 "voucher_applied_cents": t.voucher_applied_cents or 0,
+                "balance_applied_cents": t.balance_applied_cents or 0,
                 "voucher_type": t.voucher_type,
                 "member_name": t.member.name if t.member else "Gast",
                 "items": [
