@@ -26,46 +26,72 @@
     </div>
 
     <!-- CREATE TAB -->
-    <div v-if="activeSubTab === 'create'" class="create-section">
+    <div
+      v-if="activeSubTab === 'create'"
+      class="create-section"
+    >
       <div class="form-grid">
         <!-- GIFT Voucher Form -->
         <div class="form-card">
           <h3>🎁 Geschenk-Gutschein</h3>
-          <p class="form-description">Kostenlos erstellt, wird bei Einlösung als Verlust verbucht</p>
-          <p class="form-help">Gutscheinwert eintragen und danach die Zugangsdaten bestätigen.</p>
+          <p class="form-description">
+            Kostenlos erstellt, wird bei Einlösung als Verlust verbucht
+          </p>
+          <p class="form-help">
+            Gutscheinwert eintragen und danach die Zugangsdaten bestätigen.
+          </p>
 
           <form @submit.prevent="createGiftVoucher">
             <div class="form-group">
               <label>Wert (€)</label>
               <input
+                v-model="giftForm.valueDisplay"
                 type="number"
                 min="0.01"
                 step="0.01"
                 placeholder="z.B. 10.00"
-                v-model="giftForm.valueDisplay"
+                required
                 @input="handleGiftValueInput"
                 @blur="formatGiftValue"
-                required
-              />
+              >
             </div>
 
             <div class="form-group">
               <label>Grund</label>
-              <select v-model="giftForm.reason" required>
-                <option value="DYP_SIEGER">Dyp-Sieger</option>
-                <option value="PROMOTION">Promotion</option>
+              <select
+                v-model="giftForm.reason"
+                required
+              >
+                <option value="DYP_SIEGER">
+                  Dyp-Sieger
+                </option>
+                <option value="PROMOTION">
+                  Promotion
+                </option>
               </select>
             </div>
 
-            <button type="submit" class="btn-primary" :disabled="creatingGift">
+            <button
+              type="submit"
+              class="btn-primary"
+              :disabled="creatingGift"
+            >
               {{ creatingGift ? '⏳ Wird erstellt...' : '✓ Erstellen' }}
             </button>
           </form>
 
-          <div v-if="createdGiftVoucher" class="success-message">
+          <div
+            v-if="createdGiftVoucher"
+            class="success-message"
+          >
             <p>✅ Gutschein erstellt!</p>
-            <p class="voucher-number">{{ getVoucherCode(createdGiftVoucher) }}</p>
-            <button @click="copyToClipboard(getVoucherCode(createdGiftVoucher))" class="btn-secondary">
+            <p class="voucher-number">
+              {{ getVoucherCode(createdGiftVoucher) }}
+            </p>
+            <button
+              class="btn-secondary"
+              @click="copyToClipboard(getVoucherCode(createdGiftVoucher))"
+            >
               📋 Kopieren
             </button>
           </div>
@@ -74,33 +100,49 @@
         <!-- PREPAID Voucher Form -->
         <div class="form-card">
           <h3>💳 Guthabenkarte</h3>
-          <p class="form-description">Sofort bezahlt, wird später eingelöst</p>
-          <p class="form-help">Gutscheinwert eintragen und danach die Zugangsdaten bestätigen.</p>
+          <p class="form-description">
+            Sofort bezahlt, wird später eingelöst
+          </p>
+          <p class="form-help">
+            Gutscheinwert eintragen und danach die Zugangsdaten bestätigen.
+          </p>
 
           <form @submit.prevent="createPrepaidVoucher">
             <div class="form-group">
               <label>Wert (€)</label>
               <input
+                v-model="prepaidForm.valueDisplay"
                 type="number"
                 min="0.01"
                 step="0.01"
                 placeholder="z.B. 20.00"
-                v-model="prepaidForm.valueDisplay"
+                required
                 @input="handlePrepaidValueInput"
                 @blur="formatPrepaidValue"
-                required
-              />
+              >
             </div>
 
-            <button type="submit" class="btn-primary" :disabled="creatingPrepaid">
+            <button
+              type="submit"
+              class="btn-primary"
+              :disabled="creatingPrepaid"
+            >
               {{ creatingPrepaid ? '⏳ Wird erstellt...' : '✓ Erstellen' }}
             </button>
           </form>
 
-          <div v-if="createdPrepaidVoucher" class="success-message">
+          <div
+            v-if="createdPrepaidVoucher"
+            class="success-message"
+          >
             <p>✅ Gutschein erstellt!</p>
-            <p class="voucher-number">{{ getVoucherCode(createdPrepaidVoucher) }}</p>
-            <button @click="copyToClipboard(getVoucherCode(createdPrepaidVoucher))" class="btn-secondary">
+            <p class="voucher-number">
+              {{ getVoucherCode(createdPrepaidVoucher) }}
+            </p>
+            <button
+              class="btn-secondary"
+              @click="copyToClipboard(getVoucherCode(createdPrepaidVoucher))"
+            >
               📋 Kopieren
             </button>
           </div>
@@ -108,62 +150,96 @@
       </div>
 
       <!-- Error messages -->
-      <div v-if="createError" class="error-message">
+      <div
+        v-if="createError"
+        class="error-message"
+      >
         ❌ {{ createError }}
       </div>
     </div>
 
     <!-- MANAGE TAB -->
-    <div v-if="activeSubTab === 'manage'" class="manage-section">
+    <div
+      v-if="activeSubTab === 'manage'"
+      class="manage-section"
+    >
       <!-- Filters -->
       <div class="filter-section">
         <div class="filter-group">
           <label>Typ</label>
           <select v-model="filters.type">
-            <option value="">Alle</option>
-            <option value="GIFT">🎁 Geschenk</option>
-                <option value="PREPAID">💳 Guthabenkarte</option>
+            <option value="">
+              Alle
+            </option>
+            <option value="GIFT">
+              🎁 Geschenk
+            </option>
+            <option value="PREPAID">
+              💳 Guthabenkarte
+            </option>
           </select>
         </div>
 
         <div class="filter-group">
           <label>Status</label>
           <select v-model="filters.status">
-            <option value="">Alle</option>
-            <option value="CREATED">Erstellt</option>
-            <option value="PARTIALLY_REDEEMED">Teilweise eingelöst</option>
-            <option value="REDEEMED">Eingelöst</option>
+            <option value="">
+              Alle
+            </option>
+            <option value="CREATED">
+              Erstellt
+            </option>
+            <option value="PARTIALLY_REDEEMED">
+              Teilweise eingelöst
+            </option>
+            <option value="REDEEMED">
+              Eingelöst
+            </option>
           </select>
         </div>
 
-        <button @click="applyFilters" class="btn-secondary">
+        <button
+          class="btn-secondary"
+          @click="applyFilters"
+        >
           🔍 Filtern
         </button>
 
-        <button @click="exportAsCSV" class="btn-secondary">
+        <button
+          class="btn-secondary"
+          @click="exportAsCSV"
+        >
           📥 CSV Export
         </button>
       </div>
 
       <!-- Vouchers Table -->
       <div class="table-container">
-        <table v-if="filteredVouchers.length > 0" class="vouchers-table">
+        <table
+          v-if="filteredVouchers.length > 0"
+          class="vouchers-table"
+        >
           <thead>
             <tr>
               <th>Nummer</th>
               <th>Typ</th>
               <th>Wert</th>
-                <th>Status</th>
-                <th>Grund</th>
-                <th>Erstellt von</th>
-                <th>Erstellt</th>
-                <th>Eingelöst</th>
+              <th>Status</th>
+              <th>Grund</th>
+              <th>Erstellt von</th>
+              <th>Erstellt</th>
+              <th>Eingelöst</th>
               <th>Aktionen</th>
             </tr>
           </thead>
           <tbody>
-            <tr v-for="voucher in filteredVouchers" :key="voucher.id">
-              <td class="voucher-number">{{ getVoucherCode(voucher) }}</td>
+            <tr
+              v-for="voucher in filteredVouchers"
+              :key="voucher.id"
+            >
+              <td class="voucher-number">
+                {{ getVoucherCode(voucher) }}
+              </td>
               <td>
                 <span :class="['type-badge', voucher.voucher_type.toLowerCase()]">
                   {{ voucher.voucher_type === 'GIFT' ? '🎁 Geschenk' : '💳 Guthabenkarte' }}
@@ -180,15 +256,19 @@
                   {{ getStatusLabel(voucher.status) }}
                 </span>
               </td>
-               <td>{{ formatReason(voucher.reason) }}</td>
-               <td>{{ formatVoucherCreator(voucher) }}</td>
-               <td class="date">{{ formatDate(voucher.created_at) }}</td>
-               <td class="date">{{ voucher.redeemed_at ? formatDate(voucher.redeemed_at) : '-' }}</td>
+              <td>{{ formatReason(voucher.reason) }}</td>
+              <td>{{ formatVoucherCreator(voucher) }}</td>
+              <td class="date">
+                {{ formatDate(voucher.created_at) }}
+              </td>
+              <td class="date">
+                {{ voucher.redeemed_at ? formatDate(voucher.redeemed_at) : '-' }}
+              </td>
               <td class="actions">
                 <button
                   v-if="voucher.status === 'CREATED'"
-                  @click="openEditVoucher(voucher)"
                   class="btn-small btn-edit"
+                  @click="openEditVoucher(voucher)"
                 >
                   ✏️
                 </button>
@@ -197,48 +277,72 @@
           </tbody>
         </table>
 
-        <div v-else class="no-data">
+        <div
+          v-else
+          class="no-data"
+        >
           Keine Gutscheine gefunden
         </div>
       </div>
 
       <!-- Pagination -->
-      <div v-if="totalPages > 1" class="pagination">
+      <div
+        v-if="totalPages > 1"
+        class="pagination"
+      >
         <button
-          @click="currentPage--"
           :disabled="currentPage === 1"
           class="btn-secondary"
+          @click="currentPage--"
         >
           ◀ Zurück
         </button>
         <span>Seite {{ currentPage }} von {{ totalPages }}</span>
         <button
-          @click="currentPage++"
           :disabled="currentPage === totalPages"
           class="btn-secondary"
+          @click="currentPage++"
         >
           Weiter ▶
         </button>
       </div>
     </div>
 
-    <div v-if="activeSubTab === 'club-account' && authStore.isAdmin" class="manage-section">
+    <div
+      v-if="activeSubTab === 'club-account' && authStore.isAdmin"
+      class="manage-section"
+    >
       <div class="summary-grid">
         <div class="form-card">
           <h3>Kontostand</h3>
-          <p class="voucher-number">{{ formatCurrency(clubAccount.balance_cents) }}</p>
+          <p class="voucher-number">
+            {{ formatCurrency(clubAccount.balance_cents) }}
+          </p>
         </div>
         <div class="form-card">
           <h3>Konto aufladen</h3>
           <div class="form-group">
             <label>Betrag (€)</label>
-            <input v-model="clubAccountTopUp" type="number" min="0.01" step="0.01" />
+            <input
+              v-model="clubAccountTopUp"
+              type="number"
+              min="0.01"
+              step="0.01"
+            >
           </div>
-          <button class="btn-primary" @click="requestClubAccountTopUp">Als Bareinnahme buchen</button>
+          <button
+            class="btn-primary"
+            @click="requestClubAccountTopUp"
+          >
+            Als Bareinnahme buchen
+          </button>
         </div>
       </div>
       <div class="table-container">
-        <table v-if="clubAccount.entries.length" class="vouchers-table">
+        <table
+          v-if="clubAccount.entries.length"
+          class="vouchers-table"
+        >
           <thead>
             <tr>
               <th>Datum</th>
@@ -248,7 +352,10 @@
             </tr>
           </thead>
           <tbody>
-            <tr v-for="entry in clubAccount.entries" :key="entry.id">
+            <tr
+              v-for="entry in clubAccount.entries"
+              :key="entry.id"
+            >
               <td>{{ formatDate(entry.created_at) }}</td>
               <td>{{ formatCurrency(entry.amount_cents) }}</td>
               <td>{{ entry.reason }}</td>
@@ -259,32 +366,61 @@
       </div>
     </div>
 
-    <div v-if="showEditModal" class="modal-overlay">
+    <div
+      v-if="showEditModal"
+      class="modal-overlay"
+    >
       <div class="modal-card">
         <h3>🎫 Gutschein bearbeiten</h3>
         <div class="form-group">
           <label>Wert (€)</label>
-          <input v-model="editForm.valueDisplay" type="number" min="0.01" step="0.01" />
+          <input
+            v-model="editForm.valueDisplay"
+            type="number"
+            min="0.01"
+            step="0.01"
+          >
         </div>
-        <div v-if="editingVoucher?.voucher_type === 'GIFT'" class="form-group">
+        <div
+          v-if="editingVoucher?.voucher_type === 'GIFT'"
+          class="form-group"
+        >
           <label>Grund</label>
           <select v-model="editForm.reason">
-            <option value="DYP_SIEGER">Dyp-Sieger</option>
-            <option value="PROMOTION">Promotion</option>
+            <option value="DYP_SIEGER">
+              Dyp-Sieger
+            </option>
+            <option value="PROMOTION">
+              Promotion
+            </option>
           </select>
         </div>
         <div class="form-group">
           <label>Beschreibung</label>
-          <input v-model="editForm.description" type="text" maxlength="255" />
+          <input
+            v-model="editForm.description"
+            type="text"
+            maxlength="255"
+          >
         </div>
-        <div v-if="editError" class="error-message">
+        <div
+          v-if="editError"
+          class="error-message"
+        >
           ❌ {{ editError }}
         </div>
         <div class="button-row">
-          <button @click="saveVoucherEdit" class="btn-primary" :disabled="updatingVoucher">
+          <button
+            class="btn-primary"
+            :disabled="updatingVoucher"
+            @click="saveVoucherEdit"
+          >
             {{ updatingVoucher ? '⏳ Speichert...' : '✓ Speichern' }}
           </button>
-          <button @click="closeEditVoucher" class="btn-secondary">
+          <button
+            class="btn-secondary"
+            @click="closeEditVoucher"
+          >
             Abbrechen / Zurück
           </button>
         </div>

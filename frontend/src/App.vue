@@ -1,18 +1,44 @@
 <template>
-  <div id="app" class="app">
+  <div
+    id="app"
+    class="app"
+  >
     <NotificationCenter />
-    <nav v-if="authStore.isAuthenticated" class="navbar">
+    <nav
+      v-if="authStore.isAuthenticated"
+      class="navbar"
+    >
       <div class="navbar-content">
         <div class="navbar-brand">
-          <img :src="appSettingsStore.logoUrl" :alt="appSettingsStore.settings.app_name" class="navbar-logo" />
+          <img
+            :src="appSettingsStore.logoUrl"
+            :alt="appSettingsStore.settings.app_name"
+            class="navbar-logo"
+          >
           <span class="navbar-title">{{ appSettingsStore.settings.app_name }}</span>
         </div>
         <div class="navbar-menu">
           <div class="navbar-actions">
-            <router-link to="/" class="nav-link">Kasse</router-link>
-            <router-link to="/admin" class="nav-link" v-if="authStore.canAccessAdminPanel">Admin</router-link>
+            <router-link
+              to="/"
+              class="nav-link"
+            >
+              Kasse
+            </router-link>
+            <router-link
+              v-if="authStore.canAccessAdminPanel"
+              to="/admin"
+              class="nav-link"
+            >
+              Admin
+            </router-link>
             <PwaInstallButton />
-            <button @click="logout" class="btn-logout">Logout</button>
+            <button
+              class="btn-logout"
+              @click="logout"
+            >
+              Logout
+            </button>
           </div>
           <span class="current-user">Angemeldet: {{ authStore.user?.username }}</span>
         </div>

@@ -1,12 +1,22 @@
 <template>
-  <div v-if="show" class="modal-overlay">
+  <div
+    v-if="show"
+    class="modal-overlay"
+  >
     <div class="modal-dialog">
       <div class="modal-header">
         <div>
           <h3>Kassenzählung</h3>
-          <p class="subtitle">Alle Münzen und Scheine im Kassenbestand erfassen</p>
+          <p class="subtitle">
+            Alle Münzen und Scheine im Kassenbestand erfassen
+          </p>
         </div>
-        <button @click="$emit('close')" class="close-btn">✕</button>
+        <button
+          class="close-btn"
+          @click="$emit('close')"
+        >
+          ✕
+        </button>
       </div>
 
       <div class="modal-content">
@@ -21,14 +31,24 @@
               >
                 <label>{{ formatDenomination(denomination) }}</label>
                 <div class="input-group">
-                  <button @click="decrementCoin(denomination)" class="btn-qty">−</button>
+                  <button
+                    class="btn-qty"
+                    @click="decrementCoin(denomination)"
+                  >
+                    −
+                  </button>
                   <input
                     v-model.number="cashCount.coins[denomination]"
                     type="number"
                     min="0"
                     class="qty-input"
-                  />
-                  <button @click="incrementCoin(denomination)" class="btn-qty">+</button>
+                  >
+                  <button
+                    class="btn-qty"
+                    @click="incrementCoin(denomination)"
+                  >
+                    +
+                  </button>
                 </div>
                 <div class="subtotal">
                   {{ formatCurrency(cashCount.coins[denomination] * denomination) }}
@@ -47,14 +67,24 @@
               >
                 <label>{{ formatDenomination(denomination) }}</label>
                 <div class="input-group">
-                  <button @click="decrementNote(denomination)" class="btn-qty">−</button>
+                  <button
+                    class="btn-qty"
+                    @click="decrementNote(denomination)"
+                  >
+                    −
+                  </button>
                   <input
                     v-model.number="cashCount.notes[denomination]"
                     type="number"
                     min="0"
                     class="qty-input"
-                  />
-                  <button @click="incrementNote(denomination)" class="btn-qty">+</button>
+                  >
+                  <button
+                    class="btn-qty"
+                    @click="incrementNote(denomination)"
+                  >
+                    +
+                  </button>
                 </div>
                 <div class="subtotal">
                   {{ formatCurrency(cashCount.notes[denomination] * denomination) }}
@@ -81,9 +111,24 @@
       </div>
 
       <div class="modal-footer">
-        <button @click="reset" class="btn btn-secondary">Zurücksetzen</button>
-        <button @click="cancel" class="btn btn-secondary">Abbrechen / Zurück</button>
-        <button @click="confirm" class="btn btn-primary">✓ Bestätigen</button>
+        <button
+          class="btn btn-secondary"
+          @click="reset"
+        >
+          Zurücksetzen
+        </button>
+        <button
+          class="btn btn-secondary"
+          @click="cancel"
+        >
+          Abbrechen / Zurück
+        </button>
+        <button
+          class="btn btn-primary"
+          @click="confirm"
+        >
+          ✓ Bestätigen
+        </button>
       </div>
     </div>
   </div>
@@ -92,7 +137,7 @@
 <script setup>
 import { ref, computed } from 'vue'
 
-const props = defineProps({
+defineProps({
   show: {
     type: Boolean,
     default: false,

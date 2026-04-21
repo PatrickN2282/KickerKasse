@@ -2,46 +2,109 @@
   <div class="admin-products">
     <h2>Produktverwaltung</h2>
 
-    <button @click="showForm = !showForm" class="btn btn-primary">
+    <button
+      class="btn btn-primary"
+      @click="showForm = !showForm"
+    >
       {{ showForm ? 'Abbrechen / Zurück' : 'Neues Produkt' }}
     </button>
 
-    <form v-if="showForm" @submit.prevent="handleSaveProduct" class="form-section">
+    <form
+      v-if="showForm"
+      class="form-section"
+      @submit.prevent="handleSaveProduct"
+    >
       <h3>{{ editingId ? 'Produkt bearbeiten' : 'Neues Produkt' }}</h3>
       <div class="form-group">
         <label for="name">Name*:</label>
-        <input v-model="formData.name" id="name" type="text" class="form-input" required />
+        <input
+          id="name"
+          v-model="formData.name"
+          type="text"
+          class="form-input"
+          required
+        >
       </div>
       <div class="form-group">
         <label for="price">Preis (€)*:</label>
-        <input v-model.number="formData.price" id="price" type="number" step="0.01" class="form-input" required />
+        <input
+          id="price"
+          v-model.number="formData.price"
+          type="number"
+          step="0.01"
+          class="form-input"
+          required
+        >
       </div>
       <div class="form-group">
         <label for="member-price">Mitgliedspreis (€):</label>
-        <input v-model.number="formData.memberPrice" id="member-price" type="number" step="0.01" class="form-input" />
+        <input
+          id="member-price"
+          v-model.number="formData.memberPrice"
+          type="number"
+          step="0.01"
+          class="form-input"
+        >
       </div>
       <div class="form-group">
         <label for="stock">Lagerbestand*:</label>
-        <input v-model.number="formData.stock" id="stock" type="number" min="0" class="form-input" required />
+        <input
+          id="stock"
+          v-model.number="formData.stock"
+          type="number"
+          min="0"
+          class="form-input"
+          required
+        >
       </div>
       <div class="form-group">
         <label for="image">Bild:</label>
-        <input @change="handleImageUpload" id="image" type="file" accept="image/*" class="form-input" />
-        <div v-if="imagePreview" class="image-preview">
-          <img :src="imagePreview" :alt="formData.name" style="max-width: 150px; max-height: 150px;" />
+        <input
+          id="image"
+          type="file"
+          accept="image/*"
+          class="form-input"
+          @change="handleImageUpload"
+        >
+        <div
+          v-if="imagePreview"
+          class="image-preview"
+        >
+          <img
+            :src="imagePreview"
+            :alt="formData.name"
+            style="max-width: 150px; max-height: 150px;"
+          >
         </div>
       </div>
       <div class="form-group">
         <label for="discountable">
-          <input v-model="formData.discountable" id="discountable" type="checkbox" />
+          <input
+            id="discountable"
+            v-model="formData.discountable"
+            type="checkbox"
+          >
           Rabattfähig
         </label>
       </div>
-      <button type="submit" class="btn btn-success">Speichern</button>
+      <button
+        type="submit"
+        class="btn btn-success"
+      >
+        Speichern
+      </button>
     </form>
 
-    <div v-if="productStore.isLoading" class="loading">Läuft...</div>
-    <div v-else class="products-table">
+    <div
+      v-if="productStore.isLoading"
+      class="loading"
+    >
+      Läuft...
+    </div>
+    <div
+      v-else
+      class="products-table"
+    >
       <table>
         <thead>
           <tr>
@@ -54,18 +117,37 @@
           </tr>
         </thead>
         <tbody>
-          <tr v-for="product in productStore.products" :key="product.id">
+          <tr
+            v-for="product in productStore.products"
+            :key="product.id"
+          >
             <td class="product-image-cell">
-              <img v-if="product.image_path" :src="`/api/products/${product.id}/image`" :alt="product.name" class="product-thumb" />
-              <span v-else class="no-image">Kein Bild</span>
+              <img
+                v-if="product.image_path"
+                :src="`/api/products/${product.id}/image`"
+                :alt="product.name"
+                class="product-thumb"
+              >
+              <span
+                v-else
+                class="no-image"
+              >Kein Bild</span>
             </td>
             <td>{{ product.name }}</td>
             <td>{{ formatPrice(product.price_cents) }}</td>
             <td>{{ product.member_price_cents ? formatPrice(product.member_price_cents) : '-' }}</td>
             <td>{{ product.stock_quantity }}</td>
             <td>
-              <button @click="editProduct(product)" class="btn-small">Bearbeiten</button>
-              <button @click="deleteProduct(product.id)" class="btn-small btn-danger">
+              <button
+                class="btn-small"
+                @click="editProduct(product)"
+              >
+                Bearbeiten
+              </button>
+              <button
+                class="btn-small btn-danger"
+                @click="deleteProduct(product.id)"
+              >
                 Löschen
               </button>
             </td>
@@ -213,7 +295,7 @@ const handleImageUpload = (event) => {
   }
 }
 
-const deleteProduct = async (productId) => {
+const deleteProduct = async (_productId) => {
   if (confirm('Wirklich löschen?')) {
     // API call would go here
     notificationStore.success('Produkt gelöscht')
