@@ -1,5 +1,6 @@
 from sqlalchemy.orm import Session
 from app.models import User, UserRole
+from app.models.user import parse_user_role
 from app.core.security import get_password_hasher
 
 
@@ -16,14 +17,14 @@ class UserRepository:
         email = email.strip()
         return email or None
 
-    def create(self, username: str, email: str | None, password: str, role: str = "CASHIER") -> User:
+    def create(self, username: str, email: str | None, password: str, role: str = "VERKAUF") -> User:
         """Create a new user"""
         hasher = get_password_hasher()
         user = User(
             username=username,
             email=self._normalize_email(email),
             password_hash=hasher.hash_password(password),
-            role=UserRole[role.upper()] if isinstance(role, str) else role,
+            role=parse_user_role(role, default=UserRole.VERKAUF),
         )
         self.db.add(user)
         self.db.commit()
@@ -65,6 +66,8 @@ class UserRepository:
 
         for key, value in kwargs.items():
             if hasattr(user, key):
+                if key == "role":
+                    value = parse_user_role(value, default=user.role)
                 setattr(user, key, value)
         
         self.db.commit()

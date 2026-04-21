@@ -28,12 +28,12 @@ const route = useRoute()
 const authStore = useAuthStore()
 
 const tabs = [
-  { path: '/admin/members', label: '👥 Mitglieder', roles: ['ADMIN', 'KASSENMITGLIED'] },
+  { path: '/admin/members', label: '👥 Mitglieder', roles: ['ADMIN', 'MANAGER'] },
   { path: '/admin/products', label: '📦 Produkte', roles: ['ADMIN'] },
   { path: '/admin/categories', label: '🏷️ Kategorien', roles: ['ADMIN'] },
   { path: '/admin/users', label: '👤 Benutzer', roles: ['ADMIN'] },
   { path: '/admin/vouchers', label: '🎫 Gutscheine', roles: ['ADMIN'] },
-  { path: '/admin/finance', label: '💰 Finanzen', roles: ['ADMIN', 'KASSENMITGLIED'] },
+  { path: '/admin/finance', label: '💰 Finanzen', roles: ['ADMIN', 'MANAGER'] },
   { path: '/admin/settings', label: '🎨 Design', roles: ['ADMIN'] },
 ]
 

@@ -6,9 +6,9 @@ from app.models import User, UserRole
 from app.repositories import UserRepository
 
 
-ROLE_ADMIN_PANEL = {UserRole.ADMIN, UserRole.KASSENMITGLIED}
-ROLE_FINANCE = {UserRole.ADMIN, UserRole.KASSENMITGLIED}
-ROLE_MEMBER_MANAGEMENT = {UserRole.ADMIN, UserRole.KASSENMITGLIED}
+ROLE_ADMIN_PANEL = {UserRole.ADMIN, UserRole.MANAGER}
+ROLE_FINANCE = {UserRole.ADMIN, UserRole.MANAGER}
+ROLE_MEMBER_MANAGEMENT = {UserRole.ADMIN, UserRole.MANAGER}
 
 
 async def get_current_user(request: Request, db: Session) -> User | None:

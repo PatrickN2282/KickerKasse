@@ -65,7 +65,7 @@ class ZBonPreviewRequest(BaseModel):
 
 
 def _require_finance_access(request: Request, db: Session):
-    return require_roles(request, db, UserRole.ADMIN, UserRole.KASSENMITGLIED)
+    return require_roles(request, db, UserRole.ADMIN, UserRole.MANAGER)
 
 
 def _get_combined_voucher_type(vouchers: list[tuple]) -> str | None:

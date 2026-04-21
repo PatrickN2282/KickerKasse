@@ -17,6 +17,12 @@ class VoucherService:
         self.db = db
         self.repository = VoucherRepository(db)
 
+    def _get_club_account_balance_cents(self) -> int:
+        return sum(
+            entry.amount_cents
+            for entry in self.db.query(ClubAccountEntry).all()
+        )
+
     def create_gift_voucher(self, value_cents: int, reason: str, created_by_user_id: int, description: str = None) -> Voucher:
         """
         Create a GIFT voucher (ohne Zahlung)
@@ -35,6 +41,10 @@ class VoucherService:
             reason_enum = VoucherReason(reason)
         except ValueError:
             raise ValueError(f"Invalid reason: {reason}")
+
+        club_account_balance_cents = self._get_club_account_balance_cents()
+        if club_account_balance_cents < value_cents:
+            raise ValueError("Nicht genügend Guthaben im Vereinskonto")
 
         voucher = self.repository.create(
             voucher_type=VoucherType.GIFT,
@@ -392,4 +402,5 @@ class VoucherService:
         return {
             "entry_id": entry.id,
             "transaction_id": transaction.id,
+            "balance_cents": self._get_club_account_balance_cents(),
         }

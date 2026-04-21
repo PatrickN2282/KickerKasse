@@ -17,14 +17,14 @@ const routes = [
     path: '/admin',
     name: 'Admin',
     component: () => import('@/views/admin/Admin.vue'),
-    meta: { requiresAuth: true, allowedRoles: ['ADMIN', 'KASSENMITGLIED'] },
+    meta: { requiresAuth: true, allowedRoles: ['ADMIN', 'MANAGER'] },
     redirect: '/admin/members',
     children: [
       {
         path: 'members',
         name: 'AdminMembers',
         component: () => import('@/views/admin/Members.vue'),
-        meta: { requiresAuth: true, allowedRoles: ['ADMIN', 'KASSENMITGLIED'] },
+        meta: { requiresAuth: true, allowedRoles: ['ADMIN', 'MANAGER'] },
       },
       {
         path: 'products',
@@ -54,7 +54,7 @@ const routes = [
         path: 'finance',
         name: 'AdminFinance',
         component: () => import('@/views/admin/Finance.vue'),
-        meta: { requiresAuth: true, allowedRoles: ['ADMIN', 'KASSENMITGLIED'] },
+        meta: { requiresAuth: true, allowedRoles: ['ADMIN', 'MANAGER'] },
       },
       {
         path: 'settings',

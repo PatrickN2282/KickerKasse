@@ -27,7 +27,7 @@ async def get_finance_users(
     request: Request,
     db: Session = Depends(get_db),
 ):
-    require_roles(request, db, UserRole.ADMIN, UserRole.KASSENMITGLIED)
+    require_roles(request, db, UserRole.ADMIN, UserRole.MANAGER)
     return UserService(db).get_all_users()
 
 

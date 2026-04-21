@@ -40,6 +40,12 @@
           <p class="form-help">
             Gutscheinwert eintragen und danach die Zugangsdaten bestätigen.
           </p>
+          <p
+            v-if="authStore.isAdmin"
+            class="info-text"
+          >
+            Vereinskonto: {{ formatCurrency(clubAccount.balance_cents) }}
+          </p>
 
           <form @submit.prevent="createGiftVoucher">
             <div class="form-group">
@@ -93,6 +99,13 @@
               @click="copyToClipboard(getVoucherCode(createdGiftVoucher))"
             >
               📋 Kopieren
+            </button>
+            <button
+              v-if="authStore.isAdmin"
+              class="btn-secondary"
+              @click="openClubAccountTab"
+            >
+              🏦 Vereinskonto öffnen
             </button>
           </div>
         </div>
@@ -600,7 +613,7 @@ const submitGiftVoucher = async (password) => {
     
     createdGiftVoucher.value = payload
     giftForm.value = { valueCents: 1000, reason: 'PROMOTION', valueDisplay: '10.00' }
-    await showCreatedVoucherInManageTab('GIFT')
+    await loadClubAccount()
   } catch (error) {
     console.error('[Vouchers] Error creating GIFT voucher:', error)
     console.error('[Vouchers]   Status:', error?.response?.status)
@@ -662,6 +675,11 @@ const requestClubAccountTopUp = () => {
   }
   pendingVoucherAction.value = 'account'
   showPasswordModal.value = true
+}
+
+const openClubAccountTab = async () => {
+  activeSubTab.value = 'club-account'
+  await loadClubAccount()
 }
 
 const loadVouchers = async () => {

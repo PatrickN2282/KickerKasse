@@ -11,8 +11,8 @@ export const useAuthStore = defineStore('auth', () => {
   const isAuthenticated = computed(() => !!user.value)
   const role = computed(() => user.value?.role || null)
   const isAdmin = computed(() => role.value === 'ADMIN')
-  const isKassenmitglied = computed(() => role.value === 'KASSENMITGLIED')
-  const canAccessAdminPanel = computed(() => ['ADMIN', 'KASSENMITGLIED'].includes(role.value))
+  const isManager = computed(() => role.value === 'MANAGER')
+  const canAccessAdminPanel = computed(() => ['ADMIN', 'MANAGER'].includes(role.value))
 
   const hasRole = (...roles) => roles.includes(role.value)
 
@@ -68,7 +68,7 @@ export const useAuthStore = defineStore('auth', () => {
     isAuthenticated,
     role,
     isAdmin,
-    isKassenmitglied,
+    isManager,
     canAccessAdminPanel,
     hasRole,
     login,

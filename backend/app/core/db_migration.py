@@ -73,8 +73,25 @@ class DatabaseMigrator:
                 self._sync_enum_type(
                     conn=conn,
                     enum_name="userrole",
-                    expected_values=["ADMIN", "CASHIER", "KASSENMITGLIED"],
+                    expected_values=["ADMIN", "VERKAUF", "MANAGER"],
                     column_specs=[("users", "role"), ("members", "role")],
+                    using_expressions={
+                        ("users", "role"): (
+                            "CASE "
+                            "WHEN role::text = 'ADMIN' THEN 'ADMIN'::userrole "
+                            "WHEN role::text = 'KASSENMITGLIED' THEN 'MANAGER'::userrole "
+                            "ELSE 'VERKAUF'::userrole "
+                            "END"
+                        ),
+                        ("members", "role"): (
+                            "CASE "
+                            "WHEN role IS NULL THEN NULL "
+                            "WHEN role::text = 'ADMIN' THEN 'ADMIN'::userrole "
+                            "WHEN role::text = 'KASSENMITGLIED' THEN 'MANAGER'::userrole "
+                            "ELSE 'VERKAUF'::userrole "
+                            "END"
+                        ),
+                    },
                 )
                 self._sync_enum_type(
                     conn=conn,

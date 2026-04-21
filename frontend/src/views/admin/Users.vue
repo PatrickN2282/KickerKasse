@@ -51,11 +51,11 @@
           class="form-input"
           required
         >
-          <option value="CASHIER">
+          <option value="VERKAUF">
             Verkauf
           </option>
-          <option value="KASSENMITGLIED">
-            VerkaufAdmin
+          <option value="MANAGER">
+            Manager
           </option>
           <option value="ADMIN">
             Admin
@@ -74,6 +74,7 @@
       <table>
         <thead>
           <tr>
+            <th>Typ</th>
             <th>Benutzername</th>
             <th>Email</th>
             <th>Rolle</th>
@@ -85,6 +86,7 @@
             v-for="user in displayedUsers"
             :key="user.id"
           >
+            <td>{{ user.entryType }}</td>
             <td>{{ user.username }}</td>
             <td>{{ user.email || '-' }}</td>
             <td>{{ roleLabel(user.role) }}</td>
@@ -108,34 +110,37 @@
 <script setup>
 import { ref, reactive, onMounted, computed } from 'vue'
 import { useNotificationStore } from '@/stores/notification'
-import { getRoleLabel } from '@/services/member'
+import { getMemberFullName, getRoleLabel } from '@/services/member'
 import apiService from '@/services/api'
 
 const notificationStore = useNotificationStore()
 
 const showForm = ref(false)
 const users = ref([])
+const membersWithRoles = ref([])
 const formData = reactive({
   username: '',
   email: '',
   password: '',
-  role: 'CASHIER',
+  role: 'VERKAUF',
 })
 
 const roleLabel = getRoleLabel
 
 const templateUsers = computed(() => [
   { id: 'template-admin', username: 'Admin', email: '-', role: 'ADMIN', entryType: 'Vorlage', deletable: false },
-  { id: 'template-kasse', username: 'Kasse', email: '-', role: 'CASHIER', entryType: 'Vorlage', deletable: false },
-  { id: 'template-manager', username: 'Manager', email: '-', role: 'KASSENMITGLIED', entryType: 'Vorlage', deletable: false },
+  { id: 'template-verkauf', username: 'Verkauf', email: '-', role: 'VERKAUF', entryType: 'Vorlage', deletable: false },
+  { id: 'template-manager', username: 'Manager', email: '-', role: 'MANAGER', entryType: 'Vorlage', deletable: false },
 ])
 
 const displayedUsers = computed(() => [
   ...templateUsers.value,
   ...users.value.map(user => ({
     ...user,
+    entryType: 'Benutzer',
     deletable: true,
   })),
+  ...membersWithRoles.value,
 ])
 
 const handleSaveUser = async () => {
@@ -148,7 +153,7 @@ const handleSaveUser = async () => {
     formData.username = ''
     formData.email = ''
     formData.password = ''
-    formData.role = 'CASHIER'
+    formData.role = 'VERKAUF'
     showForm.value = false
     await loadUsers()
   } catch (err) {
@@ -177,8 +182,26 @@ const loadUsers = async () => {
   }
 }
 
+const loadRoleMembers = async () => {
+  try {
+    const response = await apiService.get('/members')
+    membersWithRoles.value = response.data
+      .filter(member => member.role)
+      .map(member => ({
+        id: `member-${member.id}`,
+        username: getMemberFullName(member),
+        email: member.email || '-',
+        role: member.role,
+        entryType: 'Mitglied',
+        deletable: false,
+      }))
+  } catch {
+    notificationStore.error('Fehler beim Laden der Mitglieder mit Rolle')
+  }
+}
+
 onMounted(async () => {
-  await loadUsers()
+  await Promise.all([loadUsers(), loadRoleMembers()])
 })
 </script>
 

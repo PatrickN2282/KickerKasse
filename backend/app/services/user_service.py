@@ -9,7 +9,7 @@ class UserService:
         self.db = db
         self.repo = UserRepository(db)
     
-    def create_user(self, username: str, email: str | None, password: str, role: str = "CASHIER"):
+    def create_user(self, username: str, email: str | None, password: str, role: str = "VERKAUF"):
         """Create a new user"""
         # Check if user already exists
         if self.repo.get_by_username(username):

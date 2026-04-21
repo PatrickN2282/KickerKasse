@@ -50,7 +50,7 @@ Vollständige Anleitung siehe: [DOCKER_QUICKSTART.md](DOCKER_QUICKSTART.md)
 - Top-Produkte übersicht
 
 ### 👤 Benutzerverwaltung
-- Admin-, Kassenmitglied- & Kassierer-Rollen
+- Admin-, Manager- & Verkauf-Rollen
 - Passwort-Hashing (bcrypt)
 - Session-basierte Authentifizierung
 - Passwort-Bestätigung für kritische Aktionen (z. B. Guthaben aufbuchen, Z-Bon erstellen)
@@ -163,7 +163,7 @@ Bei Docker-Start werden automatisch erstellt:
 | Benutzer | Passwort | Rolle |
 |----------|----------|-------|
 | `admin` | admin123 | Admin |
-| `Kasse1` | Kasse1123 | Kassierer |
+| `Kasse1` | Kasse1123 | Verkauf |
 
 ## 🐛 Troubleshooting
 
@@ -476,13 +476,11 @@ npm run dev
 
 ### 6. Benutzer verwalten
 
-1. **Admin-Bereich** → "Teams"
+1. **Admin-Bereich** → "Benutzer"
 2. **Neuer Benutzer**:
-   - Click "Benutzer einladen"
-   - Benutzername, E-Mail
-   - Rolle: ADMIN oder CASHIER
-3. **Aktivieren/Deaktivieren**:
-   - Toggle "Aktiv" Checkbox
+   - Benutzername, E-Mail und Passwort eintragen
+   - Rolle: ADMIN, MANAGER oder VERKAUF wählen
+3. Mitglieder mit Rolle werden zusätzlich im Benutzer-Bereich angezeigt
 
 ---
 
