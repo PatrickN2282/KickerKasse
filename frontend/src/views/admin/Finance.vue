@@ -967,18 +967,18 @@
                 <label>Benutzer erstellt Z-Bon</label>
                 <button
                   class="member-select-btn"
-                  @click="openUserPicker('employeeUserId')"
+                  @click="openUserPicker('createdByUserId')"
                 >
-                  {{ getSelectedUserName(zbonForm.employeeUserId, 'Benutzer auswählen') }}
+                  {{ getSelectedUserName(zbonForm.createdByUserId, 'Benutzer auswählen') }}
                 </button>
               </div>
               <div class="selection-group">
                 <label>Benutzer Sichtkontrolle</label>
                 <button
                   class="member-select-btn"
-                  @click="openUserPicker('checkerUserId')"
+                  @click="openUserPicker('verifiedByUserId')"
                 >
-                  {{ getSelectedUserName(zbonForm.checkerUserId, 'Benutzer auswählen') }}
+                  {{ getSelectedUserName(zbonForm.verifiedByUserId, 'Benutzer auswählen') }}
                 </button>
               </div>
             </div>
@@ -1251,8 +1251,8 @@ const memberPickerTarget = ref(null)
 const memberSearch = ref('')
 const financeUsers = ref([])
 const zbonForm = ref({
-  employeeUserId: null,
-  checkerUserId: null,
+  createdByUserId: null,
+  verifiedByUserId: null,
 })
 const zbonCountedCash = ref('')
 const withdrawalForm = ref({
@@ -1414,12 +1414,12 @@ const zbonNewCashBalanceDisplay = computed(() => {
 })
 
 const canCreateZbon = computed(() => (
-  !!zbonForm.value.employeeUserId
-  && !!zbonForm.value.checkerUserId
+  !!zbonForm.value.createdByUserId
+  && !!zbonForm.value.verifiedByUserId
   && zbonCountedCashValue.value !== null
 ))
 
-const isUserPickerTarget = computed(() => ['employeeUserId', 'checkerUserId'].includes(memberPickerTarget.value))
+const isUserPickerTarget = computed(() => ['createdByUserId', 'verifiedByUserId'].includes(memberPickerTarget.value))
 
 const filteredPickerOptions = computed(() => {
   const search = memberSearch.value.trim().toLowerCase()
@@ -1467,8 +1467,8 @@ const loadDailyStats = async () => {
   loading.value = true
   try {
     const payload = {
-      created_by_name: getSelectedUserName(zbonForm.value.employeeUserId, null),
-      cash_counted_by_name: getSelectedUserName(zbonForm.value.checkerUserId, null),
+      created_by_name: getSelectedUserName(zbonForm.value.createdByUserId, null),
+      cash_counted_by_name: getSelectedUserName(zbonForm.value.verifiedByUserId, null),
       cash_count: cashCountData.value
         ? {
           coins: cashCountData.value.coins,
@@ -1660,10 +1660,10 @@ const closeMemberPicker = () => {
 }
 
 const selectPickerOption = (entry) => {
-  if (memberPickerTarget.value === 'employeeUserId') {
-    zbonForm.value.employeeUserId = entry.id
-  } else if (memberPickerTarget.value === 'checkerUserId') {
-    zbonForm.value.checkerUserId = entry.id
+  if (memberPickerTarget.value === 'createdByUserId') {
+    zbonForm.value.createdByUserId = entry.id
+  } else if (memberPickerTarget.value === 'verifiedByUserId') {
+    zbonForm.value.verifiedByUserId = entry.id
   } else if (memberPickerTarget.value === 'withdrawalMemberId') {
     withdrawalForm.value.memberId = entry.id
   }
@@ -1775,8 +1775,8 @@ const requestZBonCreate = () => {
 
 const createZBon = async (password) => {
   showPasswordModal.value = false
-  const employeeName = getSelectedUserName(zbonForm.value.employeeUserId, '')
-  const checkerName = getSelectedUserName(zbonForm.value.checkerUserId, '')
+  const employeeName = getSelectedUserName(zbonForm.value.createdByUserId, '')
+  const checkerName = getSelectedUserName(zbonForm.value.verifiedByUserId, '')
 
   if (!employeeName) {
     notificationStore.error('Bitte einen Mitarbeiter auswählen')
@@ -1804,8 +1804,8 @@ const createZBon = async (password) => {
     notificationStore.success('Z-Bon erfolgreich erstellt')
     closeZbonCreateModal()
     zbonForm.value = {
-      employeeUserId: null,
-      checkerUserId: null,
+      createdByUserId: null,
+      verifiedByUserId: null,
     }
     cashCountData.value = null
     zbonCountedCash.value = ''
