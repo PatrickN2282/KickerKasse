@@ -9,8 +9,8 @@ class Member(BaseModel):
 
     member_number = Column(Integer, unique=True, nullable=False, index=True)
     name = Column(String(120), nullable=False)
-    first_name = Column(String(80), nullable=False, default="")
-    last_name = Column(String(80), nullable=False, default="")
+    first_name = Column(String(80), nullable=False)
+    last_name = Column(String(80), nullable=False)
     membership_number = Column(String(50), unique=True, nullable=True, index=True)
     email = Column(String(120), unique=True, nullable=True, index=True)
     phone = Column(String(20), nullable=True)
