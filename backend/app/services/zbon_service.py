@@ -179,6 +179,8 @@ class ZBonService:
                 sum(float(denom) * count for denom, count in coins.items())
                 + sum(float(denom) * count for denom, count in notes.items())
             )
+        elif cash_count_total is not None:
+            cash_count_total = float(cash_count_total)
         if cash_count_total is not None:
             cash_difference = cash_count_total - cash_calculated
 

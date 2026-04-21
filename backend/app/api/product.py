@@ -32,7 +32,7 @@ async def create_product(
     
     # Check if admin
     current_user = UserRepository(db).get_by_id(user_id)
-    if not current_user or current_user.role != UserRole.ADMIN:
+    if not current_user or not current_user.is_admin:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="Insufficient permissions"
@@ -121,7 +121,7 @@ async def update_product(
     
     # Check if admin
     current_user = UserRepository(db).get_by_id(user_id)
-    if not current_user or current_user.role != UserRole.ADMIN:
+    if not current_user or not current_user.is_admin:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="Insufficient permissions"
@@ -167,7 +167,7 @@ async def adjust_stock(
     
     # Check if admin
     current_user = UserRepository(db).get_by_id(user_id)
-    if not current_user or current_user.role != UserRole.ADMIN:
+    if not current_user or not current_user.is_admin:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="Insufficient permissions"
@@ -204,7 +204,7 @@ async def delete_product(
     
     # Check if admin
     current_user = UserRepository(db).get_by_id(user_id)
-    if not current_user or current_user.role != UserRole.ADMIN:
+    if not current_user or not current_user.is_admin:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="Insufficient permissions"
@@ -236,7 +236,7 @@ async def upload_product_image(
     
     # Check if admin
     current_user = UserRepository(db).get_by_id(user_id)
-    if not current_user or current_user.role != UserRole.ADMIN:
+    if not current_user or not current_user.is_admin:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="Insufficient permissions"
@@ -322,7 +322,7 @@ async def add_category_to_product(
     
     # Check if admin
     current_user = UserRepository(db).get_by_id(user_id)
-    if not current_user or current_user.role != UserRole.ADMIN:
+    if not current_user or not current_user.is_admin:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="Insufficient permissions",
@@ -380,7 +380,7 @@ async def remove_category_from_product(
     
     # Check if admin
     current_user = UserRepository(db).get_by_id(user_id)
-    if not current_user or current_user.role != UserRole.ADMIN:
+    if not current_user or not current_user.is_admin:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="Insufficient permissions",

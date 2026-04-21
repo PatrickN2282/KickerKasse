@@ -7,12 +7,14 @@ class VoucherCreateGift(BaseModel):
     """Create a gift voucher"""
     value_cents: int = Field(..., ge=1, description="Value in cents")
     reason: Literal["DYP_SIEGER", "PROMOTION"] = "PROMOTION"
+    auth_username: Optional[str] = Field(default=None, min_length=1, max_length=50)
     auth_password: str = Field(..., min_length=1)
 
 
 class VoucherCreatePrepaid(BaseModel):
     """Create a prepaid voucher"""
     value_cents: int = Field(..., ge=1, description="Value in cents")
+    auth_username: Optional[str] = Field(default=None, min_length=1, max_length=50)
     auth_password: str = Field(..., min_length=1)
 
 

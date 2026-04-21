@@ -1,6 +1,3 @@
-import re
-import unicodedata
-
 from sqlalchemy.orm import Session
 
 from app.models import BalanceLog, CashEntry, ClubAccountEntry, Member, Transaction, Voucher
@@ -17,17 +14,19 @@ class MemberService:
         self.balance_log_repo = BalanceLogRepository(db)
         self.user_repo = UserRepository(db)
 
-    @staticmethod
-    def _slugify_username(value: str) -> str:
-        normalized = unicodedata.normalize("NFKD", value or "")
-        ascii_value = normalized.encode("ascii", "ignore").decode("ascii")
-        cleaned = re.sub(r"[^a-zA-Z0-9]+", ".", ascii_value.lower()).strip(".")
-        return cleaned or "mitglied"
-
     def _generate_member_username(self, member: Member) -> str:
-        base = self._slugify_username(f"{member.first_name}.{member.last_name}")
-        suffix = member.member_number or member.id or 0
-        return f"{base}-{suffix}"
+        first_name = (member.first_name or "").strip()
+        last_initial = (member.last_name or "").strip()[:1].upper()
+        base = " ".join(part for part in [first_name, last_initial] if part).strip() or "Mitglied"
+        candidate = base
+        suffix = 2
+
+        while True:
+            existing_user = self.user_repo.get_by_username(candidate)
+            if not existing_user or existing_user.member_id == member.id:
+                return candidate
+            candidate = f"{base}-{suffix}"
+            suffix += 1
 
     def _validate_linked_user_state(
         self,
@@ -37,7 +36,11 @@ class MemberService:
         linked_user,
         account_password: str | None,
     ) -> None:
-        if role and not linked_user and not account_password:
+        normalized_role = getattr(role, "value", role)
+        if normalized_role == "TOP_ADMIN":
+            raise ValueError("Top-Admin kann nicht an Mitglieder vergeben werden")
+
+        if normalized_role and not linked_user and not account_password:
             raise ValueError("Mitglieder mit Rolle benötigen ein Passwort für den Benutzerzugang")
 
         if email:

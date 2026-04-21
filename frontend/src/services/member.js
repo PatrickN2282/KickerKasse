@@ -36,6 +36,7 @@ export const getMemberSearchText = (member) => {
 }
 
 export const getRoleLabel = (role) => ({
+  TOP_ADMIN: 'Top-Admin',
   ADMIN: 'Admin',
   VERKAUF: 'Verkauf',
   MANAGER: 'Manager',

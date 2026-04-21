@@ -28,7 +28,7 @@ async def create_member(
 ):
     """Create a new member"""
     current_user = require_roles(request, db, UserRole.ADMIN, UserRole.MANAGER)
-    if member_data.role and current_user.role != UserRole.ADMIN:
+    if member_data.role and not current_user.is_admin:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="Nur Admins dürfen Rollen vergeben",
@@ -194,7 +194,7 @@ async def update_member(
 ):
     """Update member"""
     current_user = require_roles(request, db, UserRole.ADMIN, UserRole.MANAGER)
-    if member_data.role is not None and current_user.role != UserRole.ADMIN:
+    if member_data.role is not None and not current_user.is_admin:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="Nur Admins dürfen Rollen vergeben",
@@ -311,7 +311,7 @@ async def delete_member(
     
     # Check if admin
     current_user = UserRepository(db).get_by_id(user_id)
-    if not current_user or current_user.role != UserRole.ADMIN:
+    if not current_user or not current_user.is_admin:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="Insufficient permissions"

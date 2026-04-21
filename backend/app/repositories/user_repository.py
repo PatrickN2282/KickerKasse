@@ -68,6 +68,21 @@ class UserRepository:
     def get_all_active(self) -> list[User]:
         """Get all active users"""
         return self.db.query(User).filter(User.is_active.is_(True)).all()
+
+    def get_active_without_top_admin(self) -> list[User]:
+        """Get all active users except the top admin account."""
+        return self.db.query(User).filter(
+            User.is_active.is_(True),
+            User.role != UserRole.TOP_ADMIN,
+        ).all()
+
+    def get_top_admin(self) -> User | None:
+        """Get the single top admin account if it exists."""
+        return self.db.query(User).filter(User.role == UserRole.TOP_ADMIN).first()
+
+    def has_top_admin(self) -> bool:
+        """Return whether a top admin account already exists."""
+        return self.db.query(User.id).filter(User.role == UserRole.TOP_ADMIN).first() is not None
     
     def update(self, user_id: int, **kwargs) -> User | None:
         """Update user"""

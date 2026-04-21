@@ -782,8 +782,8 @@
                 </button>
               </div>
              </div>
-             <div class="summary-grid compact-summary-grid">
-               <div class="summary-card">
+              <div class="summary-grid compact-summary-grid">
+                <div class="summary-card modal-summary-card">
                  <div class="card-label">
                    Vorheriger Barbestand
                 </div>
@@ -791,7 +791,7 @@
                   {{ formatEuroValue(dailyStats.opening_balance) }}
                 </div>
               </div>
-              <div class="summary-card">
+                <div class="summary-card modal-summary-card">
                 <div class="card-label">
                   Buchungs-Range
                 </div>
@@ -799,7 +799,7 @@
                    {{ currentReceiptLabel }}
                  </div>
                </div>
-               <div class="summary-card">
+                <div class="summary-card modal-summary-card">
                  <div class="card-label">
                    Abschöpfungen Zeitraum
                  </div>
@@ -807,7 +807,7 @@
                    {{ formatPrice(dailyStats.withdrawal_total) }}
                  </div>
                </div>
-               <div class="summary-card">
+                <div class="summary-card modal-summary-card">
                  <div class="card-label">
                    Neuer Barbestand Soll
                 </div>
@@ -828,8 +828,8 @@
                    placeholder="0,00"
                  >
                </div>
-               <div class="summary-grid zbon-side-summary">
-                 <div class="summary-card">
+                <div class="summary-grid zbon-side-summary">
+                  <div class="summary-card modal-summary-card">
                    <div class="card-label">
                      Abschöpfung im Modal
                    </div>
@@ -837,7 +837,7 @@
                      {{ formatPrice(newWithdrawalsCents) }}
                    </div>
                  </div>
-                 <div class="summary-card">
+                  <div class="summary-card modal-summary-card">
                    <div class="card-label">
                      Neuer Ist-Bestand
                    </div>
@@ -845,7 +845,7 @@
                      {{ zbonNewCashBalanceDisplay }}
                    </div>
                  </div>
-                 <div class="summary-card">
+                  <div class="summary-card modal-summary-card">
                    <div class="card-label">
                      Differenz
                    </div>
@@ -2310,13 +2310,13 @@ onMounted(() => {
 .zbon-create-layout {
   display: grid;
   grid-template-columns: minmax(0, 2fr) minmax(280px, 1fr);
-  gap: 1.25rem;
+  gap: 1rem;
   align-items: start;
 }
 
 .zbon-note-box {
-  margin-bottom: 1rem;
-  padding: 0.9rem 1rem;
+  margin-bottom: 0.75rem;
+  padding: 0.75rem 1rem;
   border-radius: 10px;
   background: #eef4ff;
   border: 1px solid #c8d8f2;
@@ -2327,15 +2327,16 @@ onMounted(() => {
 .selection-grid {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
-  gap: 1rem;
+  gap: 0.75rem;
 }
 
 .compact-summary-grid {
   margin-bottom: 0;
+  gap: 0.75rem;
 }
 
 .zbon-balance-group {
-  padding: 1rem;
+  padding: 0.9rem;
   border-radius: 10px;
   background: rgba(255, 255, 255, 0.55);
   border: 1px solid #cbd5e1;
@@ -2343,7 +2344,22 @@ onMounted(() => {
 
 .zbon-side-summary {
   grid-template-columns: repeat(2, minmax(0, 1fr));
-  margin-bottom: 1rem;
+  gap: 0.75rem;
+  margin-bottom: 0.75rem;
+}
+
+.modal-summary-card {
+  padding: 1.15rem;
+
+  .card-label {
+    font-size: 0.82rem;
+    margin-bottom: 0.35rem;
+  }
+
+  .card-value {
+    font-size: 1.45rem;
+    line-height: 1.2;
+  }
 }
 
 .zbon-warning-text {
@@ -2368,7 +2384,7 @@ onMounted(() => {
   display: flex;
   flex-direction: column;
   gap: 0.5rem;
-  margin-bottom: 1rem;
+  margin-bottom: 0.75rem;
   text-align: left;
 
   label {
@@ -2378,7 +2394,7 @@ onMounted(() => {
 }
 
 .member-select-btn {
-  padding: 0.85rem 1rem;
+  padding: 0.75rem 0.9rem;
   border: 1px solid #cbd5e1;
   border-radius: 8px;
   background: #f8fafc;

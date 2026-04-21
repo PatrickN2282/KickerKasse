@@ -5,6 +5,11 @@
         <img :src="appSettingsStore.logoUrl" alt="KGB - KickerKasse" class="login-logo" />
       </div>
       <form @submit.prevent="handleLogin">
+        <template v-if="showSetupFlow">
+          <p class="setup-hint">
+            Beim ersten Start muss einmalig ein Top-Admin eingerichtet werden.
+          </p>
+        </template>
         <div class="form-group">
           <label for="username">Benutzername:</label>
           <input
@@ -27,8 +32,35 @@
           />
         </div>
 
+        <div
+          v-if="showSetupFlow"
+          class="form-group"
+        >
+          <label for="email">E-Mail (optional):</label>
+          <input
+            id="email"
+            v-model="form.email"
+            type="email"
+            class="form-input"
+          />
+        </div>
+
+        <div
+          v-if="showSetupFlow"
+          class="form-group"
+        >
+          <label for="password_confirm">Passwort wiederholen:</label>
+          <input
+            id="password_confirm"
+            v-model="form.passwordConfirm"
+            type="password"
+            class="form-input"
+            required
+          />
+        </div>
+
         <button type="submit" class="btn btn-primary" :disabled="isLoading">
-          {{ isLoading ? 'Login läuft...' : 'Login' }}
+          {{ isLoading ? (showSetupFlow ? 'Einrichtung läuft...' : 'Login läuft...') : (showSetupFlow ? 'Top-Admin einrichten' : 'Login') }}
         </button>
 
         <div v-if="error" class="alert alert-error">{{ error }}</div>
@@ -41,7 +73,7 @@
 </template>
 
 <script setup>
-import { reactive, ref } from 'vue'
+import { computed, onMounted, reactive, ref } from 'vue'
 import { useRouter } from 'vue-router'
 import { useAuthStore } from '@/stores/auth'
 import { useAppSettingsStore } from '@/stores/appSettings'
@@ -54,16 +86,31 @@ const appSettingsStore = useAppSettingsStore()
 const form = reactive({
   username: '',
   password: '',
+  passwordConfirm: '',
+  email: '',
 })
 
 const isLoading = ref(false)
 const error = ref(null)
+const showSetupFlow = computed(() => authStore.setupRequired)
 
 const handleLogin = async () => {
   isLoading.value = true
   error.value = null
 
-  const success = await authStore.login(form.username, form.password)
+  if (showSetupFlow.value && form.password !== form.passwordConfirm) {
+    error.value = 'Die Passwörter stimmen nicht überein'
+    isLoading.value = false
+    return
+  }
+
+  const success = showSetupFlow.value
+    ? await authStore.completeTopAdminSetup({
+      username: form.username,
+      password: form.password,
+      email: form.email,
+    })
+    : await authStore.login(form.username, form.password)
 
   if (success) {
     router.push('/')
@@ -73,6 +120,10 @@ const handleLogin = async () => {
 
   isLoading.value = false
 }
+
+onMounted(() => {
+  authStore.fetchSetupStatus()
+})
 </script>
 
 <style scoped lang="scss">
@@ -123,6 +174,14 @@ const handleLogin = async () => {
     font-weight: 500;
     color: #333;
   }
+}
+
+.setup-hint {
+  margin-bottom: 1.25rem;
+  padding: 0.75rem 1rem;
+  border-radius: 8px;
+  background: rgba(25, 118, 210, 0.08);
+  color: #12467a;
 }
 
 .form-input {
