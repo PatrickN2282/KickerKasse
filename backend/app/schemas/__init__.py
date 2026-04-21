@@ -1,4 +1,4 @@
-from .user import UserCreate, UserUpdate, UserResponse
+from .user import UserCreate, UserFinanceOptionResponse, UserUpdate, UserResponse
 from .member import MemberCreate, MemberUpdate, MemberResponse
 from .product import ProductCreate, ProductUpdate, ProductResponse
 from .category import CategoryCreate, CategoryUpdate, CategoryResponse
@@ -20,6 +20,7 @@ from .zbon_history import ZBonHistoryResponse, ZBonHistoryListResponse
 
 __all__ = [
     "UserCreate",
+    "UserFinanceOptionResponse",
     "UserUpdate",
     "UserResponse",
     "MemberCreate",

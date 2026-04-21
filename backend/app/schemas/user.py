@@ -48,3 +48,19 @@ class UserResponse(UserBase):
 
     class Config:
         from_attributes = True
+
+
+class UserFinanceOptionResponse(BaseModel):
+    id: int
+    username: str
+    role: str
+
+    @field_validator("role", mode="before")
+    @classmethod
+    def normalize_role(cls, value):
+        if hasattr(value, "value"):
+            return value.value
+        return value
+
+    class Config:
+        from_attributes = True

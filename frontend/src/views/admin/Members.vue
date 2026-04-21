@@ -2,62 +2,110 @@
   <div class="admin-members">
     <h2>Mitgliederverwaltung</h2>
 
-    <button @click="showForm = !showForm" class="btn btn-primary">
+    <button
+      class="btn btn-primary"
+      @click="showForm = !showForm"
+    >
       {{ showForm ? 'Abbrechen / Zurück' : 'Neues Mitglied' }}
     </button>
 
-    <form v-if="showForm" @submit.prevent="handleSaveMember" class="form-section">
+    <form
+      v-if="showForm"
+      class="form-section"
+      @submit.prevent="handleSaveMember"
+    >
       <h3>{{ editingId ? 'Mitglied bearbeiten' : 'Neues Mitglied' }}</h3>
       <div class="form-grid">
         <div class="form-group">
           <label for="first_name">Vorname*:</label>
-          <input v-model="formData.first_name" id="first_name" type="text" class="form-input" required />
+          <input
+            id="first_name"
+            v-model="formData.first_name"
+            type="text"
+            class="form-input"
+            required
+          >
         </div>
         <div class="form-group">
           <label for="last_name">Nachname*:</label>
-          <input v-model="formData.last_name" id="last_name" type="text" class="form-input" required />
+          <input
+            id="last_name"
+            v-model="formData.last_name"
+            type="text"
+            class="form-input"
+            required
+          >
         </div>
       </div>
       <div class="form-group">
         <label for="membership_number">Mitgliedsnummer:</label>
-        <input v-model="formData.membership_number" id="membership_number" type="text" class="form-input" />
+        <input
+          id="membership_number"
+          v-model="formData.membership_number"
+          type="text"
+          class="form-input"
+        >
       </div>
       <div class="form-grid">
         <label class="checkbox-row">
-          <input v-model="formData.has_discount" type="checkbox" />
+          <input
+            v-model="formData.has_discount"
+            type="checkbox"
+          >
           Rabatt
         </label>
-        <div v-if="authStore.isAdmin" class="form-group">
-          <label for="role">Rolle:</label>
-          <select v-model="formData.role" id="role" class="form-input">
-            <option value="">Keine Rolle</option>
-            <option value="CASHIER">Verkauf</option>
-            <option value="KASSENMITGLIED">VerkaufAdmin</option>
-            <option value="ADMIN">Admin</option>
-          </select>
+        <div class="form-group">
+          <label for="email">E-Mail:</label>
+          <input
+            id="email"
+            v-model="formData.email"
+            type="email"
+            class="form-input"
+          >
+        </div>
+        <div class="form-group">
+          <label for="phone">Telefon:</label>
+          <input
+            id="phone"
+            v-model="formData.phone"
+            type="text"
+            class="form-input"
+          >
         </div>
       </div>
+      <div class="form-group">
+        <label for="notes">Notizen:</label>
+        <textarea
+          id="notes"
+          v-model="formData.notes"
+          class="form-input notes-input"
+          rows="3"
+        />
+      </div>
 
-      <div v-if="editingId" class="form-group recharge-section">
+      <div
+        v-if="editingId"
+        class="form-group recharge-section"
+      >
         <label for="recharge">Guthaben aufladen:</label>
         <small class="form-help">
           Aufzuladenden Wert eintragen, Passwort des angemeldeten Benutzers eintragen, Bestätigen
         </small>
         <div class="recharge-input-group">
           <input
-            v-model.number="rechargeAmount"
             id="recharge"
+            v-model.number="rechargeAmount"
             type="number"
             placeholder="0.00"
             step="0.01"
             min="0"
             class="form-input"
-          />
+          >
           <button
-            @click="openRechargeModal"
             type="button"
             class="btn btn-info"
             :disabled="!rechargeAmount || rechargeAmount <= 0"
+            @click="openRechargeModal"
           >
             + Aufladen
           </button>
@@ -69,44 +117,96 @@
 
       <div class="form-group">
         <label for="photo">Foto:</label>
-        <input @change="handlePhotoUpload" id="photo" type="file" accept="image/*" class="form-input" />
-        <div v-if="photoPreview" class="photo-preview">
-          <img :src="photoPreview" :alt="fullFormName" style="max-width: 150px; max-height: 150px;" />
+        <input
+          id="photo"
+          type="file"
+          accept="image/*"
+          class="form-input"
+          @change="handlePhotoUpload"
+        >
+        <div
+          v-if="photoPreview"
+          class="photo-preview"
+        >
+          <img
+            :src="photoPreview"
+            :alt="fullFormName"
+            style="max-width: 150px; max-height: 150px;"
+          >
         </div>
       </div>
-      <button type="submit" class="btn btn-success">Speichern</button>
+      <button
+        type="submit"
+        class="btn btn-success"
+      >
+        Speichern
+      </button>
     </form>
 
-    <div v-if="memberStore.isLoading" class="loading">Läuft...</div>
-    <div v-else class="members-table">
+    <div
+      v-if="memberStore.isLoading"
+      class="loading"
+    >
+      Läuft...
+    </div>
+    <div
+      v-else
+      class="members-table"
+    >
       <table>
         <thead>
           <tr>
-            <th style="width: 60px;">Foto</th>
+            <th style="width: 60px;">
+              Foto
+            </th>
             <th>Nr.</th>
             <th>Mitgliedsnummer</th>
             <th>Name</th>
             <th>Rabatt</th>
-            <th>Rolle</th>
+            <th>E-Mail</th>
+            <th>Telefon</th>
             <th>Guthaben</th>
             <th>Aktionen</th>
           </tr>
         </thead>
         <tbody>
-          <tr v-for="member in memberStore.members" :key="member.id">
+          <tr
+            v-for="member in memberStore.members"
+            :key="member.id"
+          >
             <td class="photo-cell">
-              <img v-if="member.photo_path" :src="`/api/members/${member.id}/photo`" :alt="getMemberFullName(member)" class="member-thumb" />
-              <span v-else class="no-photo">-</span>
+              <img
+                v-if="member.photo_path"
+                :src="`/api/members/${member.id}/photo`"
+                :alt="getMemberFullName(member)"
+                class="member-thumb"
+              >
+              <span
+                v-else
+                class="no-photo"
+              >-</span>
             </td>
             <td>{{ member.member_number }}</td>
             <td>{{ member.membership_number || '-' }}</td>
-            <td>{{ getMemberShortName(member) }}</td>
+            <td>{{ getMemberFullName(member) }}</td>
             <td>{{ member.has_discount ? 'Ja' : 'Nein' }}</td>
-            <td>{{ getRoleLabel(member.role) }}</td>
-            <td class="balance">{{ formatBalance(member.balance_cents) }}</td>
+            <td>{{ member.email || '-' }}</td>
+            <td>{{ member.phone || '-' }}</td>
+            <td class="balance">
+              {{ formatBalance(member.balance_cents) }}
+            </td>
             <td>
-              <button @click="editMember(member)" class="btn-small">Bearbeiten</button>
-              <button @click="deleteMember(member.id)" class="btn-small btn-danger" :disabled="!authStore.isAdmin">
+              <button
+                class="btn-small"
+                @click="editMember(member)"
+              >
+                Bearbeiten
+              </button>
+              <button
+                class="btn-small btn-danger"
+                :disabled="!authStore.isAdmin"
+                @click="deleteMember(member.id)"
+              >
                 Löschen
               </button>
             </td>
@@ -132,7 +232,7 @@ import { useAuthStore } from '@/stores/auth'
 import { useMemberStore } from '@/stores/member'
 import { useNotificationStore } from '@/stores/notification'
 import { formatBalance } from '@/services/utils'
-import { getMemberFullName, getMemberShortName, getRoleLabel } from '@/services/member'
+import { getMemberFullName } from '@/services/member'
 import PasswordConfirmModal from '@/components/PasswordConfirmModal.vue'
 import apiService from '@/services/api'
 
@@ -153,8 +253,8 @@ const formData = reactive({
   membership_number: '',
   email: '',
   phone: '',
+  notes: '',
   has_discount: true,
-  role: '',
 })
 
 const fullFormName = computed(() => [formData.first_name, formData.last_name].filter(Boolean).join(' '))
@@ -199,10 +299,7 @@ const uploadPhotoToMember = async (memberId) => {
 }
 
 const handleSaveMember = async () => {
-  const payload = {
-    ...formData,
-    role: authStore.isAdmin ? formData.role || null : undefined,
-  }
+  const payload = { ...formData }
 
   if (editingId.value) {
     const photoUploadSuccess = await uploadPhotoToMember(editingId.value)
@@ -243,8 +340,8 @@ const resetForm = () => {
   formData.membership_number = ''
   formData.email = ''
   formData.phone = ''
+  formData.notes = ''
   formData.has_discount = true
-  formData.role = ''
   photoFile.value = null
   photoPreview.value = null
   rechargeAmount.value = null
@@ -260,8 +357,8 @@ const editMember = (member) => {
   formData.membership_number = member.membership_number || ''
   formData.email = member.email || ''
   formData.phone = member.phone || ''
+  formData.notes = member.notes || ''
   formData.has_discount = member.has_discount ?? true
-  formData.role = member.role || ''
   currentMemberBalance.value = member.balance_cents
   rechargeAmount.value = null
   showForm.value = true
@@ -357,6 +454,10 @@ onMounted(async () => {
       outline: none;
       border-color: var(--app-highlight-color);
     }
+  }
+
+  .notes-input {
+    resize: vertical;
   }
 }
 

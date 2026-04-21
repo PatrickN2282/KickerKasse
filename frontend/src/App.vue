@@ -1,18 +1,46 @@
 <template>
-  <div id="app" class="app">
+  <div
+    id="app"
+    class="app"
+  >
     <NotificationCenter />
-    <nav v-if="authStore.isAuthenticated" class="navbar">
+    <nav
+      v-if="authStore.isAuthenticated"
+      class="navbar"
+    >
       <div class="navbar-content">
         <div class="navbar-brand">
-          <img :src="appSettingsStore.logoUrl" :alt="appSettingsStore.settings.app_name" class="navbar-logo" />
+          <img
+            :src="appSettingsStore.logoUrl"
+            :alt="appSettingsStore.settings.app_name"
+            class="navbar-logo"
+          >
           <span class="navbar-title">{{ appSettingsStore.settings.app_name }}</span>
         </div>
         <div class="navbar-menu">
-          <router-link to="/" class="nav-link">Kasse</router-link>
-          <router-link to="/admin" class="nav-link" v-if="authStore.canAccessAdminPanel">Admin</router-link>
-          <PwaInstallButton />
+          <div class="navbar-actions">
+            <router-link
+              to="/"
+              class="nav-link"
+            >
+              Kasse
+            </router-link>
+            <router-link
+              v-if="authStore.canAccessAdminPanel"
+              to="/admin"
+              class="nav-link"
+            >
+              Admin
+            </router-link>
+            <PwaInstallButton />
+            <button
+              class="btn-logout"
+              @click="logout"
+            >
+              Logout
+            </button>
+          </div>
           <span class="current-user">Angemeldet: {{ authStore.user?.username }}</span>
-          <button @click="logout" class="btn-logout">Logout</button>
         </div>
       </div>
     </nav>
@@ -90,6 +118,13 @@ onMounted(() => {
 
   .navbar-menu {
     display: flex;
+    flex-direction: column;
+    gap: 0.45rem;
+    align-items: flex-end;
+  }
+
+  .navbar-actions {
+    display: flex;
     gap: 0.75rem;
     align-items: center;
     flex-wrap: wrap;
@@ -122,6 +157,7 @@ onMounted(() => {
   .current-user {
     color: var(--app-banner-contrast);
     font-weight: 600;
+    font-size: 0.95rem;
   }
 }
 
@@ -143,6 +179,10 @@ onMounted(() => {
   }
 
   .navbar .navbar-menu {
+    align-items: center;
+  }
+
+  .navbar .navbar-actions {
     justify-content: center;
   }
 }

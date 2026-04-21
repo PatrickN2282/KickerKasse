@@ -2,32 +2,72 @@
   <div class="admin-users">
     <h2>Benutzerverwaltung</h2>
 
-    <button @click="showForm = !showForm" class="btn btn-primary">
+    <button
+      class="btn btn-primary"
+      @click="showForm = !showForm"
+    >
       {{ showForm ? 'Abbrechen / Zurück' : 'Neuen Benutzer' }}
     </button>
 
-    <form v-if="showForm" @submit.prevent="handleSaveUser" class="form-section">
+    <form
+      v-if="showForm"
+      class="form-section"
+      @submit.prevent="handleSaveUser"
+    >
       <div class="form-group">
         <label for="username">Benutzername*:</label>
-        <input v-model="formData.username" id="username" type="text" class="form-input" required />
+        <input
+          id="username"
+          v-model="formData.username"
+          type="text"
+          class="form-input"
+          required
+        >
       </div>
       <div class="form-group">
         <label for="email">Email:</label>
-        <input v-model="formData.email" id="email" type="email" class="form-input" />
+        <input
+          id="email"
+          v-model="formData.email"
+          type="email"
+          class="form-input"
+        >
       </div>
       <div class="form-group">
         <label for="password">Passwort*:</label>
-        <input v-model="formData.password" id="password" type="password" class="form-input" required />
+        <input
+          id="password"
+          v-model="formData.password"
+          type="password"
+          class="form-input"
+          required
+        >
       </div>
       <div class="form-group">
         <label for="role">Rolle*:</label>
-        <select v-model="formData.role" id="role" class="form-input" required>
-          <option value="CASHIER">Verkauf</option>
-          <option value="KASSENMITGLIED">VerkaufAdmin</option>
-          <option value="ADMIN">Admin</option>
+        <select
+          id="role"
+          v-model="formData.role"
+          class="form-input"
+          required
+        >
+          <option value="CASHIER">
+            Verkauf
+          </option>
+          <option value="KASSENMITGLIED">
+            VerkaufAdmin
+          </option>
+          <option value="ADMIN">
+            Admin
+          </option>
         </select>
       </div>
-      <button type="submit" class="btn btn-success">Speichern</button>
+      <button
+        type="submit"
+        class="btn btn-success"
+      >
+        Speichern
+      </button>
     </form>
 
     <div class="users-table">
@@ -35,20 +75,25 @@
         <thead>
           <tr>
             <th>Benutzername</th>
-            <th>Typ</th>
             <th>Email</th>
             <th>Rolle</th>
             <th>Aktionen</th>
           </tr>
         </thead>
         <tbody>
-          <tr v-for="user in displayedUsers" :key="user.id">
+          <tr
+            v-for="user in displayedUsers"
+            :key="user.id"
+          >
             <td>{{ user.username }}</td>
-            <td>{{ user.entryType }}</td>
             <td>{{ user.email || '-' }}</td>
             <td>{{ roleLabel(user.role) }}</td>
             <td>
-              <button v-if="user.deletable" @click="deleteUser(user.id)" class="btn-small btn-danger">
+              <button
+                v-if="user.deletable"
+                class="btn-small btn-danger"
+                @click="deleteUser(user.id)"
+              >
                 Löschen
               </button>
               <span v-else>-</span>
@@ -63,12 +108,10 @@
 <script setup>
 import { ref, reactive, onMounted, computed } from 'vue'
 import { useNotificationStore } from '@/stores/notification'
-import { useMemberStore } from '@/stores/member'
-import { getMemberFullName, getRoleLabel } from '@/services/member'
+import { getRoleLabel } from '@/services/member'
 import apiService from '@/services/api'
 
 const notificationStore = useNotificationStore()
-const memberStore = useMemberStore()
 
 const showForm = ref(false)
 const users = ref([])
@@ -87,23 +130,10 @@ const templateUsers = computed(() => [
   { id: 'template-manager', username: 'Manager', email: '-', role: 'KASSENMITGLIED', entryType: 'Vorlage', deletable: false },
 ])
 
-const memberRoleUsers = computed(() => memberStore.members
-  .filter(member => !!member.role)
-  .map(member => ({
-    id: `member-${member.id}`,
-    username: getMemberFullName(member),
-    email: member.membership_number || '-',
-    role: member.role,
-    entryType: 'Mitglied',
-    deletable: false,
-  })))
-
 const displayedUsers = computed(() => [
   ...templateUsers.value,
-  ...memberRoleUsers.value,
   ...users.value.map(user => ({
     ...user,
-    entryType: 'Benutzer',
     deletable: true,
   })),
 ])
@@ -142,13 +172,12 @@ const loadUsers = async () => {
   try {
     const response = await apiService.get('/users')
     users.value = response.data
-  } catch (err) {
+  } catch {
     notificationStore.error('Fehler beim Laden der Benutzer')
   }
 }
 
 onMounted(async () => {
-  await memberStore.getMembers()
   await loadUsers()
 })
 </script>

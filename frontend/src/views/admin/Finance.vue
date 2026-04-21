@@ -6,16 +6,19 @@
       <button
         v-for="tab in tabs"
         :key="tab"
-        @click="activeTab = tab"
         :class="{ active: activeTab === tab }"
         class="tab-btn"
+        @click="activeTab = tab"
       >
         {{ tabLabels[tab] }}
       </button>
     </div>
 
     <!-- Z-BON / Tagesabrechnung -->
-    <div v-if="activeTab === 'zbon'" class="tab-content">
+    <div
+      v-if="activeTab === 'zbon'"
+      class="tab-content"
+    >
       <h3>Z-Bon</h3>
 
       <div class="date-picker">
@@ -29,67 +32,136 @@
         </div>
       </div>
 
-      <div v-if="loading" class="loading">Läuft...</div>
-        <div v-else class="zbon-summary">
-          <div class="summary-grid">
+      <div
+        v-if="loading"
+        class="loading"
+      >
+        Läuft...
+      </div>
+      <div
+        v-else
+        class="zbon-summary"
+      >
+        <div class="summary-grid">
           <div class="summary-card">
-            <div class="card-label">Umsatz (BAR)</div>
-            <div class="card-value">{{ formatPrice(dailyStats.cash_total) }}</div>
-          </div>
-          <div class="summary-card">
-            <div class="card-label">Umsatz (Guthaben)</div>
-            <div class="card-value">{{ formatPrice(dailyStats.balance_total) }}</div>
-          </div>
-          <div class="summary-card">
-            <div class="card-label">Gutscheine</div>
-            <div class="card-value">{{ formatPrice(dailyStats.voucher_total) }}</div>
-          </div>
-          <div class="summary-card highlight">
-            <div class="card-label">Umsatz GESAMT</div>
-            <div class="card-value">{{ formatPrice(dailyStats.total_amount) }}</div>
-          </div>
-          <div class="summary-card">
-            <div class="card-label">Soll-Bestand Kasse</div>
-            <div class="card-value">{{ formatEuroValue(dailyStats.cash_calculated) }}</div>
-          </div>
-          <div class="summary-card warning">
-            <div class="card-label">Abschöpfungen</div>
-            <div class="card-value">{{ formatPrice(dailyStats.withdrawal_total) }}</div>
-          </div>
-          <div class="summary-card">
-            <div class="card-label">Offene Gutscheine</div>
-            <div class="card-value">{{ formatEuroValue(dailyStats.voucher_open_total) }}</div>
-          </div>
-            <div class="summary-card">
-              <div class="card-label">Anzahl Transaktionen</div>
-              <div class="card-value">{{ dailyStats.transaction_count }}</div>
+            <div class="card-label">
+              Umsatz (BAR)
+            </div>
+            <div class="card-value">
+              {{ formatPrice(dailyStats.cash_total) }}
             </div>
           </div>
-
-          <div class="zbon-actions">
-            <button @click="openPreviewModal" class="btn btn-primary">
-              👁️ Z-Bon Vorschau
-            </button>
-            <button @click="handleDownloadZBon" class="btn btn-success">
-              ⬇️ Als HTML herunterladen
-            </button>
-            <button @click="openZbonCreateModal" class="btn btn-info">
-              ✅ Z-Bon erstellen
-            </button>
-            <button @click="openWithdrawalModal" class="btn btn-warning">
-              💸 Abschöpfung
-            </button>
-            <button @click="openCashCounterModal" class="btn btn-secondary">
-              💰 Kasse zählen
-            </button>
+          <div class="summary-card">
+            <div class="card-label">
+              Umsatz (Guthaben)
+            </div>
+            <div class="card-value">
+              {{ formatPrice(dailyStats.balance_total) }}
+            </div>
           </div>
+          <div class="summary-card">
+            <div class="card-label">
+              Gutscheine
+            </div>
+            <div class="card-value">
+              {{ formatPrice(dailyStats.voucher_total) }}
+            </div>
+          </div>
+          <div class="summary-card">
+            <div class="card-label">
+              Guthabenkarten verkauft
+            </div>
+            <div class="card-value">
+              {{ formatPrice(dailyStats.prepaid_voucher_sales_total) }}
+            </div>
+          </div>
+          <div class="summary-card highlight">
+            <div class="card-label">
+              Umsatz GESAMT
+            </div>
+            <div class="card-value">
+              {{ formatPrice(dailyStats.total_amount) }}
+            </div>
+          </div>
+          <div class="summary-card">
+            <div class="card-label">
+              Soll-Bestand Kasse
+            </div>
+            <div class="card-value">
+              {{ formatEuroValue(dailyStats.cash_calculated) }}
+            </div>
+          </div>
+          <div class="summary-card warning">
+            <div class="card-label">
+              Abschöpfungen
+            </div>
+            <div class="card-value">
+              {{ formatPrice(dailyStats.withdrawal_total) }}
+            </div>
+          </div>
+          <div class="summary-card">
+            <div class="card-label">
+              Offene Gutscheine
+            </div>
+            <div class="card-value">
+              {{ formatEuroValue(dailyStats.voucher_open_total) }}
+            </div>
+          </div>
+          <div class="summary-card">
+            <div class="card-label">
+              Anzahl Transaktionen
+            </div>
+            <div class="card-value">
+              {{ dailyStats.transaction_count }}
+            </div>
+          </div>
+        </div>
 
-          <div class="daily-transactions">
-            <h4>Transaktionen seit dem letzten Z-Bon</h4>
-          <div v-if="dailyStats.transactions.length === 0" class="empty">
+        <div class="zbon-actions">
+          <button
+            class="btn btn-primary"
+            @click="openPreviewModal"
+          >
+            👁️ Z-Bon Vorschau
+          </button>
+          <button
+            class="btn btn-success"
+            @click="handleDownloadZBon"
+          >
+            ⬇️ Als HTML herunterladen
+          </button>
+          <button
+            class="btn btn-info"
+            @click="openZbonCreateModal"
+          >
+            ✅ Z-Bon erstellen
+          </button>
+          <button
+            class="btn btn-warning"
+            @click="openWithdrawalModal"
+          >
+            💸 Abschöpfung
+          </button>
+          <button
+            class="btn btn-secondary"
+            @click="openCashCounterModal"
+          >
+            💰 Kasse zählen
+          </button>
+        </div>
+
+        <div class="daily-transactions">
+          <h4>Transaktionen seit dem letzten Z-Bon</h4>
+          <div
+            v-if="dailyStats.transactions.length === 0"
+            class="empty"
+          >
             Keine Transaktionen im aktuellen Z-Bon-Zeitraum
           </div>
-          <table v-else class="transactions-table">
+          <table
+            v-else
+            class="transactions-table"
+          >
             <thead>
               <tr>
                 <th>Zeit</th>
@@ -100,33 +172,61 @@
               </tr>
             </thead>
             <tbody>
-              <template v-for="transaction in dailyStats.transactions" :key="transaction.id">
-                <tr class="transaction-row" @click="toggleTransaction(transaction.id)" style="cursor: pointer;">
+              <template
+                v-for="transaction in dailyStats.transactions"
+                :key="transaction.id"
+              >
+                <tr
+                  class="transaction-row"
+                  style="cursor: pointer;"
+                  @click="toggleTransaction(transaction.id)"
+                >
                   <td>{{ formatTime(transaction.created_at) }}</td>
                   <td><strong>{{ transaction.receipt_number }}</strong></td>
                   <td>{{ formatMemberLabel(transaction.member || { name: transaction.member_name }) || 'Gast' }}</td>
-                  <td class="amount">{{ formatPrice(transaction.gross_amount_cents || transaction.total_amount_cents) }}</td>
+                  <td class="amount">
+                    {{ formatPrice(transaction.gross_amount_cents || transaction.total_amount_cents) }}
+                  </td>
                   <td>
-                    <span v-if="transaction.type === 'RECHARGE'" class="payment-badge recharge">
+                    <span
+                      v-if="transaction.type === 'RECHARGE'"
+                      class="payment-badge recharge"
+                    >
                       ⬆️ Aufladen
                     </span>
-                    <span v-else :class="['payment-badge', getPaymentBadgeClass(transaction)]">
+                    <span
+                      v-else
+                      :class="['payment-badge', getPaymentBadgeClass(transaction)]"
+                    >
                       {{ getPaymentBadgeLabel(transaction) }}
                     </span>
                   </td>
                 </tr>
-                <tr v-if="expandedTransactions.has(transaction.id)" class="items-row">
-                  <td colspan="5" class="items-cell">
+                <tr
+                  v-if="expandedTransactions.has(transaction.id)"
+                  class="items-row"
+                >
+                  <td
+                    colspan="5"
+                    class="items-cell"
+                  >
                     <div class="items-list">
                       <div v-if="transaction.items && transaction.items.length > 0">
-                        <div v-for="item in transaction.items" :key="item.id" class="item-detail">
+                        <div
+                          v-for="item in transaction.items"
+                          :key="item.id"
+                          class="item-detail"
+                        >
                           <span class="item-name">{{ item.product?.name || item.id }}: </span>
                           <span class="item-qty">{{ item.quantity }}×</span>
                           <span class="item-price">{{ formatPrice(item.unit_price_cents) }}</span>
                           <span class="item-total">= {{ formatPrice(item.total_price_cents) }}</span>
                         </div>
                       </div>
-                      <div v-else class="no-items">
+                      <div
+                        v-else
+                        class="no-items"
+                      >
                         Keine Artikel
                       </div>
                     </div>
@@ -134,22 +234,31 @@
                 </tr>
               </template>
             </tbody>
-            </table>
-          </div>
+          </table>
+        </div>
 
         <div class="scheduler-section">
           <h4>⏱️ Automatischer Email-Versand</h4>
           <div class="scheduler-status">
             <div class="status-item">
               <span>Status:</span>
-              <span v-if="schedulerStatus.running" class="status-badge running">
+              <span
+                v-if="schedulerStatus.running"
+                class="status-badge running"
+              >
                 ● Läuft
               </span>
-              <span v-else class="status-badge stopped">
+              <span
+                v-else
+                class="status-badge stopped"
+              >
                 ● Gestoppt
               </span>
             </div>
-            <div v-if="schedulerStatus.next_run" class="status-item">
+            <div
+              v-if="schedulerStatus.next_run"
+              class="status-item"
+            >
               <span>Nächster Versand:</span>
               <span class="next-run">{{ formatTime(schedulerStatus.next_run) }}</span>
             </div>
@@ -169,48 +278,89 @@
     </div>
 
     <!-- Z-BÖNS VERLAUF -->
-    <div v-if="activeTab === 'zbons'" class="tab-content">
+    <div
+      v-if="activeTab === 'zbons'"
+      class="tab-content"
+    >
       <h3>📑 Z-Bons Verlauf</h3>
 
       <div class="filter-section">
         <div class="filter-group">
           <label>Von Datum:</label>
-          <input v-model="zbonsFilterStartDate" type="date" class="form-input" />
+          <input
+            v-model="zbonsFilterStartDate"
+            type="date"
+            class="form-input"
+          >
         </div>
         <div class="filter-group">
           <label>Bis Datum:</label>
-          <input v-model="zbonsFilterEndDate" type="date" class="form-input" />
+          <input
+            v-model="zbonsFilterEndDate"
+            type="date"
+            class="form-input"
+          >
         </div>
-        <button @click="loadZbonsHistory" class="btn btn-primary">
+        <button
+          class="btn btn-primary"
+          @click="loadZbonsHistory"
+        >
           🔍 Filtern
         </button>
       </div>
 
-      <div v-if="loadingZbons" class="loading">Läuft...</div>
+      <div
+        v-if="loadingZbons"
+        class="loading"
+      >
+        Läuft...
+      </div>
       <div v-else>
         <!-- Summary Cards -->
-        <div class="summary-grid" style="margin-bottom: 1.5rem;">
+        <div
+          class="summary-grid"
+          style="margin-bottom: 1.5rem;"
+        >
           <div class="summary-card">
-            <div class="card-label">Anzahl Z-Böns</div>
-            <div class="card-value">{{ zbonsList.length }}</div>
+            <div class="card-label">
+              Anzahl Z-Böns
+            </div>
+            <div class="card-value">
+              {{ zbonsList.length }}
+            </div>
           </div>
           <div class="summary-card">
-            <div class="card-label">Gesamt Umsatz (BAR)</div>
-            <div class="card-value">{{ formatPrice(zbonsTotalCash) }}</div>
+            <div class="card-label">
+              Gesamt Umsatz (BAR)
+            </div>
+            <div class="card-value">
+              {{ formatPrice(zbonsTotalCash) }}
+            </div>
           </div>
           <div class="summary-card">
-            <div class="card-label">Gesamt Umsatz (Guthaben)</div>
-            <div class="card-value">{{ formatPrice(zbonsTotalBalance) }}</div>
+            <div class="card-label">
+              Gesamt Umsatz (Guthaben)
+            </div>
+            <div class="card-value">
+              {{ formatPrice(zbonsTotalBalance) }}
+            </div>
           </div>
           <div class="summary-card highlight">
-            <div class="card-label">Gesamt Umsatz</div>
-            <div class="card-value">{{ formatPrice(zbonsTotalRevenue) }}</div>
+            <div class="card-label">
+              Gesamt Umsatz
+            </div>
+            <div class="card-value">
+              {{ formatPrice(zbonsTotalRevenue) }}
+            </div>
           </div>
         </div>
 
         <!-- Z-Böns Table -->
         <div class="table-container">
-          <table v-if="zbonsList.length > 0" class="transactions-table">
+          <table
+            v-if="zbonsList.length > 0"
+            class="transactions-table"
+          >
             <thead>
               <tr>
                 <th>Seq#</th>
@@ -233,26 +383,50 @@
               >
                 <td><strong>#{{ zbon.sequence_number }}</strong></td>
                 <td>{{ formatDate(zbon.business_date) }}</td>
-                <td class="amount">{{ formatPrice(zbon.gross_revenue_cash * 100) }}</td>
-                <td class="amount">{{ formatPrice(zbon.gross_revenue_balance * 100) }}</td>
-                <td class="amount">{{ formatPrice(zbon.cash_opening_balance * 100) }}</td>
-                <td class="amount">{{ formatPrice((zbon.cash_calculated || 0) * 100) }}</td>
-                <td class="amount withdrawal">{{ formatPrice(zbon.cash_withdrawals * 100) }}</td>
-                <td class="date">{{ formatTime(zbon.generated_at) }}</td>
+                <td class="amount">
+                  {{ formatPrice(zbon.gross_revenue_cash * 100) }}
+                </td>
+                <td class="amount">
+                  {{ formatPrice(zbon.gross_revenue_balance * 100) }}
+                </td>
+                <td class="amount">
+                  {{ formatPrice(zbon.cash_opening_balance * 100) }}
+                </td>
+                <td class="amount">
+                  {{ formatPrice((zbon.cash_calculated || 0) * 100) }}
+                </td>
+                <td class="amount withdrawal">
+                  {{ formatPrice(zbon.cash_withdrawals * 100) }}
+                </td>
+                <td class="date">
+                  {{ formatTime(zbon.generated_at) }}
+                </td>
               </tr>
             </tbody>
           </table>
 
-          <div v-else class="empty">
+          <div
+            v-else
+            class="empty"
+          >
             Keine Z-Böns für den ausgewählten Zeitraum
           </div>
         </div>
 
         <!-- Z-Bon Detail View -->
-        <div v-if="selectedZbon" class="zbon-detail" style="margin-top: 2rem; border: 1px solid #ddd; border-radius: 8px; padding: 1.5rem; background: #f9f9f9;">
+        <div
+          v-if="selectedZbon"
+          class="zbon-detail"
+          style="margin-top: 2rem; border: 1px solid #ddd; border-radius: 8px; padding: 1.5rem; background: #f9f9f9;"
+        >
           <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1.5rem;">
-            <h4 style="margin: 0;">📑 Z-Bon #{{ selectedZbon.sequence_number }} - Detailansicht</h4>
-            <button @click="selectedZbon = null" style="background: none; border: 1px solid #999; padding: 0.5rem 1rem; border-radius: 4px; cursor: pointer;">
+            <h4 style="margin: 0;">
+              📑 Z-Bon #{{ selectedZbon.sequence_number }} - Detailansicht
+            </h4>
+            <button
+              style="background: none; border: 1px solid #999; padding: 0.5rem 1rem; border-radius: 4px; cursor: pointer;"
+              @click="selectedZbon = null"
+            >
               ✕ Schließen
             </button>
           </div>
@@ -283,58 +457,92 @@
               <td>{{ selectedZbon.cash_counted_by_name || '-' }}</td>
             </tr>
             <tr class="section-row">
-              <td colspan="2" style="text-align: center; font-weight: bold; padding-top: 1rem;">UMSÄTZE</td>
+              <td
+                colspan="2"
+                style="text-align: center; font-weight: bold; padding-top: 1rem;"
+              >
+                UMSÄTZE
+              </td>
             </tr>
             <tr>
               <td>Umsatz BAR:</td>
-              <td class="currency">{{ formatPrice(selectedZbon.gross_revenue_cash * 100) }}</td>
+              <td class="currency">
+                {{ formatPrice(selectedZbon.gross_revenue_cash * 100) }}
+              </td>
             </tr>
             <tr>
               <td>Umsatz Guthaben:</td>
-              <td class="currency">{{ formatPrice(selectedZbon.gross_revenue_balance * 100) }}</td>
+              <td class="currency">
+                {{ formatPrice(selectedZbon.gross_revenue_balance * 100) }}
+              </td>
             </tr>
             <tr>
               <td>Umsatz Gutscheine:</td>
-              <td class="currency">{{ formatPrice(selectedZbon.gross_revenue_voucher * 100) }}</td>
+              <td class="currency">
+                {{ formatPrice(selectedZbon.gross_revenue_voucher * 100) }}
+              </td>
             </tr>
             <tr>
               <td>Gesamtumsatz brutto:</td>
-              <td class="currency">{{ formatPrice(selectedZbon.total_revenue * 100) }}</td>
+              <td class="currency">
+                {{ formatPrice(selectedZbon.total_revenue * 100) }}
+              </td>
             </tr>
             <tr>
               <td>Guthabenaufladungen:</td>
-              <td class="currency">{{ formatPrice(selectedZbon.recharge_total * 100) }}</td>
+              <td class="currency">
+                {{ formatPrice(selectedZbon.recharge_total * 100) }}
+              </td>
             </tr>
             <tr>
               <td>Stornierungen:</td>
-              <td class="currency">{{ formatPrice(selectedZbon.storno_total * 100) }}</td>
+              <td class="currency">
+                {{ formatPrice(selectedZbon.storno_total * 100) }}
+              </td>
             </tr>
             <tr>
               <td>Gutscheine erstellt:</td>
-              <td class="currency">{{ selectedZbon.voucher_created_count }} / {{ formatPrice(selectedZbon.voucher_created_total * 100) }}</td>
+              <td class="currency">
+                {{ selectedZbon.voucher_created_count }} / {{ formatPrice(selectedZbon.voucher_created_total * 100) }}
+              </td>
             </tr>
             <tr>
               <td>Gutscheine eingelöst:</td>
-              <td class="currency">{{ selectedZbon.voucher_redeemed_count }} / {{ formatPrice(selectedZbon.voucher_redeemed_total * 100) }}</td>
+              <td class="currency">
+                {{ selectedZbon.voucher_redeemed_count }} / {{ formatPrice(selectedZbon.voucher_redeemed_total * 100) }}
+              </td>
             </tr>
             <tr>
               <td>Offene Gutscheine:</td>
-              <td class="currency">{{ selectedZbon.voucher_open_count }} / {{ formatPrice(selectedZbon.voucher_open_total * 100) }}</td>
+              <td class="currency">
+                {{ selectedZbon.voucher_open_count }} / {{ formatPrice(selectedZbon.voucher_open_total * 100) }}
+              </td>
             </tr>
             <tr class="section-row">
-              <td colspan="2" style="text-align: center; font-weight: bold; padding-top: 1rem;">KASSENBESTAND</td>
+              <td
+                colspan="2"
+                style="text-align: center; font-weight: bold; padding-top: 1rem;"
+              >
+                KASSENBESTAND
+              </td>
             </tr>
             <tr>
               <td>Anfangsbestand:</td>
-              <td class="currency">{{ formatPrice(selectedZbon.cash_opening_balance * 100) }}</td>
+              <td class="currency">
+                {{ formatPrice(selectedZbon.cash_opening_balance * 100) }}
+              </td>
             </tr>
             <tr>
               <td>Calculated:</td>
-              <td class="currency">{{ formatPrice((selectedZbon.cash_calculated || 0) * 100) }}</td>
+              <td class="currency">
+                {{ formatPrice((selectedZbon.cash_calculated || 0) * 100) }}
+              </td>
             </tr>
             <tr>
               <td>Gezählt:</td>
-              <td class="currency">{{ formatPrice((selectedZbon.cash_counted || 0) * 100) }}</td>
+              <td class="currency">
+                {{ formatPrice((selectedZbon.cash_counted || 0) * 100) }}
+              </td>
             </tr>
             <tr v-if="selectedZbon.cash_difference !== null">
               <td>Differenz:</td>
@@ -343,18 +551,32 @@
               </td>
             </tr>
             <tr class="section-row">
-              <td colspan="2" style="text-align: center; font-weight: bold; padding-top: 1rem;">BEWEGUNGEN</td>
+              <td
+                colspan="2"
+                style="text-align: center; font-weight: bold; padding-top: 1rem;"
+              >
+                BEWEGUNGEN
+              </td>
             </tr>
             <tr>
               <td>Abschöpfung:</td>
-              <td class="currency withdrawal">{{ formatPrice(selectedZbon.cash_withdrawals * 100) }}</td>
+              <td class="currency withdrawal">
+                {{ formatPrice(selectedZbon.cash_withdrawals * 100) }}
+              </td>
             </tr>
             <tr>
               <td>Einlagen:</td>
-              <td class="currency deposit">{{ formatPrice(selectedZbon.cash_deposits * 100) }}</td>
+              <td class="currency deposit">
+                {{ formatPrice(selectedZbon.cash_deposits * 100) }}
+              </td>
             </tr>
             <tr class="section-row">
-              <td colspan="2" style="text-align: center; font-weight: bold; padding-top: 1rem;">TRANSAKTIONEN</td>
+              <td
+                colspan="2"
+                style="text-align: center; font-weight: bold; padding-top: 1rem;"
+              >
+                TRANSAKTIONEN
+              </td>
             </tr>
             <tr>
               <td>Transaktionen gesamt:</td>
@@ -379,53 +601,105 @@
           </table>
 
           <div style="margin-top: 1.5rem; display: flex; gap: 1rem;">
-            <button @click="downloadZbonHTML(selectedZbon)" class="btn btn-success">
+            <button
+              class="btn btn-success"
+              @click="downloadZbonHTML(selectedZbon)"
+            >
               ⬇️ Als HTML herunterladen
             </button>
-            <button @click="downloadZbonPDF(selectedZbon)" class="btn btn-info">
+            <button
+              class="btn btn-info"
+              @click="downloadZbonPDF(selectedZbon)"
+            >
               📄 Als PDF herunterladen
             </button>
           </div>
         </div>
 
         <!-- Pagination -->
-        <div v-if="zbonsTotalPages > 1" class="pagination" style="margin-top: 2rem;">
-          <button @click="zbonsCurrentPage--" :disabled="zbonsCurrentPage === 1" class="btn btn-secondary">
+        <div
+          v-if="zbonsTotalPages > 1"
+          class="pagination"
+          style="margin-top: 2rem;"
+        >
+          <button
+            :disabled="zbonsCurrentPage === 1"
+            class="btn btn-secondary"
+            @click="zbonsCurrentPage--"
+          >
             ◀ Zurück
           </button>
           <span>Seite {{ zbonsCurrentPage }} von {{ zbonsTotalPages }}</span>
-          <button @click="zbonsCurrentPage++" :disabled="zbonsCurrentPage === zbonsTotalPages" class="btn btn-secondary">
+          <button
+            :disabled="zbonsCurrentPage === zbonsTotalPages"
+            class="btn btn-secondary"
+            @click="zbonsCurrentPage++"
+          >
             Weiter ▶
           </button>
         </div>
       </div>
     </div>
-    <div v-if="activeTab === 'history'" class="tab-content">
+    <div
+      v-if="activeTab === 'history'"
+      class="tab-content"
+    >
       <h3>Transaktionshistorie</h3>
 
       <div class="filter-section">
         <div class="filter-group">
           <label>Von Datum:</label>
-          <input v-model="filterStartDate" type="date" class="form-input" />
+          <input
+            v-model="filterStartDate"
+            type="date"
+            class="form-input"
+          >
         </div>
         <div class="filter-group">
           <label>Bis Datum:</label>
-          <input v-model="filterEndDate" type="date" class="form-input" />
+          <input
+            v-model="filterEndDate"
+            type="date"
+            class="form-input"
+          >
         </div>
         <div class="filter-group">
           <label>Zahlungsart:</label>
-          <select v-model="filterPaymentMethod" class="form-input">
-            <option value="">Alle</option>
-            <option value="CASH">BAR</option>
-            <option value="BALANCE">Guthaben</option>
-            <option value="VOUCHER_GIFT">Geschenk-Gutschein</option>
-            <option value="VOUCHER_PREPAID">Guthabenkarte</option>
+          <select
+            v-model="filterPaymentMethod"
+            class="form-input"
+          >
+            <option value="">
+              Alle
+            </option>
+            <option value="CASH">
+              BAR
+            </option>
+            <option value="BALANCE">
+              Guthaben
+            </option>
+            <option value="VOUCHER_GIFT">
+              Geschenk-Gutschein
+            </option>
+            <option value="VOUCHER_PREPAID">
+              Guthabenkarte
+            </option>
           </select>
         </div>
-        <button @click="applyFilters" class="btn btn-info">Filter anwenden</button>
+        <button
+          class="btn btn-info"
+          @click="applyFilters"
+        >
+          Filter anwenden
+        </button>
       </div>
 
-      <div v-if="loadingHistory" class="loading">Läuft...</div>
+      <div
+        v-if="loadingHistory"
+        class="loading"
+      >
+        Läuft...
+      </div>
       <div v-else>
         <div class="history-summary">
           <div class="summary-item">
@@ -442,7 +716,10 @@
           </div>
         </div>
 
-        <table v-if="filteredTransactions.length > 0" class="transactions-table">
+        <table
+          v-if="filteredTransactions.length > 0"
+          class="transactions-table"
+        >
           <thead>
             <tr>
               <th>Datum</th>
@@ -455,17 +732,28 @@
             </tr>
           </thead>
           <tbody>
-            <tr v-for="transaction in filteredTransactions" :key="transaction.id">
+            <tr
+              v-for="transaction in filteredTransactions"
+              :key="transaction.id"
+            >
               <td>{{ formatDate(transaction.created_at) }}</td>
               <td>{{ formatTime(transaction.created_at) }}</td>
               <td><strong>{{ transaction.receipt_number }}</strong></td>
               <td>{{ formatMemberLabel(transaction.member) || 'Gast' }}</td>
-              <td class="amount">{{ formatPrice(transaction.total_amount_cents) }}</td>
+              <td class="amount">
+                {{ formatPrice(transaction.total_amount_cents) }}
+              </td>
               <td>
-                <span v-if="transaction.type === 'RECHARGE'" class="payment-badge recharge">
+                <span
+                  v-if="transaction.type === 'RECHARGE'"
+                  class="payment-badge recharge"
+                >
                   ⬆️ Aufladen
                 </span>
-                <span v-else :class="['payment-badge', getPaymentBadgeClass(transaction)]">
+                <span
+                  v-else
+                  :class="['payment-badge', getPaymentBadgeClass(transaction)]"
+                >
                   {{ getPaymentBadgeLabel(transaction) }}
                 </span>
               </td>
@@ -473,32 +761,54 @@
             </tr>
           </tbody>
         </table>
-        <div v-else class="empty">
+        <div
+          v-else
+          class="empty"
+        >
           Keine Transaktionen im ausgewählten Zeitraum
         </div>
       </div>
     </div>
 
     <!-- Umsatzstatistik -->
-    <div v-if="activeTab === 'revenue'" class="tab-content">
+    <div
+      v-if="activeTab === 'revenue'"
+      class="tab-content"
+    >
       <h3>Umsatzstatistik</h3>
 
       <div class="revenue-overview">
         <div class="revenue-card">
-          <div class="card-label">Umsatz diese Woche</div>
-          <div class="card-value">{{ formatPrice(revenueStats.week_total) }}</div>
+          <div class="card-label">
+            Umsatz diese Woche
+          </div>
+          <div class="card-value">
+            {{ formatPrice(revenueStats.week_total) }}
+          </div>
         </div>
         <div class="revenue-card">
-          <div class="card-label">Umsatz diesen Monat</div>
-          <div class="card-value">{{ formatPrice(revenueStats.month_total) }}</div>
+          <div class="card-label">
+            Umsatz diesen Monat
+          </div>
+          <div class="card-value">
+            {{ formatPrice(revenueStats.month_total) }}
+          </div>
         </div>
         <div class="revenue-card">
-          <div class="card-label">Durchschnitt pro Tag</div>
-          <div class="card-value">{{ formatPrice(revenueStats.daily_average) }}</div>
+          <div class="card-label">
+            Durchschnitt pro Tag
+          </div>
+          <div class="card-value">
+            {{ formatPrice(revenueStats.daily_average) }}
+          </div>
         </div>
         <div class="revenue-card warning">
-          <div class="card-label">Abschöpfungen diese Woche</div>
-          <div class="card-value">{{ formatPrice(revenueStats.week_withdrawals) }}</div>
+          <div class="card-label">
+            Abschöpfungen diese Woche
+          </div>
+          <div class="card-value">
+            {{ formatPrice(revenueStats.week_withdrawals) }}
+          </div>
         </div>
       </div>
 
@@ -506,25 +816,55 @@
         <h4>Nach Zahlungsart</h4>
         <div class="stats-grid">
           <div class="stat-item">
-            <div class="stat-label">💰 Bargeld</div>
-            <div class="stat-value">{{ formatPrice(revenueStats.cash_total) }}</div>
-            <div class="stat-percent">{{ revenueStats.cash_percent }}%</div>
+            <div class="stat-label">
+              💰 Bargeld
+            </div>
+            <div class="stat-value">
+              {{ formatPrice(revenueStats.cash_total) }}
+            </div>
+            <div class="stat-percent">
+              {{ revenueStats.cash_percent }}%
+            </div>
           </div>
           <div class="stat-item">
-            <div class="stat-label">💳 Guthaben</div>
-            <div class="stat-value">{{ formatPrice(revenueStats.balance_total) }}</div>
-            <div class="stat-percent">{{ revenueStats.balance_percent }}%</div>
+            <div class="stat-label">
+              💳 Guthaben
+            </div>
+            <div class="stat-value">
+              {{ formatPrice(revenueStats.balance_total) }}
+            </div>
+            <div class="stat-percent">
+              {{ revenueStats.balance_percent }}%
+            </div>
           </div>
           <div class="stat-item">
-            <div class="stat-label">💸 Abschöpfungen 30 Tage</div>
-            <div class="stat-value">{{ formatPrice(revenueStats.month_withdrawals) }}</div>
+            <div class="stat-label">
+              💳 Guthabenkarten
+            </div>
+            <div class="stat-value">
+              {{ formatPrice(revenueStats.prepaid_voucher_sales_total) }}
+            </div>
+            <div class="stat-percent">
+              diese Woche
+            </div>
+          </div>
+          <div class="stat-item">
+            <div class="stat-label">
+              💸 Abschöpfungen 30 Tage
+            </div>
+            <div class="stat-value">
+              {{ formatPrice(revenueStats.month_withdrawals) }}
+            </div>
           </div>
         </div>
       </div>
 
       <div class="top-products">
         <h4>Top Produkte (diese Woche)</h4>
-        <table v-if="revenueStats.top_products.length > 0" class="products-table">
+        <table
+          v-if="revenueStats.top_products.length > 0"
+          class="products-table"
+        >
           <thead>
             <tr>
               <th>Produkt</th>
@@ -533,7 +873,10 @@
             </tr>
           </thead>
           <tbody>
-            <tr v-for="product in revenueStats.top_products" :key="product.id">
+            <tr
+              v-for="product in revenueStats.top_products"
+              :key="product.id"
+            >
               <td>{{ product.name }}</td>
               <td>{{ product.quantity_sold }}</td>
               <td>{{ formatPrice(product.total_revenue) }}</td>
@@ -544,26 +887,44 @@
     </div>
 
     <!-- Member-Statistik -->
-    <div v-if="activeTab === 'members'" class="tab-content">
+    <div
+      v-if="activeTab === 'members'"
+      class="tab-content"
+    >
       <h3>Mitglied-Statistik</h3>
 
       <div class="member-stats-overview">
         <div class="stat-card">
-          <div class="stat-label">Gesamte Mitglieder</div>
-          <div class="stat-value">{{ memberStats.total_members }}</div>
+          <div class="stat-label">
+            Gesamte Mitglieder
+          </div>
+          <div class="stat-value">
+            {{ memberStats.total_members }}
+          </div>
         </div>
         <div class="stat-card">
-          <div class="stat-label">Aktiv diese Woche</div>
-          <div class="stat-value">{{ memberStats.active_this_week }}</div>
+          <div class="stat-label">
+            Aktiv diese Woche
+          </div>
+          <div class="stat-value">
+            {{ memberStats.active_this_week }}
+          </div>
         </div>
         <div class="stat-card">
-          <div class="stat-label">Gesamtes Guthaben</div>
-          <div class="stat-value">{{ formatPrice(memberStats.total_balance) }}</div>
+          <div class="stat-label">
+            Gesamtes Guthaben
+          </div>
+          <div class="stat-value">
+            {{ formatPrice(memberStats.total_balance) }}
+          </div>
         </div>
       </div>
 
       <h4>Top Mitglieder (nach Ausgaben)</h4>
-      <table v-if="memberStats.top_members.length > 0" class="members-table">
+      <table
+        v-if="memberStats.top_members.length > 0"
+        class="members-table"
+      >
         <thead>
           <tr>
             <th>Name</th>
@@ -573,7 +934,10 @@
           </tr>
         </thead>
         <tbody>
-          <tr v-for="member in memberStats.top_members" :key="member.id">
+          <tr
+            v-for="member in memberStats.top_members"
+            :key="member.id"
+          >
             <td>{{ formatMemberLabel(member) }}</td>
             <td>{{ member.transaction_count }}</td>
             <td>{{ formatPrice(member.total_spent) }}</td>
@@ -590,132 +954,252 @@
       @confirm="onCashCounterConfirm"
     />
 
-    <div v-if="showZbonCreateModal" class="confirmation-overlay">
-      <div class="confirmation-dialog">
+    <div
+      v-if="showZbonCreateModal"
+      class="confirmation-overlay"
+    >
+      <div class="confirmation-dialog zbon-create-dialog">
         <h3>Z-Bon erstellen</h3>
-        <div class="selection-group">
-          <label>Mitarbeiter</label>
-          <button @click="openMemberPicker('employeeMemberId')" class="member-select-btn">
-            {{ getSelectedMemberName(zbonForm.employeeMemberId, 'Mitglied auswählen') }}
-          </button>
-        </div>
-        <div class="selection-group">
-          <label>Sichtkontrolle</label>
-          <button @click="openMemberPicker('checkerMemberId')" class="member-select-btn">
-            {{ getSelectedMemberName(zbonForm.checkerMemberId, 'Mitglied auswählen') }}
-          </button>
-        </div>
-        <div class="summary-grid">
-          <div class="summary-card">
-            <div class="card-label">Vorheriger Barbestand</div>
-            <div class="card-value">{{ formatEuroValue(dailyStats.opening_balance) }}</div>
+        <div class="zbon-create-layout">
+          <div class="zbon-create-main">
+            <div class="selection-grid">
+              <div class="selection-group">
+                <label>Benutzer erstellt Z-Bon</label>
+                <button
+                  class="member-select-btn"
+                  @click="openUserPicker('createdByUserId')"
+                >
+                  {{ getSelectedUserName(zbonForm.createdByUserId, 'Benutzer auswählen') }}
+                </button>
+              </div>
+              <div class="selection-group">
+                <label>Benutzer Sichtkontrolle</label>
+                <button
+                  class="member-select-btn"
+                  @click="openUserPicker('verifiedByUserId')"
+                >
+                  {{ getSelectedUserName(zbonForm.verifiedByUserId, 'Benutzer auswählen') }}
+                </button>
+              </div>
+            </div>
+            <div class="summary-grid compact-summary-grid">
+              <div class="summary-card">
+                <div class="card-label">
+                  Vorheriger Barbestand
+                </div>
+                <div class="card-value">
+                  {{ formatEuroValue(dailyStats.opening_balance) }}
+                </div>
+              </div>
+              <div class="summary-card">
+                <div class="card-label">
+                  Buchungs-Range
+                </div>
+                <div class="card-value">
+                  {{ currentReceiptLabel }}
+                </div>
+              </div>
+              <div class="summary-card">
+                <div class="card-label">
+                  Guthabenkarten verkauft
+                </div>
+                <div class="card-value">
+                  {{ formatPrice(dailyStats.prepaid_voucher_sales_total) }}
+                </div>
+              </div>
+              <div class="summary-card">
+                <div class="card-label">
+                  Neuer Barbestand Soll
+                </div>
+                <div class="card-value">
+                  {{ formatEuroValue(dailyStats.cash_calculated) }}
+                </div>
+              </div>
+            </div>
           </div>
-          <div class="summary-card">
-            <div class="card-label">Buchungs-Range</div>
-            <div class="card-value">{{ currentReceiptLabel }}</div>
+          <div class="zbon-create-side">
+            <div class="filter-group">
+              <label>Gezählter Ist-Bestand</label>
+              <input
+                v-model="zbonCountedCash"
+                type="number"
+                min="0"
+                step="0.01"
+                class="form-input"
+                placeholder="0,00"
+              >
+            </div>
+            <div class="summary-grid zbon-side-summary">
+              <div class="summary-card">
+                <div class="card-label">
+                  Differenz
+                </div>
+                <div class="card-value">
+                  {{ zbonDifferenceDisplay }}
+                </div>
+              </div>
+              <div class="summary-card">
+                <div class="card-label">
+                  Neuer Kassenbestand
+                </div>
+                <div class="card-value">
+                  {{ zbonNewCashBalanceDisplay }}
+                </div>
+              </div>
+            </div>
+            <div class="confirmation-buttons zbon-create-buttons">
+              <button
+                class="btn btn-primary"
+                :disabled="!canCreateZbon"
+                @click="requestZBonCreate"
+              >
+                ✓ Z-Bon erstellen
+              </button>
+              <button
+                class="btn btn-warning"
+                @click="openWithdrawalModal"
+              >
+                💸 Abschöpfung
+              </button>
+              <button
+                class="btn btn-secondary"
+                @click="closeZbonCreateModal"
+              >
+                Abbrechen / Zurück
+              </button>
+            </div>
           </div>
-          <div class="summary-card">
-            <div class="card-label">Neuer Barbestand Soll</div>
-            <div class="card-value">{{ formatEuroValue(dailyStats.cash_calculated) }}</div>
-          </div>
-        </div>
-        <div class="filter-group">
-          <label>Ist</label>
-          <input v-model="zbonCountedCash" type="number" min="0" step="0.01" class="form-input" placeholder="leer bei Aufruf" />
-        </div>
-        <div class="summary-grid">
-          <div class="summary-card">
-            <div class="card-label">Differenz</div>
-            <div class="card-value">{{ zbonDifferenceDisplay }}</div>
-          </div>
-          <div class="summary-card">
-            <div class="card-label">Neuer Kassenbestand</div>
-            <div class="card-value">{{ zbonNewCashBalanceDisplay }}</div>
-          </div>
-        </div>
-        <div class="confirmation-buttons">
-          <button @click="closeZbonCreateModal" class="btn btn-secondary">
-            Abbrechen / Zurück
-          </button>
-          <button @click="openWithdrawalModal" class="btn btn-warning">
-            💸 Abschöpfung während Z-Bon
-          </button>
-          <button @click="requestZBonCreate" class="btn btn-primary" :disabled="!canCreateZbon">
-            ✓ Z-Bon erstellen
-          </button>
         </div>
       </div>
     </div>
 
-    <div v-if="showWithdrawalModal" class="confirmation-overlay">
+    <div
+      v-if="showWithdrawalModal"
+      class="confirmation-overlay"
+    >
       <div class="confirmation-dialog">
         <h3>Abschöpfung</h3>
         <div class="filter-group">
           <label>Betrag in EUR</label>
-          <input v-model="withdrawalForm.amount" type="number" min="0" step="0.01" class="form-input" />
+          <input
+            v-model="withdrawalForm.amount"
+            type="number"
+            min="0"
+            step="0.01"
+            class="form-input"
+          >
         </div>
         <div class="selection-group">
           <label>Durchgeführt von</label>
-          <button @click="openMemberPicker('withdrawalMemberId')" class="member-select-btn">
+          <button
+            class="member-select-btn"
+            @click="openMemberPicker('withdrawalMemberId')"
+          >
             {{ getSelectedMemberName(selectedWithdrawalMemberId, 'Mitglied auswählen') }}
           </button>
         </div>
         <div class="filter-group">
           <label>Notiz (optional)</label>
-          <input v-model="withdrawalForm.note" type="text" class="form-input" placeholder="z. B. Vereinskasse" />
+          <input
+            v-model="withdrawalForm.note"
+            type="text"
+            class="form-input"
+            placeholder="z. B. Vereinskasse"
+          >
         </div>
         <div class="confirmation-buttons">
-          <button @click="closeWithdrawalModal" class="btn btn-secondary">
+          <button
+            class="btn btn-secondary"
+            @click="closeWithdrawalModal"
+          >
             Abbrechen / Zurück
           </button>
-          <button @click="submitWithdrawal" class="btn btn-warning">
+          <button
+            class="btn btn-warning"
+            @click="submitWithdrawal"
+          >
             💸 Abschöpfen
           </button>
         </div>
       </div>
     </div>
 
-    <div v-if="showMemberPickerModal" class="confirmation-overlay member-picker-overlay">
+    <div
+      v-if="showMemberPickerModal"
+      class="confirmation-overlay member-picker-overlay"
+    >
       <div class="confirmation-dialog member-picker-dialog">
-        <h3>Mitglied auswählen</h3>
+        <h3>{{ pickerTitle }}</h3>
         <input
           v-model="memberSearch"
           type="text"
-          placeholder="Nach Name suchen..."
+          :placeholder="pickerSearchPlaceholder"
           class="form-input member-search-input"
-        />
+        >
         <div class="member-picker-list">
           <button
-            v-for="member in filteredPickerMembers"
-            :key="member.id"
-            @click="selectMemberForTarget(member)"
+            v-for="entry in filteredPickerOptions"
+            :key="entry.id"
             class="member-picker-item"
+            @click="selectPickerOption(entry)"
           >
-            <div v-if="member.photo_path" class="member-picker-photo">
-              <img :src="`/api/members/${member.id}/photo`" :alt="formatMemberLabel(member)" />
+            <div
+              v-if="entry.photo_path"
+              class="member-picker-photo"
+            >
+              <img
+                :src="`/api/members/${entry.id}/photo`"
+                :alt="formatPickerLabel(entry)"
+              >
             </div>
-            <div v-else class="member-picker-photo placeholder">👤</div>
-            <span>{{ formatMemberLabel(member) }}</span>
+            <div
+              v-else
+              class="member-picker-photo placeholder"
+            >
+              👤
+            </div>
+            <span>{{ formatPickerLabel(entry) }}</span>
           </button>
-          <div v-if="!filteredPickerMembers.length" class="empty member-picker-empty">
-            Keine Mitglieder gefunden
+          <div
+            v-if="!filteredPickerOptions.length"
+            class="empty member-picker-empty"
+          >
+            Keine Einträge gefunden
           </div>
         </div>
         <div class="confirmation-buttons">
-          <button @click="closeMemberPicker" class="btn btn-secondary">
+          <button
+            class="btn btn-secondary"
+            @click="closeMemberPicker"
+          >
             Abbrechen / Zurück
           </button>
         </div>
       </div>
     </div>
-    <div v-if="showZbonPreviewModal && zBonHtml" class="confirmation-overlay">
-      <div class="confirmation-dialog" style="max-width: 1100px;">
+    <div
+      v-if="showZbonPreviewModal && zBonHtml"
+      class="confirmation-overlay"
+    >
+      <div
+        class="confirmation-dialog"
+        style="max-width: 1100px;"
+      >
         <h3>📋 Z-Bon Vorschau</h3>
         <div class="zbon-preview-frame-shell">
-          <iframe :srcdoc="zBonHtml" class="zbon-preview-frame" title="Z-Bon Vorschau"></iframe>
+          <iframe
+            :srcdoc="zBonHtml"
+            class="zbon-preview-frame"
+            title="Z-Bon Vorschau"
+          />
         </div>
         <div class="confirmation-buttons">
-          <button @click="showZbonPreviewModal = false" class="btn btn-secondary">Abbrechen / Zurück</button>
+          <button
+            class="btn btn-secondary"
+            @click="showZbonPreviewModal = false"
+          >
+            Abbrechen / Zurück
+          </button>
         </div>
       </div>
     </div>
@@ -753,7 +1237,6 @@ const loadingHistory = ref(false)
 // Cash counter modal state
 const showCashCounterModal = ref(false)
 const cashCountData = ref(null)
-const reportType = ref('zbon') // 'zbon' or 'daily-report'
 // Filters
 const filterStartDate = ref(getDateDaysAgo(30))
 const filterEndDate = ref(new Date().toISOString().split('T')[0])
@@ -766,9 +1249,10 @@ const showMemberPickerModal = ref(false)
 const showPasswordModal = ref(false)
 const memberPickerTarget = ref(null)
 const memberSearch = ref('')
+const financeUsers = ref([])
 const zbonForm = ref({
-  employeeMemberId: null,
-  checkerMemberId: null,
+  createdByUserId: null,
+  verifiedByUserId: null,
 })
 const zbonCountedCash = ref('')
 const withdrawalForm = ref({
@@ -796,6 +1280,7 @@ const dailyStats = ref({
   cash_total: 0,
   balance_total: 0,
   voucher_total: 0,
+  prepaid_voucher_sales_total: 0,
   total_amount: 0,
   transaction_count: 0,
   opening_balance: 0,
@@ -818,6 +1303,8 @@ const revenueStats = ref({
   daily_average: 0,
   cash_total: 0,
   balance_total: 0,
+  prepaid_voucher_sales_total: 0,
+  month_prepaid_voucher_sales_total: 0,
   cash_percent: 0,
   balance_percent: 0,
   week_withdrawals: 0,
@@ -847,8 +1334,6 @@ const schedulerStatus = ref({
   running: false,
   scheduled_time: '23:59',
 })
-const schedulerEnabled = ref(false)
-const schedulerTime = ref('23:59')
 function getDateDaysAgo(days) {
   const date = new Date()
   date.setDate(date.getDate() - days)
@@ -887,24 +1372,6 @@ function formatEuroValue(value) {
   }
 
   return `${Number(value).toFixed(2)} €`
-}
-
-function getCashCountTotal(cashCount) {
-  if (!cashCount) return 0
-  if (cashCount.total !== undefined && cashCount.total !== null) {
-    return cashCount.total
-  }
-
-  const coinTotal = Object.entries(cashCount.coins || {}).reduce(
-    (sum, [denomination, count]) => sum + (parseFloat(denomination) * count),
-    0,
-  )
-  const noteTotal = Object.entries(cashCount.notes || {}).reduce(
-    (sum, [denomination, count]) => sum + (parseFloat(denomination) * count),
-    0,
-  )
-
-  return coinTotal + noteTotal
 }
 
 const currentPeriodLabel = computed(() => {
@@ -947,22 +1414,36 @@ const zbonNewCashBalanceDisplay = computed(() => {
 })
 
 const canCreateZbon = computed(() => (
-  !!zbonForm.value.employeeMemberId
-  && !!zbonForm.value.checkerMemberId
+  !!zbonForm.value.createdByUserId
+  && !!zbonForm.value.verifiedByUserId
   && zbonCountedCashValue.value !== null
 ))
 
-const filteredPickerMembers = computed(() => {
+const isUserPickerTarget = computed(() => ['createdByUserId', 'verifiedByUserId'].includes(memberPickerTarget.value))
+
+const filteredPickerOptions = computed(() => {
   const search = memberSearch.value.trim().toLowerCase()
+  const options = isUserPickerTarget.value ? financeUsers.value : memberStore.members
+
   if (!search) {
-    return memberStore.members
+    return options
   }
 
-  return memberStore.members.filter(member => getMemberSearchText(member).includes(search))
+  if (isUserPickerTarget.value) {
+    return options.filter(user => `${user.username} ${user.role || ''}`.toLowerCase().includes(search))
+  }
+
+  return options.filter(member => getMemberSearchText(member).includes(search))
 })
 
 const selectedWithdrawalMemberId = computed(() => withdrawalForm.value.memberId)
 const formatMemberLabel = (member) => getMemberShortName(member)
+const formatUserLabel = (user) => user?.username || ''
+const formatPickerLabel = (entry) => isUserPickerTarget.value ? formatUserLabel(entry) : formatMemberLabel(entry)
+const pickerTitle = computed(() => isUserPickerTarget.value ? 'Benutzer auswählen' : 'Mitglied auswählen')
+const pickerSearchPlaceholder = computed(() => (
+  isUserPickerTarget.value ? 'Nach Benutzername suchen...' : 'Nach Name suchen...'
+))
 
 const getMemberById = (memberId) => {
   if (!memberId) return null
@@ -973,12 +1454,21 @@ const getSelectedMemberName = (memberId, fallback = '-') => {
   return formatMemberLabel(getMemberById(memberId)) || fallback
 }
 
+const getUserById = (userId) => {
+  if (!userId) return null
+  return financeUsers.value.find(user => user.id === userId) || null
+}
+
+const getSelectedUserName = (userId, fallback = '-') => {
+  return formatUserLabel(getUserById(userId)) || fallback
+}
+
 const loadDailyStats = async () => {
   loading.value = true
   try {
     const payload = {
-      created_by_name: getSelectedMemberName(zbonForm.value.employeeMemberId, null),
-      cash_counted_by_name: getSelectedMemberName(zbonForm.value.checkerMemberId, null),
+      created_by_name: getSelectedUserName(zbonForm.value.createdByUserId, null),
+      cash_counted_by_name: getSelectedUserName(zbonForm.value.verifiedByUserId, null),
       cash_count: cashCountData.value
         ? {
           coins: cashCountData.value.coins,
@@ -992,6 +1482,7 @@ const loadDailyStats = async () => {
       cash_total: Math.round((preview.summary?.cash_sales_total || 0) * 100),
       balance_total: Math.round((preview.summary?.balance_sales_total || 0) * 100),
       voucher_total: Math.round((preview.summary?.voucher_sales_total || 0) * 100),
+      prepaid_voucher_sales_total: Math.round((preview.summary?.prepaid_voucher_sales_total || 0) * 100),
       total_amount: Math.round((preview.summary?.gross_sales_total || 0) * 100),
       transaction_count: preview.summary?.transaction_count || 0,
       opening_balance: preview.summary?.opening_cash_balance || 0,
@@ -1012,6 +1503,7 @@ const loadDailyStats = async () => {
       cash_total: 0,
       balance_total: 0,
       voucher_total: 0,
+      prepaid_voucher_sales_total: 0,
       total_amount: 0,
       transaction_count: 0,
       opening_balance: 0,
@@ -1089,6 +1581,10 @@ const getPaymentBadgeLabel = (transaction) => {
     return '🎫 Guthabenkarte'
   }
 
+  if (transaction.type === 'VOUCHER_SALE' && transaction.voucher_type === 'PREPAID') {
+    return '💳 Guthabenkarte Verkauf'
+  }
+
   if (transaction.balance_applied_cents > 0 && transaction.payment_method === 'CASH') {
     return '💳 Guthaben + 💰 BAR'
   }
@@ -1134,11 +1630,25 @@ const onCashCounterConfirm = (data) => {
   loadDailyStats()
 }
 
+const loadFinanceUsers = async () => {
+  const response = await apiService.get('/users/finance-options')
+  financeUsers.value = response.data
+}
+
 const openMemberPicker = async (target) => {
   memberPickerTarget.value = target
   memberSearch.value = ''
   if (!memberStore.members.length) {
     await memberStore.getMembers()
+  }
+  showMemberPickerModal.value = true
+}
+
+const openUserPicker = async (target) => {
+  memberPickerTarget.value = target
+  memberSearch.value = ''
+  if (!financeUsers.value.length) {
+    await loadFinanceUsers()
   }
   showMemberPickerModal.value = true
 }
@@ -1149,13 +1659,13 @@ const closeMemberPicker = () => {
   memberSearch.value = ''
 }
 
-const selectMemberForTarget = (member) => {
-  if (memberPickerTarget.value === 'employeeMemberId') {
-    zbonForm.value.employeeMemberId = member.id
-  } else if (memberPickerTarget.value === 'checkerMemberId') {
-    zbonForm.value.checkerMemberId = member.id
+const selectPickerOption = (entry) => {
+  if (memberPickerTarget.value === 'createdByUserId') {
+    zbonForm.value.createdByUserId = entry.id
+  } else if (memberPickerTarget.value === 'verifiedByUserId') {
+    zbonForm.value.verifiedByUserId = entry.id
   } else if (memberPickerTarget.value === 'withdrawalMemberId') {
-    withdrawalForm.value.memberId = member.id
+    withdrawalForm.value.memberId = entry.id
   }
 
   closeMemberPicker()
@@ -1183,8 +1693,8 @@ const handleDownloadZBon = async () => {
 }
 
 const openZbonCreateModal = async () => {
-  if (!memberStore.members.length) {
-    await memberStore.getMembers()
+  if (!financeUsers.value.length) {
+    await loadFinanceUsers()
   }
   zbonCountedCash.value = ''
   showZbonCreateModal.value = true
@@ -1265,8 +1775,8 @@ const requestZBonCreate = () => {
 
 const createZBon = async (password) => {
   showPasswordModal.value = false
-  const employeeName = getSelectedMemberName(zbonForm.value.employeeMemberId, '')
-  const checkerName = getSelectedMemberName(zbonForm.value.checkerMemberId, '')
+  const employeeName = getSelectedUserName(zbonForm.value.createdByUserId, '')
+  const checkerName = getSelectedUserName(zbonForm.value.verifiedByUserId, '')
 
   if (!employeeName) {
     notificationStore.error('Bitte einen Mitarbeiter auswählen')
@@ -1293,6 +1803,10 @@ const createZBon = async (password) => {
     })
     notificationStore.success('Z-Bon erfolgreich erstellt')
     closeZbonCreateModal()
+    zbonForm.value = {
+      createdByUserId: null,
+      verifiedByUserId: null,
+    }
     cashCountData.value = null
     zbonCountedCash.value = ''
     await loadDailyStats()
@@ -1440,6 +1954,7 @@ watch([zbonsFilterStartDate, zbonsFilterEndDate, zbonsCurrentPage], () => {
 onMounted(() => {
   console.log('Finance component mounted, loading data...')
   memberStore.getMembers()
+  loadFinanceUsers()
   loadDailyStats()
   applyFilters()
   loadRevenueStats()
@@ -1942,10 +2457,43 @@ onMounted(() => {
   }
 }
 
+.zbon-create-dialog {
+  max-width: min(92vw, 1080px);
+  width: min(92vw, 1080px);
+  text-align: left;
+}
+
+.zbon-create-layout {
+  display: grid;
+  grid-template-columns: minmax(0, 2fr) minmax(280px, 1fr);
+  gap: 1.25rem;
+  align-items: start;
+}
+
+.selection-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 1rem;
+}
+
+.compact-summary-grid {
+  margin-bottom: 0;
+}
+
+.zbon-side-summary {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  margin-bottom: 1rem;
+}
+
 .confirmation-buttons {
   display: flex;
   gap: 1rem;
   justify-content: center;
+}
+
+.zbon-create-buttons {
+  flex-direction: column;
+  align-items: stretch;
 }
 
 .selection-group {
@@ -2047,6 +2595,17 @@ onMounted(() => {
   margin: 0;
   padding: 1rem 0;
 }
+
+@media (max-width: 900px) {
+  .zbon-create-layout {
+    grid-template-columns: 1fr;
+  }
+
+  .zbon-side-summary {
+    grid-template-columns: 1fr;
+  }
+}
+
 .transaction-row {
   &:hover {
     background: #f0f0f0;
