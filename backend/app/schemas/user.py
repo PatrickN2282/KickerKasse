@@ -6,7 +6,7 @@ from typing import Optional
 class UserBase(BaseModel):
     username: str = Field(..., min_length=3, max_length=50)
     email: Optional[str] = Field(default=None, max_length=120)
-    role: str = Field(default="CASHIER")
+    role: str = Field(default="VERKAUF")
 
     @field_validator("email", mode="before")
     @classmethod

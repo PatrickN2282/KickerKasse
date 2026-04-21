@@ -7,7 +7,7 @@ import bcrypt
 
 
 def init_default_users(db: Session) -> None:
-    """Create admin and defaultcashier user if they don't exist"""
+    """Create default users if they don't exist"""
     
     # Check if any users exist
     existing_users = db.query(User).count()
@@ -31,7 +31,7 @@ def init_default_users(db: Session) -> None:
         updated_at=datetime.now(),
     )
     
-    # Create cashier user "Kasse1"
+    # Create sales user "Kasse1"
     cashier_password_hash = bcrypt.hashpw(
         "Kasse1123".encode(), bcrypt.gensalt(12)
     ).decode()
@@ -40,7 +40,7 @@ def init_default_users(db: Session) -> None:
         username="Kasse1",
         email="kasse1@kassensoftware.local",
         password_hash=cashier_password_hash,
-        role=UserRole.CASHIER,
+        role=UserRole.VERKAUF,
         is_active=True,
         created_at=datetime.now(),
         updated_at=datetime.now(),

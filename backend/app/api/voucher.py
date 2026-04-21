@@ -64,7 +64,7 @@ async def create_gift_voucher(
     db: Session = Depends(get_db),
 ):
     """Create a gift voucher (no payment, loss recording on redemption)"""
-    current_user = require_roles(request, db, UserRole.ADMIN, UserRole.KASSENMITGLIED)
+    current_user = require_roles(request, db, UserRole.ADMIN, UserRole.MANAGER)
     user_id = current_user.id
     require_password_confirmation(current_user, voucher_data.auth_password)
     
@@ -85,6 +85,11 @@ async def create_gift_voucher(
             f"(value: {voucher.value_cents} cents) by user {user_id}"
         )
         return response
+    except ValueError as e:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=str(e),
+        )
     except Exception as e:
         logger.error(f"[ADMIN] Error creating GIFT voucher: {str(e)}", exc_info=True)
         raise HTTPException(
@@ -109,7 +114,7 @@ async def create_prepaid_voucher(
     db: Session = Depends(get_db),
 ):
     """Create a prepaid voucher (purchased now, redeemed later)"""
-    current_user = require_roles(request, db, UserRole.ADMIN, UserRole.KASSENMITGLIED)
+    current_user = require_roles(request, db, UserRole.ADMIN, UserRole.MANAGER)
     user_id = current_user.id
     require_password_confirmation(current_user, voucher_data.auth_password)
     

@@ -2,7 +2,7 @@ from sqlalchemy import func
 from sqlalchemy.orm import Session
 from sqlalchemy.exc import IntegrityError
 from app.models import Member
-from app.models.user import UserRole
+from app.models.user import UserRole, parse_user_role
 
 MAX_MEMBER_NUMBER_RETRIES = 3
 
@@ -33,11 +33,7 @@ class MemberRepository:
 
     @staticmethod
     def _normalize_role(role: str | UserRole | None) -> UserRole | None:
-        if role in (None, ""):
-            return None
-        if isinstance(role, UserRole):
-            return role
-        return UserRole[role.upper()]
+        return parse_user_role(role)
 
     @staticmethod
     def _is_member_number_conflict(error: IntegrityError) -> bool:

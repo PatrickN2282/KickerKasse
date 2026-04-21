@@ -1,4 +1,5 @@
 """Service for Voucher operations"""
+from sqlalchemy import func
 from sqlalchemy.orm import Session
 from datetime import date
 from typing import Optional
@@ -16,6 +17,13 @@ class VoucherService:
     def __init__(self, db: Session):
         self.db = db
         self.repository = VoucherRepository(db)
+
+    def _get_club_account_balance_cents(self) -> int:
+        return (
+            self.db.query(func.coalesce(func.sum(ClubAccountEntry.amount_cents), 0))
+            .scalar()
+            or 0
+        )
 
     def create_gift_voucher(self, value_cents: int, reason: str, created_by_user_id: int, description: str = None) -> Voucher:
         """
@@ -35,6 +43,14 @@ class VoucherService:
             reason_enum = VoucherReason(reason)
         except ValueError:
             raise ValueError(f"Invalid reason: {reason}")
+
+        club_account_balance_cents = self._get_club_account_balance_cents()
+        if club_account_balance_cents < value_cents:
+            raise ValueError(
+                "Nicht genügend Guthaben im Vereinskonto. "
+                f"Verfügbar: {club_account_balance_cents / 100:.2f}€, "
+                f"benötigt: {value_cents / 100:.2f}€"
+            )
 
         voucher = self.repository.create(
             voucher_type=VoucherType.GIFT,
@@ -392,4 +408,5 @@ class VoucherService:
         return {
             "entry_id": entry.id,
             "transaction_id": transaction.id,
+            "balance_cents": self._get_club_account_balance_cents(),
         }

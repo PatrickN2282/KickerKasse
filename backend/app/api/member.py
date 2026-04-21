@@ -27,7 +27,7 @@ async def create_member(
     db: Session = Depends(get_db),
 ):
     """Create a new member"""
-    current_user = require_roles(request, db, UserRole.ADMIN, UserRole.KASSENMITGLIED)
+    current_user = require_roles(request, db, UserRole.ADMIN, UserRole.MANAGER)
     if member_data.role and current_user.role != UserRole.ADMIN:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
@@ -187,7 +187,7 @@ async def update_member(
     db: Session = Depends(get_db),
 ):
     """Update member"""
-    current_user = require_roles(request, db, UserRole.ADMIN, UserRole.KASSENMITGLIED)
+    current_user = require_roles(request, db, UserRole.ADMIN, UserRole.MANAGER)
     if member_data.role is not None and current_user.role != UserRole.ADMIN:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
@@ -227,7 +227,7 @@ async def recharge_member_balance(
     db: Session = Depends(get_db),
 ):
     """Recharge member balance"""
-    current_user = require_roles(request, db, UserRole.ADMIN, UserRole.KASSENMITGLIED)
+    current_user = require_roles(request, db, UserRole.ADMIN, UserRole.MANAGER)
     user_id = current_user.id
     require_password_confirmation(current_user, recharge_request.auth_password)
     
@@ -322,7 +322,7 @@ async def upload_member_photo(
     db: Session = Depends(get_db),
 ):
     """Upload member photo"""
-    require_roles(request, db, UserRole.ADMIN, UserRole.KASSENMITGLIED)
+    require_roles(request, db, UserRole.ADMIN, UserRole.MANAGER)
     
     # Check if member exists
     member_repo = MemberRepository(db)
