@@ -168,13 +168,10 @@ class ZBonService:
         prepaid_voucher_sales_total = sum(self._calculate_prepaid_item_total_cents(t) for t in sales) / 100
         total_revenue = gross_sales_total + prepaid_voucher_sales_total
         cash_sales_total = sum(
-            max(t.total_amount_cents - self._calculate_prepaid_item_total_cents(t), 0)
+            t.total_amount_cents
             for t in sales if t.payment_method == PaymentMethod.CASH
         ) / 100
-        cash_sales_count = len([
-            t for t in sales
-            if t.payment_method == PaymentMethod.CASH and self._calculate_non_prepaid_sale_gross_cents(t) > 0
-        ])
+        cash_sales_count = len([t for t in sales if t.payment_method == PaymentMethod.CASH])
         balance_sales_total = sum(
             (t.balance_applied_cents or 0)
             + (t.total_amount_cents if t.payment_method == PaymentMethod.BALANCE else 0)
@@ -193,7 +190,6 @@ class ZBonService:
             opening_balance
             + cash_sales_total
             + recharge_total
-            + prepaid_voucher_sales_total
             - cash_summary["withdrawals_total"]
         )
 

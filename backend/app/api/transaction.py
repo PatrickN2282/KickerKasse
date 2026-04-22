@@ -277,12 +277,29 @@ async def create_sale(
         f"gross={total_amount}, payable={payable_amount_cents}, voucher={voucher_applied_cents}, balance={balance_applied_cents}"
     )
     
-    transaction.issued_prepaid_voucher_numbers = [
-        voucher_service.format_voucher_identifier(voucher)
-        for voucher in issued_prepaid_vouchers
-    ]
-    transaction.next_unissued_prepaid_voucher_number = next_unissued_prepaid_voucher_number
-    return transaction
+    return {
+        "id": transaction.id,
+        "receipt_number": transaction.receipt_number,
+        "type": transaction.type.value,
+        "payment_method": transaction.payment_method.value,
+        "total_amount_cents": transaction.total_amount_cents,
+        "user_id": transaction.user_id,
+        "member_id": transaction.member_id,
+        "voucher_code": transaction.voucher_code,
+        "voucher_type": transaction.voucher_type,
+        "voucher_applied_cents": transaction.voucher_applied_cents or 0,
+        "balance_applied_cents": transaction.balance_applied_cents or 0,
+        "items": transaction.items,
+        "issued_prepaid_voucher_numbers": [
+            code
+            for voucher in issued_prepaid_vouchers
+            for code in [voucher_service.format_voucher_identifier(voucher)]
+            if code
+        ],
+        "next_unissued_prepaid_voucher_number": next_unissued_prepaid_voucher_number,
+        "created_at": transaction.created_at,
+        "updated_at": transaction.updated_at,
+    }
 
 
 @router.post("/storno", response_model=TransactionResponse, status_code=status.HTTP_201_CREATED)

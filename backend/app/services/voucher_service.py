@@ -232,10 +232,7 @@ class VoucherService:
         if cart_context["covers_cart_total"]:
             remainder = cart_context["remaining_value_cents"]
             if remainder > 0:
-                return (
-                    "Voucher deckt den Warenkorb ab. "
-                    f"Restwert von {remainder / 100:.2f}€ bleibt erhalten."
-                )
+                return f"Voucher deckt den Warenkorb ab. Restwert von {remainder / 100:.2f}€ bleibt erhalten."
             return "Voucher deckt den Warenkorb vollständig ab."
 
         return f"Voucher reduziert den Warenkorb um {cart_context['applicable_amount_cents'] / 100:.2f}€."
