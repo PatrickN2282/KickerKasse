@@ -260,11 +260,7 @@ async def create_sale(
             sold_prepaid_quantities_by_value,
             user_id,
         )
-        next_unissued_prepaid_voucher_number = (
-            voucher_service._format_voucher_identifier(next_unissued_prepaid)
-            if next_unissued_prepaid
-            else None
-        )
+        next_unissued_prepaid_voucher_number = voucher_service.format_voucher_identifier(next_unissued_prepaid)
     except ValueError as exc:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
@@ -282,7 +278,7 @@ async def create_sale(
     )
     
     transaction.issued_prepaid_voucher_numbers = [
-        voucher_service._format_voucher_identifier(voucher)
+        voucher_service.format_voucher_identifier(voucher)
         for voucher in issued_prepaid_vouchers
     ]
     transaction.next_unissued_prepaid_voucher_number = next_unissued_prepaid_voucher_number

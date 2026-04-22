@@ -186,7 +186,12 @@ class VoucherService:
         next_voucher = self.repository.get_next_unsold_prepaid()
         if not next_voucher:
             return None
-        return self._format_voucher_identifier(next_voucher)
+        return self.format_voucher_identifier(next_voucher)
+
+    def format_voucher_identifier(self, voucher: Voucher | None) -> str | None:
+        if not voucher:
+            return None
+        return self._format_voucher_identifier(voucher)
 
     def _format_voucher_identifier(self, voucher: Voucher) -> str:
         if voucher.voucher_code:

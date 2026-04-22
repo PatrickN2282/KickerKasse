@@ -721,6 +721,11 @@ const confirmPayment = async () => {
   const transaction = await handlePaymentAndCheckout(pendingPaymentMethod.value)
   processingPayment.value = false
 
+  if (transaction?.appliedBalanceOnly) {
+    closePaymentConfirmation()
+    return
+  }
+
   if (transaction) {
     if (transaction.issued_prepaid_voucher_numbers?.length) {
       paymentResult.value = transaction
@@ -740,7 +745,7 @@ const handlePaymentAndCheckout = async (method) => {
     notificationStore.success('Mitgliedsguthaben wurde als Rabatt auf den Warenkorb angerechnet')
     pendingPaymentMethod.value = null
     showPaymentConfirmModal.value = false
-    return { id: null }
+    return { appliedBalanceOnly: true }
   }
 
   cartStore.paymentMethod = method
