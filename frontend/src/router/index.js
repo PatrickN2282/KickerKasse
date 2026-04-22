@@ -30,7 +30,7 @@ const routes = [
         path: 'products',
         name: 'AdminProducts',
         component: () => import('@/views/admin/Products.vue'),
-        meta: { requiresAuth: true, allowedRoles: ['TOP_ADMIN', 'ADMIN'] },
+        meta: { requiresAuth: true, allowedRoles: ['TOP_ADMIN', 'ADMIN', 'MANAGER'] },
       },
       {
         path: 'categories',
@@ -48,7 +48,7 @@ const routes = [
         path: 'vouchers',
         name: 'AdminVouchers',
         component: () => import('@/views/admin/Vouchers.vue'),
-        meta: { requiresAuth: true, allowedRoles: ['TOP_ADMIN', 'ADMIN'] },
+        meta: { requiresAuth: true, allowedRoles: ['TOP_ADMIN', 'ADMIN', 'MANAGER'] },
       },
       {
         path: 'finance',

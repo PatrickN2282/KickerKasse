@@ -1,11 +1,13 @@
 """Database initialization - creates default data on startup"""
 from sqlalchemy.orm import Session
 from app.models import Category
+from app.services.user_service import UserService
 
 
 def init_default_users(db: Session) -> None:
-    """Initialize non-user default data only."""
+    """Initialize default data and hidden system users."""
     init_default_categories(db)
+    UserService(db).ensure_kasse_user()
 
 
 def init_default_categories(db: Session) -> None:

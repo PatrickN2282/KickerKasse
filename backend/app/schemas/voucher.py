@@ -6,7 +6,7 @@ from typing import Optional, Literal
 class VoucherCreateGift(BaseModel):
     """Create a gift voucher"""
     value_cents: int = Field(..., ge=1, description="Value in cents")
-    reason: Literal["DYP_SIEGER", "PROMOTION"] = "PROMOTION"
+    reason: Literal["DYP_SIEGER", "PROMOTION"] = "DYP_SIEGER"
     auth_username: Optional[str] = Field(default=None, min_length=1, max_length=50)
     auth_password: str = Field(..., min_length=1)
 
@@ -14,6 +14,7 @@ class VoucherCreateGift(BaseModel):
 class VoucherCreatePrepaid(BaseModel):
     """Create a prepaid voucher"""
     value_cents: int = Field(..., ge=1, description="Value in cents")
+    quantity: int = Field(default=1, ge=1, le=500)
     auth_username: Optional[str] = Field(default=None, min_length=1, max_length=50)
     auth_password: str = Field(..., min_length=1)
 
@@ -60,6 +61,9 @@ class VoucherResponse(BaseModel):
     created_by_user_id: int
     created_by_username: Optional[str] = None
     created_at: datetime
+    sold_by_user_id: Optional[int] = None
+    sold_at: Optional[datetime] = None
+    sold_in_transaction_id: Optional[int] = None
     redeemed_by_user_id: Optional[int] = None
     redeemed_at: Optional[datetime] = None
     redeemed_amount_cents: Optional[int] = None
@@ -94,6 +98,14 @@ class VoucherListResponse(BaseModel):
     page: int
     page_size: int
     total_pages: int
+
+
+class VoucherBatchCreateResponse(BaseModel):
+    """Batch response for created prepaid vouchers."""
+    vouchers: list[VoucherResponse]
+    quantity: int
+    product_name: str
+    next_available_voucher_number: Optional[str] = None
 
 
 class VoucherRedeemResponse(BaseModel):

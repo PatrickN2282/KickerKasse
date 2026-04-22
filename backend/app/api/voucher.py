@@ -6,6 +6,7 @@ from pydantic import BaseModel, Field
 from app.core import get_db
 from app.core.auth import require_roles, resolve_confirmation_user
 from app.schemas import (
+    VoucherBatchCreateResponse,
     VoucherCreateGift,
     VoucherCreatePrepaid,
     VoucherValidateRequest,
@@ -106,12 +107,12 @@ async def create_gift_voucher(
 
 @admin_router.post(
     "/prepaid",
-    response_model=VoucherResponse,
+    response_model=VoucherBatchCreateResponse,
     status_code=status.HTTP_201_CREATED,
 )
 @admin_router.post(
     "/prepaid/",
-    response_model=VoucherResponse,
+    response_model=VoucherBatchCreateResponse,
     status_code=status.HTTP_201_CREATED,
 )
 async def create_prepaid_voucher(
@@ -119,10 +120,9 @@ async def create_prepaid_voucher(
     request: Request,
     db: Session = Depends(get_db),
 ):
-    """Create a prepaid voucher (purchased now, redeemed later)"""
-    current_user = require_roles(request, db, UserRole.ADMIN, UserRole.MANAGER)
-    user_id = current_user.id
-    resolve_confirmation_user(
+    """Create one or more prepaid vouchers (sold later in the register)."""
+    current_user = require_roles(request, db, UserRole.ADMIN)
+    confirmation_user = resolve_confirmation_user(
         db,
         current_user,
         voucher_data.auth_password,
@@ -132,20 +132,26 @@ async def create_prepaid_voucher(
     
     try:
         service = VoucherService(db)
-        voucher = service.create_prepaid_voucher(
+        vouchers, product = service.create_prepaid_vouchers(
             value_cents=voucher_data.value_cents,
-            created_by_user_id=user_id,
+            created_by_user_id=confirmation_user.id,
+            quantity=voucher_data.quantity,
         )
-        logger.debug(f"[DEBUG] Voucher object after create: id={voucher.id}, voucher_code={voucher.voucher_code}")
-        
-        response = VoucherResponse.from_orm(voucher)
-        
-        logger.debug(f"[DEBUG] Response object: voucher_code={response.voucher_code}")
         logger.info(
-            f"[ADMIN] Created PREPAID voucher {voucher.voucher_code} "
-            f"(value: {voucher.value_cents} cents) by user {user_id}"
+            f"[ADMIN] Created {len(vouchers)} PREPAID vouchers "
+            f"(value: {voucher_data.value_cents} cents) by user {confirmation_user.id}"
         )
-        return response
+        return VoucherBatchCreateResponse(
+            vouchers=[VoucherResponse.from_orm(voucher) for voucher in vouchers],
+            quantity=len(vouchers),
+            product_name=product.name,
+            next_available_voucher_number=service.get_next_unissued_prepaid_voucher_number(),
+        )
+    except ValueError as e:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=str(e),
+        )
     except Exception as e:
         logger.error(f"[ADMIN] Error creating PREPAID voucher: {str(e)}", exc_info=True)
         raise HTTPException(
@@ -296,7 +302,7 @@ async def update_voucher(
     db: Session = Depends(get_db),
 ):
     """Update editable voucher fields before redemption."""
-    user_id = get_user_id(request)
+    user_id = require_roles(request, db, UserRole.ADMIN).id
 
     try:
         service = VoucherService(db)

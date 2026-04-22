@@ -168,6 +168,34 @@ class VoucherRepository:
             .all()
         )
 
+    def get_unsold_prepaid_by_value(self, value_cents: int, quantity: int = 1) -> list[Voucher]:
+        """Get oldest unsold prepaid vouchers for the given value."""
+        return (
+            self.db.query(Voucher)
+            .options(joinedload(Voucher.created_by_user))
+            .filter(
+                Voucher.voucher_type == VoucherType.PREPAID,
+                Voucher.value_cents == value_cents,
+                Voucher.sold_at.is_(None),
+            )
+            .order_by(Voucher.voucher_number.asc())
+            .limit(quantity)
+            .all()
+        )
+
+    def get_next_unsold_prepaid(self) -> Voucher | None:
+        """Get the next unsold prepaid voucher across all values."""
+        return (
+            self.db.query(Voucher)
+            .options(joinedload(Voucher.created_by_user))
+            .filter(
+                Voucher.voucher_type == VoucherType.PREPAID,
+                Voucher.sold_at.is_(None),
+            )
+            .order_by(Voucher.voucher_number.asc())
+            .first()
+        )
+
     def apply_redemption(
         self,
         voucher_id: int,

@@ -436,7 +436,7 @@ ZBON_HTML_TEMPLATE = """
                     <td class="amount"><strong>{{ recharge_total }}</strong></td>
                 </tr>
                 <tr>
-                    <td>Guthabenkarten verkauft</td>
+                    <td>Verzehrkarten verkauft</td>
                     <td class="amount">{{ prepaid_voucher_sales_count|default(0) }}</td>
                     <td class="amount"><strong>{{ prepaid_voucher_sales_total|default("0.00") }}</strong></td>
                 </tr>
@@ -503,7 +503,7 @@ ZBON_HTML_TEMPLATE = """
                     <td class="amount">{{ recharge_total }}</td>
                 </tr>
                 <tr>
-                    <td>Einnahmen aus Guthabenkarten</td>
+                    <td>Einnahmen aus Verzehrkarten</td>
                     <td class="amount">{{ prepaid_voucher_sales_total|default("0.00") }}</td>
                 </tr>
                 <tr>

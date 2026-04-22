@@ -127,14 +127,7 @@ const formData = reactive({
 
 const roleLabel = getRoleLabel
 
-const templateUsers = computed(() => [
-  { id: 'template-admin', username: 'Admin', email: '-', role: 'ADMIN', entryType: 'Vorlage', deletable: false },
-  { id: 'template-verkauf', username: 'Verkauf', email: '-', role: 'VERKAUF', entryType: 'Vorlage', deletable: false },
-  { id: 'template-manager', username: 'Manager', email: '-', role: 'MANAGER', entryType: 'Vorlage', deletable: false },
-])
-
 const displayedUsers = computed(() => [
-  ...templateUsers.value,
   ...users.value.map(user => ({
     ...user,
     entryType: 'Benutzer',

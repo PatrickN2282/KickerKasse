@@ -4,7 +4,6 @@ import apiService from '@/services/api'
 
 export const useAuthStore = defineStore('auth', () => {
   const user = ref(null)
-  const token = ref(localStorage.getItem('token') || null)
   const isLoading = ref(false)
   const error = ref(null)
   const setupRequired = ref(false)
@@ -15,9 +14,18 @@ export const useAuthStore = defineStore('auth', () => {
   const isTopAdmin = computed(() => role.value === 'TOP_ADMIN')
   const isAdmin = computed(() => ['TOP_ADMIN', 'ADMIN'].includes(role.value))
   const isManager = computed(() => role.value === 'MANAGER')
+  const isKasseUser = computed(() => user.value?.username === 'Kasse')
   const canAccessAdminPanel = computed(() => ['TOP_ADMIN', 'ADMIN', 'MANAGER'].includes(role.value))
 
   const hasRole = (...roles) => roles.includes(role.value)
+
+  const setUser = (payload) => {
+    user.value = payload
+  }
+
+  const clearClientSession = () => {
+    user.value = null
+  }
 
   const login = async (username, password) => {
     isLoading.value = true
@@ -29,11 +37,26 @@ export const useAuthStore = defineStore('auth', () => {
         password,
       })
 
-      user.value = response.data
-      localStorage.setItem('token', response.data.id)
+      setUser(response.data)
       return true
     } catch (err) {
       error.value = err.response?.data?.detail || 'Login failed'
+      return false
+    } finally {
+      isLoading.value = false
+    }
+  }
+
+  const loginAsKasse = async () => {
+    isLoading.value = true
+    error.value = null
+
+    try {
+      const response = await apiService.post('/auth/login-kasse')
+      setUser(response.data)
+      return true
+    } catch (err) {
+      error.value = err.response?.data?.detail || 'Kasse-Anmeldung fehlgeschlagen'
       return false
     } finally {
       isLoading.value = false
@@ -46,19 +69,17 @@ export const useAuthStore = defineStore('auth', () => {
     } catch (err) {
       console.error('Logout error:', err)
     } finally {
-      user.value = null
-      localStorage.removeItem('token')
+      clearClientSession()
     }
   }
 
   const checkAuth = async () => {
     try {
       const response = await apiService.get('/auth/me')
-      user.value = response.data
+      setUser(response.data)
       return true
     } catch {
-      user.value = null
-      localStorage.removeItem('token')
+      clearClientSession()
       return false
     }
   }
@@ -87,8 +108,7 @@ export const useAuthStore = defineStore('auth', () => {
         email: email?.trim() || null,
       })
 
-      user.value = response.data
-      localStorage.setItem('token', response.data.id)
+      setUser(response.data)
       setupRequired.value = false
       topAdminExists.value = true
       return true
@@ -102,7 +122,6 @@ export const useAuthStore = defineStore('auth', () => {
 
   return {
     user,
-    token,
     isLoading,
     error,
     setupRequired,
@@ -112,9 +131,13 @@ export const useAuthStore = defineStore('auth', () => {
     isTopAdmin,
     isAdmin,
     isManager,
+    isKasseUser,
     canAccessAdminPanel,
     hasRole,
+    setUser,
+    clearClientSession,
     login,
+    loginAsKasse,
     logout,
     checkAuth,
     fetchSetupStatus,

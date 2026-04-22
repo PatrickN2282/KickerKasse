@@ -3,7 +3,7 @@ from fastapi.responses import HTMLResponse, FileResponse, Response
 from sqlalchemy.orm import Session
 from datetime import date, datetime
 from sqlalchemy import func, desc
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 from typing import Optional
 import logging
 
@@ -17,10 +17,10 @@ from app.schemas import (
     ZBonHistoryResponse,
     ZBonHistoryListResponse,
 )
-from app.services import TransactionService, ProductService, ZBonService, EmailService, VoucherService
+from app.services import TransactionService, ZBonService, EmailService, VoucherService
 from app.services.zbon_html_exporter import ZBonHTMLExporter
 from app.repositories import MemberRepository, ProductRepository
-from app.models import PaymentMethod, Transaction, ZBonHistory, UserRole
+from app.models import CashEntry, CashEntryType, PaymentMethod, Transaction, ZBonHistory, UserRole
 
 from app.services import SchedulerService
 
@@ -53,6 +53,7 @@ class ZBonCreateRequest(BaseModel):
     cash_counted_by_name: Optional[str] = None
     cash_count: Optional[CashCountRequest] = None
     cash_count_total: Optional[float] = None
+    pending_withdrawals: list["PendingWithdrawalRequest"] = Field(default_factory=list)
     auth_password: str
 
 
@@ -62,6 +63,12 @@ class ZBonPreviewRequest(BaseModel):
     cash_counted_by_name: Optional[str] = None
     cash_count: Optional[CashCountRequest] = None
     cash_count_total: Optional[float] = None
+    pending_withdrawals: list["PendingWithdrawalRequest"] = Field(default_factory=list)
+
+
+class PendingWithdrawalRequest(BaseModel):
+    amount_cents: int
+    reason: str
 
 
 def _require_finance_access(request: Request, db: Session):
@@ -115,6 +122,8 @@ async def create_sale(
     
     # Validate items exist and have stock
     product_repo = ProductRepository(db)
+    sold_prepaid_quantities_by_value: dict[int, int] = {}
+    voucher_service = VoucherService(db)
     for item in transaction_data.items:
         product = product_repo.get_by_id(item.product_id)
         if not product:
@@ -127,12 +136,24 @@ async def create_sale(
                 status_code=status.HTTP_400_BAD_REQUEST,
                 detail=f"Unzureichender Bestand für Produkt {product.name}",
             )
+        prepaid_value_cents = voucher_service.get_prepaid_value_from_product(product)
+        if prepaid_value_cents is not None:
+            sold_prepaid_quantities_by_value[prepaid_value_cents] = (
+                sold_prepaid_quantities_by_value.get(prepaid_value_cents, 0) + item.quantity
+            )
+
+    if sold_prepaid_quantities_by_value:
+        try:
+            voucher_service.ensure_prepaid_stock(sold_prepaid_quantities_by_value)
+        except ValueError as exc:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail=str(exc),
+            ) from exc
     
     total_amount = sum(item.unit_price_cents * item.quantity for item in transaction_data.items)
     vouchers = []
     voucher_applied_cents = 0
-    voucher_service = VoucherService(db)
-
     for voucher_redemption in transaction_data.voucher_redemptions:
         try:
             voucher = voucher_service.get_redeemable_voucher(voucher_redemption.voucher_number)
@@ -231,6 +252,25 @@ async def create_sale(
             commit=False,
         )
 
+    issued_prepaid_vouchers = []
+    next_unissued_prepaid_voucher_number = None
+    try:
+        issued_prepaid_vouchers, next_unissued_prepaid = voucher_service.issue_prepaid_vouchers_for_sale(
+            transaction,
+            sold_prepaid_quantities_by_value,
+            user_id,
+        )
+        next_unissued_prepaid_voucher_number = (
+            voucher_service._format_voucher_identifier(next_unissued_prepaid)
+            if next_unissued_prepaid
+            else None
+        )
+    except ValueError as exc:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=str(exc),
+        ) from exc
+
     # Final commit to ensure everything is persisted
     db.commit()
     db.refresh(transaction)
@@ -241,6 +281,11 @@ async def create_sale(
         f"gross={total_amount}, payable={payable_amount_cents}, voucher={voucher_applied_cents}, balance={balance_applied_cents}"
     )
     
+    transaction.issued_prepaid_voucher_numbers = [
+        voucher_service._format_voucher_identifier(voucher)
+        for voucher in issued_prepaid_vouchers
+    ]
+    transaction.next_unissued_prepaid_voucher_number = next_unissued_prepaid_voucher_number
     return transaction
 
 
@@ -498,6 +543,15 @@ async def preview_current_zbon(
             "notes": zbon_req.cash_count.notes or {},
         }
 
+    pending_withdrawals = [
+        {
+            "amount_cents": withdrawal.amount_cents,
+            "reason": withdrawal.reason,
+        }
+        for withdrawal in zbon_req.pending_withdrawals
+        if withdrawal.amount_cents > 0
+    ]
+
     service = ZBonService(db)
     return service.build_current_zbon_preview(
         created_by_name=zbon_req.created_by_name,
@@ -505,6 +559,7 @@ async def preview_current_zbon(
         cash_counted_by_name=zbon_req.cash_counted_by_name,
         include_cash_count=cash_count,
         cash_count_total=zbon_req.cash_count_total,
+        pending_withdrawals=pending_withdrawals,
     )
 
 
@@ -526,14 +581,38 @@ async def create_zbon(
             "notes": zbon_req.cash_count.notes or {},
         }
 
+    pending_withdrawals = [
+        {
+            "amount_cents": withdrawal.amount_cents,
+            "reason": withdrawal.reason,
+        }
+        for withdrawal in zbon_req.pending_withdrawals
+        if withdrawal.amount_cents > 0
+    ]
+
     service = ZBonService(db)
-    return service.create_zbon(
+    payload = service.create_zbon(
         created_by_name=zbon_req.created_by_name,
         skimmed_by_name=zbon_req.skimmed_by_name,
         cash_counted_by_name=zbon_req.cash_counted_by_name,
         include_cash_count=cash_count,
         cash_count_total=zbon_req.cash_count_total,
+        pending_withdrawals=pending_withdrawals,
     )
+
+    if pending_withdrawals:
+        period_end = datetime.fromisoformat(payload["period_end"])
+        for withdrawal in pending_withdrawals:
+            db.add(CashEntry(
+                entry_type=CashEntryType.WITHDRAWAL,
+                amount_cents=withdrawal["amount_cents"],
+                reason=withdrawal["reason"],
+                user_id=current_user.id,
+                created_at=period_end,
+            ))
+        db.commit()
+
+    return payload
 
 
 @router.post("/zbon/send-email")

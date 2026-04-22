@@ -549,6 +549,18 @@ class DatabaseMigrator:
                         'remaining_value_cents',
                         "ALTER TABLE vouchers ADD COLUMN remaining_value_cents INTEGER DEFAULT 0 NOT NULL"
                     ),
+                    (
+                        'sold_by_user_id',
+                        "ALTER TABLE vouchers ADD COLUMN sold_by_user_id INTEGER REFERENCES users(id)"
+                    ),
+                    (
+                        'sold_at',
+                        "ALTER TABLE vouchers ADD COLUMN sold_at TIMESTAMP"
+                    ),
+                    (
+                        'sold_in_transaction_id',
+                        "ALTER TABLE vouchers ADD COLUMN sold_in_transaction_id INTEGER REFERENCES transactions(id)"
+                    ),
                 ]
 
                 for column_name, sql in missing_voucher_columns:

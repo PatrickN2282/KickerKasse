@@ -5,7 +5,7 @@
     <div class="warning-box">
       <p>
         Der Hard-Reset entfernt Transaktionen, Benutzer, Mitglieder, Produkte, Statistiken,
-        Gutscheine, Guthabenkarten und Kategorien unwiderruflich.
+        Gutscheine, Verzehrkarten und Kategorien unwiderruflich.
       </p>
       <p
         v-if="!authStore.isTopAdmin"

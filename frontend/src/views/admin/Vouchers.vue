@@ -69,7 +69,7 @@
                 required
               >
                 <option value="DYP_SIEGER">
-                  Dyp-Sieger
+                  DYP-Sieger
                 </option>
                 <option value="PROMOTION">
                   Promotion
@@ -111,13 +111,16 @@
         </div>
 
         <!-- PREPAID Voucher Form -->
-        <div class="form-card">
-          <h3>💳 Guthabenkarte</h3>
+        <div
+          v-if="authStore.isAdmin"
+          class="form-card"
+        >
+          <h3>💳 Verzehrkarte</h3>
           <p class="form-description">
-            Sofort bezahlt, wird später eingelöst
+            Wird vorbereitet und später in der Kasse verkauft
           </p>
           <p class="form-help">
-            Gutscheinwert eintragen und danach die Zugangsdaten bestätigen.
+            Standardwert ist 10,00 €. Für abweichende Werte wird automatisch ein weiterer Produktartikel angelegt.
           </p>
 
           <form @submit.prevent="createPrepaidVoucher">
@@ -128,10 +131,21 @@
                 type="number"
                 min="0.01"
                 step="0.01"
-                placeholder="z.B. 20.00"
+                placeholder="z.B. 10.00"
                 required
                 @input="handlePrepaidValueInput"
                 @blur="formatPrepaidValue"
+              >
+            </div>
+
+            <div class="form-group">
+              <label>Anzahl</label>
+              <input
+                v-model.number="prepaidForm.quantity"
+                type="number"
+                min="1"
+                step="1"
+                required
               >
             </div>
 
@@ -145,20 +159,37 @@
           </form>
 
           <div
-            v-if="createdPrepaidVoucher"
+            v-if="createdPrepaidBatch"
             class="success-message"
           >
-            <p>✅ Gutschein erstellt!</p>
-            <p class="voucher-number">
-              {{ getVoucherCode(createdPrepaidVoucher) }}
+            <p>✅ Verzehrkarten erstellt!</p>
+            <p>{{ createdPrepaidBatch.product_name }}</p>
+            <div
+              v-for="voucher in createdPrepaidBatch.vouchers"
+              :key="voucher.id"
+              class="voucher-number"
+            >
+              {{ getVoucherCode(voucher) }}
+            </div>
+            <p v-if="createdPrepaidBatch.next_available_voucher_number">
+              Nächste freie Nummer: <strong>{{ createdPrepaidBatch.next_available_voucher_number }}</strong>
             </p>
             <button
               class="btn-secondary"
-              @click="copyToClipboard(getVoucherCode(createdPrepaidVoucher))"
+              @click="copyToClipboard(createdPrepaidBatch.vouchers.map(getVoucherCode).join(', '))"
             >
-              📋 Kopieren
+              📋 Nummern kopieren
             </button>
           </div>
+        </div>
+        <div
+          v-else
+          class="form-card"
+        >
+          <h3>💳 Verzehrkarte</h3>
+          <p class="form-description">
+            Nur Admin oder TopAdmin dürfen Verzehrkarten erstellen.
+          </p>
         </div>
       </div>
 
@@ -188,7 +219,7 @@
               🎁 Geschenk
             </option>
             <option value="PREPAID">
-              💳 Guthabenkarte
+              💳 Verzehrkarte
             </option>
           </select>
         </div>
@@ -255,7 +286,7 @@
               </td>
               <td>
                 <span :class="['type-badge', voucher.voucher_type.toLowerCase()]">
-                  {{ voucher.voucher_type === 'GIFT' ? '🎁 Geschenk' : '💳 Guthabenkarte' }}
+                  {{ voucher.voucher_type === 'GIFT' ? '🎁 Geschenk' : '💳 Verzehrkarte' }}
                 </span>
               </td>
               <td class="currency">
@@ -279,7 +310,7 @@
               </td>
               <td class="actions">
                 <button
-                  v-if="voucher.status === 'CREATED'"
+                  v-if="authStore.isAdmin && voucher.status === 'CREATED'"
                   class="btn-small btn-edit"
                   @click="openEditVoucher(voucher)"
                 >
@@ -401,7 +432,7 @@
           <label>Grund</label>
           <select v-model="editForm.reason">
             <option value="DYP_SIEGER">
-              Dyp-Sieger
+              DYP-Sieger
             </option>
             <option value="PROMOTION">
               Promotion
@@ -464,18 +495,19 @@ const authStore = useAuthStore()
 
 // Form data
 const giftForm = ref({
-  valueCents: 1000, // 10€ default
-  reason: 'PROMOTION',
-  valueDisplay: '10.00',
+  valueCents: 500,
+  reason: 'DYP_SIEGER',
+  valueDisplay: '5.00',
 })
 
 const prepaidForm = ref({
-  valueCents: 2000, // 20€ default
-  valueDisplay: '20.00',
+  valueCents: 1000,
+  valueDisplay: '10.00',
+  quantity: 1,
 })
 
 const reasonLabels = {
-  DYP_SIEGER: 'Dyp-Sieger',
+  DYP_SIEGER: 'DYP-Sieger',
   PROMOTION: 'Promotion',
 }
 
@@ -528,7 +560,7 @@ const formatPrepaidValue = () => {
 const creatingGift = ref(false)
 const creatingPrepaid = ref(false)
 const createdGiftVoucher = ref(null)
-const createdPrepaidVoucher = ref(null)
+const createdPrepaidBatch = ref(null)
 const createError = ref(null)
 const showPasswordModal = ref(false)
 const pendingVoucherAction = ref(null)
@@ -540,7 +572,7 @@ const updatingVoucher = ref(false)
 const editError = ref(null)
 const editForm = ref({
   valueDisplay: '',
-  reason: 'PROMOTION',
+  reason: 'DYP_SIEGER',
   description: '',
 })
 
@@ -566,22 +598,12 @@ const getVoucherCode = (voucher) => {
   return `V-${year}-${String(voucher.voucher_number).padStart(3, '0')}`
 }
 
-const showCreatedVoucherInManageTab = async (type) => {
-  filters.value = {
-    type,
-    status: '',
-  }
-  currentPage.value = 1
-  activeSubTab.value = 'manage'
-  await loadVouchers()
-}
-
 // Methods
 const passwordModalTitle = computed(() => pendingVoucherAction.value === 'gift'
   ? 'Geschenk-Gutschein erstellen'
   : pendingVoucherAction.value === 'account'
     ? 'Vereinskonto aufladen'
-    : 'Guthabenkarte erstellen')
+    : 'Verzehrkarte erstellen')
 
 const createGiftVoucher = async () => {
   pendingVoucherAction.value = 'gift'
@@ -613,7 +635,7 @@ const submitGiftVoucher = async ({ username, password }) => {
     console.log('[Vouchers]   response.status:', payload?.status)
     
     createdGiftVoucher.value = payload
-    giftForm.value = { valueCents: 1000, reason: 'PROMOTION', valueDisplay: '10.00' }
+    giftForm.value = { valueCents: 500, reason: 'DYP_SIEGER', valueDisplay: '5.00' }
     await loadClubAccount()
   } catch (error) {
     console.error('[Vouchers] Error creating GIFT voucher:', error)
@@ -633,19 +655,19 @@ const createPrepaidVoucher = async () => {
 const submitPrepaidVoucher = async ({ username, password }) => {
   creatingPrepaid.value = true
   createError.value = null
-  createdPrepaidVoucher.value = null
+  createdPrepaidBatch.value = null
 
   try {
     const response = await apiService.post('/admin/vouchers/prepaid/', {
       value_cents: prepaidForm.value.valueCents,
+      quantity: prepaidForm.value.quantity,
       auth_username: username,
       auth_password: password,
     })
     const payload = response.data
-    console.log('[Vouchers] Create PREPAID response:', JSON.stringify(payload, null, 2))
-    createdPrepaidVoucher.value = payload
-    prepaidForm.value = { valueCents: 2000, valueDisplay: '20.00' }
-    await showCreatedVoucherInManageTab('PREPAID')
+    createdPrepaidBatch.value = payload
+    prepaidForm.value = { valueCents: 1000, valueDisplay: '10.00', quantity: 1 }
+    await loadVouchers()
   } catch (error) {
     console.error('[Vouchers] Error creating PREPAID voucher:', error)
     createError.value = error.response?.data?.detail || error.message || 'Fehler beim Erstellen'

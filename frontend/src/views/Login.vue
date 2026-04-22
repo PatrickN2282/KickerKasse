@@ -63,6 +63,16 @@
           {{ isLoading ? (showSetupFlow ? 'Einrichtung läuft...' : 'Login läuft...') : (showSetupFlow ? 'Top-Admin einrichten' : 'Login') }}
         </button>
 
+        <button
+          v-if="!showSetupFlow"
+          type="button"
+          class="btn btn-secondary"
+          :disabled="isLoading"
+          @click="handleKasseLogin"
+        >
+          {{ isLoading ? 'Anmeldung läuft...' : 'Kasse anmelden' }}
+        </button>
+
         <div v-if="error" class="alert alert-error">{{ error }}</div>
       </form>
       <div class="login-footer">
@@ -111,6 +121,21 @@ const handleLogin = async () => {
       email: form.email,
     })
     : await authStore.login(form.username, form.password)
+
+  if (success) {
+    router.push('/')
+  } else {
+    error.value = authStore.error
+  }
+
+  isLoading.value = false
+}
+
+const handleKasseLogin = async () => {
+  isLoading.value = true
+  error.value = null
+
+  const success = await authStore.loginAsKasse()
 
   if (success) {
     router.push('/')
@@ -212,6 +237,12 @@ onMounted(() => {
   background-color: var(--app-highlight-color);
   color: white;
 }
+
+.btn-secondary {
+  margin-top: 0.75rem;
+  background-color: var(--app-banner-color);
+  color: var(--app-banner-contrast);
+ }
 
 .alert {
   margin-top: 1rem;

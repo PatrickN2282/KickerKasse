@@ -18,6 +18,7 @@ logger = logging.getLogger(__name__)
 
 class ZBonService:
     """Service for generating comprehensive Z-Bon reports with full aggregations"""
+    PREPAID_PRODUCT_MARKER = "VERZEHRKARTE:"
     
     def __init__(self, db: Session):
         self.db = db
@@ -25,6 +26,26 @@ class ZBonService:
 
     def _calculate_sale_gross_cents(self, transaction: Transaction) -> int:
         return sum(item.total_price_cents for item in transaction.items)
+
+    @classmethod
+    def _get_prepaid_product_value_cents(cls, product: Product | None) -> int | None:
+        description = (getattr(product, "description", None) or "").strip()
+        if not description.startswith(cls.PREPAID_PRODUCT_MARKER):
+            return None
+        try:
+            return int(description.split(":", 1)[1])
+        except (IndexError, ValueError):
+            return None
+
+    def _calculate_prepaid_item_total_cents(self, transaction: Transaction) -> int:
+        return sum(
+            item.total_price_cents
+            for item in transaction.items
+            if self._get_prepaid_product_value_cents(item.product) is not None
+        )
+
+    def _calculate_non_prepaid_sale_gross_cents(self, transaction: Transaction) -> int:
+        return max(self._calculate_sale_gross_cents(transaction) - self._calculate_prepaid_item_total_cents(transaction), 0)
 
     @staticmethod
     def _format_member_name(member: Member | None) -> str:
@@ -58,18 +79,26 @@ class ZBonService:
             return float(last_zbon.cash_counted)
         return float(last_zbon.cash_calculated or 0.0)
 
-    def _get_cash_entry_summary(self, period_start: datetime | None, period_end: datetime) -> dict:
+    def _get_cash_entry_summary(
+        self,
+        period_start: datetime | None,
+        period_end: datetime,
+        pending_withdrawals: list[dict] | None = None,
+    ) -> dict:
         query = self.db.query(CashEntry).filter(CashEntry.created_at <= period_end)
         if period_start:
             query = query.filter(CashEntry.created_at > period_start)
 
         entries = query.order_by(CashEntry.created_at.asc()).all()
+        pending_entries = pending_withdrawals or []
         withdrawals = [entry for entry in entries if entry.entry_type == CashEntryType.WITHDRAWAL]
         deposits = [entry for entry in entries if entry.entry_type == CashEntryType.DEPOSIT]
+        pending_withdrawals_total = sum(entry.get("amount_cents", 0) for entry in pending_entries) / 100
 
         return {
             "entries": entries,
-            "withdrawals_total": sum(entry.amount_cents for entry in withdrawals) / 100,
+            "pending_withdrawals": pending_entries,
+            "withdrawals_total": (sum(entry.amount_cents for entry in withdrawals) / 100) + pending_withdrawals_total,
             "deposits_total": sum(entry.amount_cents for entry in deposits) / 100,
         }
 
@@ -121,32 +150,31 @@ class ZBonService:
         cash_counted_by_name: str | None = None,
         include_cash_count: dict | None = None,
         cash_count_total: float | None = None,
+        pending_withdrawals: list[dict] | None = None,
     ) -> dict:
         period_start, period_end, last_zbon = self._get_current_period_bounds()
         transactions = self._get_transactions_for_period(period_start, period_end)
-        cash_summary = self._get_cash_entry_summary(period_start, period_end)
+        cash_summary = self._get_cash_entry_summary(period_start, period_end, pending_withdrawals)
         voucher_summary = self._get_voucher_summary(period_start, period_end)
         open_balance_total = self._get_open_member_balance_total()
 
         sales = [t for t in transactions if t.type == TransactionType.SALE]
         recharges = [t for t in transactions if t.type == TransactionType.RECHARGE]
-        prepaid_voucher_sales = [
-            t for t in transactions
-            if (
-                t.type == TransactionType.VOUCHER_SALE
-                and t.payment_method == PaymentMethod.CASH
-                and t.voucher_type == VoucherType.PREPAID.value
-            )
-        ]
         stornos = [t for t in transactions if t.type == TransactionType.STORNO]
         first_transaction_at = transactions[0].created_at if transactions else None
         effective_period_start = period_start or first_transaction_at
 
-        gross_sales_total = sum(self._calculate_sale_gross_cents(t) for t in sales) / 100
+        gross_sales_total = sum(self._calculate_non_prepaid_sale_gross_cents(t) for t in sales) / 100
+        prepaid_voucher_sales_total = sum(self._calculate_prepaid_item_total_cents(t) for t in sales) / 100
+        total_revenue = gross_sales_total + prepaid_voucher_sales_total
         cash_sales_total = sum(
-            t.total_amount_cents for t in sales if t.payment_method == PaymentMethod.CASH
+            max(t.total_amount_cents - self._calculate_prepaid_item_total_cents(t), 0)
+            for t in sales if t.payment_method == PaymentMethod.CASH
         ) / 100
-        cash_sales_count = len([t for t in sales if t.payment_method == PaymentMethod.CASH])
+        cash_sales_count = len([
+            t for t in sales
+            if t.payment_method == PaymentMethod.CASH and self._calculate_non_prepaid_sale_gross_cents(t) > 0
+        ])
         balance_sales_total = sum(
             (t.balance_applied_cents or 0)
             + (t.total_amount_cents if t.payment_method == PaymentMethod.BALANCE else 0)
@@ -159,7 +187,6 @@ class ZBonService:
         voucher_sales_total = sum(t.voucher_applied_cents or 0 for t in sales) / 100
         voucher_sales_count = len([t for t in sales if (t.voucher_applied_cents or 0) > 0])
         recharge_total = sum(t.total_amount_cents for t in recharges) / 100
-        prepaid_voucher_sales_total = sum(t.total_amount_cents for t in prepaid_voucher_sales) / 100
         storno_total = sum(t.total_amount_cents for t in stornos) / 100
         opening_balance = self._get_opening_cash_balance(last_zbon)
         cash_calculated = (
@@ -231,12 +258,18 @@ class ZBonService:
                 "transaction_count": len(transactions),
                 "sales_count": len(sales),
                 "recharge_count": len(recharges),
-                "prepaid_voucher_sales_count": len(prepaid_voucher_sales),
+                "prepaid_voucher_sales_count": sum(
+                    item.quantity
+                    for t in sales
+                    for item in t.items
+                    if self._get_prepaid_product_value_cents(item.product) is not None
+                ),
                 "storno_count": len(stornos),
                 "cash_sales_count": cash_sales_count,
                 "balance_sales_count": balance_sales_count,
                 "voucher_sales_count": voucher_sales_count,
                 "gross_sales_total": gross_sales_total,
+                "total_revenue": total_revenue,
                 "cash_sales_total": cash_sales_total,
                 "balance_sales_total": balance_sales_total,
                 "voucher_sales_total": voucher_sales_total,
@@ -267,6 +300,14 @@ class ZBonService:
                     }
                     for entry in cash_summary["entries"]
                     if entry.entry_type == CashEntryType.WITHDRAWAL
+                ] + [
+                    {
+                        "created_at": period_end.isoformat(),
+                        "amount": entry.get("amount_cents", 0) / 100,
+                        "reason": entry.get("reason"),
+                        "performed_by": None,
+                    }
+                    for entry in cash_summary.get("pending_withdrawals", [])
                 ],
             },
             "cash_count": include_cash_count,
@@ -282,6 +323,7 @@ class ZBonService:
         cash_counted_by_name: str | None = None,
         include_cash_count: dict | None = None,
         cash_count_total: float | None = None,
+        pending_withdrawals: list[dict] | None = None,
     ) -> dict:
         payload = self.build_current_zbon_preview(
             created_by_name=created_by_name,
@@ -289,6 +331,7 @@ class ZBonService:
             cash_counted_by_name=cash_counted_by_name,
             include_cash_count=include_cash_count,
             cash_count_total=cash_count_total,
+            pending_withdrawals=pending_withdrawals,
         )
 
         summary = payload["summary"]
@@ -304,7 +347,7 @@ class ZBonService:
             gross_revenue_cash=summary["cash_sales_total"],
             gross_revenue_balance=summary["balance_sales_total"],
             gross_revenue_voucher=summary["voucher_sales_total"],
-            total_revenue=summary["gross_sales_total"],
+            total_revenue=summary["total_revenue"],
             recharge_total=summary["recharge_total"],
             storno_total=summary["storno_total"],
             voucher_created_total=summary["voucher_created_total"],
@@ -374,10 +417,10 @@ class ZBonService:
             prepaid_voucher_sales_total=f"{summary.get('prepaid_voucher_sales_total', 0):.2f}",
             balance_open_total=f"{summary.get('balance_open_total', 0):.2f}",
             total_items_count=summary.get("sales_count", 0),
-            total_net=f"{summary.get('gross_sales_total', 0):.2f}",
+            total_net=f"{summary.get('total_revenue', 0):.2f}",
             total_tax="0.00",
-            total_gross=f"{summary.get('gross_sales_total', 0):.2f}",
-            total_revenue=f"{summary.get('gross_sales_total', 0):.2f}",
+            total_gross=f"{summary.get('total_revenue', 0):.2f}",
+            total_revenue=f"{summary.get('total_revenue', 0):.2f}",
             voucher_created_count=summary.get("voucher_created_count", 0),
             voucher_created_total=f"{summary.get('voucher_created_total', 0):.2f}",
             voucher_redeemed_count=summary.get("voucher_redeemed_count", 0),
@@ -795,7 +838,7 @@ class ZBonService:
             f"{stats['gift_voucher_count']}x Geschenk-Gutschein {stats['gift_voucher_total']:>8.2f}"
         )
         lines.append(
-            f"{stats['prepaid_voucher_count']}x Guthabenkarte {stats['prepaid_voucher_total']:>8.2f}"
+            f"{stats['prepaid_voucher_count']}x Verzehrkarte {stats['prepaid_voucher_total']:>8.2f}"
         )
         lines.append(" _____________")
         lines.append(f"Gutscheinwert gesamt {stats['voucher_total']:>8.2f}")

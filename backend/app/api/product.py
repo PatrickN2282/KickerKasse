@@ -3,6 +3,7 @@ from fastapi.responses import FileResponse
 from sqlalchemy.orm import Session
 from sqlalchemy.exc import IntegrityError
 from app.core import get_db
+from app.core.auth import require_roles
 from app.schemas import ProductCreate, ProductUpdate, ProductResponse
 from app.services import ProductService
 from app.services.file_service import save_product_image, get_full_path
@@ -20,23 +21,7 @@ async def create_product(
     db: Session = Depends(get_db),
 ):
     """Create a new product"""
-    from app.repositories import UserRepository
-    from app.models import UserRole
-    
-    user_id = request.session.get("user_id")
-    if not user_id:
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Not authenticated",
-        )
-    
-    # Check if admin
-    current_user = UserRepository(db).get_by_id(user_id)
-    if not current_user or not current_user.is_admin:
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail="Insufficient permissions"
-        )
+    require_roles(request, db, UserRole.ADMIN, UserRole.MANAGER)
     
     try:
         service = ProductService(db)
@@ -109,23 +94,7 @@ async def update_product(
     db: Session = Depends(get_db),
 ):
     """Update product"""
-    from app.repositories import UserRepository
-    from app.models import UserRole
-    
-    user_id = request.session.get("user_id")
-    if not user_id:
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Not authenticated",
-        )
-    
-    # Check if admin
-    current_user = UserRepository(db).get_by_id(user_id)
-    if not current_user or not current_user.is_admin:
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail="Insufficient permissions"
-        )
+    require_roles(request, db, UserRole.ADMIN, UserRole.MANAGER)
     
     try:
         service = ProductService(db)
@@ -155,23 +124,7 @@ async def adjust_stock(
     db: Session = Depends(get_db),
 ):
     """Adjust product stock"""
-    from app.repositories import UserRepository
-    from app.models import UserRole
-    
-    user_id = request.session.get("user_id")
-    if not user_id:
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Not authenticated",
-        )
-    
-    # Check if admin
-    current_user = UserRepository(db).get_by_id(user_id)
-    if not current_user or not current_user.is_admin:
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail="Insufficient permissions"
-        )
+    require_roles(request, db, UserRole.ADMIN, UserRole.MANAGER)
     
     service = ProductService(db)
     product = service.adjust_stock(product_id, quantity)
@@ -192,23 +145,7 @@ async def delete_product(
     db: Session = Depends(get_db),
 ):
     """Delete product (soft delete)"""
-    from app.repositories import UserRepository
-    from app.models import UserRole
-    
-    user_id = request.session.get("user_id")
-    if not user_id:
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Not authenticated",
-        )
-    
-    # Check if admin
-    current_user = UserRepository(db).get_by_id(user_id)
-    if not current_user or not current_user.is_admin:
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail="Insufficient permissions"
-        )
+    require_roles(request, db, UserRole.ADMIN, UserRole.MANAGER)
     
     service = ProductService(db)
     if not service.delete_product(product_id):
@@ -227,20 +164,7 @@ async def upload_product_image(
     db: Session = Depends(get_db),
 ):
     """Upload product image"""
-    user_id = request.session.get("user_id") if request else None
-    if not user_id:
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Not authenticated",
-        )
-    
-    # Check if admin
-    current_user = UserRepository(db).get_by_id(user_id)
-    if not current_user or not current_user.is_admin:
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail="Insufficient permissions"
-        )
+    require_roles(request, db, UserRole.ADMIN, UserRole.MANAGER)
     
     # Check if product exists
     product_repo = ProductRepository(db)

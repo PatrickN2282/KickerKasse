@@ -29,10 +29,10 @@ const authStore = useAuthStore()
 
 const tabs = [
   { path: '/admin/members', label: '👥 Mitglieder', roles: ['TOP_ADMIN', 'ADMIN', 'MANAGER'] },
-  { path: '/admin/products', label: '📦 Produkte', roles: ['TOP_ADMIN', 'ADMIN'] },
+  { path: '/admin/products', label: '📦 Produkte', roles: ['TOP_ADMIN', 'ADMIN', 'MANAGER'] },
   { path: '/admin/categories', label: '🏷️ Kategorien', roles: ['TOP_ADMIN', 'ADMIN'] },
   { path: '/admin/users', label: '👤 Benutzer', roles: ['TOP_ADMIN', 'ADMIN'] },
-  { path: '/admin/vouchers', label: '🎫 Gutscheine', roles: ['TOP_ADMIN', 'ADMIN'] },
+  { path: '/admin/vouchers', label: '🎫 Gutscheine', roles: ['TOP_ADMIN', 'ADMIN', 'MANAGER'] },
   { path: '/admin/finance', label: '💰 Finanzen', roles: ['TOP_ADMIN', 'ADMIN', 'MANAGER'] },
   { path: '/admin/settings', label: '🎨 Design', roles: ['TOP_ADMIN', 'ADMIN'] },
   { path: '/admin/data-maintenance', label: '🧹 Datenpflege', roles: ['TOP_ADMIN', 'ADMIN'] },

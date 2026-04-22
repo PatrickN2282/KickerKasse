@@ -34,6 +34,13 @@
             </router-link>
             <PwaInstallButton />
             <button
+              v-if="authStore.isKasseUser"
+              class="btn-login"
+              @click="showLoginModal = true"
+            >
+              Login
+            </button>
+            <button
               class="btn-logout"
               @click="logout"
             >
@@ -48,11 +55,57 @@
     <main class="main-content">
       <router-view />
     </main>
+
+    <div
+      v-if="showLoginModal"
+      class="modal-overlay"
+    >
+      <div class="modal-card">
+        <h3>Benutzer anmelden</h3>
+        <label>
+          Benutzername
+          <input
+            v-model="loginForm.username"
+            type="text"
+            class="form-input"
+          >
+        </label>
+        <label>
+          Passwort
+          <input
+            v-model="loginForm.password"
+            type="password"
+            class="form-input"
+            @keyup.enter="loginFromModal"
+          >
+        </label>
+        <p
+          v-if="modalError"
+          class="modal-error"
+        >
+          {{ modalError }}
+        </p>
+        <div class="modal-actions">
+          <button
+            class="btn-login"
+            @click="loginFromModal"
+          >
+            Login
+          </button>
+          <button
+            class="btn-logout"
+            @click="closeLoginModal"
+          >
+            Abbrechen
+          </button>
+        </div>
+      </div>
+    </div>
   </div>
 </template>
 
 <script setup>
-import { onMounted } from 'vue'
+import { onBeforeUnmount, onMounted, reactive, ref } from 'vue'
 import { useAuthStore } from '@/stores/auth'
 import { useAppSettingsStore } from '@/stores/appSettings'
 import { useRouter } from 'vue-router'
@@ -62,14 +115,47 @@ import PwaInstallButton from '@/components/PwaInstallButton.vue'
 const authStore = useAuthStore()
 const appSettingsStore = useAppSettingsStore()
 const router = useRouter()
+const showLoginModal = ref(false)
+const modalError = ref('')
+const loginForm = reactive({
+  username: '',
+  password: '',
+})
 
 const logout = async () => {
   await authStore.logout()
   router.push('/login')
 }
 
+const closeLoginModal = () => {
+  showLoginModal.value = false
+  modalError.value = ''
+  loginForm.username = ''
+  loginForm.password = ''
+}
+
+const loginFromModal = async () => {
+  modalError.value = ''
+  const success = await authStore.login(loginForm.username, loginForm.password)
+  if (!success) {
+    modalError.value = authStore.error || 'Login fehlgeschlagen'
+    return
+  }
+  closeLoginModal()
+  router.push('/')
+}
+
+const handleBeforeUnload = () => {
+  authStore.clearClientSession()
+}
+
 onMounted(() => {
   appSettingsStore.applyToDocument()
+  window.addEventListener('beforeunload', handleBeforeUnload)
+})
+
+onBeforeUnmount(() => {
+  window.removeEventListener('beforeunload', handleBeforeUnload)
 })
 </script>
 
@@ -154,6 +240,15 @@ onMounted(() => {
     cursor: pointer;
   }
 
+  .btn-login {
+    background-color: var(--app-highlight-color);
+    color: var(--app-highlight-contrast);
+    border: none;
+    padding: 0.5rem 1rem;
+    border-radius: 999px;
+    cursor: pointer;
+  }
+
   .current-user {
     color: var(--app-banner-contrast);
     font-weight: 600;
@@ -165,6 +260,56 @@ onMounted(() => {
   flex: 1;
   overflow-y: auto;
   padding: 0;
+}
+
+.modal-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(15, 23, 42, 0.55);
+  display: grid;
+  place-items: center;
+  z-index: 2000;
+}
+
+.modal-card {
+  background: white;
+  border-radius: 16px;
+  padding: 1.5rem;
+  width: min(92vw, 420px);
+  display: flex;
+  flex-direction: column;
+  gap: 0.9rem;
+
+  h3 {
+    margin: 0;
+  }
+
+  label {
+    display: flex;
+    flex-direction: column;
+    gap: 0.35rem;
+    font-weight: 600;
+  }
+}
+
+.form-input {
+  width: 100%;
+  padding: 0.75rem;
+  border: 1px solid #ddd;
+  border-radius: 8px;
+  font-size: 1rem;
+}
+
+.modal-actions {
+  display: flex;
+  gap: 0.75rem;
+  justify-content: flex-end;
+}
+
+.modal-error {
+  margin: 0;
+  color: #c62828;
+  font-weight: 600;
 }
 
 @media (max-width: 700px) {
