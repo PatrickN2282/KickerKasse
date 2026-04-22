@@ -1,3 +1,4 @@
+import secrets
 from sqlalchemy.orm import Session
 from app.repositories import UserRepository
 from app.models import Member, Transaction, Voucher, CashEntry, ClubAccountEntry, UserRole
@@ -41,13 +42,13 @@ class UserService:
     
     def get_all_users(self):
         """Get all users"""
-        return [user for user in self.repo.get_all_active() if user.role != UserRole.TOP_ADMIN]
+        return self.repo.get_visible_active_users()
 
     def get_finance_options(self):
         """Get finance actor options from users and role-based members."""
         options = []
 
-        for user in self.repo.get_active_without_top_admin():
+        for user in self.repo.get_visible_finance_users():
             member = getattr(user, "member", None)
             display_name = member.name if member is not None else user.username
             options.append({
@@ -58,7 +59,9 @@ class UserService:
                 "source": "member" if user.member_id else "user",
             })
 
-        members_with_roles = self.db.query(Member).filter(Member.role.is_not(None)).all()
+        members_with_roles = self.db.query(Member).filter(
+            Member.role.in_([UserRole.TOP_ADMIN, UserRole.ADMIN, UserRole.MANAGER]),
+        ).all()
         for member in members_with_roles:
             linked_user = getattr(member, "linked_user", None)
             if linked_user and linked_user.is_active:
@@ -73,6 +76,27 @@ class UserService:
             })
 
         return sorted(options, key=lambda option: (option["username"] or "").lower())
+
+    def ensure_kasse_user(self):
+        """Ensure the hidden direct-login cash register account exists."""
+        existing_user = self.repo.get_by_username("Kasse")
+        if existing_user:
+            if existing_user.role != UserRole.VERKAUF or not existing_user.is_active:
+                return self.repo.update(
+                    existing_user.id,
+                    role=UserRole.VERKAUF,
+                    is_active=True,
+                    email=None,
+                )
+            return existing_user
+
+        return self.repo.create(
+            username="Kasse",
+            email=None,
+            password=secrets.token_urlsafe(24),
+            role=UserRole.VERKAUF.value,
+            is_active=True,
+        )
     
     def update_user(self, user_id: int, **kwargs):
         """Update user"""

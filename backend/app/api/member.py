@@ -28,10 +28,10 @@ async def create_member(
 ):
     """Create a new member"""
     current_user = require_roles(request, db, UserRole.ADMIN, UserRole.MANAGER)
-    if member_data.role and not current_user.is_admin:
+    if member_data.role and not current_user.is_top_admin:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
-            detail="Nur Admins dürfen Rollen vergeben",
+            detail="Nur der Top-Admin darf Rollen vergeben",
         )
     
     try:
@@ -194,10 +194,10 @@ async def update_member(
 ):
     """Update member"""
     current_user = require_roles(request, db, UserRole.ADMIN, UserRole.MANAGER)
-    if member_data.role is not None and not current_user.is_admin:
+    if member_data.role is not None and not current_user.is_top_admin:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
-            detail="Nur Admins dürfen Rollen vergeben",
+            detail="Nur der Top-Admin darf Rollen vergeben",
         )
     
     try:

@@ -288,64 +288,88 @@
 
     <div v-if="showPaymentConfirmModal" class="modal">
       <div class="modal-content payment-modal">
-        <h3>Zahlung bestätigen</h3>
-        <div class="payment-method-chip">
-          {{ getPaymentMethodLabel(pendingPaymentMethod) }}
-        </div>
-        <div class="payment-summary-list">
-          <div v-for="item in cartStore.items" :key="item.product_id" class="payment-summary-item">
-            <span>{{ item.quantity }}× {{ item.product_name }}</span>
-            <strong>{{ formatPrice(item.total_price_cents) }}</strong>
+        <template v-if="paymentResult">
+          <h3>Verkauf abgeschlossen</h3>
+          <p class="info-text">Der Verkauf wurde erfolgreich gebucht.</p>
+          <div v-if="paymentResult.issued_prepaid_voucher_numbers?.length" class="validation-result valid">
+            <h4>💳 Verzehrkarten ausgegeben</h4>
+            <table class="voucher-details">
+              <tr v-for="voucherNumber in paymentResult.issued_prepaid_voucher_numbers" :key="voucherNumber">
+                <td>Nummer:</td>
+                <td><strong>{{ voucherNumber }}</strong></td>
+              </tr>
+              <tr v-if="paymentResult.next_unissued_prepaid_voucher_number">
+                <td>Nächste freie Nummer:</td>
+                <td><strong>{{ paymentResult.next_unissued_prepaid_voucher_number }}</strong></td>
+              </tr>
+            </table>
           </div>
-        </div>
-        <div class="payment-summary-totals">
-          <div class="total-row">
-            <span>Zwischensumme</span>
-            <strong>{{ formatPrice(cartSubtotal) }}</strong>
+          <div class="modal-actions">
+            <button @click="closePaymentConfirmation" class="btn btn-confirm-payment" :class="{ selected: true }">
+              Fertig
+            </button>
           </div>
-          <div v-if="hasAppliedVoucher" class="total-row">
-            <span>Gutscheine</span>
-            <strong>-{{ formatPrice(voucherAppliedAmount) }}</strong>
+        </template>
+        <template v-else>
+          <h3>Zahlung bestätigen</h3>
+          <div class="payment-method-chip">
+            {{ getPaymentMethodLabel(pendingPaymentMethod) }}
           </div>
-          <div v-if="hasAppliedBalance" class="total-row">
-            <span>Mitgliedsguthaben</span>
-            <strong>-{{ formatPrice(balanceAppliedAmount) }}</strong>
+          <div class="payment-summary-list">
+            <div v-for="item in cartStore.items" :key="item.product_id" class="payment-summary-item">
+              <span>{{ item.quantity }}× {{ item.product_name }}</span>
+              <strong>{{ formatPrice(item.total_price_cents) }}</strong>
+            </div>
           </div>
-          <div v-if="pendingPaymentMethod === 'BALANCE'" class="total-row">
-            <span>Mitglied</span>
-            <strong>{{ selectedMemberName }}</strong>
+          <div class="payment-summary-totals">
+            <div class="total-row">
+              <span>Zwischensumme</span>
+              <strong>{{ formatPrice(cartSubtotal) }}</strong>
+            </div>
+            <div v-if="hasAppliedVoucher" class="total-row">
+              <span>Gutscheine</span>
+              <strong>-{{ formatPrice(voucherAppliedAmount) }}</strong>
+            </div>
+            <div v-if="hasAppliedBalance" class="total-row">
+              <span>Mitgliedsguthaben</span>
+              <strong>-{{ formatPrice(balanceAppliedAmount) }}</strong>
+            </div>
+            <div v-if="pendingPaymentMethod === 'BALANCE'" class="total-row">
+              <span>Mitglied</span>
+              <strong>{{ selectedMemberName }}</strong>
+            </div>
+            <div class="total-row grand-total">
+              <span>Zu zahlen</span>
+              <strong>{{ formatPrice(cartStore.getTotalAmount()) }}</strong>
+            </div>
           </div>
-          <div class="total-row grand-total">
-            <span>Zu zahlen</span>
-            <strong>{{ formatPrice(cartStore.getTotalAmount()) }}</strong>
+          <div v-if="pendingPaymentMethod === 'CASH'" class="cash-payment-fields">
+            <label>
+              Bar gegeben
+              <input
+                ref="cashGivenInput"
+                v-model="cashGiven"
+                type="number"
+                min="0"
+                step="0.01"
+                class="form-input"
+                @keyup.enter="confirmPayment"
+              />
+            </label>
+            <label>
+              Rückgeld
+              <input :value="cashChangeDisplay" type="text" class="form-input" readonly />
+            </label>
           </div>
-        </div>
-        <div v-if="pendingPaymentMethod === 'CASH'" class="cash-payment-fields">
-          <label>
-            Bar gegeben
-            <input
-              ref="cashGivenInput"
-              v-model="cashGiven"
-              type="number"
-              min="0"
-              step="0.01"
-              class="form-input"
-              @keyup.enter="confirmPayment"
-            />
-          </label>
-          <label>
-            Rückgeld
-            <input :value="cashChangeDisplay" type="text" class="form-input" readonly />
-          </label>
-        </div>
-        <div class="modal-actions">
-          <button @click="confirmPayment" class="btn btn-confirm-payment" :class="{ selected: true }" :disabled="processingPayment">
-            {{ processingPayment ? '⏳ Wird verarbeitet...' : 'Bestätigen' }}
-          </button>
-          <button @click="closePaymentConfirmation" class="btn btn-danger" :disabled="processingPayment">
-            Abbrechen / Zurück
-          </button>
-        </div>
+          <div class="modal-actions">
+            <button @click="confirmPayment" class="btn btn-confirm-payment" :class="{ selected: true }" :disabled="processingPayment">
+              {{ processingPayment ? '⏳ Wird verarbeitet...' : 'Bestätigen' }}
+            </button>
+            <button @click="closePaymentConfirmation" class="btn btn-danger" :disabled="processingPayment">
+              Abbrechen / Zurück
+            </button>
+          </div>
+        </template>
       </div>
     </div>
 
@@ -396,7 +420,7 @@
               </tr>
               <tr>
                 <td>Typ:</td>
-                <td>{{ voucherValidation.voucher_type === 'GIFT' ? '🎁 Geschenk' : '💳 Guthabenkarte' }}</td>
+                <td>{{ voucherValidation.voucher_type === 'GIFT' ? '🎁 Geschenk' : '💳 Verzehrkarte' }}</td>
               </tr>
               <tr>
                 <td>Wert:</td>
@@ -412,7 +436,15 @@
               </tr>
               <tr>
                 <td>Status:</td>
-                <td>{{ voucherValidation.status === 'CREATED' ? '✅ Verfügbar' : '✓ Bereits eingelöst' }}</td>
+                <td>
+                  {{
+                    voucherValidation.status === 'CREATED'
+                      ? '✅ Verfügbar'
+                      : voucherValidation.status === 'NOT_SOLD'
+                        ? '🕒 Noch nicht verkauft'
+                        : '✓ Bereits eingelöst'
+                  }}
+                </td>
               </tr>
               <tr v-if="voucherValidation.reason">
                 <td>Grund:</td>
@@ -450,7 +482,7 @@
               </tr>
               <tr>
                 <td>Typ:</td>
-                <td>{{ voucherRedeemed.voucher_type === 'GIFT' ? '🎁 Geschenk' : '💳 Guthabenkarte' }}</td>
+                <td>{{ voucherRedeemed.voucher_type === 'GIFT' ? '🎁 Geschenk' : '💳 Verzehrkarte' }}</td>
               </tr>
               <tr>
                 <td>Wert:</td>
@@ -495,6 +527,7 @@ const showPaymentConfirmModal = ref(false)
 const memberSearch = ref('')
 const pendingPaymentMethod = ref(null)
 const processingPayment = ref(false)
+const paymentResult = ref(null)
 const expandedCategories = ref([])
 const categories = ref([])
 const bonWidth = ref(420)
@@ -513,7 +546,7 @@ const validatingVoucher = ref(false)
 const redeemingVoucher = ref(false)
 
 const voucherReasonLabels = {
-  DYP_SIEGER: 'Dyp-Sieger',
+  DYP_SIEGER: 'DYP-Sieger',
   PROMOTION: 'Promotion',
 }
 
@@ -650,6 +683,7 @@ const openPaymentConfirmation = (method) => {
 
   pendingPaymentMethod.value = method
   showPaymentConfirmModal.value = true
+  paymentResult.value = null
   cashGiven.value = method === 'CASH' ? (cartStore.getTotalAmount() / 100).toFixed(2) : ''
   nextTick(() => {
     if (method === 'CASH') {
@@ -667,6 +701,7 @@ const closePaymentConfirmation = () => {
   showPaymentConfirmModal.value = false
   pendingPaymentMethod.value = null
   cashGiven.value = ''
+  paymentResult.value = null
 }
 
 const confirmPayment = async () => {
@@ -683,10 +718,19 @@ const confirmPayment = async () => {
   }
 
   processingPayment.value = true
-  const success = await handlePaymentAndCheckout(pendingPaymentMethod.value)
+  const transaction = await handlePaymentAndCheckout(pendingPaymentMethod.value)
   processingPayment.value = false
 
-  if (success) {
+  if (transaction?.appliedBalanceOnly) {
+    closePaymentConfirmation()
+    return
+  }
+
+  if (transaction) {
+    if (transaction.issued_prepaid_voucher_numbers?.length) {
+      paymentResult.value = transaction
+      return
+    }
     closePaymentConfirmation()
   }
 }
@@ -701,7 +745,7 @@ const handlePaymentAndCheckout = async (method) => {
     notificationStore.success('Mitgliedsguthaben wurde als Rabatt auf den Warenkorb angerechnet')
     pendingPaymentMethod.value = null
     showPaymentConfirmModal.value = false
-    return true
+    return { appliedBalanceOnly: true }
   }
 
   cartStore.paymentMethod = method
@@ -887,13 +931,13 @@ const handleCheckout = async (successMessage = 'Verkauf abgeschlossen') => {
     // Reload members to update balances
     await memberStore.getMembers()
     await loadNextReceiptNumber()
-    return true
+    return transaction
   } catch (err) {
     console.error('[Kasse] Checkout failed:', err)
     const errorMessage = err.response?.data?.detail || err.message || 'Fehler bei der Abrechnung'
     console.error('[Kasse] Showing error notification:', errorMessage)
     notificationStore.error(errorMessage)
-    return false
+    return null
   }
 }
 

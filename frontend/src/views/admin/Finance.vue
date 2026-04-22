@@ -69,7 +69,7 @@
           </div>
           <div class="summary-card">
             <div class="card-label">
-              Guthabenkarten verkauft
+              Verzehrkarten verkauft
             </div>
             <div class="card-value">
               {{ formatPrice(dailyStats.prepaid_voucher_sales_total) }}
@@ -369,6 +369,7 @@
                 <th>Umsatz Guthaben</th>
                 <th>Kasse Anfang</th>
                 <th>Kasse Ende</th>
+                <th>Differenz</th>
                 <th>Entnahmen</th>
                 <th>Erstellt</th>
               </tr>
@@ -394,6 +395,9 @@
                 </td>
                 <td class="amount">
                   {{ formatPrice((zbon.cash_calculated || 0) * 100) }}
+                </td>
+                <td class="amount" :class="{ withdrawal: (zbon.cash_difference || 0) !== 0 }">
+                  {{ formatPrice((zbon.cash_difference || 0) * 100) }}
                 </td>
                 <td class="amount withdrawal">
                   {{ formatPrice(zbon.cash_withdrawals * 100) }}
@@ -479,7 +483,7 @@
               Geschenk-Gutschein
             </option>
             <option value="VOUCHER_PREPAID">
-              Guthabenkarte
+              Verzehrkarte
             </option>
           </select>
         </div>
@@ -636,7 +640,7 @@
           </div>
           <div class="stat-item">
             <div class="stat-label">
-              💳 Guthabenkarten
+              💳 Verzehrkarten
             </div>
             <div class="stat-value">
               {{ formatPrice(revenueStats.prepaid_voucher_sales_total) }}
@@ -774,12 +778,21 @@
               </div>
               <div class="selection-group">
                 <label>Kassenprüfer</label>
-                <button
-                  class="member-select-btn"
-                  @click="openUserPicker('verifiedByUserId')"
-                >
-                  {{ getSelectedUserName(zbonForm.verifiedByUserId, 'Benutzer auswählen') }}
-                </button>
+                <div class="selection-actions">
+                  <button
+                    class="member-select-btn"
+                    @click="openMemberPicker('verifiedByUserId')"
+                  >
+                    {{ getSelectedVerifierName(zbonForm.verifiedByUserId, 'Mitglied auswählen') }}
+                  </button>
+                  <button
+                    v-if="zbonForm.verifiedByUserId"
+                    class="clear-selection-btn"
+                    @click="zbonForm.verifiedByUserId = null"
+                  >
+                    Entfernen
+                  </button>
+                </div>
               </div>
             </div>
             <div class="summary-grid compact-summary-grid">
@@ -817,7 +830,7 @@
               </div>
             </div>
             <div class="zbon-balance-group">
-              <div class="filter-group">
+              <div class="selection-group zbon-counted-group">
                 <label>Gezählter Kassenbestand</label>
                 <input
                   v-model="zbonCountedCash"
@@ -1051,7 +1064,7 @@ import CashCounterModal from '@/components/CashCounterModal.vue'
 import PasswordConfirmModal from '@/components/PasswordConfirmModal.vue'
 import { useNotificationStore } from '@/stores/notification'
 import { useMemberStore } from '@/stores/member'
-import { getMemberSearchText, getMemberShortName } from '@/services/member'
+import { getMemberFullName, getMemberSearchText, getMemberShortName } from '@/services/member'
 import { useAuthStore } from '@/stores/auth'
 
 const notificationStore = useNotificationStore()
@@ -1075,7 +1088,6 @@ const showZbonPreviewModal = ref(false)
 const showWithdrawalModal = ref(false)
 const showMemberPickerModal = ref(false)
 const showPasswordModal = ref(false)
-const modalInitialWithdrawalCents = ref(0)
 const memberPickerTarget = ref(null)
 const memberSearch = ref('')
 const financeUsers = ref([])
@@ -1091,6 +1103,7 @@ const withdrawalForm = ref({
   memberId: null,
   note: '',
 })
+const pendingWithdrawals = ref([])
 // Expanded transactions state
 const expandedTransactions = ref(new Set())
 
@@ -1149,7 +1162,7 @@ const memberStats = ref({
   top_members: [],
 })
 
-const tabs = ['zbon', 'zbons', 'history', 'revenue', 'members']
+const tabs = computed(() => (authStore.isManager ? ['zbon', 'zbons'] : ['zbon', 'zbons', 'history', 'revenue', 'members']))
 const tabLabels = {
   zbon: '📊 Z-Bon',
   zbons: '📑 Z-Bons Verlauf',
@@ -1225,10 +1238,10 @@ const zbonCountedCashValue = computed(() => {
   return Number.isNaN(value) ? null : value
 })
 
-const newWithdrawalsCents = computed(() => Math.max(
-  Number(dailyStats.value.withdrawal_total || 0) - Number(modalInitialWithdrawalCents.value || 0),
-  0,
-))
+const pendingWithdrawalsTotalCents = computed(() => pendingWithdrawals.value
+  .reduce((sum, withdrawal) => sum + Number(withdrawal.amount_cents || 0), 0))
+
+const newWithdrawalsCents = computed(() => pendingWithdrawalsTotalCents.value)
 
 const zbonFinalCashValue = computed(() => {
   if (zbonCountedCashValue.value === null) return null
@@ -1265,17 +1278,17 @@ const canCreateZbon = computed(() => (
   && zbonFinalCashValue.value !== null
 ))
 
-const isUserPickerTarget = computed(() => ['createdByUserId', 'verifiedByUserId'].includes(memberPickerTarget.value))
+const isUserPickerTarget = computed(() => memberPickerTarget.value === 'createdByUserId')
 
 const filteredPickerOptions = computed(() => {
   const search = memberSearch.value.trim().toLowerCase()
-  const options = isUserPickerTarget.value ? financeUsers.value : memberStore.members
+  const options = memberPickerTarget.value === 'createdByUserId' ? financeUsers.value : memberStore.members
 
   if (!search) {
     return options
   }
 
-  if (isUserPickerTarget.value) {
+  if (memberPickerTarget.value === 'createdByUserId') {
     return options.filter(user => `${user.username} ${user.role || ''}`.toLowerCase().includes(search))
   }
 
@@ -1309,18 +1322,24 @@ const getSelectedUserName = (userId, fallback = '-') => {
   return formatUserLabel(getUserById(userId)) || fallback
 }
 
+const getSelectedVerifierName = (memberId, fallback = '-') => {
+  const member = getMemberById(memberId)
+  return getMemberFullName(member) || fallback
+}
+
 const loadDailyStats = async () => {
   loading.value = true
   try {
     const payload = {
       created_by_name: getSelectedUserName(zbonForm.value.createdByUserId, null),
-      cash_counted_by_name: getSelectedUserName(zbonForm.value.verifiedByUserId, null),
+      cash_counted_by_name: getSelectedVerifierName(zbonForm.value.verifiedByUserId, null),
       cash_count: cashCountData.value
         ? {
           coins: cashCountData.value.coins,
           notes: cashCountData.value.notes,
         }
         : null,
+      pending_withdrawals: pendingWithdrawals.value,
     }
     const response = await apiService.post('/transactions/zbon/preview', payload)
     const preview = response.data
@@ -1329,7 +1348,7 @@ const loadDailyStats = async () => {
       balance_total: Math.round((preview.summary?.balance_sales_total || 0) * 100),
       voucher_total: Math.round((preview.summary?.voucher_sales_total || 0) * 100),
       prepaid_voucher_sales_total: Math.round((preview.summary?.prepaid_voucher_sales_total || 0) * 100),
-      total_amount: Math.round((preview.summary?.gross_sales_total || 0) * 100),
+      total_amount: Math.round((preview.summary?.total_revenue || 0) * 100),
       transaction_count: preview.summary?.transaction_count || 0,
       opening_balance: preview.summary?.opening_cash_balance || 0,
       cash_calculated: preview.summary?.cash_calculated || 0,
@@ -1415,7 +1434,7 @@ const getPaymentBadgeClass = (transaction) => {
 const getPaymentBadgeLabel = (transaction) => {
   if (transaction.voucher_applied_cents > 0 && transaction.voucher_type) {
     const baseLabel = transaction.payment_method === 'BALANCE' ? '💳 Guthaben' : '💰 BAR'
-    const voucherLabel = transaction.voucher_type === 'GIFT' ? '🎁 Geschenk-Gutschein' : '🎫 Guthabenkarte'
+    const voucherLabel = transaction.voucher_type === 'GIFT' ? '🎁 Geschenk-Gutschein' : '🎫 Verzehrkarte'
     return `${voucherLabel} + ${baseLabel}`
   }
 
@@ -1424,11 +1443,11 @@ const getPaymentBadgeLabel = (transaction) => {
   }
 
   if (transaction.payment_method === 'VOUCHER_PREPAID') {
-    return '🎫 Guthabenkarte'
+    return '🎫 Verzehrkarte'
   }
 
   if (transaction.type === 'VOUCHER_SALE' && transaction.voucher_type === 'PREPAID') {
-    return '💳 Guthabenkarte Verkauf'
+    return '💳 Verzehrkarte Verkauf'
   }
 
   if (transaction.balance_applied_cents > 0 && transaction.payment_method === 'CASH') {
@@ -1537,9 +1556,9 @@ const openZbonCreateModal = async () => {
   if (!financeUsers.value.length) {
     await loadFinanceUsers()
   }
+  pendingWithdrawals.value = []
   await loadDailyStats()
   zbonCountedCash.value = ''
-  modalInitialWithdrawalCents.value = Number(dailyStats.value.withdrawal_total || 0)
   zbonHtmlDownloadMeta.value = {
     period_end: dailyStats.value.period_end,
   }
@@ -1548,7 +1567,8 @@ const openZbonCreateModal = async () => {
 
 const closeZbonCreateModal = () => {
   showZbonCreateModal.value = false
-  modalInitialWithdrawalCents.value = 0
+  pendingWithdrawals.value = []
+  loadDailyStats()
 }
 
 const openPreviewModal = async () => {
@@ -1598,14 +1618,22 @@ const submitWithdrawal = async () => {
 
   try {
     loading.value = true
-    await apiService.post('/transactions/cash/withdrawal', {
-      amount_cents: Math.round(amount * 100),
-      reason,
-    })
-    notificationStore.success('Abschöpfung erfolgreich gespeichert')
+    if (showZbonCreateModal.value) {
+      pendingWithdrawals.value.push({
+        amount_cents: Math.round(amount * 100),
+        reason,
+      })
+      notificationStore.success('Abschöpfung für den Z-Bon vorgemerkt')
+    } else {
+      await apiService.post('/transactions/cash/withdrawal', {
+        amount_cents: Math.round(amount * 100),
+        reason,
+      })
+      notificationStore.success('Abschöpfung erfolgreich gespeichert')
+    }
     closeWithdrawalModal()
     await loadDailyStats()
-    if (activeTab.value === 'zbons') {
+    if (activeTab.value === 'zbons' && !showZbonCreateModal.value) {
       await loadZbonsHistory()
     }
   } catch (error) {
@@ -1627,7 +1655,7 @@ const requestZBonCreate = () => {
 const createZBon = async (password) => {
   showPasswordModal.value = false
   const employeeName = getSelectedUserName(zbonForm.value.createdByUserId, '')
-  const checkerName = getSelectedUserName(zbonForm.value.verifiedByUserId, '')
+  const checkerName = getSelectedVerifierName(zbonForm.value.verifiedByUserId, '')
 
   if (!employeeName) {
     notificationStore.error('Bitte einen Mitarbeiter auswählen')
@@ -1651,6 +1679,7 @@ const createZBon = async (password) => {
       cash_counted_by_name: checkerName,
       auth_password: password,
       cash_count_total: zbonFinalCashValue.value,
+      pending_withdrawals: pendingWithdrawals.value,
     })
     notificationStore.success('Z-Bon erfolgreich erstellt')
     closeZbonCreateModal()
@@ -1658,6 +1687,7 @@ const createZBon = async (password) => {
       createdByUserId: null,
       verifiedByUserId: null,
     }
+    pendingWithdrawals.value = []
     cashCountData.value = null
     zbonCountedCash.value = ''
     await loadDailyStats()
@@ -2342,6 +2372,10 @@ onMounted(() => {
   border: 1px solid #cbd5e1;
 }
 
+.zbon-counted-group {
+  margin-bottom: 0.75rem;
+}
+
 .zbon-side-summary {
   grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 0.75rem;
@@ -2393,6 +2427,12 @@ onMounted(() => {
   }
 }
 
+.selection-actions {
+  display: flex;
+  gap: 0.5rem;
+  align-items: center;
+}
+
 .member-select-btn {
   padding: 0.75rem 0.9rem;
   border: 1px solid #cbd5e1;
@@ -2408,6 +2448,15 @@ onMounted(() => {
     background: #eef2f7;
     border-color: #94a3b8;
   }
+}
+
+.clear-selection-btn {
+  border: 1px solid #cbd5e1;
+  background: #fff;
+  color: #475569;
+  border-radius: 8px;
+  padding: 0.75rem 0.9rem;
+  cursor: pointer;
 }
 
 .member-picker-overlay {
@@ -2487,6 +2536,11 @@ onMounted(() => {
 
   .zbon-side-summary {
     grid-template-columns: 1fr;
+  }
+
+  .selection-actions {
+    flex-direction: column;
+    align-items: stretch;
   }
 }
 

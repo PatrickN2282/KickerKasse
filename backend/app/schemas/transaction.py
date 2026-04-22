@@ -51,6 +51,8 @@ class TransactionResponse(BaseModel):
     voucher_applied_cents: int = 0
     balance_applied_cents: int = 0
     items: List[TransactionItemResponse]
+    issued_prepaid_voucher_numbers: List[str] = Field(default_factory=list)
+    next_unissued_prepaid_voucher_number: Optional[str] = None
     created_at: datetime
     updated_at: datetime
 

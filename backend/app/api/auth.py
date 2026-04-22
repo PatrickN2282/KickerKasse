@@ -94,6 +94,28 @@ async def login(
     )
 
 
+@router.post("/login-kasse", response_model=LoginResponse)
+@router.post("/login-kasse/", response_model=LoginResponse)
+async def login_kasse(
+    request: Request,
+    db: Session = Depends(get_db),
+):
+    """Direct login for the hidden cash register account."""
+    user = UserService(db).ensure_kasse_user()
+
+    request.session["user_id"] = user.id
+    request.session["username"] = user.username
+    request.session["role"] = user.role.value
+
+    return LoginResponse(
+        id=user.id,
+        username=user.username,
+        email=user.email,
+        role=user.role.value,
+        message="Kasse angemeldet",
+    )
+
+
 @router.post("/logout")
 @router.post("/logout/")
 async def logout(request: Request):

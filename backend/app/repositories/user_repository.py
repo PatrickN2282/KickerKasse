@@ -1,7 +1,10 @@
+from sqlalchemy import or_
 from sqlalchemy.orm import Session
 from app.models import User, UserRole
 from app.models.user import parse_user_role
 from app.core.security import get_password_hasher
+
+BLIND_USERNAMES = {"Kasse"}
 
 
 class UserRepository:
@@ -74,11 +77,32 @@ class UserRepository:
         return self.db.query(User).filter(
             User.is_active.is_(True),
             User.role != UserRole.TOP_ADMIN,
+            User.username.notin_(BLIND_USERNAMES),
+        ).all()
+
+    def get_visible_active_users(self) -> list[User]:
+        """Get all active users except hidden system accounts."""
+        return self.db.query(User).filter(
+            User.is_active.is_(True),
+            User.role != UserRole.TOP_ADMIN,
+            User.username.notin_(BLIND_USERNAMES),
         ).all()
 
     def get_top_admin(self) -> User | None:
         """Get the single top admin account if it exists."""
         return self.db.query(User).filter(User.role == UserRole.TOP_ADMIN).first()
+
+    def get_visible_finance_users(self) -> list[User]:
+        """Get visible users that may appear in Z-Bon creator selections."""
+        return self.db.query(User).filter(
+            User.is_active.is_(True),
+            User.username.notin_(BLIND_USERNAMES),
+            or_(
+                User.role == UserRole.TOP_ADMIN,
+                User.role == UserRole.ADMIN,
+                User.role == UserRole.MANAGER,
+            ),
+        ).all()
 
     def has_top_admin(self) -> bool:
         """Return whether a top admin account already exists."""

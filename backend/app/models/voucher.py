@@ -45,23 +45,28 @@ class Voucher(BaseModel):
     
     # Who created/redeemed this voucher
     created_by_user_id = Column(Integer, ForeignKey("users.id"), nullable=False)
+    sold_by_user_id = Column(Integer, ForeignKey("users.id"), nullable=True)
     redeemed_by_user_id = Column(Integer, ForeignKey("users.id"), nullable=True)  # Wer hat es eingelöst
     
     # When
     created_at = Column(DateTime, default=func.now(), nullable=False, index=True)
+    sold_at = Column(DateTime, nullable=True)
     redeemed_at = Column(DateTime, nullable=True)  # Wann eingelöst
     redeemed_amount_cents = Column(Integer, nullable=True)  # Tatsächlich angerechneter Wert
     
     # Reference to transaction where voucher was redeemed
     redeemed_in_transaction_id = Column(Integer, ForeignKey("transactions.id"), nullable=True)
+    sold_in_transaction_id = Column(Integer, ForeignKey("transactions.id"), nullable=True)
     
     # Timestamps
     updated_at = Column(DateTime, default=func.now(), onupdate=func.now(), nullable=False)
 
     # Relationships
     created_by_user = relationship("User", foreign_keys=[created_by_user_id])
+    sold_by_user = relationship("User", foreign_keys=[sold_by_user_id])
     redeemed_by_user = relationship("User", foreign_keys=[redeemed_by_user_id])
     redeemed_in_transaction = relationship("Transaction")
+    sold_in_transaction = relationship("Transaction", foreign_keys=[sold_in_transaction_id])
 
     @property
     def created_by_username(self):

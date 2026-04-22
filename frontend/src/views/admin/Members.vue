@@ -73,7 +73,7 @@
           >
         </div>
         <div
-          v-if="authStore.isAdmin"
+          v-if="authStore.isTopAdmin"
           class="form-group"
         >
           <label for="role">Rolle:</label>
@@ -98,7 +98,7 @@
         </div>
       </div>
       <div
-        v-if="authStore.isAdmin && formData.role"
+        v-if="authStore.isTopAdmin && formData.role"
         class="role-account-box"
       >
         <div
@@ -366,7 +366,7 @@ const uploadPhotoToMember = async (memberId) => {
 
 const handleSaveMember = async () => {
   const payload = { ...formData }
-  if (!authStore.isAdmin) {
+  if (!authStore.isTopAdmin) {
     delete payload.role
     delete payload.account_password
   } else if (!payload.role) {
@@ -376,7 +376,7 @@ const handleSaveMember = async () => {
     delete payload.account_password
   }
 
-  if (authStore.isAdmin && payload.role && !hasExistingUserAccount.value && !formData.account_password) {
+  if (authStore.isTopAdmin && payload.role && !hasExistingUserAccount.value && !formData.account_password) {
     notificationStore.error('Bitte ein Passwort für das Benutzerkonto vergeben')
     return
   }
