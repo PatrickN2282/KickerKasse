@@ -403,7 +403,7 @@
           <div class="button-group">
             <button
               @click="validateVoucher"
-              :disabled="!hasVoucherNumber || validatingVoucher"
+              :disabled="!hasValidVoucherInput || validatingVoucher"
               class="btn btn-primary"
             >
               {{ validatingVoucher ? '⏳ Wird überprüft...' : '✓ Überprüfen' }}
@@ -751,7 +751,7 @@ const voucherActionLabel = computed(() => {
     ? '✓ Kauf abschließen'
     : '✓ Als Rabatt anwenden'
 })
-const hasVoucherNumber = computed(() => {
+const hasValidVoucherInput = computed(() => {
   const normalizedVoucher = voucherNumber.value.trim().toUpperCase()
   return normalizedVoucher !== '' && normalizedVoucher !== voucherPrefix
 })

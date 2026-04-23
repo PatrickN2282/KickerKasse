@@ -61,6 +61,7 @@ class MaterialAccountService:
                 ))
             return
 
+        # Fallback for legacy transactions that predate material-account entries.
         reference_items = getattr(reference_transaction, "items", None) or []
         for item in reference_items:
             product = getattr(item, "product", None)
