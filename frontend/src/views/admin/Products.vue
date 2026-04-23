@@ -295,11 +295,18 @@ const handleImageUpload = (event) => {
   }
 }
 
-const deleteProduct = async (_productId) => {
+const deleteProduct = async (productId) => {
   if (confirm('Wirklich löschen?')) {
-    // API call would go here
-    notificationStore.success('Produkt gelöscht')
-    await productStore.getProducts()
+    const result = await productStore.deleteProduct(productId)
+
+    if (result) {
+      if (editingId.value === productId) {
+        resetForm()
+      }
+      notificationStore.success('Produkt gelöscht')
+    } else {
+      notificationStore.error(productStore.error || 'Fehler beim Löschen')
+    }
   }
 }
 

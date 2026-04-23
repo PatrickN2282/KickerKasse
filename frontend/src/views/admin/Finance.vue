@@ -1017,8 +1017,7 @@
       class="confirmation-overlay"
     >
       <div
-        class="confirmation-dialog"
-        style="max-width: 1100px;"
+        class="confirmation-dialog zbon-preview-dialog"
       >
         <h3>{{ zbonHtmlModalTitle }}</h3>
         <div class="zbon-preview-frame-shell">
@@ -2628,17 +2627,22 @@ onMounted(() => {
   margin-top: 2rem;
 }
 
+.zbon-preview-dialog {
+  width: min(96vw, 2200px);
+  max-width: min(96vw, 2200px);
+}
+
 .zbon-preview-frame-shell {
   background: white;
   border-radius: 4px;
-  max-height: 600px;
+  max-height: min(80vh, 1200px);
   overflow: hidden;
   border: 1px solid #eee;
 }
 
 .zbon-preview-frame {
   width: 100%;
-  min-height: 600px;
+  min-height: min(80vh, 1200px);
   border: 0;
   display: block;
 }
