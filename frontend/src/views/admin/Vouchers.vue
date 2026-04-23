@@ -798,7 +798,8 @@ const getStatusKey = (voucher) => {
   if (voucher.status === 'PARTIALLY_REDEEMED') return 'PARTIALLY_REDEEMED'
   if (voucher.status === 'REDEEMED') return 'REDEEMED'
   if (voucher.voucher_type === 'PREPAID' && !voucher.sold_at) return 'CREATED'
-  return 'ACTIVATED'
+  if (voucher.status === 'CREATED') return 'ACTIVATED'
+  return voucher.status
 }
 
 const getStatusLabel = (voucher) => {
@@ -806,13 +807,17 @@ const getStatusLabel = (voucher) => {
   if (status === 'CREATED') return '🟣 Erstellt'
   if (status === 'ACTIVATED') return '🔵 Aktiviert'
   if (status === 'PARTIALLY_REDEEMED') return '🟡 Teilweise eingelöst'
-  return '⚫ Verbraucht'
+  if (status === 'REDEEMED') return '⚫ Verbraucht'
+  return `⚪ ${status}`
 }
 
 const getStatusClass = (voucher) => {
   const status = getStatusKey(voucher)
   if (status === 'PARTIALLY_REDEEMED') return 'partially-redeemed'
-  return status.toLowerCase()
+  if (status === 'ACTIVATED') return 'activated'
+  if (status === 'REDEEMED') return 'redeemed'
+  if (status === 'CREATED') return 'created'
+  return 'unknown'
 }
 
 const formatVoucherCreator = (voucher) => {
@@ -1173,6 +1178,11 @@ onMounted(() => {
     &.partially-redeemed {
       background: #fff3cd;
       color: #856404;
+    }
+
+    &.unknown {
+      background: #f3f4f6;
+      color: #4b5563;
     }
   }
 

@@ -441,7 +441,7 @@
                 <td>Restwert:</td>
                 <td>{{ (voucherValidation.remaining_value_cents / 100).toFixed(2) }}€</td>
               </tr>
-              <tr v-if="shouldShowVoucherStatus(voucherValidation)">
+              <tr v-if="getVoucherValidationStatusLabel(voucherValidation)">
                 <td>Status:</td>
                 <td>
                   {{ getVoucherValidationStatusLabel(voucherValidation) }}
@@ -1178,8 +1178,6 @@ const formatVoucherReason = (reason) => {
   if (!reason) return '-'
   return voucherReasonLabels[reason] || reason
 }
-
-const shouldShowVoucherStatus = (voucher) => voucher?.status === 'EXPIRED'
 
 const getVoucherValidationStatusLabel = (voucher) => {
   if (voucher?.status === 'EXPIRED') {
