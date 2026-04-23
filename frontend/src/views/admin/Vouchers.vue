@@ -296,8 +296,8 @@
                 </small>
               </td>
               <td>
-                <span :class="['status-badge', getStatusClass(voucher)]">
-                  {{ getStatusLabel(voucher) }}
+                <span :class="['status-badge', getVoucherStatusPresentation(voucher).className]">
+                  {{ getVoucherStatusPresentation(voucher).label }}
                 </span>
               </td>
               <td>{{ formatReason(voucher.reason) }}</td>
@@ -794,30 +794,20 @@ const formatReason = (reason) => {
   return reasonLabels[reason] || reason
 }
 
-const getStatusKey = (voucher) => {
-  if (voucher.status === 'PARTIALLY_REDEEMED') return 'PARTIALLY_REDEEMED'
-  if (voucher.status === 'REDEEMED') return 'REDEEMED'
-  if (voucher.voucher_type === 'PREPAID' && !voucher.sold_at) return 'CREATED'
-  if (voucher.status === 'CREATED') return 'ACTIVATED'
-  return voucher.status
-}
-
-const getStatusLabel = (voucher) => {
-  const status = getStatusKey(voucher)
-  if (status === 'CREATED') return '🟣 Erstellt'
-  if (status === 'ACTIVATED') return '🔵 Aktiviert'
-  if (status === 'PARTIALLY_REDEEMED') return '🟡 Teilweise eingelöst'
-  if (status === 'REDEEMED') return '⚫ Verbraucht'
-  return `⚪ ${status}`
-}
-
-const getStatusClass = (voucher) => {
-  const status = getStatusKey(voucher)
-  if (status === 'PARTIALLY_REDEEMED') return 'partially-redeemed'
-  if (status === 'ACTIVATED') return 'activated'
-  if (status === 'REDEEMED') return 'redeemed'
-  if (status === 'CREATED') return 'created'
-  return 'unknown'
+const getVoucherStatusPresentation = (voucher) => {
+  if (voucher.voucher_type === 'PREPAID' && !voucher.sold_at) {
+    return { key: 'CREATED', label: '🟣 Erstellt', className: 'created' }
+  }
+  if (voucher.status === 'CREATED') {
+    return { key: 'ACTIVATED', label: '🔵 Aktiviert', className: 'activated' }
+  }
+  if (voucher.status === 'PARTIALLY_REDEEMED') {
+    return { key: 'PARTIALLY_REDEEMED', label: '🟡 Teilweise eingelöst', className: 'partially-redeemed' }
+  }
+  if (voucher.status === 'REDEEMED') {
+    return { key: 'REDEEMED', label: '⚫ Verbraucht', className: 'redeemed' }
+  }
+  return { key: voucher.status, label: `⚪ ${voucher.status}`, className: 'unknown' }
 }
 
 const formatVoucherCreator = (voucher) => {
