@@ -98,7 +98,7 @@
         </div>
       </div>
       <div
-        v-if="authStore.isTopAdmin && formData.role"
+        v-if="showAccountPasswordSection"
         class="role-account-box"
       >
         <div
@@ -129,7 +129,7 @@
         </div>
         <small class="form-help">
           {{ hasExistingUserAccount
-            ? 'Mitglieder mit Rolle können sich damit wie normale Benutzer anmelden. Passwort nur bei Bedarf ändern.'
+            ? 'Bei bestehenden Benutzerkonten können Admin und Top-Admin hier ein neues Passwort setzen.'
             : 'Sobald eine Rolle vergeben wird, wird ein Benutzerkonto angelegt und ein Passwort benötigt.' }}
         </small>
       </div>
@@ -223,7 +223,7 @@
             <th>Mitgliedsnummer</th>
             <th>Name</th>
             <th>Rabatt</th>
-            <th>Rolle</th>
+            <th v-if="authStore.isTopAdmin">Rolle</th>
             <th>E-Mail</th>
             <th>Telefon</th>
             <th>Guthaben</th>
@@ -251,7 +251,7 @@
             <td>{{ member.membership_number || '-' }}</td>
             <td>{{ getMemberFullName(member) }}</td>
             <td>{{ member.has_discount ? 'Ja' : 'Nein' }}</td>
-            <td>{{ getRoleLabel(member.role) }}</td>
+            <td v-if="authStore.isTopAdmin">{{ getRoleLabel(member.role) }}</td>
             <td>{{ member.email || '-' }}</td>
             <td>{{ member.phone || '-' }}</td>
             <td class="balance">
@@ -324,6 +324,11 @@ const formData = reactive({
 })
 
 const fullFormName = computed(() => [formData.first_name, formData.last_name].filter(Boolean).join(' '))
+const showAccountPasswordSection = computed(() => (
+  authStore.isTopAdmin
+    ? !!formData.role
+    : authStore.isAdmin && hasExistingUserAccount.value
+))
 
 const handlePhotoUpload = (event) => {
   const file = event.target.files[0]
@@ -366,9 +371,14 @@ const uploadPhotoToMember = async (memberId) => {
 
 const handleSaveMember = async () => {
   const payload = { ...formData }
-  if (!authStore.isTopAdmin) {
+  if (!authStore.isAdmin) {
     delete payload.role
     delete payload.account_password
+  } else if (!authStore.isTopAdmin) {
+    delete payload.role
+    if (!payload.account_password) {
+      delete payload.account_password
+    }
   } else if (!payload.role) {
     payload.role = null
     delete payload.account_password

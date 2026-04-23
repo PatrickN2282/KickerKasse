@@ -10,6 +10,8 @@ from .zbon_history import ZBonHistory
 from .cash_management import CashBalance, CashEntry, CashEntryType
 from .voucher import Voucher, VoucherType, VoucherStatus, VoucherReason
 from .club_account import ClubAccountEntry
+from .material_account import MaterialAccountEntry
+from .deckel import Deckel, DeckelItem
 
 __all__ = [
     "Base",
@@ -34,4 +36,7 @@ __all__ = [
     "VoucherStatus",
     "VoucherReason",
     "ClubAccountEntry",
+    "MaterialAccountEntry",
+    "Deckel",
+    "DeckelItem",
 ]

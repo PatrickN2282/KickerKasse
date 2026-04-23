@@ -6,6 +6,9 @@ from app.models import (
     CashEntry,
     Category,
     ClubAccountEntry,
+    Deckel,
+    DeckelItem,
+    MaterialAccountEntry,
     Member,
     Product,
     Transaction,
@@ -32,10 +35,13 @@ class DataMaintenanceService:
         self.db.execute(product_category.delete())
         self.db.query(BalanceLog).delete(synchronize_session=False)
         self.db.query(ClubAccountEntry).delete(synchronize_session=False)
+        self.db.query(MaterialAccountEntry).delete(synchronize_session=False)
         self.db.query(CashEntry).delete(synchronize_session=False)
         self.db.query(CashBalance).delete(synchronize_session=False)
         self.db.query(ZBonHistory).delete(synchronize_session=False)
         self.db.query(Voucher).delete(synchronize_session=False)
+        self.db.query(DeckelItem).delete(synchronize_session=False)
+        self.db.query(Deckel).delete(synchronize_session=False)
         self.db.query(TransactionItem).delete(synchronize_session=False)
         self.db.query(Transaction).delete(synchronize_session=False)
         self.db.query(Member).delete(synchronize_session=False)

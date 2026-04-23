@@ -9,6 +9,7 @@ from app.models import (
     ZBonHistory, Member, Product, Voucher, VoucherType, VoucherStatus, CashEntry, CashEntryType
 )
 from app.repositories import TransactionRepository
+from app.services.material_account_service import MaterialAccountService
 from app.templates.zbon_template import ZBON_HTML_TEMPLATE
 from collections import defaultdict
 import logging
@@ -157,6 +158,7 @@ class ZBonService:
         cash_summary = self._get_cash_entry_summary(period_start, period_end, pending_withdrawals)
         voucher_summary = self._get_voucher_summary(period_start, period_end)
         open_balance_total = self._get_open_member_balance_total()
+        material_account_total_euros = MaterialAccountService(self.db).get_period_total_cents(period_start, period_end) / 100
 
         sales = [t for t in transactions if t.type == TransactionType.SALE]
         recharges = [t for t in transactions if t.type == TransactionType.RECHARGE]
@@ -287,6 +289,7 @@ class ZBonService:
                 "voucher_open_count": voucher_summary["open_count"],
                 "voucher_open_total": voucher_summary["open_total"],
                 "balance_open_total": open_balance_total,
+                "material_account_total": material_account_total_euros,
                 "withdrawals": [
                     {
                         "created_at": entry.created_at.isoformat(),
@@ -411,6 +414,7 @@ class ZBonService:
             recharge_total=f"{summary.get('recharge_total', 0):.2f}",
             prepaid_voucher_sales_count=summary.get("prepaid_voucher_sales_count", 0),
             prepaid_voucher_sales_total=f"{summary.get('prepaid_voucher_sales_total', 0):.2f}",
+            material_account_total=f"{summary.get('material_account_total', 0):.2f}",
             balance_open_total=f"{summary.get('balance_open_total', 0):.2f}",
             total_items_count=summary.get("sales_count", 0),
             total_net=f"{summary.get('total_revenue', 0):.2f}",

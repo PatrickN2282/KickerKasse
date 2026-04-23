@@ -1,7 +1,16 @@
 import secrets
 from sqlalchemy.orm import Session
 from app.repositories import UserRepository
-from app.models import Member, Transaction, Voucher, CashEntry, ClubAccountEntry, UserRole
+from app.models import (
+    ClubAccountEntry,
+    CashEntry,
+    Deckel,
+    MaterialAccountEntry,
+    Member,
+    Transaction,
+    Voucher,
+    UserRole,
+)
 
 
 class UserService:
@@ -136,6 +145,8 @@ class UserService:
             self.db.query(Transaction.id).filter(Transaction.user_id == user.id).first(),
             self.db.query(CashEntry.id).filter(CashEntry.user_id == user.id).first(),
             self.db.query(ClubAccountEntry.id).filter(ClubAccountEntry.user_id == user.id).first(),
+            self.db.query(MaterialAccountEntry.id).filter(MaterialAccountEntry.user_id == user.id).first(),
+            self.db.query(Deckel.id).filter(Deckel.created_by_user_id == user.id).first(),
             self.db.query(Voucher.id).filter(Voucher.created_by_user_id == user.id).first(),
             self.db.query(Voucher.id).filter(Voucher.redeemed_by_user_id == user.id).first(),
         ])

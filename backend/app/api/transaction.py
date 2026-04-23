@@ -17,7 +17,14 @@ from app.schemas import (
     ZBonHistoryResponse,
     ZBonHistoryListResponse,
 )
-from app.services import TransactionService, ZBonService, EmailService, VoucherService
+from app.services import (
+    DeckelService,
+    EmailService,
+    MaterialAccountService,
+    TransactionService,
+    VoucherService,
+    ZBonService,
+)
 from app.services.zbon_html_exporter import ZBonHTMLExporter
 from app.repositories import MemberRepository, ProductRepository
 from app.models import CashEntry, CashEntryType, PaymentMethod, Transaction, ZBonHistory, UserRole
@@ -122,6 +129,7 @@ async def create_sale(
     
     # Validate items exist and have stock
     product_repo = ProductRepository(db)
+    reserved_quantities = DeckelService(db).get_reserved_quantities()
     sold_prepaid_quantities_by_value: dict[int, int] = {}
     voucher_service = VoucherService(db)
     for item in transaction_data.items:
@@ -131,7 +139,8 @@ async def create_sale(
                 status_code=status.HTTP_404_NOT_FOUND,
                 detail=f"Product {item.product_id} not found",
             )
-        if product.stock_quantity < item.quantity:
+        available_quantity = max(product.stock_quantity - reserved_quantities.get(product.id, 0), 0)
+        if available_quantity < item.quantity:
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
                 detail=f"Unzureichender Bestand für Produkt {product.name}",
@@ -243,6 +252,8 @@ async def create_sale(
     for item in transaction.items:
         product_repo.deduct_stock(item.product_id, item.quantity)
 
+    MaterialAccountService(db).record_sale_transaction(transaction)
+
     for voucher, applied_amount in vouchers:
         voucher_service.repository.apply_redemption(
             voucher.id,
@@ -338,6 +349,8 @@ async def create_storno(
     product_repo = ProductRepository(db)
     for item in storno.reference_transaction.items:
         product_repo.add_stock(item.product_id, item.quantity)
+
+    MaterialAccountService(db).record_storno_transaction(storno)
     
     return storno
 

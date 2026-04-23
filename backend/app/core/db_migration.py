@@ -7,6 +7,10 @@ from sqlalchemy import inspect, text
 from sqlalchemy.engine import Engine
 import logging
 
+from app.constants import (
+    INTERNAL_MATERIAL_CATEGORY_DESCRIPTION,
+    INTERNAL_MATERIAL_CATEGORY_NAME,
+)
 from app.services.app_settings_service import DEFAULT_APP_NAME
 
 logger = logging.getLogger(__name__)
@@ -498,6 +502,25 @@ class DatabaseMigrator:
                             conn.rollback()
                         except:
                             pass
+
+                try:
+                    conn.execute(text("""
+                        INSERT INTO categories (name, description, is_active_in_kasse, display_order, created_at, updated_at)
+                        SELECT :name, :description, TRUE, 999, NOW(), NOW()
+                        WHERE NOT EXISTS (
+                            SELECT 1 FROM categories WHERE name = :name
+                        )
+                    """), {
+                        "name": INTERNAL_MATERIAL_CATEGORY_NAME,
+                        "description": INTERNAL_MATERIAL_CATEGORY_DESCRIPTION,
+                    })
+                    conn.commit()
+                except Exception as e:
+                    logger.warning(f"Could not ensure fixed internal material category: {str(e)}")
+                    try:
+                        conn.rollback()
+                    except:
+                        pass
 
             if 'transactions' in inspector.get_table_names():
                 transaction_columns = {col['name'] for col in inspector.get_columns('transactions')}

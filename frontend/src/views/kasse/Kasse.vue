@@ -27,9 +27,9 @@
             <button
               v-for="product in getProductsByCategory(category.id)"
               :key="product.id"
-              :disabled="product.stock_quantity === 0"
-              class="product-btn"
-              @click="selectProduct(product)"
+                :disabled="getAvailableStock(product) === 0"
+                class="product-btn"
+                @click="selectProduct(product)"
             >
               <div v-if="product.image_path" class="product-image">
                 <img :src="`/api/products/${product.id}/image`" :alt="product.name" />
@@ -37,7 +37,7 @@
               <div class="product-name">{{ product.name }}</div>
               <div class="product-price">{{ formatPrice(product.price_cents) }}</div>
               <div class="product-stock">
-                Lager: {{ product.stock_quantity }}
+                Verfügbar: {{ getAvailableStock(product) }}
               </div>
             </button>
           </div>
@@ -62,9 +62,9 @@
             <button
               v-for="product in productsWithoutCategory"
               :key="product.id"
-              :disabled="product.stock_quantity === 0"
-              class="product-btn"
-              @click="selectProduct(product)"
+                :disabled="getAvailableStock(product) === 0"
+                class="product-btn"
+                @click="selectProduct(product)"
             >
               <div v-if="product.image_path" class="product-image">
                 <img :src="`/api/products/${product.id}/image`" :alt="product.name" />
@@ -72,7 +72,7 @@
               <div class="product-name">{{ product.name }}</div>
               <div class="product-price">{{ formatPrice(product.price_cents) }}</div>
               <div class="product-stock">
-                Lager: {{ product.stock_quantity }}
+                Verfügbar: {{ getAvailableStock(product) }}
               </div>
             </button>
           </div>
@@ -99,15 +99,15 @@
           >
             <div class="item-name">{{ item.product_name }}</div>
             <div class="item-controls">
-              <button @click="cartStore.updateItemQuantity(item.product_id, item.quantity - 1)" class="btn-qty">−</button>
+              <button @click="changeCartItemQuantity(item, item.quantity - 1)" class="btn-qty">−</button>
               <input
                 v-model.number="item.quantity"
                 type="number"
                 min="1"
-                @change="cartStore.updateItemQuantity(item.product_id, item.quantity)"
+                @change="changeCartItemQuantity(item, item.quantity)"
                 class="qty-input"
               />
-              <button @click="cartStore.updateItemQuantity(item.product_id, item.quantity + 1)" class="btn-qty">+</button>
+              <button @click="changeCartItemQuantity(item, item.quantity + 1)" class="btn-qty">+</button>
             </div>
             <div class="item-price">{{ formatPrice(item.total_price_cents) }}</div>
             <button @click="cartStore.removeItem(item.product_id)" class="btn-remove">✕</button>
@@ -231,7 +231,7 @@
               </button>
 
               <button
-                @click="showVoucherModal = true"
+                @click="openVoucherModal"
                 :disabled="cartStore.items.length === 0"
                 class="payment-btn voucher-btn"
               >
@@ -243,6 +243,9 @@
       </div>
 
       <div class="cancel-section">
+        <button @click="openDeckelOverview" class="btn-deckel" :disabled="cartStore.items.length === 0 && deckelList.length === 0" title="Bon als Deckel speichern oder vorhandenen Deckel öffnen">
+          📒 Deckel
+        </button>
         <button @click="cartStore.clear()" class="btn-cancel" title="Kassiervorgang abbrechen">
           ✕ Abbrechen / Zurück
         </button>
@@ -311,12 +314,12 @@
           </div>
         </template>
         <template v-else>
-          <h3>Zahlung bestätigen</h3>
+          <h3>{{ paymentSource === 'deckel' ? 'Deckel abrechnen' : 'Zahlung bestätigen' }}</h3>
           <div class="payment-method-chip">
             {{ getPaymentMethodLabel(pendingPaymentMethod) }}
           </div>
           <div class="payment-summary-list">
-            <div v-for="item in cartStore.items" :key="item.product_id" class="payment-summary-item">
+            <div v-for="item in paymentSummaryItems" :key="`${paymentSource}-${item.product_id}-${item.unit_price_cents}`" class="payment-summary-item">
               <span>{{ item.quantity }}× {{ item.product_name }}</span>
               <strong>{{ formatPrice(item.total_price_cents) }}</strong>
             </div>
@@ -324,23 +327,27 @@
           <div class="payment-summary-totals">
             <div class="total-row">
               <span>Zwischensumme</span>
-              <strong>{{ formatPrice(cartSubtotal) }}</strong>
+              <strong>{{ formatPrice(paymentSubtotal) }}</strong>
             </div>
-            <div v-if="hasAppliedVoucher" class="total-row">
+            <div v-if="paymentSource === 'cart' && hasAppliedVoucher" class="total-row">
               <span>Gutscheine</span>
               <strong>-{{ formatPrice(voucherAppliedAmount) }}</strong>
             </div>
-            <div v-if="hasAppliedBalance" class="total-row">
+            <div v-if="paymentSource === 'cart' && hasAppliedBalance" class="total-row">
               <span>Mitgliedsguthaben</span>
               <strong>-{{ formatPrice(balanceAppliedAmount) }}</strong>
             </div>
-            <div v-if="pendingPaymentMethod === 'BALANCE'" class="total-row">
+            <div v-if="paymentSource === 'cart' && pendingPaymentMethod === 'BALANCE'" class="total-row">
               <span>Mitglied</span>
               <strong>{{ selectedMemberName }}</strong>
             </div>
+            <div v-if="paymentSource === 'deckel'" class="total-row">
+              <span>Deckel</span>
+              <strong>{{ activePaymentDeckel?.name }}</strong>
+            </div>
             <div class="total-row grand-total">
               <span>Zu zahlen</span>
-              <strong>{{ formatPrice(cartStore.getTotalAmount()) }}</strong>
+              <strong>{{ formatPrice(paymentTotal) }}</strong>
             </div>
           </div>
           <div v-if="pendingPaymentMethod === 'CASH'" class="cash-payment-fields">
@@ -502,6 +509,92 @@
         </div>
       </div>
     </div>
+
+    <div v-if="showDeckelCreateModal" class="modal">
+      <div class="modal-content voucher-modal">
+        <h3>📒 Neuen Deckel anlegen</h3>
+        <p class="info-text">Der aktuelle Bon wird unter einem Namen zwischengespeichert und kann später bar bezahlt werden.</p>
+        <input
+          v-model="deckelName"
+          type="text"
+          placeholder="Name des Deckels"
+          class="form-input voucher-input"
+          @keyup.enter="createDeckel"
+        />
+        <div class="button-group">
+          <button @click="createDeckel" :disabled="!deckelName.trim() || cartStore.items.length === 0" class="btn btn-primary">
+            ✓ Speichern
+          </button>
+          <button @click="closeDeckelCreateModal" class="btn btn-secondary">
+            Abbrechen / Zurück
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <div v-if="showDeckelOverviewModal" class="modal">
+      <div class="modal-content voucher-modal deckel-overview-modal">
+        <h3>📒 Deckelübersicht</h3>
+        <p class="info-text">Vorhandene Deckel können eingesehen, mit dem aktuellen Bon erweitert oder direkt bar abgerechnet werden.</p>
+        <div v-if="deckelList.length === 0" class="empty-bon">Keine gespeicherten Deckel vorhanden</div>
+        <div v-else class="deckel-list">
+          <button
+            v-for="deckel in deckelList"
+            :key="deckel.id"
+            class="deckel-list-item"
+            @click="openDeckelDetails(deckel)"
+          >
+            <div>
+              <strong>{{ deckel.name }}</strong>
+              <div>{{ deckel.items.length }} Positionen · {{ formatPrice(deckel.total_amount_cents) }}</div>
+            </div>
+            <div class="deckel-actions-inline" @click.stop>
+              <button class="btn btn-primary" :disabled="cartStore.items.length === 0" @click="bookCurrentCartToDeckel(deckel)">
+                Buchen
+              </button>
+              <button class="btn btn-info" @click="openDeckelForPayment(deckel)">
+                Zahlen
+              </button>
+            </div>
+          </button>
+        </div>
+        <div class="button-group">
+          <button @click="openDeckelCreateModalFromOverview" :disabled="cartStore.items.length === 0" class="btn btn-primary">
+            + Neuen Deckel anlegen
+          </button>
+          <button @click="closeDeckelOverviewModal" class="btn btn-secondary">
+            Schließen
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <div v-if="showDeckelDetailsModal && activeDeckel" class="modal">
+      <div class="modal-content payment-modal">
+        <h3>📒 Deckel: {{ activeDeckel.name }}</h3>
+        <p class="info-text">Hier sehen Sie alle bisher gebuchten Artikel und können den Deckel direkt bar abrechnen.</p>
+        <div class="payment-summary-list">
+          <div v-for="item in activeDeckel.items" :key="`deckel-${item.id || item.product_id}-${item.unit_price_cents}`" class="payment-summary-item">
+            <span>{{ item.quantity }}× {{ item.product_name }}</span>
+            <strong>{{ formatPrice(item.total_price_cents) }}</strong>
+          </div>
+        </div>
+        <div class="payment-summary-totals">
+          <div class="total-row grand-total">
+            <span>Gesamt</span>
+            <strong>{{ formatPrice(activeDeckel.total_amount_cents) }}</strong>
+          </div>
+        </div>
+        <div class="modal-actions">
+          <button @click="openDeckelPaymentConfirmation(activeDeckel)" class="btn btn-confirm-payment" :class="{ selected: true }">
+            💰 Zahlen - BAR
+          </button>
+          <button @click="closeDeckelDetailsModal" class="btn btn-danger">
+            Abbrechen / Zurück
+          </button>
+        </div>
+      </div>
+    </div>
   </div>
 </template>
 
@@ -544,6 +637,14 @@ const voucherRedeemed = ref(null)
 const voucherError = ref(null)
 const validatingVoucher = ref(false)
 const redeemingVoucher = ref(false)
+const showDeckelCreateModal = ref(false)
+const showDeckelOverviewModal = ref(false)
+const showDeckelDetailsModal = ref(false)
+const deckelName = ref('')
+const deckelList = ref([])
+const activeDeckel = ref(null)
+const paymentSource = ref('cart')
+const activePaymentDeckel = ref(null)
 
 const voucherReasonLabels = {
   DYP_SIEGER: 'DYP-Sieger',
@@ -619,9 +720,21 @@ const voucherAppliedAmount = computed(() => cartStore.getVoucherAppliedAmount())
 const balanceAppliedAmount = computed(() => cartStore.getBalanceAppliedAmount())
 const hasAppliedVoucher = computed(() => cartStore.appliedVouchers.length > 0)
 const hasAppliedBalance = computed(() => balanceAppliedAmount.value > 0)
+const paymentSummaryItems = computed(() => paymentSource.value === 'deckel'
+  ? (activePaymentDeckel.value?.items || [])
+  : cartStore.items
+)
+const paymentSubtotal = computed(() => paymentSource.value === 'deckel'
+  ? (activePaymentDeckel.value?.total_amount_cents || 0)
+  : cartSubtotal.value
+)
+const paymentTotal = computed(() => paymentSource.value === 'deckel'
+  ? (activePaymentDeckel.value?.total_amount_cents || 0)
+  : cartStore.getTotalAmount()
+)
 const cashChangeDisplay = computed(() => {
   const value = Number(cashGiven.value || 0)
-  const change = Math.max(Math.round((value * 100) - cartStore.getTotalAmount()), 0)
+  const change = Math.max(Math.round((value * 100) - paymentTotal.value), 0)
   return formatPrice(change)
 })
 const voucherActionLabel = computed(() => {
@@ -651,8 +764,35 @@ const filteredMembers = computed(() => {
   })
 })
 
+const getDeckelReservedQuantity = (productId, excludeDeckelId = null) => {
+  return deckelList.value.reduce((sum, deckel) => {
+    if (excludeDeckelId && deckel.id === excludeDeckelId) {
+      return sum
+    }
+    return sum + deckel.items
+      .filter(item => item.product_id === productId)
+      .reduce((itemSum, item) => itemSum + item.quantity, 0)
+  }, 0)
+}
+
+const getAvailableStock = (product, excludeDeckelId = null) => {
+  return Math.max((product.stock_quantity || 0) - getDeckelReservedQuantity(product.id, excludeDeckelId), 0)
+}
+
 const selectProduct = (product) => {
-  cartStore.addItem(product)
+  const result = cartStore.addItem(product, getAvailableStock(product))
+  if (!result.success) {
+    notificationStore.error(`Nur ${getAvailableStock(product)} Einheiten von ${product.name} verfügbar`)
+  }
+}
+
+const changeCartItemQuantity = (item, quantity) => {
+  const product = productStore.products.find(productEntry => productEntry.id === item.product_id)
+  const maxQuantity = product ? getAvailableStock(product) : item.quantity
+  const result = cartStore.updateItemQuantity(item.product_id, quantity, maxQuantity)
+  if (!result.success && result.quantity > 0) {
+    notificationStore.error(`Nur ${maxQuantity} Einheiten von ${item.product_name} verfügbar`)
+  }
 }
 
 const selectCustomer = () => {
@@ -676,15 +816,18 @@ const validatePaymentMethod = (method) => {
   return true
 }
 
-const openPaymentConfirmation = (method) => {
-  if (!validatePaymentMethod(method)) {
+const openPaymentConfirmation = (method, options = {}) => {
+  const nextSource = options.source || 'cart'
+  if (nextSource === 'cart' && !validatePaymentMethod(method)) {
     return
   }
 
+  paymentSource.value = nextSource
+  activePaymentDeckel.value = options.deckel || null
   pendingPaymentMethod.value = method
   showPaymentConfirmModal.value = true
   paymentResult.value = null
-  cashGiven.value = method === 'CASH' ? (cartStore.getTotalAmount() / 100).toFixed(2) : ''
+  cashGiven.value = method === 'CASH' ? (paymentTotal.value / 100).toFixed(2) : ''
   nextTick(() => {
     if (method === 'CASH') {
       cashGivenInput.value?.focus()
@@ -702,6 +845,8 @@ const closePaymentConfirmation = () => {
   pendingPaymentMethod.value = null
   cashGiven.value = ''
   paymentResult.value = null
+  paymentSource.value = 'cart'
+  activePaymentDeckel.value = null
 }
 
 const confirmPayment = async () => {
@@ -711,7 +856,7 @@ const confirmPayment = async () => {
 
   if (pendingPaymentMethod.value === 'CASH') {
     const givenCents = Math.round(Number(cashGiven.value || 0) * 100)
-    if (givenCents < cartStore.getTotalAmount()) {
+    if (givenCents < paymentTotal.value) {
       notificationStore.error('Der gegebene Barbetrag reicht nicht aus')
       return
     }
@@ -736,6 +881,10 @@ const confirmPayment = async () => {
 }
 
 const handlePaymentAndCheckout = async (method) => {
+  if (paymentSource.value === 'deckel') {
+    return handleDeckelPayment()
+  }
+
   if (!validatePaymentMethod(method)) {
     return false
   }
@@ -743,8 +892,7 @@ const handlePaymentAndCheckout = async (method) => {
   if (method === 'BALANCE' && selectedMemberBalance.value < cartStore.getTotalAmount()) {
     cartStore.applyBalanceDiscount(selectedMemberBalance.value)
     notificationStore.success('Mitgliedsguthaben wurde als Rabatt auf den Warenkorb angerechnet')
-    pendingPaymentMethod.value = null
-    showPaymentConfirmModal.value = false
+    openPaymentConfirmation('CASH')
     return { appliedBalanceOnly: true }
   }
 
@@ -758,6 +906,11 @@ const selectMember = (member) => {
   cartStore.selectedMemberHasDiscount = !!member.has_discount
   cartStore.recalculatePrices()  // Update prices to member prices
   showMemberModal.value = false
+}
+
+const openVoucherModal = () => {
+  resetVoucherState()
+  showVoucherModal.value = true
 }
 
 const validateVoucher = async () => {
@@ -820,6 +973,8 @@ const redeemVoucher = async () => {
         : `Gutschein ${voucherValidation.value.voucher_number} wurde als Rabatt übernommen.`,
     }
     notificationStore.success(`Gutschein ${voucherValidation.value.voucher_number} als Rabatt übernommen`)
+    closeVoucherModal()
+    openPaymentConfirmation('CASH')
   } catch (error) {
     const detail = error.response?.data?.detail || error.message || 'Fehler bei der Einlösung'
     voucherError.value = detail
@@ -866,6 +1021,123 @@ const removeAppliedBalance = () => {
   notificationStore.success('Mitgliedsguthaben aus dem Bon entfernt')
 }
 
+const serializeCartItems = () => {
+  return cartStore.items.map(item => ({
+    product_id: item.product_id,
+    quantity: item.quantity,
+    unit_price_cents: item.unit_price_cents,
+  }))
+}
+
+const loadDeckelList = async () => {
+  try {
+    const response = await apiService.get('/deckel')
+    deckelList.value = response.data
+    if (activeDeckel.value) {
+      activeDeckel.value = deckelList.value.find(deckel => deckel.id === activeDeckel.value.id) || null
+    }
+    if (activePaymentDeckel.value) {
+      activePaymentDeckel.value = deckelList.value.find(deckel => deckel.id === activePaymentDeckel.value.id) || null
+    }
+  } catch (error) {
+    console.error('[Kasse] Failed to load deckel:', error)
+    notificationStore.error(error.response?.data?.detail || 'Deckel konnten nicht geladen werden')
+  }
+}
+
+const closeDeckelCreateModal = () => {
+  showDeckelCreateModal.value = false
+  deckelName.value = ''
+}
+
+const openDeckelCreateModalFromOverview = () => {
+  closeDeckelOverviewModal()
+  showDeckelCreateModal.value = true
+}
+
+const closeDeckelOverviewModal = () => {
+  showDeckelOverviewModal.value = false
+}
+
+const closeDeckelDetailsModal = () => {
+  showDeckelDetailsModal.value = false
+  activeDeckel.value = null
+}
+
+const openDeckelOverview = async () => {
+  await loadDeckelList()
+  if (deckelList.value.length === 0) {
+    if (cartStore.items.length === 0) {
+      notificationStore.error('Keine gespeicherten Deckel vorhanden')
+      return
+    }
+    showDeckelCreateModal.value = true
+    return
+  }
+
+  showDeckelOverviewModal.value = true
+}
+
+const openDeckelDetails = (deckel) => {
+  activeDeckel.value = deckel
+  showDeckelDetailsModal.value = true
+}
+
+const openDeckelForPayment = (deckel) => {
+  openDeckelDetails(deckel)
+}
+
+const createDeckel = async () => {
+  try {
+    const response = await apiService.post('/deckel', {
+      name: deckelName.value,
+      items: serializeCartItems(),
+    })
+    cartStore.clear()
+    closeDeckelCreateModal()
+    await Promise.all([loadDeckelList(), productStore.getProducts(), loadNextReceiptNumber()])
+    notificationStore.success(`Deckel "${response.data.name}" gespeichert`)
+  } catch (error) {
+    notificationStore.error(error.response?.data?.detail || 'Deckel konnte nicht gespeichert werden')
+  }
+}
+
+const bookCurrentCartToDeckel = async (deckel) => {
+  try {
+    await apiService.post(`/deckel/${deckel.id}/book`, {
+      items: serializeCartItems(),
+    })
+    cartStore.clear()
+    await Promise.all([loadDeckelList(), productStore.getProducts()])
+    notificationStore.success(`Bon auf Deckel "${deckel.name}" gebucht`)
+  } catch (error) {
+    notificationStore.error(error.response?.data?.detail || 'Bon konnte nicht auf den Deckel gebucht werden')
+  }
+}
+
+const openDeckelPaymentConfirmation = (deckel) => {
+  activePaymentDeckel.value = deckel
+  closeDeckelDetailsModal()
+  closeDeckelOverviewModal()
+  openPaymentConfirmation('CASH', { source: 'deckel', deckel })
+}
+
+const handleDeckelPayment = async () => {
+  if (!activePaymentDeckel.value) {
+    return null
+  }
+
+  try {
+    const response = await apiService.post(`/deckel/${activePaymentDeckel.value.id}/pay`)
+    notificationStore.success(`Deckel "${activePaymentDeckel.value.name}" wurde bezahlt`)
+    await Promise.all([productStore.getProducts(), memberStore.getMembers(), loadDeckelList(), loadNextReceiptNumber()])
+    return response.data
+  } catch (error) {
+    notificationStore.error(error.response?.data?.detail || 'Deckel konnte nicht abgerechnet werden')
+    return null
+  }
+}
+
 const clampBonWidth = (width) => {
   const minWidth = 340
   const maxWidth = Math.min(window.innerWidth * 0.7, 720)
@@ -904,6 +1176,9 @@ const formatVoucherReason = (reason) => {
 }
 
 const getPaymentMethodLabel = (method) => {
+  if (paymentSource.value === 'deckel') {
+    return '💰 Zahlung in Bar'
+  }
   if (method === 'BALANCE') {
     return selectedMemberBalance.value >= cartStore.getTotalAmount()
       ? '💳 Zahlung mit Guthaben'
@@ -929,8 +1204,7 @@ const handleCheckout = async (successMessage = 'Verkauf abgeschlossen') => {
     console.log('[Kasse] Checkout successful, transaction:', transaction)
     notificationStore.success(successMessage)
     // Reload members to update balances
-    await memberStore.getMembers()
-    await loadNextReceiptNumber()
+    await Promise.all([memberStore.getMembers(), productStore.getProducts(), loadNextReceiptNumber(), loadDeckelList()])
     return transaction
   } catch (err) {
     console.error('[Kasse] Checkout failed:', err)
@@ -943,7 +1217,7 @@ const handleCheckout = async (successMessage = 'Verkauf abgeschlossen') => {
 
 const getPaymentButtonStyle = (method) => {
   const balance = selectedMemberBalance.value
-  const total = cartStore.total
+  const total = cartStore.getTotalAmount()
   const hasMember = !!cartStore.selectedMemberId
   
   console.log(`[Kasse] Button style for ${method}: hasMember=${hasMember}, balance=${balance}, total=${total}`)
@@ -990,6 +1264,7 @@ onMounted(async () => {
   await productStore.getProducts()
   await memberStore.getMembers()
   await loadCategories()
+  await loadDeckelList()
   await loadNextReceiptNumber()
   clampBonWidth(bonWidth.value)
   console.log('[Kasse] Initial members loaded:', memberStore.members.length)
@@ -1603,8 +1878,11 @@ onBeforeUnmount(() => {
   bottom: 1rem;
   right: 1rem;
   z-index: 100;
+  display: flex;
+  gap: 0.75rem;
 }
 
+.btn-deckel,
 .btn-cancel {
   background-color: #f5f5f5;
   color: #999;
@@ -1624,6 +1902,18 @@ onBeforeUnmount(() => {
 
   &:active {
     transform: scale(0.95);
+  }
+}
+
+.btn-deckel {
+  background: var(--app-banner-color);
+  color: var(--app-banner-contrast);
+  border-color: color-mix(in srgb, var(--app-banner-color) 70%, #000 30%);
+
+  &:hover {
+    background: var(--app-highlight-color);
+    border-color: var(--app-highlight-color);
+    color: var(--app-highlight-contrast);
   }
 }
 
@@ -1997,6 +2287,33 @@ onBeforeUnmount(() => {
   padding: 0.65rem 0.75rem;
   border-radius: 6px;
   background: #f5f5f5;
+}
+
+.deckel-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  margin-bottom: 1rem;
+}
+
+.deckel-list-item {
+  width: 100%;
+  border: 1px solid #d7dde4;
+  border-radius: 8px;
+  padding: 0.9rem;
+  background: #fff;
+  display: flex;
+  justify-content: space-between;
+  gap: 1rem;
+  align-items: center;
+  text-align: left;
+  cursor: pointer;
+}
+
+.deckel-actions-inline {
+  display: flex;
+  gap: 0.5rem;
+  flex-shrink: 0;
 }
 
 .payment-summary-totals {
