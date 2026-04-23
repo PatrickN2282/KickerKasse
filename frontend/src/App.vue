@@ -36,7 +36,7 @@
             <button
               v-if="authStore.isKasseUser"
               class="btn-login"
-              @click="showLoginModal = true"
+              @click="openLoginModal"
             >
               Login
             </button>
@@ -121,6 +121,13 @@ const loginForm = reactive({
   username: '',
   password: '',
 })
+
+const openLoginModal = () => {
+  showLoginModal.value = true
+  modalError.value = ''
+  loginForm.username = authStore.user?.username || ''
+  loginForm.password = ''
+}
 
 const logout = async () => {
   await authStore.logout()

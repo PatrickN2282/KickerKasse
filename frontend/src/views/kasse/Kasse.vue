@@ -244,10 +244,10 @@
 
       <div class="cancel-section">
         <button @click="openDeckelOverview" class="btn-deckel" :disabled="cartStore.items.length === 0 && deckelList.length === 0" title="Bon als Deckel speichern oder vorhandenen Deckel öffnen">
-          📒 Deckel
+          Deckel - Gastteam Ligaspiel
         </button>
         <button @click="cartStore.clear()" class="btn-cancel" title="Kassiervorgang abbrechen">
-          ✕ Abbrechen / Zurück
+          Bon abbrechen
         </button>
       </div>
     </div>
@@ -345,7 +345,7 @@
               <span>Deckel</span>
               <strong>{{ activePaymentDeckel?.name }}</strong>
             </div>
-            <div class="total-row grand-total">
+            <div class="total-row grand-total modal-grand-total">
               <span>Zu zahlen</span>
               <strong>{{ formatPrice(paymentTotal) }}</strong>
             </div>
@@ -441,16 +441,10 @@
                 <td>Restwert:</td>
                 <td>{{ (voucherValidation.remaining_value_cents / 100).toFixed(2) }}€</td>
               </tr>
-              <tr>
+              <tr v-if="shouldShowVoucherStatus(voucherValidation)">
                 <td>Status:</td>
                 <td>
-                  {{
-                    voucherValidation.status === 'CREATED'
-                      ? '✅ Verfügbar'
-                      : voucherValidation.status === 'NOT_SOLD'
-                        ? '🕒 Noch nicht verkauft'
-                        : '✓ Bereits eingelöst'
-                  }}
+                  {{ getVoucherValidationStatusLabel(voucherValidation) }}
                 </td>
               </tr>
               <tr v-if="voucherValidation.reason">
@@ -468,7 +462,8 @@
               v-if="voucherValidation.valid"
               @click="redeemVoucher"
               :disabled="redeemingVoucher"
-              class="btn btn-primary"
+              class="btn"
+              :class="voucherValidation.covers_cart_total ? 'btn-primary' : 'btn-success'"
             >
               {{ voucherActionLabel }}
             </button>
@@ -614,6 +609,7 @@ const memberStore = useMemberStore()
 const cartStore = useCartStore()
 const notificationStore = useNotificationStore()
 const authStore = useAuthStore()
+const INTERNAL_MATERIAL_CATEGORY_NAME = 'Verbrauchsmaterial - Intern'
 
 const showMemberModal = ref(false)
 const showPaymentConfirmModal = ref(false)
@@ -693,7 +689,15 @@ const getProductsByCategory = (categoryId) => {
 }
 
 const activeCategories = computed(() => {
-  return categories.value.filter(c => c.is_active_in_kasse).sort((a, b) => a.display_order - b.display_order)
+  return categories.value
+    .filter(category => (
+      category.is_active_in_kasse
+      && (
+        category.name !== INTERNAL_MATERIAL_CATEGORY_NAME
+        || getProductsByCategory(category.id).length > 0
+      )
+    ))
+    .sort((a, b) => a.display_order - b.display_order)
 })
 
 const productsWithoutCategory = computed(() => {
@@ -1173,6 +1177,15 @@ const startResizing = (event) => {
 const formatVoucherReason = (reason) => {
   if (!reason) return '-'
   return voucherReasonLabels[reason] || reason
+}
+
+const shouldShowVoucherStatus = (voucher) => voucher?.status === 'EXPIRED'
+
+const getVoucherValidationStatusLabel = (voucher) => {
+  if (voucher?.status === 'EXPIRED') {
+    return '⏰ Abgelaufen'
+  }
+  return ''
 }
 
 const getPaymentMethodLabel = (method) => {
@@ -1874,30 +1887,27 @@ onBeforeUnmount(() => {
 }
 
 .cancel-section {
-  position: fixed;
-  bottom: 1rem;
-  right: 1rem;
-  z-index: 100;
   display: flex;
-  gap: 0.75rem;
+  justify-content: space-between;
+  gap: 1rem;
+  margin-top: 1rem;
+  padding-top: 1rem;
+  border-top: 1px solid color-mix(in srgb, var(--app-banner-color) 18%, white 82%);
 }
 
 .btn-deckel,
 .btn-cancel {
-  background-color: #f5f5f5;
-  color: #999;
-  border: 2px solid #ddd;
-  padding: 0.8rem 1.2rem;
-  border-radius: 8px;
+  min-height: 60px;
+  padding: 0.95rem 1.35rem;
+  border-radius: 12px;
   cursor: pointer;
-  font-size: 0.9rem;
-  font-weight: 500;
+  font-size: 1rem;
+  font-weight: 700;
   transition: all 0.2s;
+  flex: 1 1 0;
 
   &:hover {
-    background-color: #f0f0f0;
-    border-color: #999;
-    color: #666;
+    transform: translateY(-1px);
   }
 
   &:active {
@@ -1906,15 +1916,28 @@ onBeforeUnmount(() => {
 }
 
 .btn-deckel {
-  background: var(--app-banner-color);
-  color: var(--app-banner-contrast);
-  border-color: color-mix(in srgb, var(--app-banner-color) 70%, #000 30%);
+  background: linear-gradient(135deg, #1d4ed8, #2563eb);
+  color: #eff6ff;
+  border: 2px solid #1e40af;
+  text-align: left;
 
   &:hover {
-    background: var(--app-highlight-color);
-    border-color: var(--app-highlight-color);
-    color: var(--app-highlight-contrast);
+    background: linear-gradient(135deg, #1e40af, #2563eb);
+    border-color: #1d4ed8;
+    color: #eff6ff;
   }
+}
+
+.btn-cancel {
+  background: linear-gradient(135deg, #f87171, #dc2626);
+  color: #fff7f7;
+  border: 2px solid #b91c1c;
+}
+
+.btn-cancel:hover {
+  background: linear-gradient(135deg, #ef4444, #b91c1c);
+  border-color: #991b1b;
+  color: #ffffff;
 }
 
 .btn {
@@ -2320,6 +2343,32 @@ onBeforeUnmount(() => {
   display: flex;
   flex-direction: column;
   gap: 0.5rem;
+}
+
+.payment-summary-totals .modal-grand-total {
+  margin-top: 0.35rem;
+  padding: 0.95rem 1rem;
+  border: 2px solid color-mix(in srgb, var(--app-highlight-color) 30%, var(--app-banner-color) 70%);
+  border-radius: 10px;
+  background: color-mix(in srgb, var(--app-highlight-color) 10%, white 90%);
+  box-shadow: 0 8px 18px rgba(15, 23, 42, 0.08);
+
+  span,
+  strong {
+    color: var(--app-banner-color);
+  }
+
+  span {
+    font-size: 1rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.03em;
+  }
+
+  strong {
+    font-size: 1.7rem;
+    font-weight: 800;
+  }
 }
 
 .loading {

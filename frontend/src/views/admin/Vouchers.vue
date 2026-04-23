@@ -231,13 +231,13 @@
               Alle
             </option>
             <option value="CREATED">
-              Erstellt
+              Erstellt / Aktiviert
             </option>
             <option value="PARTIALLY_REDEEMED">
               Teilweise eingelöst
             </option>
             <option value="REDEEMED">
-              Eingelöst
+              Verbraucht
             </option>
           </select>
         </div>
@@ -296,8 +296,8 @@
                 </small>
               </td>
               <td>
-                <span :class="['status-badge', voucher.status.toLowerCase()]">
-                  {{ getStatusLabel(voucher.status) }}
+                <span :class="['status-badge', getStatusClass(voucher)]">
+                  {{ getStatusLabel(voucher) }}
                 </span>
               </td>
               <td>{{ formatReason(voucher.reason) }}</td>
@@ -794,10 +794,25 @@ const formatReason = (reason) => {
   return reasonLabels[reason] || reason
 }
 
-const getStatusLabel = (status) => {
+const getStatusKey = (voucher) => {
+  if (voucher.status === 'PARTIALLY_REDEEMED') return 'PARTIALLY_REDEEMED'
+  if (voucher.status === 'REDEEMED') return 'REDEEMED'
+  if (voucher.voucher_type === 'PREPAID' && !voucher.sold_at) return 'CREATED'
+  return 'ACTIVATED'
+}
+
+const getStatusLabel = (voucher) => {
+  const status = getStatusKey(voucher)
+  if (status === 'CREATED') return '🟣 Erstellt'
+  if (status === 'ACTIVATED') return '🔵 Aktiviert'
   if (status === 'PARTIALLY_REDEEMED') return '🟡 Teilweise eingelöst'
-  if (status === 'REDEEMED') return '✓ Eingelöst'
-  return '✅ Erstellt'
+  return '⚫ Verbraucht'
+}
+
+const getStatusClass = (voucher) => {
+  const status = getStatusKey(voucher)
+  if (status === 'PARTIALLY_REDEEMED') return 'partially-redeemed'
+  return status.toLowerCase()
 }
 
 const formatVoucherCreator = (voucher) => {
@@ -1141,16 +1156,21 @@ onMounted(() => {
     font-weight: 500;
 
     &.created {
-      background: #d1ecf1;
-      color: #0c5460;
+      background: #ede9fe;
+      color: #6d28d9;
+    }
+
+    &.activated {
+      background: #dbeafe;
+      color: #1d4ed8;
     }
 
     &.redeemed {
-      background: #d4edda;
-      color: #155724;
+      background: #e5e7eb;
+      color: #374151;
     }
 
-    &.partially_redeemed {
+    &.partially-redeemed {
       background: #fff3cd;
       color: #856404;
     }
