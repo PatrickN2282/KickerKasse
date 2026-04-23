@@ -61,7 +61,8 @@ class MaterialAccountService:
                 ))
             return
 
-        # Fallback for legacy transactions that pre-date material-account entries.
+        # Fallback for storno reversals of older sales whose original transaction has
+        # internal material items but no persisted material-account entry rows yet.
         reference_items = getattr(reference_transaction, "items", None) or []
         for item in reference_items:
             product = getattr(item, "product", None)
