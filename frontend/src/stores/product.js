@@ -62,6 +62,19 @@ export const useProductStore = defineStore('product', () => {
     }
   }
 
+  const deleteProduct = async (productId) => {
+    error.value = null
+
+    try {
+      await apiService.delete(`/products/${productId}`)
+      products.value = products.value.filter(product => product.id !== productId)
+      return true
+    } catch (err) {
+      error.value = err.response?.data?.detail || 'Failed to delete product'
+      return false
+    }
+  }
+
   return {
     products,
     isLoading,
@@ -70,5 +83,6 @@ export const useProductStore = defineStore('product', () => {
     getProduct,
     createProduct,
     updateProduct,
+    deleteProduct,
   }
 })
