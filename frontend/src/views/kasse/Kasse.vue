@@ -647,6 +647,7 @@ const voucherReasonLabels = {
   PROMOTION: 'Promotion',
 }
 const voucherPrefix = `V-${new Date().getFullYear()}-`
+const normalizedVoucherPrefix = voucherPrefix.toUpperCase()
 
 const loadCategories = async () => {
   try {
@@ -753,7 +754,7 @@ const voucherActionLabel = computed(() => {
 })
 const hasValidVoucherInput = computed(() => {
   const normalizedVoucher = voucherNumber.value.trim().toUpperCase()
-  return normalizedVoucher !== '' && normalizedVoucher !== voucherPrefix
+  return normalizedVoucher !== '' && normalizedVoucher !== normalizedVoucherPrefix
 })
 
 const bonPanelStyle = computed(() => ({
@@ -924,7 +925,7 @@ const openVoucherModal = () => {
 
 const validateVoucher = async () => {
   const normalizedVoucher = voucherNumber.value.trim().toUpperCase()
-  if (!normalizedVoucher || normalizedVoucher === voucherPrefix) return
+  if (!normalizedVoucher || normalizedVoucher === normalizedVoucherPrefix) return
 
   voucherNumber.value = normalizedVoucher
   

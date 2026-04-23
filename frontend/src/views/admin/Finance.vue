@@ -1416,7 +1416,7 @@ const loadDailyStats = async () => {
       receipt_max: preview.summary?.receipt_number_max,
       report_content: preview.report_content || '',
       transactions: [...(preview.transactions || [])].sort((left, right) => (
-        new Date(right.created_at).getTime() - new Date(left.created_at).getTime()
+        right.created_at.localeCompare(left.created_at) || ((right.id || 0) - (left.id || 0))
       )),
     }
     zBonHtml.value = preview.report_content || ''
