@@ -194,6 +194,11 @@ async def update_member(
 ):
     """Update member"""
     current_user = require_roles(request, db, UserRole.ADMIN, UserRole.MANAGER)
+    if member_data.account_password is not None and not current_user.is_admin:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Nur Admin oder Top-Admin dürfen Passwörter neu vergeben",
+        )
     if member_data.role is not None and not current_user.is_top_admin:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,

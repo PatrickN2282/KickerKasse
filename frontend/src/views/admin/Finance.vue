@@ -109,6 +109,14 @@
           </div>
           <div class="summary-card">
             <div class="card-label">
+              Materialkonto
+            </div>
+            <div class="card-value">
+              {{ formatEuroValue(dailyStats.material_account_total) }}
+            </div>
+          </div>
+          <div class="summary-card">
+            <div class="card-label">
               Anzahl Transaktionen
             </div>
             <div class="card-value">
@@ -1129,6 +1137,7 @@ const dailyStats = ref({
   cash_calculated: 0,
   withdrawal_total: 0,
   voucher_open_total: 0,
+  material_account_total: 0,
   period_start: null,
   period_end: null,
   receipt_min: null,
@@ -1364,6 +1373,7 @@ const loadDailyStats = async () => {
       cash_calculated: preview.summary?.cash_calculated || 0,
       withdrawal_total: Math.round((preview.summary?.cash_withdrawals_total || 0) * 100),
       voucher_open_total: preview.summary?.voucher_open_total || 0,
+      material_account_total: preview.summary?.material_account_total || 0,
       period_start: preview.period_start,
       period_end: preview.period_end,
       receipt_min: preview.summary?.receipt_number_min,
@@ -1385,6 +1395,7 @@ const loadDailyStats = async () => {
       cash_calculated: 0,
       withdrawal_total: 0,
       voucher_open_total: 0,
+      material_account_total: 0,
       period_start: null,
       period_end: null,
       receipt_min: null,

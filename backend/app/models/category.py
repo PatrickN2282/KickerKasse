@@ -1,6 +1,7 @@
 from sqlalchemy import Column, String, Integer, DateTime, Boolean, Table, ForeignKey
 from sqlalchemy.sql import func
 from sqlalchemy.orm import relationship
+from app.constants import INTERNAL_MATERIAL_CATEGORY_NAME
 from .base import Base, BaseModel
 
 
@@ -32,3 +33,7 @@ class Category(BaseModel):
 
     def __repr__(self):
         return f"<Category {self.name}>"
+
+    @property
+    def is_fixed(self) -> bool:
+        return (self.name or "").strip() == INTERNAL_MATERIAL_CATEGORY_NAME

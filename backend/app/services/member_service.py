@@ -1,6 +1,15 @@
 from sqlalchemy.orm import Session
 
-from app.models import BalanceLog, CashEntry, ClubAccountEntry, Member, Transaction, Voucher
+from app.models import (
+    BalanceLog,
+    CashEntry,
+    ClubAccountEntry,
+    Deckel,
+    MaterialAccountEntry,
+    Member,
+    Transaction,
+    Voucher,
+)
 from app.repositories import MemberRepository, BalanceLogRepository, UserRepository
 from app.services.file_service import delete_member_photo
 
@@ -188,6 +197,8 @@ class MemberService:
                 self.db.query(Transaction.id).filter(Transaction.user_id == linked_user.id).first(),
                 self.db.query(CashEntry.id).filter(CashEntry.user_id == linked_user.id).first(),
                 self.db.query(ClubAccountEntry.id).filter(ClubAccountEntry.user_id == linked_user.id).first(),
+                self.db.query(MaterialAccountEntry.id).filter(MaterialAccountEntry.user_id == linked_user.id).first(),
+                self.db.query(Deckel.id).filter(Deckel.created_by_user_id == linked_user.id).first(),
                 self.db.query(Voucher.id).filter(Voucher.created_by_user_id == linked_user.id).first(),
                 self.db.query(Voucher.id).filter(Voucher.redeemed_by_user_id == linked_user.id).first(),
             ])

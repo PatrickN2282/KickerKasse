@@ -1,6 +1,7 @@
 from fastapi import APIRouter, HTTPException, Depends, Request, status
 from sqlalchemy.orm import Session
 from sqlalchemy.exc import IntegrityError
+from app.constants import INTERNAL_MATERIAL_CATEGORY_NAME
 from app.core import get_db
 from app.schemas import CategoryCreate, CategoryUpdate, CategoryResponse
 from app.repositories import CategoryRepository, UserRepository
@@ -25,6 +26,10 @@ def _require_admin(request: Request, db: Session):
         )
 
     return current_user
+
+
+def _is_fixed_category(category) -> bool:
+    return category and (getattr(category, "name", None) or "").strip() == INTERNAL_MATERIAL_CATEGORY_NAME
 
 
 @router.get("/", response_model=list[CategoryResponse])
@@ -110,6 +115,12 @@ async def update_category(
     
     try:
         repo = CategoryRepository(db)
+        existing_category = repo.get_by_id(category_id)
+        if existing_category and _is_fixed_category(existing_category):
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Diese feste Kategorie kann nicht bearbeitet werden",
+            )
         category = repo.update(
             category_id,
             name=category_data.name,
@@ -142,6 +153,12 @@ async def delete_category(
     _require_admin(request, db)
     
     repo = CategoryRepository(db)
+    category = repo.get_by_id(category_id)
+    if category and _is_fixed_category(category):
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Diese feste Kategorie kann nicht gelöscht werden",
+        )
     if not repo.delete(category_id):
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,

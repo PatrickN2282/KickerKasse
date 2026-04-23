@@ -8,6 +8,8 @@ from .zbon_service import ZBonService
 from .zbon_html_exporter import ZBonHTMLExporter
 from .voucher_service import VoucherService
 from .data_maintenance_service import DataMaintenanceService
+from .material_account_service import MaterialAccountService
+from .deckel_service import DeckelService
 
 from .scheduler_service import SchedulerService
 __all__ = [
@@ -21,5 +23,7 @@ __all__ = [
     "ZBonHTMLExporter",
     "VoucherService",
     "DataMaintenanceService",
+    "MaterialAccountService",
+    "DeckelService",
     "SchedulerService",
 ]

@@ -4,7 +4,7 @@
 
     <!-- Create Form -->
     <div class="form-section">
-      <h3>{{ editingId ? 'Kategorie bearbeiten' : 'Neue Kategorie hinzufügen' }}</h3>
+        <h3>{{ editingId ? 'Kategorie bearbeiten' : 'Neue Kategorie hinzufügen' }}</h3>
       
       <form @submit.prevent="submitForm" class="form-group">
         <div class="form-field">
@@ -76,7 +76,10 @@
         </thead>
         <tbody>
           <tr v-for="category in categories" :key="category.id">
-            <td><strong>{{ category.name }}</strong></td>
+              <td>
+                <strong>{{ category.name }}</strong>
+                <span v-if="category.is_fixed" class="badge badge-info">Fest</span>
+              </td>
             <td>{{ category.description || '-' }}</td>
             <td>{{ category.display_order }}</td>
             <td>
@@ -123,8 +126,8 @@
               </div>
             </td>
             <td class="actions">
-              <button @click="editCategory(category)" class="btn btn-sm btn-info">Bearbeiten</button>
-              <button @click="deleteCategory(category.id)" class="btn btn-sm btn-danger">Löschen</button>
+               <button @click="editCategory(category)" class="btn btn-sm btn-info" :disabled="category.is_fixed" :title="category.is_fixed ? 'Feste Kategorie kann nicht bearbeitet werden' : ''">Bearbeiten</button>
+               <button @click="deleteCategory(category.id)" class="btn btn-sm btn-danger" :disabled="category.is_fixed" :title="category.is_fixed ? 'Feste Kategorie kann nicht gelöscht werden' : ''">Löschen</button>
             </td>
           </tr>
         </tbody>

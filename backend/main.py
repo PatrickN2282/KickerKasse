@@ -20,6 +20,7 @@ from app.api import (
     member_router,
     product_router,
     category_router,
+    deckel_router,
     transaction_router,
     voucher_admin_router,
     voucher_kasse_router,
@@ -95,6 +96,7 @@ app.include_router(user_router)
 app.include_router(member_router)
 app.include_router(product_router)
 app.include_router(category_router)
+app.include_router(deckel_router)
 app.include_router(transaction_router)
 app.include_router(voucher_admin_router)
 app.include_router(voucher_kasse_router)

@@ -10,27 +10,47 @@ export const useCartStore = defineStore('cart', () => {
   const appliedVouchers = ref([])
   const appliedBalanceCents = ref(0)
 
-  const addItem = (product) => {
+  const cloneCartItem = (item) => ({
+    product_id: item.product_id,
+    product_name: item.product_name,
+    quantity: item.quantity,
+    unit_price_cents: item.unit_price_cents,
+    total_price_cents: item.quantity * item.unit_price_cents,
+    member_price_cents: item.member_price_cents ?? null,
+    regular_price_cents: item.regular_price_cents ?? item.unit_price_cents,
+  })
+
+  const addItem = (product, maxQuantity = product.stock_quantity) => {
     const existingItem = items.value.find(item => item.product_id === product.id)
+    const allowedQuantity = Math.max(Number(maxQuantity ?? product.stock_quantity ?? 0), 0)
 
     if (existingItem) {
+      if (existingItem.quantity >= allowedQuantity) {
+        return { success: false, quantity: existingItem.quantity }
+      }
       existingItem.quantity++
       existingItem.total_price_cents = existingItem.quantity * existingItem.unit_price_cents
-    } else {
-      // Use member price if member is selected and product has member price
-      const unitPrice = (selectedMemberId.value && selectedMemberHasDiscount.value && product.member_price_cents)
-        ? product.member_price_cents
-        : product.price_cents
-      items.value.push({
-        product_id: product.id,
-        product_name: product.name,
-        quantity: 1,
-        unit_price_cents: unitPrice,
-        total_price_cents: unitPrice,
-        member_price_cents: product.member_price_cents,
-        regular_price_cents: product.price_cents,
-      })
+      return { success: true, quantity: existingItem.quantity }
     }
+
+    if (allowedQuantity <= 0) {
+      return { success: false, quantity: 0 }
+    }
+
+    // Use member price if member is selected and product has member price
+    const unitPrice = (selectedMemberId.value && selectedMemberHasDiscount.value && product.member_price_cents)
+      ? product.member_price_cents
+      : product.price_cents
+    items.value.push({
+      product_id: product.id,
+      product_name: product.name,
+      quantity: 1,
+      unit_price_cents: unitPrice,
+      total_price_cents: unitPrice,
+      member_price_cents: product.member_price_cents,
+      regular_price_cents: product.price_cents,
+    })
+    return { success: true, quantity: 1 }
   }
 
   const recalculatePrices = () => {
@@ -52,15 +72,20 @@ export const useCartStore = defineStore('cart', () => {
     items.value = items.value.filter(item => item.product_id !== productId)
   }
 
-  const updateItemQuantity = (productId, quantity) => {
+  const updateItemQuantity = (productId, quantity, maxQuantity = null) => {
     const item = items.value.find(item => item.product_id === productId)
     if (item) {
-      item.quantity = Math.max(0, quantity)
+      const maxAllowed = (maxQuantity === null || maxQuantity === undefined)
+        ? Math.max(item.quantity, 0)
+        : Math.max(Number(maxQuantity), 0)
+      item.quantity = Math.min(Math.max(0, quantity), maxAllowed)
       item.total_price_cents = item.quantity * item.unit_price_cents
       if (item.quantity === 0) {
         removeItem(productId)
       }
+      return { success: quantity <= maxAllowed, quantity: item.quantity }
     }
+    return { success: false, quantity: 0 }
   }
 
   const getSubtotalAmount = () => {
@@ -153,6 +178,15 @@ export const useCartStore = defineStore('cart', () => {
       appliedBalanceCents.value = 0
   }
 
+  const replaceCart = (nextItems = []) => {
+    items.value = nextItems.map(cloneCartItem)
+    selectedMemberId.value = null
+    selectedMemberHasDiscount.value = false
+    paymentMethod.value = 'CASH'
+    appliedVouchers.value = []
+    appliedBalanceCents.value = 0
+  }
+
   return {
     items,
     selectedMemberId,
@@ -175,5 +209,6 @@ export const useCartStore = defineStore('cart', () => {
     removeBalanceDiscount,
     checkout,
     clear,
+    replaceCart,
   }
 })

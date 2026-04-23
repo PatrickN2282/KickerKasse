@@ -91,18 +91,50 @@
             <td>{{ user.email || '-' }}</td>
             <td>{{ roleLabel(user.role) }}</td>
             <td>
-              <button
-                v-if="user.deletable"
-                class="btn-small btn-danger"
-                @click="deleteUser(user.id)"
-              >
-                Löschen
-              </button>
-              <span v-else>-</span>
-            </td>
-          </tr>
+                <button
+                  class="btn-small"
+                  @click="openPasswordReset(user)"
+                >
+                  Passwort setzen
+                </button>
+                <button
+                  v-if="user.deletable"
+                  class="btn-small btn-danger"
+                  @click="deleteUser(user.id)"
+                >
+                  Löschen
+                </button>
+              </td>
+            </tr>
         </tbody>
       </table>
+    </div>
+
+    <div v-if="resettingPasswordFor" class="modal-overlay">
+      <div class="modal-card">
+        <h3>Passwort neu vergeben</h3>
+        <p class="modal-help">
+          Neues Passwort für <strong>{{ resettingPasswordFor.username }}</strong> festlegen.
+        </p>
+        <div class="form-group">
+          <label for="reset-password">Neues Passwort</label>
+          <input
+            id="reset-password"
+            v-model="passwordResetData.password"
+            type="password"
+            minlength="8"
+            class="form-input"
+          >
+        </div>
+        <div class="modal-actions">
+          <button class="btn btn-success" :disabled="passwordResetData.password.length < 8" @click="submitPasswordReset">
+            Speichern
+          </button>
+          <button class="btn btn-danger" @click="closePasswordReset">
+            Abbrechen / Zurück
+          </button>
+        </div>
+      </div>
     </div>
   </div>
 </template>
@@ -118,11 +150,15 @@ const notificationStore = useNotificationStore()
 const showForm = ref(false)
 const users = ref([])
 const membersWithRoles = ref([])
+const resettingPasswordFor = ref(null)
 const formData = reactive({
   username: '',
   email: '',
   password: '',
   role: 'VERKAUF',
+})
+const passwordResetData = reactive({
+  password: '',
 })
 
 const roleLabel = getRoleLabel
@@ -182,14 +218,49 @@ const loadRoleMembers = async () => {
       .filter(member => member.role)
       .map(member => ({
         id: `member-${member.id}`,
+        memberId: member.id,
         username: member.account_username || getMemberFullName(member),
         email: member.email || '-',
         role: member.role,
+        hasUserAccount: member.has_user_account,
         entryType: member.has_user_account ? 'Mitgliedskonto' : 'Mitglied',
         deletable: false,
       }))
   } catch {
     notificationStore.error('Fehler beim Laden der Mitglieder mit Rolle')
+  }
+}
+
+const openPasswordReset = (user) => {
+  if (user.entryType === 'Mitglied' && !user.hasUserAccount) {
+    notificationStore.error('Für dieses Mitglied existiert kein Benutzerkonto')
+    return
+  }
+  resettingPasswordFor.value = user
+  passwordResetData.password = ''
+}
+
+const closePasswordReset = () => {
+  resettingPasswordFor.value = null
+  passwordResetData.password = ''
+}
+
+const submitPasswordReset = async () => {
+  try {
+    if (resettingPasswordFor.value.memberId) {
+      await apiService.put(`/members/${resettingPasswordFor.value.memberId}`, {
+        account_password: passwordResetData.password,
+      })
+    } else {
+      await apiService.put(`/users/${resettingPasswordFor.value.id}`, {
+        password: passwordResetData.password,
+      })
+    }
+    notificationStore.success('Passwort neu vergeben')
+    closePasswordReset()
+    await Promise.all([loadUsers(), loadRoleMembers()])
+  } catch (err) {
+    notificationStore.error(err.response?.data?.detail || 'Fehler beim Speichern des Passworts')
   }
 }
 
@@ -273,6 +344,33 @@ onMounted(async () => {
   &.btn-danger {
     background: #f44336;
   }
+}
+
+.modal-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.45);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 30;
+}
+
+.modal-card {
+  width: min(420px, calc(100vw - 2rem));
+  background: white;
+  border-radius: 8px;
+  padding: 1.5rem;
+}
+
+.modal-help {
+  margin-bottom: 1rem;
+}
+
+.modal-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 0.75rem;
 }
 
 .btn {

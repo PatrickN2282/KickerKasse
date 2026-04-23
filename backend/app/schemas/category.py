@@ -23,6 +23,7 @@ class CategoryUpdate(BaseModel):
 
 class CategoryResponse(CategoryBase):
     id: int
+    is_fixed: bool = False
     created_at: datetime
     updated_at: datetime
 
