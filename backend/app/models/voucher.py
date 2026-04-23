@@ -65,7 +65,7 @@ class Voucher(BaseModel):
     created_by_user = relationship("User", foreign_keys=[created_by_user_id])
     sold_by_user = relationship("User", foreign_keys=[sold_by_user_id])
     redeemed_by_user = relationship("User", foreign_keys=[redeemed_by_user_id])
-    redeemed_in_transaction = relationship("Transaction")
+    redeemed_in_transaction = relationship("Transaction", foreign_keys=[redeemed_in_transaction_id])
     sold_in_transaction = relationship("Transaction", foreign_keys=[sold_in_transaction_id])
 
     @property

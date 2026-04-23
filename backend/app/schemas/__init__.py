@@ -6,6 +6,7 @@ from .transaction import TransactionCreate, TransactionResponse, TransactionStor
 from .auth import LoginRequest, LoginResponse, SetupStatusResponse, TopAdminSetupRequest
 from .app_settings import AppSettingsUpdate, AppSettingsResponse, PublicAppSettingsResponse
 from .voucher import (
+    VoucherBatchCreateResponse,
     VoucherCreateGift,
     VoucherCreatePrepaid,
     VoucherValidateRequest,
@@ -43,6 +44,7 @@ __all__ = [
     "AppSettingsUpdate",
     "AppSettingsResponse",
     "PublicAppSettingsResponse",
+    "VoucherBatchCreateResponse",
     "VoucherCreateGift",
     "VoucherCreatePrepaid",
     "VoucherValidateRequest",
