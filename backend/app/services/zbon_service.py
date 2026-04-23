@@ -6,7 +6,8 @@ from sqlalchemy.orm import Session
 from sqlalchemy import func, desc
 from app.models import (
     Transaction, TransactionType, PaymentMethod, BalanceLog,
-    ZBonHistory, Member, Product, Voucher, VoucherType, VoucherStatus, CashEntry, CashEntryType
+    ZBonHistory, Member, Product, Voucher, VoucherType, VoucherStatus, CashEntry, CashEntryType,
+    ClubAccountEntry,
 )
 from app.repositories import TransactionRepository
 from app.services.material_account_service import MaterialAccountService
@@ -133,6 +134,10 @@ class ZBonService:
         total_balance_cents = self.db.query(func.sum(Member.balance_cents)).scalar() or 0
         return total_balance_cents / 100
 
+    def _get_club_account_total(self) -> float:
+        total_balance_cents = self.db.query(func.sum(ClubAccountEntry.amount_cents)).scalar() or 0
+        return total_balance_cents / 100
+
     def _format_datetime_display(self, value: str | datetime | None, fallback: str = "-") -> str:
         if not value:
             return fallback
@@ -158,6 +163,7 @@ class ZBonService:
         cash_summary = self._get_cash_entry_summary(period_start, period_end, pending_withdrawals)
         voucher_summary = self._get_voucher_summary(period_start, period_end)
         open_balance_total = self._get_open_member_balance_total()
+        club_account_total = self._get_club_account_total()
         material_account_total_euros = MaterialAccountService(self.db).get_period_total_cents(period_start, period_end) / 100
 
         sales = [t for t in transactions if t.type == TransactionType.SALE]
@@ -289,6 +295,7 @@ class ZBonService:
                 "voucher_open_count": voucher_summary["open_count"],
                 "voucher_open_total": voucher_summary["open_total"],
                 "balance_open_total": open_balance_total,
+                "club_account_total": club_account_total,
                 "material_account_total": material_account_total_euros,
                 "withdrawals": [
                     {
@@ -416,6 +423,7 @@ class ZBonService:
             prepaid_voucher_sales_total=f"{summary.get('prepaid_voucher_sales_total', 0):.2f}",
             material_account_total=f"{summary.get('material_account_total', 0):.2f}",
             balance_open_total=f"{summary.get('balance_open_total', 0):.2f}",
+            club_account_total=f"{summary.get('club_account_total', 0):.2f}",
             total_items_count=summary.get("sales_count", 0),
             total_net=f"{summary.get('total_revenue', 0):.2f}",
             total_tax="0.00",

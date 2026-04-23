@@ -390,7 +390,7 @@
           <input
             v-model="voucherNumber"
             type="text"
-            placeholder="Gutscheinnummer eingeben (z.B. V-001)"
+            :placeholder="`Gutscheinnummer eingeben (z. B. ${voucherPrefix}001)`"
             class="form-input voucher-input"
             @keyup.enter="validateVoucher"
             autocomplete="off"
@@ -403,7 +403,7 @@
           <div class="button-group">
             <button
               @click="validateVoucher"
-              :disabled="!voucherNumber || validatingVoucher"
+              :disabled="!hasValidVoucherInput || validatingVoucher"
               class="btn btn-primary"
             >
               {{ validatingVoucher ? '⏳ Wird überprüft...' : '✓ Überprüfen' }}
@@ -646,6 +646,8 @@ const voucherReasonLabels = {
   DYP_SIEGER: 'DYP-Sieger',
   PROMOTION: 'Promotion',
 }
+const voucherPrefix = `V-${new Date().getFullYear()}-`
+const normalizedVoucherPrefix = voucherPrefix.toUpperCase()
 
 const loadCategories = async () => {
   try {
@@ -749,6 +751,10 @@ const voucherActionLabel = computed(() => {
   return voucherValidation.value?.covers_cart_total
     ? '✓ Kauf abschließen'
     : '✓ Als Rabatt anwenden'
+})
+const hasValidVoucherInput = computed(() => {
+  const normalizedVoucher = voucherNumber.value.trim().toUpperCase()
+  return normalizedVoucher !== '' && normalizedVoucher !== normalizedVoucherPrefix
 })
 
 const bonPanelStyle = computed(() => ({
@@ -918,7 +924,10 @@ const openVoucherModal = () => {
 }
 
 const validateVoucher = async () => {
-  if (!voucherNumber.value) return
+  const normalizedVoucher = voucherNumber.value.trim().toUpperCase()
+  if (!normalizedVoucher || normalizedVoucher === normalizedVoucherPrefix) return
+
+  voucherNumber.value = normalizedVoucher
   
   validatingVoucher.value = true
   voucherError.value = null
@@ -989,7 +998,7 @@ const redeemVoucher = async () => {
 }
 
 const resetVoucherState = () => {
-  voucherNumber.value = ''
+  voucherNumber.value = voucherPrefix
   voucherValidation.value = null
   voucherValidated.value = false
   voucherRedeemed.value = null
@@ -1289,20 +1298,23 @@ onBeforeUnmount(() => {
 <style scoped lang="scss">
 .kasse-container {
   display: flex;
-  gap: 0;
+  gap: 1rem;
   padding: 1rem;
-  height: calc(100vh - 70px);
+  width: 100%;
+  height: 100%;
+  min-height: 0;
   background: var(--app-background-color);
+  overflow: hidden;
 
   @media (max-width: 768px) {
     flex-direction: column;
+    overflow-y: auto;
   }
 }
 
 .kasse-products {
   flex: 1 1 auto;
   min-width: 0;
-  margin-right: 1rem;
   background: var(--app-surface-color);
   border-radius: 8px;
   padding: 1.5rem;
@@ -2033,7 +2045,9 @@ onBeforeUnmount(() => {
     }
 
     &.member-modal {
-      max-width: 960px;
+      width: min(75vw, 1200px);
+      max-width: 1200px;
+      max-height: 75vh;
     }
 
     &.payment-modal {

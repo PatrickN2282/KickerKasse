@@ -276,7 +276,7 @@ class TransactionService:
         if payment_method:
             query = query.filter(Transaction.payment_method == PaymentMethod[payment_method])
         
-        transactions = query.all()
+        transactions = query.order_by(Transaction.created_at.desc(), Transaction.id.desc()).all()
         
         print(f"[Service] Found {len(transactions)} filtered transactions")
         
