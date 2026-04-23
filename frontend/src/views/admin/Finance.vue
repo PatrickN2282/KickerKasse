@@ -817,7 +817,7 @@
                   Abschöpfungen Zeitraum
                 </div>
                 <div class="card-value">
-                  {{ formatPrice(dailyStats.withdrawal_total) }}
+                  {{ formatPrice(zbonModalWithdrawalTotalCents) }}
                 </div>
               </div>
               <div class="summary-card modal-summary-card">
@@ -825,7 +825,7 @@
                   Neuer Barbestand Soll
                 </div>
                 <div class="card-value">
-                  {{ formatEuroValue(dailyStats.cash_calculated) }}
+                  {{ zbonModalCashCalculatedDisplay }}
                 </div>
               </div>
             </div>
@@ -1243,6 +1243,18 @@ const pendingWithdrawalsTotalCents = computed(() => pendingWithdrawals.value
 
 const newWithdrawalsCents = computed(() => pendingWithdrawalsTotalCents.value)
 
+const zbonModalWithdrawalTotalCents = computed(() => (
+  Number(dailyStats.value.withdrawal_total || 0) + newWithdrawalsCents.value
+))
+
+const zbonModalCashCalculatedValue = computed(() => (
+  Number(dailyStats.value.cash_calculated || 0) - (newWithdrawalsCents.value / 100)
+))
+
+const zbonModalCashCalculatedDisplay = computed(() => (
+  formatEuroValue(zbonModalCashCalculatedValue.value)
+))
+
 const zbonFinalCashValue = computed(() => {
   if (zbonCountedCashValue.value === null) return null
 
@@ -1261,7 +1273,7 @@ const zbonFinalCashInvalid = computed(() => (
 
 const zbonDifferenceValue = computed(() => {
   if (zbonFinalCashValue.value === null) return null
-  return zbonFinalCashValue.value - Number(dailyStats.value.cash_calculated || 0)
+  return zbonFinalCashValue.value - zbonModalCashCalculatedValue.value
 })
 
 const zbonDifferenceDisplay = computed(() => {
@@ -1339,7 +1351,6 @@ const loadDailyStats = async () => {
           notes: cashCountData.value.notes,
         }
         : null,
-      pending_withdrawals: pendingWithdrawals.value,
     }
     const response = await apiService.post('/transactions/zbon/preview', payload)
     const preview = response.data
