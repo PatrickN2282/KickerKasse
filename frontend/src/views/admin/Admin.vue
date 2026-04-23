@@ -1,16 +1,18 @@
 <template>
   <div class="admin-container">
-    <h1>Admin Panel</h1>
+    <div class="admin-header">
+      <h1>Admin Panel</h1>
 
-    <div class="admin-tabs">
-      <router-link
-        v-for="tab in visibleTabs"
-        :key="tab.path"
-        :to="tab.path"
-        :class="['tab-button', { active: isTabActive(tab.path) }]"
-      >
-        {{ tab.label }}
-      </router-link>
+      <div class="admin-tabs">
+        <router-link
+          v-for="tab in visibleTabs"
+          :key="tab.path"
+          :to="tab.path"
+          :class="['tab-button', { active: isTabActive(tab.path) }]"
+        >
+          {{ tab.label }}
+        </router-link>
+      </div>
     </div>
 
     <div class="tab-content">
@@ -45,13 +47,23 @@ const isTabActive = (path) => route.path === path
 
 <style scoped lang="scss">
 .admin-container {
-  padding: 2rem;
+  height: 100%;
+  min-height: 0;
+  padding: 1.5rem 2rem 2rem;
   max-width: 1400px;
   margin: 0 auto;
+  display: flex;
+  flex-direction: column;
+}
+
+.admin-header {
+  flex-shrink: 0;
+  padding-bottom: 1.5rem;
+  background: var(--app-background-color);
 
   h1 {
     color: #333;
-    margin-bottom: 2rem;
+    margin-bottom: 1.5rem;
   }
 }
 
@@ -85,6 +97,10 @@ const isTabActive = (path) => route.path === path
 }
 
 .tab-content {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  padding-right: 0.25rem;
   animation: fadeIn 0.2s;
 }
 

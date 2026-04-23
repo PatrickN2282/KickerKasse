@@ -21,17 +21,6 @@
     >
       <h3>Z-Bon</h3>
 
-      <div class="date-picker">
-        <div>
-          <strong>Aktueller Zeitraum:</strong>
-          {{ currentPeriodLabel }}
-        </div>
-        <div>
-          <strong>Letzter Belegbereich:</strong>
-          {{ currentReceiptLabel }}
-        </div>
-      </div>
-
       <div
         v-if="loading"
         class="loading"
@@ -40,125 +29,170 @@
       </div>
       <div
         v-else
-        class="zbon-summary"
+        class="zbon-layout"
       >
-        <div class="summary-grid">
-          <div class="summary-card">
-            <div class="card-label">
-              Umsatz (BAR)
-            </div>
-            <div class="card-value">
-              {{ formatPrice(dailyStats.cash_total) }}
-            </div>
+        <div class="zbon-section date-picker">
+          <div>
+            <strong>Aktueller Zeitraum:</strong>
+            {{ currentPeriodLabel }}
           </div>
-          <div class="summary-card">
-            <div class="card-label">
-              Umsatz (Guthaben)
-            </div>
-            <div class="card-value">
-              {{ formatPrice(dailyStats.balance_total) }}
-            </div>
-          </div>
-          <div class="summary-card">
-            <div class="card-label">
-              Gutscheine
-            </div>
-            <div class="card-value">
-              {{ formatPrice(dailyStats.voucher_total) }}
-            </div>
-          </div>
-          <div class="summary-card">
-            <div class="card-label">
-              Verzehrkarten verkauft
-            </div>
-            <div class="card-value">
-              {{ formatPrice(dailyStats.prepaid_voucher_sales_total) }}
-            </div>
-          </div>
-          <div class="summary-card highlight">
-            <div class="card-label">
-              Umsatz GESAMT
-            </div>
-            <div class="card-value">
-              {{ formatPrice(dailyStats.total_amount) }}
-            </div>
-          </div>
-          <div class="summary-card">
-            <div class="card-label">
-              Soll-Bestand Kasse
-            </div>
-            <div class="card-value">
-              {{ formatEuroValue(dailyStats.cash_calculated) }}
-            </div>
-          </div>
-          <div class="summary-card warning">
-            <div class="card-label">
-              Abschöpfungen
-            </div>
-            <div class="card-value">
-              {{ formatPrice(dailyStats.withdrawal_total) }}
-            </div>
-          </div>
-          <div class="summary-card">
-            <div class="card-label">
-              Offene Gutscheine
-            </div>
-            <div class="card-value">
-              {{ formatEuroValue(dailyStats.voucher_open_total) }}
-            </div>
-          </div>
-          <div class="summary-card">
-            <div class="card-label">
-              Materialkonto
-            </div>
-            <div class="card-value">
-              {{ formatEuroValue(dailyStats.material_account_total) }}
-            </div>
-          </div>
-          <div class="summary-card">
-            <div class="card-label">
-              Anzahl Transaktionen
-            </div>
-            <div class="card-value">
-              {{ dailyStats.transaction_count }}
-            </div>
+          <div>
+            <strong>Letzter Belegbereich:</strong>
+            {{ currentReceiptLabel }}
           </div>
         </div>
 
-        <div class="zbon-actions">
-          <button
-            class="btn btn-primary"
-            @click="openPreviewModal"
-          >
-            👁️ Z-Bon Vorschau
-          </button>
-          <button
-            class="btn btn-success"
-            @click="handleDownloadZBon"
-          >
-            ⬇️ Als HTML herunterladen
-          </button>
-          <button
-            class="btn btn-info"
-            @click="openZbonCreateModal"
-          >
-            ✅ Z-Bon erstellen
-          </button>
-          <button
-            class="btn btn-warning"
-            @click="openWithdrawalModal"
-          >
-            💸 Abschöpfung
-          </button>
-          <button
-            class="btn btn-secondary"
-            @click="openCashCounterModal"
-          >
-            💰 Kasse zählen
-          </button>
-        </div>
+        <section class="zbon-section">
+          <div class="zbon-section-header">
+            <div>
+              <h4>Umsatz</h4>
+              <p>Aktuelle Buchungen seit dem letzten Z-Bon.</p>
+            </div>
+          </div>
+          <div class="summary-grid zbon-card-grid">
+            <div class="summary-card">
+              <div class="card-label">
+                Umsatz (BAR)
+              </div>
+              <div class="card-value">
+                {{ formatPrice(dailyStats.cash_total) }}
+              </div>
+            </div>
+            <div class="summary-card">
+              <div class="card-label">
+                Umsatz (Guthaben)
+              </div>
+              <div class="card-value">
+                {{ formatPrice(dailyStats.balance_total) }}
+              </div>
+            </div>
+            <div class="summary-card">
+              <div class="card-label">
+                Gutscheine
+              </div>
+              <div class="card-value">
+                {{ formatPrice(dailyStats.voucher_total) }}
+              </div>
+            </div>
+            <div class="summary-card">
+              <div class="card-label">
+                Verzehrkarten verkauft
+              </div>
+              <div class="card-value">
+                {{ formatPrice(dailyStats.prepaid_voucher_sales_total) }}
+              </div>
+            </div>
+            <div class="summary-card highlight">
+              <div class="card-label">
+                Umsatz GESAMT
+              </div>
+              <div class="card-value">
+                {{ formatPrice(dailyStats.total_amount) }}
+              </div>
+            </div>
+          </div>
+        </section>
 
-        <div class="daily-transactions">
+        <section class="zbon-section">
+          <div class="zbon-section-header">
+            <div>
+              <h4>Konten & Bestand</h4>
+              <p>Kasse, offene Werte und Nebenbuchungen im Überblick.</p>
+            </div>
+          </div>
+          <div class="summary-grid zbon-card-grid secondary">
+            <div class="summary-card">
+              <div class="card-label">
+                Soll-Bestand Kasse
+              </div>
+              <div class="card-value">
+                {{ formatEuroValue(dailyStats.cash_calculated) }}
+              </div>
+            </div>
+            <div class="summary-card warning">
+              <div class="card-label">
+                Abschöpfungen
+              </div>
+              <div class="card-value">
+                {{ formatPrice(dailyStats.withdrawal_total) }}
+              </div>
+            </div>
+            <div class="summary-card neutral">
+              <div class="card-label">
+                Offene Gutscheine
+              </div>
+              <div class="card-value">
+                {{ formatEuroValue(dailyStats.voucher_open_total) }}
+              </div>
+            </div>
+            <div class="summary-card neutral">
+              <div class="card-label">
+                Materialkonto
+              </div>
+              <div class="card-value">
+                {{ formatEuroValue(dailyStats.material_account_total) }}
+              </div>
+            </div>
+            <div class="summary-card neutral">
+              <div class="card-label">
+                Vereinskonto
+              </div>
+              <div class="card-value">
+                {{ formatEuroValue(dailyStats.club_account_total) }}
+              </div>
+            </div>
+            <div class="summary-card neutral">
+              <div class="card-label">
+                Anzahl Transaktionen
+              </div>
+              <div class="card-value">
+                {{ dailyStats.transaction_count }}
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <section class="zbon-section">
+          <div class="zbon-section-header">
+            <div>
+              <h4>Aktionen</h4>
+            </div>
+          </div>
+          <div class="zbon-actions">
+            <button
+              class="btn btn-primary"
+              @click="openPreviewModal"
+            >
+              👁️ Z-Bon Vorschau
+            </button>
+            <button
+              class="btn btn-success"
+              @click="handleDownloadZBon"
+            >
+              ⬇️ Als HTML herunterladen
+            </button>
+            <button
+              class="btn btn-info"
+              @click="openZbonCreateModal"
+            >
+              ✅ Z-Bon erstellen
+            </button>
+            <button
+              class="btn btn-warning"
+              @click="openWithdrawalModal"
+            >
+              💸 Abschöpfung
+            </button>
+            <button
+              class="btn btn-secondary"
+              @click="openCashCounterModal"
+            >
+              💰 Kasse zählen
+            </button>
+          </div>
+        </section>
+
+        <section class="daily-transactions zbon-section">
           <h4>Transaktionen seit dem letzten Z-Bon</h4>
           <div
             v-if="dailyStats.transactions.length === 0"
@@ -243,9 +277,9 @@
               </template>
             </tbody>
           </table>
-        </div>
+        </section>
 
-        <div class="scheduler-section">
+        <section class="scheduler-section zbon-section">
           <h4>⏱️ Automatischer Email-Versand</h4>
           <div class="scheduler-status">
             <div class="status-item">
@@ -281,7 +315,7 @@
             <li><code>EMAIL_ENABLED=true</code></li>
             <li>SMTP-Einstellungen konfigurieren</li>
           </ul>
-        </div>
+        </section>
       </div>
     </div>
 
@@ -1138,6 +1172,7 @@ const dailyStats = ref({
   withdrawal_total: 0,
   voucher_open_total: 0,
   material_account_total: 0,
+  club_account_total: 0,
   period_start: null,
   period_end: null,
   receipt_min: null,
@@ -1374,12 +1409,15 @@ const loadDailyStats = async () => {
       withdrawal_total: Math.round((preview.summary?.cash_withdrawals_total || 0) * 100),
       voucher_open_total: preview.summary?.voucher_open_total || 0,
       material_account_total: preview.summary?.material_account_total || 0,
+      club_account_total: preview.summary?.club_account_total || 0,
       period_start: preview.period_start,
       period_end: preview.period_end,
       receipt_min: preview.summary?.receipt_number_min,
       receipt_max: preview.summary?.receipt_number_max,
       report_content: preview.report_content || '',
-      transactions: preview.transactions || [],
+      transactions: [...(preview.transactions || [])].sort((left, right) => (
+        new Date(right.created_at).getTime() - new Date(left.created_at).getTime()
+      )),
     }
     zBonHtml.value = preview.report_content || ''
   } catch (error) {
@@ -1396,6 +1434,7 @@ const loadDailyStats = async () => {
       withdrawal_total: 0,
       voucher_open_total: 0,
       material_account_total: 0,
+      club_account_total: 0,
       period_start: null,
       period_end: null,
       receipt_min: null,
@@ -1928,9 +1967,11 @@ onMounted(() => {
 
 .date-picker {
   display: flex;
+  justify-content: space-between;
+  flex-wrap: wrap;
   gap: 1rem;
   align-items: center;
-  margin-bottom: 2rem;
+  margin-bottom: 0;
 
   label {
     font-weight: 600;
@@ -1941,6 +1982,37 @@ onMounted(() => {
     border: 1px solid #9ca4ae;
     border-radius: 4px;
     font-size: 1rem;
+  }
+}
+
+.zbon-layout {
+  display: flex;
+  flex-direction: column;
+  gap: 1.5rem;
+}
+
+.zbon-section {
+  background: rgba(255, 255, 255, 0.55);
+  border: 1px solid rgba(24, 28, 34, 0.08);
+  border-radius: 18px;
+  padding: 1.25rem;
+  box-shadow: 0 8px 20px rgba(24, 28, 34, 0.08);
+}
+
+.zbon-section-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 1rem;
+  margin-bottom: 1rem;
+
+  h4 {
+    margin: 0 0 0.25rem;
+  }
+
+  p {
+    margin: 0;
+    color: #5b6470;
   }
 }
 
@@ -1980,6 +2052,14 @@ onMounted(() => {
   margin-bottom: 2rem;
 }
 
+.zbon-card-grid {
+  margin-bottom: 0;
+
+  &.secondary {
+    grid-template-columns: repeat(auto-fit, minmax(190px, 1fr));
+  }
+}
+
 .summary-card {
   background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
   color: white;
@@ -1995,6 +2075,10 @@ onMounted(() => {
     background: linear-gradient(135deg, #ffb74d 0%, #ef6c00 100%);
   }
 
+  &.neutral {
+    background: linear-gradient(135deg, #475569 0%, #334155 100%);
+  }
+
   .card-label {
     font-size: 0.9rem;
     opacity: 0.9;
@@ -2007,10 +2091,20 @@ onMounted(() => {
   }
 }
 
+.zbon-actions {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 0.85rem;
+
+  .btn {
+    min-height: 52px;
+  }
+}
+
 .daily-transactions,
 .payment-stats,
 .top-products {
-  margin: 2rem 0;
+  margin: 0;
 }
 
 .transactions-table,
@@ -2094,6 +2188,21 @@ onMounted(() => {
   text-align: center;
   padding: 2rem;
   color: #666;
+}
+
+.scheduler-section {
+  .scheduler-status {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 1rem;
+    margin-bottom: 1rem;
+  }
+
+  .status-item {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+  }
 }
 
 .history-summary,

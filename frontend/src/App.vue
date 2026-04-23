@@ -170,11 +170,17 @@ onBeforeUnmount(() => {
 .app {
   display: flex;
   flex-direction: column;
+  height: 100vh;
   min-height: 100vh;
   background-color: var(--app-background-color);
+  overflow: hidden;
 }
 
 .navbar {
+  position: sticky;
+  top: 0;
+  z-index: 1200;
+  flex-shrink: 0;
   background: var(--app-banner-color);
   color: white;
   padding: 0.85rem 1rem;
@@ -265,6 +271,7 @@ onBeforeUnmount(() => {
 
 .main-content {
   flex: 1;
+  min-height: 0;
   overflow-y: auto;
   padding: 0;
 }
