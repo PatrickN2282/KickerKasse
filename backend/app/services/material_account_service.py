@@ -16,6 +16,19 @@ class MaterialAccountService:
         categories = getattr(product, "categories", None) or []
         return any((getattr(category, "name", None) or "").strip() == INTERNAL_MATERIAL_CATEGORY_NAME for category in categories)
 
+    @staticmethod
+    def _resolve_material_amount_cents(transaction: Transaction, item) -> int:
+        product = getattr(item, "product", None)
+        if not product:
+            return item.total_price_cents
+
+        unit_price_cents = (
+            product.member_price_cents
+            if transaction.member_id and product.member_price_cents is not None
+            else product.price_cents
+        )
+        return item.quantity * unit_price_cents
+
     def record_sale_transaction(self, transaction: Transaction) -> None:
         for item in transaction.items:
             product = getattr(item, "product", None)
@@ -23,21 +36,39 @@ class MaterialAccountService:
                 continue
 
             self.db.add(MaterialAccountEntry(
-                amount_cents=item.total_price_cents,
+                amount_cents=self._resolve_material_amount_cents(transaction, item),
                 reason=f"{item.quantity}× {product.name}",
                 user_id=transaction.user_id,
                 transaction_id=transaction.id,
             ))
 
     def record_storno_transaction(self, transaction: Transaction) -> None:
-        reference_items = getattr(transaction.reference_transaction, "items", None) or []
+        reference_transaction = getattr(transaction, "reference_transaction", None)
+        if not reference_transaction:
+            return
+
+        original_entries = self.db.query(MaterialAccountEntry).filter(
+            MaterialAccountEntry.transaction_id == reference_transaction.id
+        ).all()
+
+        if original_entries:
+            for entry in original_entries:
+                self.db.add(MaterialAccountEntry(
+                    amount_cents=-entry.amount_cents,
+                    reason=f"Storno {entry.reason}",
+                    user_id=transaction.user_id,
+                    transaction_id=transaction.id,
+                ))
+            return
+
+        reference_items = getattr(reference_transaction, "items", None) or []
         for item in reference_items:
             product = getattr(item, "product", None)
             if not product or not self.is_internal_material_product(product):
                 continue
 
             self.db.add(MaterialAccountEntry(
-                amount_cents=-item.total_price_cents,
+                amount_cents=-self._resolve_material_amount_cents(reference_transaction, item),
                 reason=f"Storno {item.quantity}× {product.name}",
                 user_id=transaction.user_id,
                 transaction_id=transaction.id,

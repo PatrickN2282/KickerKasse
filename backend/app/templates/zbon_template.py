@@ -435,6 +435,22 @@ ZBON_HTML_TEMPLATE = """
                 </tr>
             </tbody>
         </table>
+
+        <div class="section-title">🏦 Vereinskonto</div>
+        <table>
+            <thead>
+                <tr>
+                    <th>Beschreibung</th>
+                    <th class="amount">Betrag</th>
+                </tr>
+            </thead>
+            <tbody>
+                <tr>
+                    <td>Kontostand Vereinskonto</td>
+                    <td class="amount"><strong>{{ club_account_total|default("0.00") }}</strong></td>
+                </tr>
+            </tbody>
+        </table>
          
         <div class="section-title">💰 Guthaben</div>
         <table>
