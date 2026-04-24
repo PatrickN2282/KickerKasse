@@ -225,7 +225,7 @@
                 >
                   <td>{{ formatTime(transaction.created_at) }}</td>
                   <td><strong>{{ transaction.receipt_number }}</strong></td>
-                  <td>{{ formatMemberLabel(transaction.member || { name: transaction.member_name }) || 'Gast' }}</td>
+                  <td>{{ getTransactionMemberLabel(transaction) }}</td>
                   <td class="amount">
                     {{ formatPrice(transaction.gross_amount_cents || transaction.total_amount_cents) }}
                   </td>
@@ -582,7 +582,7 @@
               <td>{{ formatDate(transaction.created_at) }}</td>
               <td>{{ formatTime(transaction.created_at) }}</td>
               <td><strong>{{ transaction.receipt_number }}</strong></td>
-              <td>{{ formatMemberLabel(transaction.member) || 'Gast' }}</td>
+              <td>{{ getTransactionMemberLabel(transaction) }}</td>
               <td class="amount">
                 {{ formatPrice(transaction.total_amount_cents) }}
               </td>
@@ -1368,6 +1368,17 @@ const getSelectedMemberName = (memberId, fallback = '-') => {
   return formatMemberLabel(getMemberById(memberId)) || fallback
 }
 
+const getTransactionMemberLabel = (transaction) => {
+  if (!transaction) return 'Gast'
+
+  if (transaction.type === 'RECHARGE' && !transaction.member && (!transaction.member_name || transaction.member_name === 'Gast')) {
+    return 'Vereinskonto'
+  }
+
+  const member = transaction.member || (transaction.member_name ? { name: transaction.member_name } : null)
+  return formatMemberLabel(member) || transaction.member_name || 'Gast'
+}
+
 const getUserById = (userId) => {
   if (!userId) return null
   return financeUsers.value.find(user => user.id === userId) || null
@@ -1380,6 +1391,28 @@ const getSelectedUserName = (userId, fallback = '-') => {
 const getSelectedVerifierName = (memberId, fallback = '-') => {
   const member = getMemberById(memberId)
   return getMemberFullName(member) || fallback
+}
+
+const getCurrentFinanceUserOptionId = () => {
+  if (!authStore.user?.id) return null
+  const optionId = `user-${authStore.user.id}`
+  const matchedUser = financeUsers.value.find(user => (
+    user.id === optionId
+    || String(user.id) === String(authStore.user.id)
+  ))
+  return matchedUser?.id || null
+}
+
+const getCurrentMemberOptionId = () => {
+  if (authStore.user?.member_id && getMemberById(authStore.user.member_id)) {
+    return authStore.user.member_id
+  }
+
+  const username = (authStore.user?.username || '').trim().toLowerCase()
+  if (!username) return null
+
+  const member = memberStore.members.find(entry => (entry.account_username || '').trim().toLowerCase() === username)
+  return member?.id || null
 }
 
 const loadDailyStats = async () => {
@@ -1616,6 +1649,8 @@ const openZbonCreateModal = async () => {
   if (!financeUsers.value.length) {
     await loadFinanceUsers()
   }
+  zbonForm.value.createdByUserId = getCurrentFinanceUserOptionId()
+  zbonForm.value.verifiedByUserId = null
   pendingWithdrawals.value = []
   await loadDailyStats()
   zbonCountedCash.value = ''
@@ -1646,6 +1681,7 @@ const openWithdrawalModal = async () => {
   if (!memberStore.members.length) {
     await memberStore.getMembers()
   }
+  withdrawalForm.value.memberId = getCurrentMemberOptionId()
   showWithdrawalModal.value = true
 }
 

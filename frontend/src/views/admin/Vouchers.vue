@@ -86,28 +86,6 @@
             </button>
           </form>
 
-          <div
-            v-if="createdGiftVoucher"
-            class="success-message"
-          >
-            <p>✅ Gutschein erstellt!</p>
-            <p class="voucher-number">
-              {{ getVoucherCode(createdGiftVoucher) }}
-            </p>
-            <button
-              class="btn-secondary"
-              @click="copyToClipboard(getVoucherCode(createdGiftVoucher))"
-            >
-              📋 Kopieren
-            </button>
-            <button
-              v-if="authStore.isAdmin"
-              class="btn-secondary"
-              @click="openClubAccountTab"
-            >
-              🏦 Vereinskonto öffnen
-            </button>
-          </div>
         </div>
 
         <!-- PREPAID Voucher Form -->
@@ -158,29 +136,6 @@
             </button>
           </form>
 
-          <div
-            v-if="createdPrepaidBatch"
-            class="success-message"
-          >
-            <p>✅ Verzehrkarten erstellt!</p>
-            <p>{{ createdPrepaidBatch.product_name }}</p>
-            <div
-              v-for="voucher in createdPrepaidBatch.vouchers"
-              :key="voucher.id"
-              class="voucher-number"
-            >
-              {{ getVoucherCode(voucher) }}
-            </div>
-            <p v-if="createdPrepaidBatch.next_available_voucher_number">
-              Nächste freie Nummer: <strong>{{ createdPrepaidBatch.next_available_voucher_number }}</strong>
-            </p>
-            <button
-              class="btn-secondary"
-              @click="copyToClipboard(createdPrepaidBatch.vouchers.map(getVoucherCode).join(', '))"
-            >
-              📋 Nummern kopieren
-            </button>
-          </div>
         </div>
         <div
           v-else
@@ -470,6 +425,50 @@
         </div>
       </div>
     </div>
+    <div
+      v-if="showCreatedVoucherModal && createdVoucherModalData"
+      class="modal-overlay"
+    >
+      <div class="modal-card created-voucher-modal">
+        <h3>{{ createdVoucherModalData.title }}</h3>
+        <p class="info-text">
+          {{ createdVoucherModalData.subtitle }}
+        </p>
+        <div class="created-voucher-box">
+          <div
+            v-for="voucherNumber in createdVoucherModalData.numbers"
+            :key="voucherNumber"
+            class="created-voucher-number"
+          >
+            {{ voucherNumber }}
+          </div>
+        </div>
+        <p class="created-voucher-note">
+          {{ createdVoucherModalData.note }}
+        </p>
+        <div class="button-row created-voucher-actions">
+          <button
+            class="btn-primary"
+            @click="copyToClipboard(createdVoucherModalData.copyValue)"
+          >
+            📋 Nummer{{ createdVoucherModalData.numbers.length > 1 ? 'n' : '' }} kopieren
+          </button>
+          <button
+            v-if="createdVoucherModalData.showClubAccountButton"
+            class="btn-secondary"
+            @click="openClubAccountFromModal"
+          >
+            🏦 Vereinskonto öffnen
+          </button>
+          <button
+            class="btn-secondary"
+            @click="closeCreatedVoucherModal"
+          >
+            Schließen
+          </button>
+        </div>
+      </div>
+    </div>
     <CredentialConfirmModal
       :show="showPasswordModal"
       :title="passwordModalTitle"
@@ -561,6 +560,7 @@ const creatingGift = ref(false)
 const creatingPrepaid = ref(false)
 const createdGiftVoucher = ref(null)
 const createdPrepaidBatch = ref(null)
+const showCreatedVoucherModal = ref(false)
 const createError = ref(null)
 const showPasswordModal = ref(false)
 const pendingVoucherAction = ref(null)
@@ -597,6 +597,34 @@ const getVoucherCode = (voucher) => {
     : new Date().getFullYear()
   return `V-${year}-${String(voucher.voucher_number).padStart(3, '0')}`
 }
+
+const createdVoucherModalData = computed(() => {
+  if (createdPrepaidBatch.value?.vouchers?.length) {
+    const numbers = createdPrepaidBatch.value.vouchers.map(getVoucherCode)
+    return {
+      title: '💳 Verzehrkarten erstellt',
+      subtitle: createdPrepaidBatch.value.product_name || 'Die folgenden Verzehrkarten wurden angelegt.',
+      numbers,
+      note: 'Nummer auf der Verzehrkarte notieren - Einlösung ohne Nummer nicht möglich',
+      copyValue: numbers.join(', '),
+      showClubAccountButton: false,
+    }
+  }
+
+  if (createdGiftVoucher.value) {
+    const voucherNumber = getVoucherCode(createdGiftVoucher.value)
+    return {
+      title: '🎁 Gutschein erstellt',
+      subtitle: 'Der Gutschein wurde erfolgreich angelegt.',
+      numbers: [voucherNumber],
+      note: 'Nummer auf dem Gutschein notieren - Einlösung ohne Nummer nicht möglich',
+      copyValue: voucherNumber,
+      showClubAccountButton: authStore.isAdmin,
+    }
+  }
+
+  return null
+})
 
 // Methods
 const passwordModalTitle = computed(() => pendingVoucherAction.value === 'gift'
@@ -635,6 +663,7 @@ const submitGiftVoucher = async ({ username, password }) => {
     console.log('[Vouchers]   response.status:', payload?.status)
     
     createdGiftVoucher.value = payload
+    showCreatedVoucherModal.value = true
     giftForm.value = { valueCents: 500, reason: 'DYP_SIEGER', valueDisplay: '5.00' }
     await loadClubAccount()
   } catch (error) {
@@ -666,6 +695,7 @@ const submitPrepaidVoucher = async ({ username, password }) => {
     })
     const payload = response.data
     createdPrepaidBatch.value = payload
+    showCreatedVoucherModal.value = true
     prepaidForm.value = { valueCents: 1000, valueDisplay: '10.00', quantity: 1 }
     await loadVouchers()
   } catch (error) {
@@ -705,6 +735,17 @@ const requestClubAccountTopUp = () => {
 const openClubAccountTab = async () => {
   activeSubTab.value = 'club-account'
   await loadClubAccount()
+}
+
+const closeCreatedVoucherModal = () => {
+  showCreatedVoucherModal.value = false
+  createdGiftVoucher.value = null
+  createdPrepaidBatch.value = null
+}
+
+const openClubAccountFromModal = async () => {
+  closeCreatedVoucherModal()
+  await openClubAccountTab()
 }
 
 const loadVouchers = async () => {
@@ -1294,6 +1335,40 @@ onMounted(() => {
 .button-row {
   display: flex;
   gap: 0.75rem;
+}
+
+.created-voucher-modal {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+.created-voucher-box {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  padding: 1rem;
+  border-radius: 10px;
+  background: linear-gradient(135deg, #dcfce7, #bbf7d0);
+  border: 1px solid #22c55e;
+}
+
+.created-voucher-number {
+  font-family: monospace;
+  font-size: 1.25rem;
+  font-weight: 800;
+  color: #166534;
+  text-align: center;
+}
+
+.created-voucher-note {
+  margin: 0;
+  color: #166534;
+  font-weight: 600;
+}
+
+.created-voucher-actions {
+  flex-wrap: wrap;
 }
 
 @keyframes fadeIn {

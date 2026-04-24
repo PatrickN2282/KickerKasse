@@ -54,7 +54,10 @@
           >
           Rabatt
         </label>
-        <div class="form-group">
+        <div
+          v-if="showContactFields"
+          class="form-group"
+        >
           <label for="email">E-Mail:</label>
           <input
             id="email"
@@ -63,7 +66,10 @@
             class="form-input"
           >
         </div>
-        <div class="form-group">
+        <div
+          v-if="showContactFields"
+          class="form-group"
+        >
           <label for="phone">Telefon:</label>
           <input
             id="phone"
@@ -324,6 +330,7 @@ const formData = reactive({
 })
 
 const fullFormName = computed(() => [formData.first_name, formData.last_name].filter(Boolean).join(' '))
+const showContactFields = computed(() => !editingId.value || authStore.isTopAdmin)
 const showAccountPasswordSection = computed(() => (
   authStore.isTopAdmin
     ? !!formData.role
@@ -375,6 +382,10 @@ const handleSaveMember = async () => {
     delete payload.role
     delete payload.account_password
   } else if (!authStore.isTopAdmin) {
+    if (editingId.value) {
+      delete payload.email
+      delete payload.phone
+    }
     delete payload.role
     if (!payload.account_password) {
       delete payload.account_password

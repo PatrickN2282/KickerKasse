@@ -239,15 +239,17 @@
               </button>
             </div>
           </div>
+          <div class="bon-secondary-actions">
+            <button @click="cartStore.clear()" class="btn-cancel" title="Kassiervorgang abbrechen">
+              Bon abbrechen
+            </button>
+          </div>
         </div>
       </div>
 
-      <div class="cancel-section">
+      <div class="deckel-section">
         <button @click="openDeckelOverview" class="btn-deckel" :disabled="cartStore.items.length === 0 && deckelList.length === 0" title="Bon als Deckel speichern oder vorhandenen Deckel öffnen">
           Deckel - Gastteam Ligaspiel
-        </button>
-        <button @click="cartStore.clear()" class="btn-cancel" title="Kassiervorgang abbrechen">
-          Bon abbrechen
         </button>
       </div>
     </div>
@@ -294,18 +296,16 @@
         <template v-if="paymentResult">
           <h3>Verkauf abgeschlossen</h3>
           <p class="info-text">Der Verkauf wurde erfolgreich gebucht.</p>
-          <div v-if="paymentResult.issued_prepaid_voucher_numbers?.length" class="validation-result valid">
+          <div v-if="paymentResult.issued_prepaid_voucher_numbers?.length" class="issued-voucher-panel">
             <h4>💳 Verzehrkarten ausgegeben</h4>
-            <table class="voucher-details">
-              <tr v-for="voucherNumber in paymentResult.issued_prepaid_voucher_numbers" :key="voucherNumber">
-                <td>Nummer:</td>
-                <td><strong>{{ voucherNumber }}</strong></td>
-              </tr>
-              <tr v-if="paymentResult.next_unissued_prepaid_voucher_number">
-                <td>Nächste freie Nummer:</td>
-                <td><strong>{{ paymentResult.next_unissued_prepaid_voucher_number }}</strong></td>
-              </tr>
-            </table>
+            <div class="issued-voucher-box">
+              <div v-for="voucherNumber in paymentResult.issued_prepaid_voucher_numbers" :key="voucherNumber" class="issued-voucher-number">
+                {{ voucherNumber }}
+              </div>
+            </div>
+            <p class="issued-voucher-note">
+              Nummer auf der Verzehrkarte notieren - Einlösung ohne Nummer nicht möglich
+            </p>
           </div>
           <div class="modal-actions">
             <button @click="closePaymentConfirmation" class="btn btn-confirm-payment" :class="{ selected: true }">
@@ -1591,6 +1591,11 @@ onBeforeUnmount(() => {
   }
 }
 
+.bon-secondary-actions {
+  flex-shrink: 0;
+  margin-top: 0.75rem;
+}
+
 .bon-items {
   flex: 1;
   overflow-y: auto;
@@ -1896,10 +1901,7 @@ onBeforeUnmount(() => {
   display: none;
 }
 
-.cancel-section {
-  display: flex;
-  justify-content: space-between;
-  gap: 1rem;
+.deckel-section {
   margin-top: 1rem;
   padding-top: 1rem;
   border-top: 1px solid color-mix(in srgb, var(--app-banner-color) 18%, white 82%);
@@ -1907,6 +1909,7 @@ onBeforeUnmount(() => {
 
 .btn-deckel,
 .btn-cancel {
+  width: 100%;
   min-height: 60px;
   padding: 0.95rem 1.35rem;
   border-radius: 12px;
@@ -1914,7 +1917,6 @@ onBeforeUnmount(() => {
   font-size: 1rem;
   font-weight: 700;
   transition: all 0.2s;
-  flex: 1 1 0;
 
   &:hover {
     transform: translateY(-1px);
@@ -1948,6 +1950,39 @@ onBeforeUnmount(() => {
   background: linear-gradient(135deg, #ef4444, #b91c1c);
   border-color: #991b1b;
   color: #ffffff;
+}
+
+.issued-voucher-panel {
+  margin-top: 1rem;
+
+  h4 {
+    margin-bottom: 0.75rem;
+  }
+}
+
+.issued-voucher-box {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  padding: 1rem;
+  border-radius: 10px;
+  background: linear-gradient(135deg, #dcfce7, #bbf7d0);
+  border: 1px solid #22c55e;
+  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.4);
+}
+
+.issued-voucher-number {
+  font-size: 1.25rem;
+  font-weight: 800;
+  color: #166534;
+  text-align: center;
+  font-family: monospace;
+}
+
+.issued-voucher-note {
+  margin: 0.75rem 0 0;
+  color: #166534;
+  font-weight: 600;
 }
 
 .btn {
