@@ -142,6 +142,14 @@ if frontend_dist.exists():
             headers=_get_frontend_cache_headers(file_path),
         )
 
+    def _resolve_frontend_path(path_name: str) -> Path | None:
+        candidate = (frontend_dist / path_name).resolve()
+        try:
+            candidate.relative_to(frontend_dist.resolve())
+        except ValueError:
+            return None
+        return candidate
+
     @app.get("/")
     async def serve_root():
         index_path = frontend_dist / "index.html"
@@ -156,8 +164,8 @@ if frontend_dist.exists():
                 return JSONResponse(status_code=404, content={"detail": "Not found"})
 
             path = request.url.path.lstrip("/")
-            file_path = frontend_dist / path
-            if file_path.exists() and file_path.is_file():
+            file_path = _resolve_frontend_path(path)
+            if file_path and file_path.exists() and file_path.is_file():
                 return _frontend_file_response(file_path)
 
             index_path = frontend_dist / "index.html"
@@ -168,8 +176,8 @@ if frontend_dist.exists():
 
     @app.get("/{path_name:path}")
     async def serve_spa(path_name: str):
-        file_path = frontend_dist / path_name
-        if file_path.exists() and file_path.is_file():
+        file_path = _resolve_frontend_path(path_name)
+        if file_path and file_path.exists() and file_path.is_file():
             return _frontend_file_response(file_path)
 
         if not path_name.startswith("api"):
