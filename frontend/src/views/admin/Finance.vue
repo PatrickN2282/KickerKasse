@@ -1396,7 +1396,11 @@ const getSelectedVerifierName = (memberId, fallback = '-') => {
 const getCurrentFinanceUserOptionId = () => {
   if (!authStore.user?.id) return null
   const optionId = `user-${authStore.user.id}`
-  return financeUsers.value.some(user => user.id === optionId) ? optionId : null
+  const matchedUser = financeUsers.value.find(user => (
+    user.id === optionId
+    || String(user.id) === String(authStore.user.id)
+  ))
+  return matchedUser?.id || null
 }
 
 const getCurrentMemberOptionId = () => {
