@@ -807,10 +807,10 @@
         </div>
         <div class="summary-card neutral">
           <div class="card-label">
-            Materialkonto
+            Materialbuchungen
           </div>
           <div class="card-value">
-            {{ formatPrice(materialAccount.balance_cents) }}
+            {{ materialAccount.total_quantity }}
           </div>
         </div>
         <div class="summary-card">
@@ -870,16 +870,16 @@
         <div class="zbon-section-header">
           <div>
             <h4>Materialkonto</h4>
-            <p>Aktueller Kontostand und Buchungen dieses internen Kontos.</p>
+            <p>Gebuchte Materialbewegungen aus der Kasse mit Artikel-, Mengen- und Buchungsdaten.</p>
           </div>
         </div>
         <div class="summary-grid zbon-card-grid secondary">
           <div class="summary-card neutral">
             <div class="card-label">
-              Kontostand
+              Artikel gesamt
             </div>
             <div class="card-value">
-              {{ formatPrice(materialAccount.balance_cents) }}
+              {{ materialAccount.total_quantity }}
             </div>
           </div>
           <div class="summary-card neutral">
@@ -900,8 +900,11 @@
             <thead>
               <tr>
                 <th>Datum</th>
-                <th>Betrag</th>
-                <th>Grund</th>
+                <th>Typ</th>
+                <th>Artikel</th>
+                <th>Menge</th>
+                <th>Beleg</th>
+                <th>Zahlart</th>
                 <th>Benutzer</th>
               </tr>
             </thead>
@@ -911,8 +914,11 @@
                 :key="entry.id"
               >
                 <td>{{ formatDate(entry.created_at) }}</td>
-                <td class="amount">{{ formatPrice(entry.amount_cents) }}</td>
-                <td>{{ entry.reason }}</td>
+                <td>{{ entry.entry_type_label }}</td>
+                <td>{{ entry.product_name || entry.reason }}</td>
+                <td>{{ entry.quantity ?? '-' }}</td>
+                <td>{{ entry.receipt_number ? `#${entry.receipt_number}` : '-' }}</td>
+                <td>{{ entry.transaction ? getPaymentBadgeLabel(entry.transaction) : '-' }}</td>
                 <td>{{ entry.user_name || '-' }}</td>
               </tr>
             </tbody>
@@ -1107,9 +1113,9 @@
           <label>Durchgeführt von</label>
           <button
             class="member-select-btn"
-            @click="openMemberPicker('withdrawalMemberId')"
+            @click="openUserPicker('withdrawalUserId')"
           >
-            {{ getSelectedMemberName(selectedWithdrawalMemberId, 'Mitglied auswählen') }}
+            {{ getSelectedUserName(selectedWithdrawalUserId, 'Benutzer auswählen') }}
           </button>
         </div>
         <div class="filter-group">
@@ -1271,7 +1277,7 @@ const memberSearch = ref('')
 const financeUsers = ref([])
 const zbonHtmlModalTitle = ref('📋 Z-Bon Vorschau')
 const zbonHtmlDownloadMeta = ref(null)
-const materialAccount = ref({ balance_cents: 0, entries: [] })
+const materialAccount = ref({ total_quantity: 0, entries: [] })
 const zbonForm = ref({
   createdByUserId: null,
   verifiedByUserId: null,
@@ -1279,7 +1285,7 @@ const zbonForm = ref({
 const zbonCountedCash = ref('')
 const withdrawalForm = ref({
   amount: '',
-  memberId: null,
+  userId: null,
   note: '',
 })
 const pendingWithdrawals = ref([])
@@ -1477,24 +1483,24 @@ const canCreateZbon = computed(() => (
   && zbonFinalCashValue.value !== null
 ))
 
-const isUserPickerTarget = computed(() => memberPickerTarget.value === 'createdByUserId')
+const isUserPickerTarget = computed(() => ['createdByUserId', 'withdrawalUserId'].includes(memberPickerTarget.value))
 
 const filteredPickerOptions = computed(() => {
   const search = memberSearch.value.trim().toLowerCase()
-  const options = memberPickerTarget.value === 'createdByUserId' ? financeUsers.value : memberStore.members
+  const options = isUserPickerTarget.value ? financeUsers.value : memberStore.members
 
   if (!search) {
     return options
   }
 
-  if (memberPickerTarget.value === 'createdByUserId') {
+  if (isUserPickerTarget.value) {
     return options.filter(user => `${user.username} ${user.role || ''}`.toLowerCase().includes(search))
   }
 
   return options.filter(member => getMemberSearchText(member).includes(search))
 })
 
-const selectedWithdrawalMemberId = computed(() => withdrawalForm.value.memberId)
+const selectedWithdrawalUserId = computed(() => withdrawalForm.value.userId)
 const formatMemberLabel = (member) => getMemberShortName(member)
 const formatUserLabel = (user) => user?.username || ''
 const formatPickerLabel = (entry) => isUserPickerTarget.value ? formatUserLabel(entry) : formatMemberLabel(entry)
@@ -1508,15 +1514,11 @@ const getMemberById = (memberId) => {
   return memberStore.members.find(member => member.id === memberId)
 }
 
-const getSelectedMemberName = (memberId, fallback = '-') => {
-  return formatMemberLabel(getMemberById(memberId)) || fallback
-}
-
 const getTransactionMemberLabel = (transaction) => {
   if (!transaction) return 'Gast'
 
   if (transaction.type === 'RECHARGE' && !transaction.member && (!transaction.member_name || transaction.member_name === 'Gast')) {
-    return 'Materialkonto'
+    return 'Gutscheinkonto'
   }
 
   const member = transaction.member || (transaction.member_name ? { name: transaction.member_name } : null)
@@ -1545,18 +1547,6 @@ const getCurrentFinanceUserOptionId = () => {
     || String(user.id) === String(authStore.user.id)
   ))
   return matchedUser?.id || null
-}
-
-const getCurrentMemberOptionId = () => {
-  if (authStore.user?.member_id && getMemberById(authStore.user.member_id)) {
-    return authStore.user.member_id
-  }
-
-  const username = (authStore.user?.username || '').trim().toLowerCase()
-  if (!username) return null
-
-  const member = memberStore.members.find(entry => (entry.account_username || '').trim().toLowerCase() === username)
-  return member?.id || null
 }
 
 const loadDailyStats = async () => {
@@ -1730,7 +1720,7 @@ const loadMaterialAccount = async () => {
   if (!authStore.isAdmin) return
 
   try {
-    const response = await apiService.get('/admin/vouchers/club-account')
+    const response = await apiService.get('/admin/vouchers/material-account')
     materialAccount.value = response.data
   } catch (error) {
     console.error('Error loading material account:', error)
@@ -1788,8 +1778,8 @@ const selectPickerOption = (entry) => {
     zbonForm.value.createdByUserId = entry.id
   } else if (memberPickerTarget.value === 'verifiedByUserId') {
     zbonForm.value.verifiedByUserId = entry.id
-  } else if (memberPickerTarget.value === 'withdrawalMemberId') {
-    withdrawalForm.value.memberId = entry.id
+  } else if (memberPickerTarget.value === 'withdrawalUserId') {
+    withdrawalForm.value.userId = entry.id
   }
 
   closeMemberPicker()
@@ -1843,17 +1833,17 @@ const openPreviewModal = async () => {
 }
 
 const openWithdrawalModal = async () => {
-  if (!memberStore.members.length) {
-    await memberStore.getMembers()
+  if (!financeUsers.value.length) {
+    await loadFinanceUsers()
   }
-  withdrawalForm.value.memberId = getCurrentMemberOptionId()
+  withdrawalForm.value.userId = getCurrentFinanceUserOptionId()
   showWithdrawalModal.value = true
 }
 
 const closeWithdrawalModal = () => {
   withdrawalForm.value = {
     amount: '',
-    memberId: null,
+    userId: null,
     note: '',
   }
   showWithdrawalModal.value = false
@@ -1866,16 +1856,16 @@ const submitWithdrawal = async () => {
     return
   }
 
-  const memberName = getSelectedMemberName(withdrawalForm.value.memberId, '')
-  if (!memberName) {
-    notificationStore.error('Bitte eine Person auswählen')
+  const userName = getSelectedUserName(withdrawalForm.value.userId, '')
+  if (!userName) {
+    notificationStore.error('Bitte einen Benutzer auswählen')
     return
   }
 
   const note = withdrawalForm.value.note?.trim()
   const reason = note
-    ? `Abschöpfung - ${memberName} - ${note}`
-    : `Abschöpfung - ${memberName}`
+    ? `Abschöpfung - ${userName} - ${note}`
+    : `Abschöpfung - ${userName}`
 
   try {
     loading.value = true

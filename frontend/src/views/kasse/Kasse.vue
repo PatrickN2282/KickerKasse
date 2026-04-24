@@ -304,9 +304,11 @@
                 {{ voucherNumber }}
               </div>
             </div>
-            <p class="issued-voucher-note">
-              Nummer auf der Verzehrkarte notieren - Einlösung ohne Nummer nicht möglich
-            </p>
+            <div class="issued-voucher-alert">
+              <p class="issued-voucher-note">
+                Nummer auf der Verzehrkarte notieren - Einlösung ohne Nummer nicht möglich
+              </p>
+            </div>
           </div>
           <div class="modal-actions">
             <button @click="closePaymentConfirmation" class="btn btn-confirm-payment" :class="{ selected: true }">
@@ -1947,9 +1949,9 @@ onBeforeUnmount(() => {
 }
 
 .btn-deckel {
-  background: linear-gradient(135deg, #1d4ed8, #2563eb);
-  color: #eff6ff;
-  border: 2px solid #1e40af;
+  background: linear-gradient(135deg, #e7edf5, #d6e0eb);
+  color: #334155;
+  border: 1px solid #b8c6d8;
   display: flex;
   flex-direction: column;
   justify-content: center;
@@ -1959,9 +1961,9 @@ onBeforeUnmount(() => {
   line-height: 1.2;
 
   &:hover {
-    background: linear-gradient(135deg, #1e40af, #2563eb);
-    border-color: #1d4ed8;
-    color: #eff6ff;
+    background: linear-gradient(135deg, #dde7f1, #cad7e5);
+    border-color: #9fb2c8;
+    color: #1f2937;
   }
 }
 
@@ -2004,10 +2006,18 @@ onBeforeUnmount(() => {
   font-family: monospace;
 }
 
+.issued-voucher-alert {
+  margin-top: 0.75rem;
+  padding: 0.9rem 1rem;
+  border-radius: 10px;
+  border: 2px solid #ef4444;
+  background: linear-gradient(135deg, #fef2f2, #fee2e2);
+}
+
 .issued-voucher-note {
-  margin: 0.75rem 0 0;
-  color: #166534;
-  font-weight: 600;
+  margin: 0;
+  color: #991b1b;
+  font-weight: 700;
 }
 
 .btn {
