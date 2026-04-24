@@ -1,4 +1,5 @@
-const CACHE_NAME = 'kickerkasse-v2'
+const buildId = new URL(self.location.href).searchParams.get('build') || 'dev'
+const CACHE_NAME = `kickerkasse-${buildId}`
 const urlsToCache = [
   '/',
   '/index.html',
@@ -18,37 +19,75 @@ const isCacheableAppSettingsAsset = (url) => {
     || url.includes('/api/app-settings/apple-touch-icon.png')
 }
 
+self.addEventListener('message', event => {
+  if (event.data?.type === 'SKIP_WAITING') {
+    self.skipWaiting()
+  }
+})
+
+const updateCache = async (request, response) => {
+  if (!response || response.status !== 200 || request.method !== 'GET') {
+    return response
+  }
+
+  const responseToCache = response.clone()
+  const cache = await caches.open(CACHE_NAME)
+  await cache.put(request, responseToCache)
+  return response
+}
+
+const networkFirst = async (request, fallbackUrl = null) => {
+  try {
+    const response = await fetch(request, { cache: 'no-store' })
+    return updateCache(request, response)
+  } catch {
+    const cachedResponse = await caches.match(request)
+    if (cachedResponse) {
+      return cachedResponse
+    }
+    return fallbackUrl ? caches.match(fallbackUrl) : Response.error()
+  }
+}
+
+const cacheFirst = async (request) => {
+  const cachedResponse = await caches.match(request)
+  if (cachedResponse) {
+    return cachedResponse
+  }
+
+  const response = await fetch(request)
+  return updateCache(request, response)
+}
+
 self.addEventListener('install', event => {
   event.waitUntil(
     caches.open(CACHE_NAME).then(cache => cache.addAll(urlsToCache))
   )
+  self.skipWaiting()
 })
 
 self.addEventListener('fetch', event => {
+  if (event.request.method !== 'GET') {
+    return
+  }
+
   const requestUrl = event.request.url
 
   if (requestUrl.includes('/api/') && !isCacheableAppSettingsAsset(requestUrl)) {
     return
   }
 
-  event.respondWith(
-    caches.match(event.request).then(response => {
-      if (response) {
-        return response
-      }
+  if (event.request.mode === 'navigate' || event.request.destination === 'document') {
+    event.respondWith(networkFirst(event.request, '/index.html'))
+    return
+  }
 
-      return fetch(event.request).then(networkResponse => {
-        if (networkResponse.status === 200 && event.request.method === 'GET') {
-          const responseToCache = networkResponse.clone()
-          caches.open(CACHE_NAME).then(cache => {
-            cache.put(event.request, responseToCache)
-          })
-        }
+  if (isCacheableAppSettingsAsset(requestUrl)) {
+    event.respondWith(networkFirst(event.request))
+    return
+  }
 
-        return networkResponse
-      }).catch(() => caches.match('/index.html'))
-    })
-  )
+  event.respondWith(cacheFirst(event.request))
 })
 
 self.addEventListener('activate', event => {
@@ -58,7 +97,8 @@ self.addEventListener('activate', event => {
         if (cacheName !== CACHE_NAME) {
           return caches.delete(cacheName)
         }
+        return Promise.resolve()
       })
-    ))
+    )).then(() => self.clients.claim())
   )
 })

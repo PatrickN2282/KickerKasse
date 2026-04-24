@@ -17,7 +17,7 @@ from app.schemas import (
     VoucherRedeemResponse,
     VoucherUpdateRequest,
 )
-from app.services import VoucherService
+from app.services import MaterialAccountService, VoucherService
 from app.repositories import VoucherRepository
 from app.models import VoucherStatus, VoucherType, UserRole
 
@@ -242,6 +242,16 @@ async def get_club_account(
 ):
     require_roles(request, db, UserRole.ADMIN)
     return VoucherService(db).get_club_account_summary()
+
+
+@admin_router.get("/material-account")
+@admin_router.get("/material-account/")
+async def get_material_account(
+    request: Request,
+    db: Session = Depends(get_db),
+):
+    require_roles(request, db, UserRole.ADMIN)
+    return MaterialAccountService(db).get_account_summary()
 
 
 @admin_router.post("/club-account/topup")

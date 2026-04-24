@@ -21,7 +21,7 @@
         :class="['subtab-button', { active: activeSubTab === 'club-account' }]"
         @click="activeSubTab = 'club-account'; loadClubAccount()"
       >
-        🏦 Materialkonto
+        🏦 Gutscheinkonto
       </button>
     </div>
 
@@ -44,7 +44,7 @@
             v-if="authStore.isAdmin"
             class="info-text"
           >
-            Materialkonto: {{ formatCurrency(clubAccount.balance_cents) }}
+            Gutscheinkonto: {{ formatCurrency(clubAccount.balance_cents) }}
           </p>
 
           <form @submit.prevent="createGiftVoucher">
@@ -443,22 +443,18 @@
             {{ voucherNumber }}
           </div>
         </div>
-        <p class="created-voucher-note">
-          {{ createdVoucherModalData.note }}
-        </p>
+        <div class="created-voucher-alert">
+          <p class="created-voucher-note">
+            {{ createdVoucherModalData.note }}
+          </p>
+        </div>
         <div class="button-row created-voucher-actions">
-          <button
-            class="btn-primary"
-            @click="copyToClipboard(createdVoucherModalData.copyValue)"
-          >
-            📋 Nummer{{ createdVoucherModalData.numbers.length > 1 ? 'n' : '' }} kopieren
-          </button>
           <button
             v-if="createdVoucherModalData.showClubAccountButton"
             class="btn-secondary"
             @click="openClubAccountFromModal"
           >
-            🏦 Materialkonto öffnen
+            🏦 Gutscheinkonto öffnen
           </button>
           <button
             class="btn-secondary"
@@ -606,7 +602,6 @@ const createdVoucherModalData = computed(() => {
       subtitle: createdPrepaidBatch.value.product_name || 'Die folgenden Verzehrkarten wurden angelegt.',
       numbers,
       note: 'Nummer auf der Verzehrkarte notieren - Einlösung ohne Nummer nicht möglich',
-      copyValue: numbers.join(', '),
       showClubAccountButton: false,
     }
   }
@@ -618,7 +613,6 @@ const createdVoucherModalData = computed(() => {
       subtitle: 'Der Gutschein wurde erfolgreich angelegt.',
       numbers: [voucherNumber],
       note: 'Nummer auf dem Gutschein notieren - Einlösung ohne Nummer nicht möglich',
-      copyValue: voucherNumber,
       showClubAccountButton: authStore.isAdmin,
     }
   }
@@ -630,7 +624,7 @@ const createdVoucherModalData = computed(() => {
 const passwordModalTitle = computed(() => pendingVoucherAction.value === 'gift'
   ? 'Geschenk-Gutschein erstellen'
   : pendingVoucherAction.value === 'account'
-    ? 'Materialkonto aufladen'
+    ? 'Gutscheinkonto aufladen'
     : 'Verzehrkarte erstellen')
 
 const createGiftVoucher = async () => {
@@ -853,11 +847,6 @@ const getVoucherStatusPresentation = (voucher) => {
 
 const formatVoucherCreator = (voucher) => {
   return voucher.created_by_username || `#${voucher.created_by_user_id}`
-}
-
-const copyToClipboard = (text) => {
-  navigator.clipboard.writeText(text)
-  // Could add a toast notification here
 }
 
 const openEditVoucher = (voucher) => {
@@ -1363,8 +1352,16 @@ onMounted(() => {
 
 .created-voucher-note {
   margin: 0;
-  color: #166534;
-  font-weight: 600;
+  color: #991b1b;
+  font-weight: 700;
+}
+
+.created-voucher-alert {
+  padding: 0.9rem 1rem;
+  border-radius: 10px;
+  border: 2px solid #ef4444;
+  background: linear-gradient(135deg, #fef2f2, #fee2e2);
+  box-shadow: 0 0 0 1px rgba(255, 255, 255, 0.45) inset;
 }
 
 .created-voucher-actions {

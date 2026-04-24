@@ -122,11 +122,31 @@ frontend_dist = Path(__file__).parent / "app" / "frontend" / "dist"
 if frontend_dist.exists():
     from starlette.responses import FileResponse
 
+    def _get_frontend_cache_headers(file_path: Path) -> dict[str, str]:
+        if file_path.name in {"index.html", "sw.js"}:
+            return {
+                "Cache-Control": "no-cache, no-store, must-revalidate",
+                "Pragma": "no-cache",
+                "Expires": "0",
+            }
+        if file_path.name.endswith(".webmanifest") or file_path.name == "manifest.json":
+            return {"Cache-Control": "no-cache"}
+        if "assets" in file_path.parts:
+            return {"Cache-Control": "public, max-age=31536000, immutable"}
+        return {"Cache-Control": "public, max-age=3600"}
+
+    def _frontend_file_response(file_path: Path, media_type: str | None = None) -> FileResponse:
+        return FileResponse(
+            str(file_path),
+            media_type=media_type,
+            headers=_get_frontend_cache_headers(file_path),
+        )
+
     @app.get("/")
     async def serve_root():
         index_path = frontend_dist / "index.html"
         if index_path.exists():
-            return FileResponse(str(index_path))
+            return _frontend_file_response(index_path, media_type="text/html")
         return {"status": "ok"}
 
     @app.exception_handler(StarletteHTTPException)
@@ -138,11 +158,11 @@ if frontend_dist.exists():
             path = request.url.path.lstrip("/")
             file_path = frontend_dist / path
             if file_path.exists() and file_path.is_file():
-                return FileResponse(str(file_path))
+                return _frontend_file_response(file_path)
 
             index_path = frontend_dist / "index.html"
             if index_path.exists():
-                return FileResponse(str(index_path), media_type="text/html")
+                return _frontend_file_response(index_path, media_type="text/html")
 
         return JSONResponse(status_code=exc.status_code, content={"detail": exc.detail})
 
@@ -150,12 +170,12 @@ if frontend_dist.exists():
     async def serve_spa(path_name: str):
         file_path = frontend_dist / path_name
         if file_path.exists() and file_path.is_file():
-            return FileResponse(str(file_path))
+            return _frontend_file_response(file_path)
 
         if not path_name.startswith("api"):
             index_path = frontend_dist / "index.html"
             if index_path.exists():
-                return FileResponse(str(index_path))
+                return _frontend_file_response(index_path, media_type="text/html")
 
         raise HTTPException(status_code=404, detail="Not found")
 else:

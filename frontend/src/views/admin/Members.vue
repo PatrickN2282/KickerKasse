@@ -230,8 +230,8 @@
             <th>Name</th>
             <th>Rabatt</th>
             <th v-if="authStore.isTopAdmin">Rolle</th>
-            <th>E-Mail</th>
-            <th>Telefon</th>
+            <th v-if="authStore.isTopAdmin">E-Mail</th>
+            <th v-if="authStore.isTopAdmin">Telefon</th>
             <th>Guthaben</th>
             <th>Aktionen</th>
           </tr>
@@ -258,8 +258,8 @@
             <td>{{ getMemberFullName(member) }}</td>
             <td>{{ member.has_discount ? 'Ja' : 'Nein' }}</td>
             <td v-if="authStore.isTopAdmin">{{ getRoleLabel(member.role) }}</td>
-            <td>{{ member.email || '-' }}</td>
-            <td>{{ member.phone || '-' }}</td>
+            <td v-if="authStore.isTopAdmin">{{ member.email || '-' }}</td>
+            <td v-if="authStore.isTopAdmin">{{ member.phone || '-' }}</td>
             <td class="balance">
               {{ formatBalance(member.balance_cents) }}
             </td>
