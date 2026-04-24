@@ -447,7 +447,7 @@ class VoucherService:
         )
         entry = ClubAccountEntry(
             amount_cents=amount_cents,
-            reason="Vereinskonto aufgeladen",
+            reason="Materialkonto aufgeladen",
             user_id=user_id,
             transaction_id=transaction.id,
         )

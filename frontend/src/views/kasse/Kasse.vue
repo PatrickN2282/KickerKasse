@@ -35,7 +35,7 @@
                 <img :src="`/api/products/${product.id}/image`" :alt="product.name" />
               </div>
               <div class="product-name">{{ product.name }}</div>
-              <div class="product-price">{{ formatPrice(product.price_cents) }}</div>
+              <div class="product-price">{{ formatPrice(getDisplayedProductPriceCents(product)) }}</div>
               <div class="product-stock">
                 Verfügbar: {{ getAvailableStock(product) }}
               </div>
@@ -88,7 +88,7 @@
     <div class="kasse-bon" :style="bonPanelStyle">
       <div class="bon-content">
         <div class="receipt-number-banner">
-          Laufende Belegnummer: <strong>#{{ nextReceiptNumber || '-' }}</strong>
+          Beleg: <strong>#{{ nextReceiptNumber || '-' }}</strong>
         </div>
         <!-- Top section: Items -->
         <div class="bon-items">
@@ -249,7 +249,8 @@
 
       <div class="deckel-section">
         <button @click="openDeckelOverview" class="btn-deckel" :disabled="cartStore.items.length === 0 && deckelList.length === 0" title="Bon als Deckel speichern oder vorhandenen Deckel öffnen">
-          Deckel - Gastteam Ligaspiel
+          <span>Deckel - Gastteam</span>
+          <span>Ligaspiel</span>
         </button>
       </div>
     </div>
@@ -463,7 +464,7 @@
               @click="redeemVoucher"
               :disabled="redeemingVoucher"
               class="btn"
-              :class="voucherValidation.covers_cart_total ? 'btn-primary' : 'btn-success'"
+              :class="voucherValidation.covers_cart_total ? 'btn-success' : 'btn-primary'"
             >
               {{ voucherActionLabel }}
             </button>
@@ -649,6 +650,18 @@ const voucherReasonLabels = {
 const voucherPrefix = `V-${new Date().getFullYear()}-`
 const normalizedVoucherPrefix = voucherPrefix.toUpperCase()
 
+const isInternalMaterialProduct = (product) => (
+  !!product?.categories?.some(category => category.name === INTERNAL_MATERIAL_CATEGORY_NAME)
+)
+
+const getDisplayedProductPriceCents = (product) => (
+  isInternalMaterialProduct(product)
+    ? 0
+    : ((cartStore.selectedMemberId && cartStore.selectedMemberHasDiscount && product.member_price_cents)
+        ? product.member_price_cents
+        : product.price_cents)
+)
+
 const loadCategories = async () => {
   try {
     const response = await apiService.get('/categories?only_active=true')
@@ -790,7 +803,10 @@ const getAvailableStock = (product, excludeDeckelId = null) => {
 }
 
 const selectProduct = (product) => {
-  const result = cartStore.addItem(product, getAvailableStock(product))
+  const result = cartStore.addItem({
+    ...product,
+    is_internal_material: isInternalMaterialProduct(product),
+  }, getAvailableStock(product))
   if (!result.success) {
     notificationStore.error(`Nur ${getAvailableStock(product)} Einheiten von ${product.name} verfügbar`)
   }
@@ -1350,6 +1366,8 @@ onBeforeUnmount(() => {
 
 .kasse-bon {
   flex: 0 0 420px;
+  display: flex;
+  flex-direction: column;
   width: 420px;
   min-width: 320px;
   max-width: min(70vw, 720px);
@@ -1707,6 +1725,7 @@ onBeforeUnmount(() => {
   border-radius: 8px;
   color: var(--app-banner-color);
   font-weight: 600;
+  text-align: center;
 }
 
 .total-row {
@@ -1902,7 +1921,7 @@ onBeforeUnmount(() => {
 }
 
 .deckel-section {
-  margin-top: 1rem;
+  margin-top: auto;
   padding-top: 1rem;
   border-top: 1px solid color-mix(in srgb, var(--app-banner-color) 18%, white 82%);
 }
@@ -1931,7 +1950,13 @@ onBeforeUnmount(() => {
   background: linear-gradient(135deg, #1d4ed8, #2563eb);
   color: #eff6ff;
   border: 2px solid #1e40af;
-  text-align: left;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+  gap: 0.1rem;
+  text-align: center;
+  line-height: 1.2;
 
   &:hover {
     background: linear-gradient(135deg, #1e40af, #2563eb);
@@ -2395,6 +2420,7 @@ onBeforeUnmount(() => {
 .payment-summary-totals .modal-grand-total {
   margin-top: 0.35rem;
   padding: 0.95rem 1rem;
+  align-items: center;
   border: 2px solid color-mix(in srgb, var(--app-highlight-color) 30%, var(--app-banner-color) 70%);
   border-radius: 10px;
   background: color-mix(in srgb, var(--app-highlight-color) 10%, white 90%);

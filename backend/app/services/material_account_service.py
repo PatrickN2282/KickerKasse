@@ -4,10 +4,12 @@ from sqlalchemy import func
 from sqlalchemy.orm import Session
 
 from app.constants import INTERNAL_MATERIAL_CATEGORY_NAME
-from app.models import MaterialAccountEntry, Transaction
+from app.models import ClubAccountEntry, MaterialAccountEntry, Transaction
 
 
 class MaterialAccountService:
+    CLUB_ACCOUNT_REASON_PREFIX = "Verbrauchsmaterial intern:"
+
     def __init__(self, db: Session):
         self.db = db
 
@@ -41,6 +43,12 @@ class MaterialAccountService:
                 user_id=transaction.user_id,
                 transaction_id=transaction.id,
             ))
+            self.db.add(ClubAccountEntry(
+                amount_cents=-self._resolve_material_amount_cents(transaction, item),
+                reason=f"{self.CLUB_ACCOUNT_REASON_PREFIX} {item.quantity}× {product.name}",
+                user_id=transaction.user_id,
+                transaction_id=transaction.id,
+            ))
 
     def record_storno_transaction(self, transaction: Transaction) -> None:
         reference_transaction = getattr(transaction, "reference_transaction", None)
@@ -52,8 +60,19 @@ class MaterialAccountService:
         ).all()
 
         if original_entries:
+            original_club_entries = self.db.query(ClubAccountEntry).filter(
+                ClubAccountEntry.transaction_id == reference_transaction.id,
+                ClubAccountEntry.reason.like(f"{self.CLUB_ACCOUNT_REASON_PREFIX}%"),
+            ).all()
             for entry in original_entries:
                 self.db.add(MaterialAccountEntry(
+                    amount_cents=-entry.amount_cents,
+                    reason=f"Storno {entry.reason}",
+                    user_id=transaction.user_id,
+                    transaction_id=transaction.id,
+                ))
+            for entry in original_club_entries:
+                self.db.add(ClubAccountEntry(
                     amount_cents=-entry.amount_cents,
                     reason=f"Storno {entry.reason}",
                     user_id=transaction.user_id,
