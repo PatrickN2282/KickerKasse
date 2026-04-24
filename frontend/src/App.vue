@@ -74,7 +74,7 @@
 
     <!-- Kein eigenes Banner, eingebettet über dem grauen Rand -->
     <div class="app-inline-footer">
-      © by Pixel-Finanz 2026 · {{ pkg.name }} v{{ pkg.version }}
+        {{ pkg.name }} v{{ pkg.version }} · © by Pixel-Finanz 2026
     </div>
 
 
