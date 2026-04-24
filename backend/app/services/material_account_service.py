@@ -10,6 +10,7 @@ from app.models import ClubAccountEntry, MaterialAccountEntry, Transaction
 
 class MaterialAccountService:
     CLUB_ACCOUNT_REASON_PREFIX = "Verbrauchsmaterial intern:"
+    # Matches: "[Storno ]<quantity>× <product_name>"
     REASON_PATTERN = re.compile(r"^(?P<storno>Storno )?(?P<quantity>\d+)× (?P<product>.+)$")
 
     def __init__(self, db: Session):
@@ -116,9 +117,12 @@ class MaterialAccountService:
 
         for entry in entries:
             parsed_reason = self.REASON_PATTERN.match(entry.reason or "")
-            quantity = int(parsed_reason.group("quantity")) if parsed_reason else None
-            product_name = parsed_reason.group("product").strip() if parsed_reason else None
-            is_storno = bool(parsed_reason and parsed_reason.group("storno"))
+            storno_marker = parsed_reason.group("storno") if parsed_reason else None
+            quantity_raw = parsed_reason.group("quantity") if parsed_reason else None
+            product_raw = parsed_reason.group("product") if parsed_reason else None
+            quantity = int(quantity_raw) if quantity_raw else None
+            product_name = product_raw.strip() if product_raw else None
+            is_storno = storno_marker is not None
             total_quantity += 0 if quantity is None else quantity * (-1 if is_storno else 1)
             transaction = entry.transaction
 

@@ -1,5 +1,5 @@
-const buildId = new URL(self.location.href).searchParams.get('build') || 'dev'
-const CACHE_NAME = `kickerkasse-${buildId}`
+const cacheBuildId = new URL(self.location.href).searchParams.get('build') || 'dev'
+const CACHE_NAME = `kickerkasse-${cacheBuildId}`
 const urlsToCache = [
   '/',
   '/index.html',

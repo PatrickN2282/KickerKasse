@@ -121,6 +121,7 @@ frontend_dist = Path(__file__).parent / "app" / "frontend" / "dist"
 
 if frontend_dist.exists():
     from starlette.responses import FileResponse
+    frontend_static = StaticFiles(directory=str(frontend_dist), html=False, check_dir=False)
 
     def _get_frontend_cache_headers(file_path: Path) -> dict[str, str]:
         if file_path.name in {"index.html", "sw.js"}:
@@ -142,13 +143,11 @@ if frontend_dist.exists():
             headers=_get_frontend_cache_headers(file_path),
         )
 
-    def _resolve_frontend_path(path_name: str) -> Path | None:
-        candidate = (frontend_dist / path_name).resolve()
-        try:
-            candidate.relative_to(frontend_dist.resolve())
-        except ValueError:
+    def _lookup_frontend_file(path_name: str) -> Path | None:
+        full_path, stat_result = frontend_static.lookup_path(path_name)
+        if not stat_result:
             return None
-        return candidate
+        return Path(full_path)
 
     @app.get("/")
     async def serve_root():
@@ -164,7 +163,7 @@ if frontend_dist.exists():
                 return JSONResponse(status_code=404, content={"detail": "Not found"})
 
             path = request.url.path.lstrip("/")
-            file_path = _resolve_frontend_path(path)
+            file_path = _lookup_frontend_file(path)
             if file_path and file_path.exists() and file_path.is_file():
                 return _frontend_file_response(file_path)
 
@@ -176,7 +175,7 @@ if frontend_dist.exists():
 
     @app.get("/{path_name:path}")
     async def serve_spa(path_name: str):
-        file_path = _resolve_frontend_path(path_name)
+        file_path = _lookup_frontend_file(path_name)
         if file_path and file_path.exists() and file_path.is_file():
             return _frontend_file_response(file_path)
 
