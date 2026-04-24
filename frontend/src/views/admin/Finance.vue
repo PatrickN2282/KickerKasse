@@ -127,7 +127,7 @@
             </div>
             <div class="summary-card neutral">
               <div class="card-label">
-                Materialkonto
+                Interne Materialverkäufe
               </div>
               <div class="card-value">
                 {{ formatEuroValue(dailyStats.material_account_total) }}
@@ -135,7 +135,7 @@
             </div>
             <div class="summary-card neutral">
               <div class="card-label">
-                Vereinskonto
+                Materialkonto
               </div>
               <div class="card-value">
                 {{ formatEuroValue(dailyStats.club_account_total) }}
@@ -790,6 +790,143 @@
       </table>
     </div>
 
+    <div
+      v-if="activeTab === 'internalAccounts'"
+      class="tab-content"
+    >
+      <h3>Interne Konten</h3>
+
+      <div class="summary-grid">
+        <div class="summary-card neutral">
+          <div class="card-label">
+            Gutscheinkonto offen
+          </div>
+          <div class="card-value">
+            {{ formatEuroValue(dailyStats.voucher_open_total) }}
+          </div>
+        </div>
+        <div class="summary-card neutral">
+          <div class="card-label">
+            Materialkonto
+          </div>
+          <div class="card-value">
+            {{ formatPrice(materialAccount.balance_cents) }}
+          </div>
+        </div>
+        <div class="summary-card">
+          <div class="card-label">
+            Offene Gutscheine
+          </div>
+          <div class="card-value">
+            {{ dailyStats.voucher_open_count }}
+          </div>
+        </div>
+        <div class="summary-card">
+          <div class="card-label">
+            Gutscheine erstellt
+          </div>
+          <div class="card-value">
+            {{ dailyStats.voucher_created_count }}
+          </div>
+        </div>
+      </div>
+
+      <section class="zbon-section">
+        <div class="zbon-section-header">
+          <div>
+            <h4>Gutscheinkonto</h4>
+            <p>Überblick über offene, erstellte und eingelöste Gutscheinwerte.</p>
+          </div>
+        </div>
+        <div class="summary-grid zbon-card-grid secondary">
+          <div class="summary-card neutral">
+            <div class="card-label">
+              Offen
+            </div>
+            <div class="card-value">
+              {{ formatEuroValue(dailyStats.voucher_open_total) }}
+            </div>
+          </div>
+          <div class="summary-card neutral">
+            <div class="card-label">
+              Erstellt
+            </div>
+            <div class="card-value">
+              {{ formatEuroValue(dailyStats.voucher_created_total) }}
+            </div>
+          </div>
+          <div class="summary-card neutral">
+            <div class="card-label">
+              Eingelöst
+            </div>
+            <div class="card-value">
+              {{ formatEuroValue(dailyStats.voucher_redeemed_total) }}
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <section class="zbon-section">
+        <div class="zbon-section-header">
+          <div>
+            <h4>Materialkonto</h4>
+            <p>Aktueller Kontostand und Buchungen dieses internen Kontos.</p>
+          </div>
+        </div>
+        <div class="summary-grid zbon-card-grid secondary">
+          <div class="summary-card neutral">
+            <div class="card-label">
+              Kontostand
+            </div>
+            <div class="card-value">
+              {{ formatPrice(materialAccount.balance_cents) }}
+            </div>
+          </div>
+          <div class="summary-card neutral">
+            <div class="card-label">
+              Buchungen
+            </div>
+            <div class="card-value">
+              {{ materialAccount.entries.length }}
+            </div>
+          </div>
+        </div>
+
+        <div class="table-container">
+          <table
+            v-if="materialAccount.entries.length"
+            class="transactions-table"
+          >
+            <thead>
+              <tr>
+                <th>Datum</th>
+                <th>Betrag</th>
+                <th>Grund</th>
+                <th>Benutzer</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr
+                v-for="entry in materialAccount.entries"
+                :key="entry.id"
+              >
+                <td>{{ formatDate(entry.created_at) }}</td>
+                <td class="amount">{{ formatPrice(entry.amount_cents) }}</td>
+                <td>{{ entry.reason }}</td>
+                <td>{{ entry.user_name || '-' }}</td>
+              </tr>
+            </tbody>
+          </table>
+          <div
+            v-else
+            class="empty"
+          >
+            Keine Buchungen im Materialkonto vorhanden
+          </div>
+        </div>
+      </section>
+    </div>
+
     <!-- Cash Counter Modal -->
     <CashCounterModal
       :show="showCashCounterModal"
@@ -1134,6 +1271,7 @@ const memberSearch = ref('')
 const financeUsers = ref([])
 const zbonHtmlModalTitle = ref('📋 Z-Bon Vorschau')
 const zbonHtmlDownloadMeta = ref(null)
+const materialAccount = ref({ balance_cents: 0, entries: [] })
 const zbonForm = ref({
   createdByUserId: null,
   verifiedByUserId: null,
@@ -1171,6 +1309,11 @@ const dailyStats = ref({
   cash_calculated: 0,
   withdrawal_total: 0,
   voucher_open_total: 0,
+  voucher_created_count: 0,
+  voucher_created_total: 0,
+  voucher_redeemed_count: 0,
+  voucher_redeemed_total: 0,
+  voucher_open_count: 0,
   material_account_total: 0,
   club_account_total: 0,
   period_start: null,
@@ -1205,13 +1348,14 @@ const memberStats = ref({
   top_members: [],
 })
 
-const tabs = computed(() => (authStore.isManager ? ['zbon', 'zbons'] : ['zbon', 'zbons', 'history', 'revenue', 'members']))
+const tabs = computed(() => (authStore.isManager ? ['zbon', 'zbons'] : ['zbon', 'zbons', 'history', 'revenue', 'members', 'internalAccounts']))
 const tabLabels = {
   zbon: '📊 Z-Bon',
   zbons: '📑 Z-Bons Verlauf',
   history: '📜 Transaktionen',
   revenue: '📈 Umsatz',
   members: '👥 Mitglieder',
+  internalAccounts: '🏦 Interne Konten',
 }
 
 // Scheduler configuration
@@ -1372,7 +1516,7 @@ const getTransactionMemberLabel = (transaction) => {
   if (!transaction) return 'Gast'
 
   if (transaction.type === 'RECHARGE' && !transaction.member && (!transaction.member_name || transaction.member_name === 'Gast')) {
-    return 'Vereinskonto'
+    return 'Materialkonto'
   }
 
   const member = transaction.member || (transaction.member_name ? { name: transaction.member_name } : null)
@@ -1441,6 +1585,11 @@ const loadDailyStats = async () => {
       cash_calculated: preview.summary?.cash_calculated || 0,
       withdrawal_total: Math.round((preview.summary?.cash_withdrawals_total || 0) * 100),
       voucher_open_total: preview.summary?.voucher_open_total || 0,
+      voucher_created_count: preview.summary?.voucher_created_count || 0,
+      voucher_created_total: preview.summary?.voucher_created_total || 0,
+      voucher_redeemed_count: preview.summary?.voucher_redeemed_count || 0,
+      voucher_redeemed_total: preview.summary?.voucher_redeemed_total || 0,
+      voucher_open_count: preview.summary?.voucher_open_count || 0,
       material_account_total: preview.summary?.material_account_total || 0,
       club_account_total: preview.summary?.club_account_total || 0,
       period_start: preview.period_start,
@@ -1466,6 +1615,11 @@ const loadDailyStats = async () => {
       cash_calculated: 0,
       withdrawal_total: 0,
       voucher_open_total: 0,
+      voucher_created_count: 0,
+      voucher_created_total: 0,
+      voucher_redeemed_count: 0,
+      voucher_redeemed_total: 0,
+      voucher_open_count: 0,
       material_account_total: 0,
       club_account_total: 0,
       period_start: null,
@@ -1569,6 +1723,17 @@ const loadMemberStats = async () => {
     memberStats.value = data.data
   } catch (error) {
     console.error('Error loading member stats:', error)
+  }
+}
+
+const loadMaterialAccount = async () => {
+  if (!authStore.isAdmin) return
+
+  try {
+    const response = await apiService.get('/admin/vouchers/club-account')
+    materialAccount.value = response.data
+  } catch (error) {
+    console.error('Error loading material account:', error)
   }
 }
 
@@ -1911,6 +2076,8 @@ watch(activeTab, (newTab) => {
     loadRevenueStats()
   } else if (newTab === 'members' && memberStats.value.total_members === 0) {
     loadMemberStats()
+  } else if (newTab === 'internalAccounts' && authStore.isAdmin && materialAccount.value.entries.length === 0) {
+    loadMaterialAccount()
   }
 })
 
@@ -1929,6 +2096,7 @@ onMounted(() => {
   applyFilters()
   loadRevenueStats()
   loadMemberStats()
+  loadMaterialAccount()
   loadSchedulerStatus()
 })
 </script>

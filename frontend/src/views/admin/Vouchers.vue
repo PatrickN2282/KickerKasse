@@ -21,7 +21,7 @@
         :class="['subtab-button', { active: activeSubTab === 'club-account' }]"
         @click="activeSubTab = 'club-account'; loadClubAccount()"
       >
-        🏦 Vereinskonto
+        🏦 Materialkonto
       </button>
     </div>
 
@@ -44,7 +44,7 @@
             v-if="authStore.isAdmin"
             class="info-text"
           >
-            Vereinskonto: {{ formatCurrency(clubAccount.balance_cents) }}
+            Materialkonto: {{ formatCurrency(clubAccount.balance_cents) }}
           </p>
 
           <form @submit.prevent="createGiftVoucher">
@@ -458,7 +458,7 @@
             class="btn-secondary"
             @click="openClubAccountFromModal"
           >
-            🏦 Vereinskonto öffnen
+            🏦 Materialkonto öffnen
           </button>
           <button
             class="btn-secondary"
@@ -630,7 +630,7 @@ const createdVoucherModalData = computed(() => {
 const passwordModalTitle = computed(() => pendingVoucherAction.value === 'gift'
   ? 'Geschenk-Gutschein erstellen'
   : pendingVoucherAction.value === 'account'
-    ? 'Vereinskonto aufladen'
+    ? 'Materialkonto aufladen'
     : 'Verzehrkarte erstellen')
 
 const createGiftVoucher = async () => {

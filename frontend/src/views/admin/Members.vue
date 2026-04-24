@@ -285,7 +285,7 @@
     <PasswordConfirmModal
       :show="showRechargeModal"
       title="Mitgliedsguthaben aufladen"
-      message="Bitte Zugangsdaten des aktuell angemeldeten Benutzers bestätigen."
+      :message="rechargeModalMessage"
       :username="authStore.user?.username || ''"
       confirm-label="Aufladen"
       @close="showRechargeModal = false"
@@ -331,11 +331,18 @@ const formData = reactive({
 
 const fullFormName = computed(() => [formData.first_name, formData.last_name].filter(Boolean).join(' '))
 const showContactFields = computed(() => !editingId.value || authStore.isTopAdmin)
-const showAccountPasswordSection = computed(() => (
-  authStore.isTopAdmin
-    ? !!formData.role
-    : authStore.isAdmin && hasExistingUserAccount.value
-))
+const showAccountPasswordSection = computed(() => authStore.isTopAdmin && !!formData.role)
+const rechargeModalMessage = computed(() => {
+  const amountCents = Math.max(Math.round(Number(rechargeAmount.value || 0) * 100), 0)
+  const currentBalance = Number(currentMemberBalance.value || 0)
+  const nextBalance = currentBalance + amountCents
+
+  return [
+    'Bitte Zugangsdaten des aktuell angemeldeten Benutzers bestätigen.',
+    amountCents > 0 ? `Aufzuladender Wert: ${formatBalance(amountCents)}` : null,
+    `Neuer Gesamtwert: ${formatBalance(nextBalance)}`,
+  ].filter(Boolean).join('\n')
+})
 
 const handlePhotoUpload = (event) => {
   const file = event.target.files[0]
@@ -387,9 +394,7 @@ const handleSaveMember = async () => {
       delete payload.phone
     }
     delete payload.role
-    if (!payload.account_password) {
-      delete payload.account_password
-    }
+    delete payload.account_password
   } else if (!payload.role) {
     payload.role = null
     delete payload.account_password

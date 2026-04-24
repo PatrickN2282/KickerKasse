@@ -420,7 +420,7 @@ ZBON_HTML_TEMPLATE = """
             </tbody>
         </table>
 
-        <div class="section-title">🧰 Materialkonto</div>
+        <div class="section-title">🧰 Interne Materialverkäufe</div>
         <table>
             <thead>
                 <tr>
@@ -436,7 +436,7 @@ ZBON_HTML_TEMPLATE = """
             </tbody>
         </table>
 
-        <div class="section-title">🏦 Vereinskonto</div>
+        <div class="section-title">🏦 Materialkonto</div>
         <table>
             <thead>
                 <tr>
@@ -446,7 +446,7 @@ ZBON_HTML_TEMPLATE = """
             </thead>
             <tbody>
                 <tr>
-                    <td>Kontostand Vereinskonto</td>
+                    <td>Kontostand Materialkonto</td>
                     <td class="amount"><strong>{{ club_account_total|default("0.00") }}</strong></td>
                 </tr>
             </tbody>

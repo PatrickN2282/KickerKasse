@@ -18,6 +18,7 @@ export const useCartStore = defineStore('cart', () => {
     total_price_cents: item.quantity * item.unit_price_cents,
     member_price_cents: item.member_price_cents ?? null,
     regular_price_cents: item.regular_price_cents ?? item.unit_price_cents,
+    is_internal_material: !!item.is_internal_material,
   })
 
   const addItem = (product, maxQuantity = product.stock_quantity) => {
@@ -38,9 +39,11 @@ export const useCartStore = defineStore('cart', () => {
     }
 
     // Use member price if member is selected and product has member price
-    const unitPrice = (selectedMemberId.value && selectedMemberHasDiscount.value && product.member_price_cents)
-      ? product.member_price_cents
-      : product.price_cents
+    const unitPrice = product.is_internal_material
+      ? 0
+      : ((selectedMemberId.value && selectedMemberHasDiscount.value && product.member_price_cents)
+          ? product.member_price_cents
+          : product.price_cents)
     items.value.push({
       product_id: product.id,
       product_name: product.name,
@@ -49,6 +52,7 @@ export const useCartStore = defineStore('cart', () => {
       total_price_cents: unitPrice,
       member_price_cents: product.member_price_cents,
       regular_price_cents: product.price_cents,
+      is_internal_material: !!product.is_internal_material,
     })
     return { success: true, quantity: 1 }
   }
@@ -59,7 +63,9 @@ export const useCartStore = defineStore('cart', () => {
      * Updates all items in cart to use member or regular price.
      */
     items.value.forEach(item => {
-      if (selectedMemberId.value && selectedMemberHasDiscount.value && item.member_price_cents) {
+      if (item.is_internal_material) {
+        item.unit_price_cents = 0
+      } else if (selectedMemberId.value && selectedMemberHasDiscount.value && item.member_price_cents) {
         item.unit_price_cents = item.member_price_cents
       } else {
         item.unit_price_cents = item.regular_price_cents

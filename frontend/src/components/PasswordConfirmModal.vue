@@ -109,6 +109,10 @@ watch(() => props.show, async (show) => {
   margin: 0 0 1rem;
 }
 
+.message {
+  white-space: pre-line;
+}
+
 .admin-hint {
   color: #b71c1c;
   font-weight: 600;
