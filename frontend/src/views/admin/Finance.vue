@@ -1514,10 +1514,6 @@ const getMemberById = (memberId) => {
   return memberStore.members.find(member => member.id === memberId)
 }
 
-const getSelectedMemberName = (memberId, fallback = '-') => {
-  return formatMemberLabel(getMemberById(memberId)) || fallback
-}
-
 const getTransactionMemberLabel = (transaction) => {
   if (!transaction) return 'Gast'
 
