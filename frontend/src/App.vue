@@ -16,6 +16,7 @@
             :alt="appSettingsStore.settings.app_name"
             class="navbar-logo"
           >
+
           <span class="navbar-title">
             {{ appSettingsStore.settings.app_name }}
           </span>
@@ -23,6 +24,7 @@
 
         <div class="navbar-menu">
           <div class="navbar-actions">
+
             <router-link
               to="/"
               class="nav-link"
@@ -54,6 +56,7 @@
             >
               Logout
             </button>
+
           </div>
 
           <span class="current-user">
@@ -66,13 +69,13 @@
 
     <main class="main-content">
       <router-view />
-
-      <!-- platzsparender Footer direkt im grauen Inhaltsbereich -->
-      <div class="app-inline-footer">
-        © by Pixel-Finanz 2026 · {{ pkg.name }} v{{ pkg.version }}
-      </div>
-
     </main>
+
+
+    <!-- Kein eigenes Banner, eingebettet über dem grauen Rand -->
+    <div class="app-inline-footer">
+      © by Pixel-Finanz 2026 · {{ pkg.name }} v{{ pkg.version }}
+    </div>
 
 
     <div
@@ -129,6 +132,7 @@
   </div>
 </template>
 
+
 <script setup>
 import { onBeforeUnmount, onMounted, reactive, ref } from 'vue'
 import { useAuthStore } from '@/stores/auth'
@@ -172,13 +176,13 @@ const closeLoginModal = () => {
 }
 
 const loginFromModal = async () => {
+
   modalError.value = ''
 
-  const success =
-    await authStore.login(
-      loginForm.username,
-      loginForm.password
-    )
+  const success = await authStore.login(
+    loginForm.username,
+    loginForm.password
+  )
 
   if (!success) {
     modalError.value =
@@ -196,6 +200,7 @@ const handleBeforeUnload = () => {
 
 onMounted(() => {
   appSettingsStore.applyToDocument()
+
   window.addEventListener(
     'beforeunload',
     handleBeforeUnload
@@ -210,32 +215,43 @@ onBeforeUnmount(() => {
 })
 </script>
 
+
+
 <style scoped lang="scss">
-.app {
-  display: flex;
-  flex-direction: column;
-  height: 100vh;
-  min-height: 100vh;
-  background-color: var(--app-background-color);
-  overflow: hidden;
+.app{
+  display:flex;
+  flex-direction:column;
+  height:100vh;
+  min-height:100vh;
+
+  position:relative; /* wichtig für Footer */
+
+  background-color:var(--app-background-color);
+  overflow:hidden;
 }
 
-.navbar {
-  position: sticky;
-  top: 0;
-  z-index: 1200;
-  flex-shrink: 0;
-  background: var(--app-banner-color);
-  color: white;
-  padding: 0.85rem 1rem;
-  box-shadow: 0 4px 12px rgba(0,0,0,.2);
-  border-bottom: 3px solid var(--app-highlight-color);
+
+.navbar{
+  position:sticky;
+  top:0;
+  z-index:1200;
+
+  flex-shrink:0;
+
+  background:var(--app-banner-color);
+  color:white;
+
+  padding:.85rem 1rem;
+
+  box-shadow:0 4px 12px rgba(0,0,0,.2);
+  border-bottom:3px solid var(--app-highlight-color);
 
   .navbar-content{
     display:flex;
     justify-content:space-between;
     align-items:center;
     gap:1rem;
+
     max-width:1200px;
     margin:0 auto;
   }
@@ -268,6 +284,7 @@ onBeforeUnmount(() => {
   .navbar-actions{
     display:flex;
     gap:.75rem;
+    align-items:center;
     flex-wrap:wrap;
     justify-content:flex-end;
   }
@@ -277,6 +294,8 @@ onBeforeUnmount(() => {
     text-decoration:none;
     padding:.5rem .9rem;
     border-radius:999px;
+
+    transition:all .2s;
 
     &:hover,
     &.router-link-active{
@@ -309,42 +328,63 @@ onBeforeUnmount(() => {
   }
 }
 
+
 .main-content{
   flex:1;
   min-height:0;
+
   overflow-y:auto;
-  padding:0 0 8px 0;
+
+  /* Reserve damit Footer nichts verschiebt */
+  padding:0 0 18px 0;
 }
 
-/* Neuer integrierter Footer */
+
+
+/* schwebender Footer ohne zusätzliche Höhe */
 .app-inline-footer{
+  position:absolute;
+  bottom:3px;
+  left:0;
+  right:0;
+
   text-align:center;
-  font-size:11px;
-  line-height:1.2;
-  opacity:.55;
 
-  padding:6px 12px 4px;
-  margin-top:8px;
+  font-size:10px;
+  letter-spacing:.04em;
+  line-height:1.1;
 
-  color:var(--app-text-color, #555);
+  opacity:.42;
+
+  color:var(--app-text-color,#555);
+
   user-select:none;
+  pointer-events:none;
 }
+
 
 
 .modal-overlay{
   position:fixed;
   inset:0;
+
   background:rgba(15,23,42,.55);
+
   display:grid;
   place-items:center;
+
   z-index:2000;
 }
 
+
 .modal-card{
   background:white;
+
   border-radius:16px;
   padding:1.5rem;
+
   width:min(92vw,420px);
+
   display:flex;
   flex-direction:column;
   gap:.9rem;
@@ -361,13 +401,17 @@ onBeforeUnmount(() => {
   }
 }
 
+
 .form-input{
   width:100%;
   padding:.75rem;
+
   border:1px solid #ddd;
   border-radius:8px;
+
   font-size:1rem;
 }
+
 
 .modal-actions{
   display:flex;
@@ -375,11 +419,14 @@ onBeforeUnmount(() => {
   justify-content:flex-end;
 }
 
+
 .modal-error{
   margin:0;
   color:#c62828;
   font-weight:600;
 }
+
+
 
 @media (max-width:700px){
 
@@ -390,6 +437,7 @@ onBeforeUnmount(() => {
 
   .navbar .navbar-brand{
     justify-content:center;
+    text-align:center;
   }
 
   .navbar .navbar-menu{
@@ -402,4 +450,3 @@ onBeforeUnmount(() => {
 
 }
 </style>
-
