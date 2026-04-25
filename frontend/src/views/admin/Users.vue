@@ -69,7 +69,7 @@
       class="modal-overlay"
       @click.self="closeUserModal"
     >
-      <div class="modal-card user-modal-card">
+      <div class="modal-card user-modal-card modal-card-horizontal">
         <div class="modal-header">
           <div>
             <h3>{{ editingUserId ? 'Benutzer bearbeiten' : 'Neuen Benutzer anlegen' }}</h3>
@@ -86,7 +86,7 @@
         </div>
 
         <form
-          class="modal-form"
+          class="modal-form modal-form-horizontal"
           @submit.prevent="handleSaveUser"
         >
           <div class="form-group">
@@ -130,7 +130,7 @@
             </select>
           </div>
 
-          <div class="form-group">
+          <div class="form-group form-group-wide">
             <label for="password">
               {{ editingUserId ? 'Neues Passwort' : 'Passwort*' }}
             </label>
@@ -472,6 +472,11 @@ onMounted(async () => {
   box-shadow: 0 18px 40px rgba(15, 23, 42, 0.22);
 }
 
+.modal-card-horizontal {
+  width: min(100%, 720px);
+  padding: 1.15rem 1.25rem 1.25rem;
+}
+
 .modal-header {
   display: flex;
   align-items: flex-start;
@@ -492,6 +497,17 @@ onMounted(async () => {
 .modal-form {
   display: grid;
   gap: 1rem;
+}
+
+.modal-form-horizontal {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.85rem;
+  align-items: start;
+}
+
+.form-group-wide,
+.form-buttons {
+  grid-column: 1 / -1;
 }
 
 .form-group {
@@ -521,6 +537,7 @@ onMounted(async () => {
   flex-wrap: wrap;
   gap: 0.75rem;
   margin-top: 0.25rem;
+  justify-content: flex-end;
 }
 
 .btn,
@@ -564,6 +581,10 @@ onMounted(async () => {
 @media (max-width: 640px) {
   .page-header {
     flex-direction: column;
+  }
+
+  .modal-form-horizontal {
+    grid-template-columns: 1fr;
   }
 
   .btn,

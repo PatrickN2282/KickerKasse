@@ -105,7 +105,7 @@
     </div>
 
     <div v-if="showCategoryModal" class="modal-overlay" @click.self="closeCategoryModal">
-      <div class="modal-card">
+      <div class="modal-card modal-card-horizontal">
         <div class="modal-header">
           <div>
             <h3>{{ editingId ? 'Kategorie bearbeiten' : 'Neue Kategorie anlegen' }}</h3>
@@ -116,8 +116,8 @@
           <button class="modal-close" @click="closeCategoryModal">×</button>
         </div>
 
-        <form @submit.prevent="submitForm" class="modal-form">
-          <section class="modal-section">
+        <form @submit.prevent="submitForm" class="modal-form modal-form-horizontal">
+          <section class="modal-section modal-section-horizontal">
             <div class="form-field">
               <label for="name">Name</label>
               <input
@@ -129,7 +129,7 @@
               />
             </div>
 
-            <div class="form-field">
+            <div class="form-field form-field-wide">
               <label for="description">Beschreibung</label>
               <textarea
                 id="description"
@@ -149,7 +149,7 @@
               />
             </div>
 
-            <div class="form-field checkbox">
+            <div class="form-field checkbox form-field-wide">
               <input
                 id="is_active"
                 v-model="formData.is_active_in_kasse"
@@ -367,6 +367,12 @@ onMounted(() => {
   gap: 1rem;
 }
 
+.modal-form-horizontal {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.85rem;
+  align-items: start;
+}
+
 .modal-section {
   display: grid;
   gap: 0.9rem;
@@ -374,6 +380,18 @@ onMounted(() => {
   border: 1px solid #e5e7eb;
   border-radius: 10px;
   background: #f8fafc;
+}
+
+.modal-section-horizontal {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.75rem 0.9rem;
+  align-content: start;
+  padding: 0.9rem;
+}
+
+.form-buttons,
+.form-field-wide {
+  grid-column: 1 / -1;
 }
 
 .form-field {
@@ -421,6 +439,7 @@ onMounted(() => {
   flex-wrap: wrap;
   gap: 1rem;
   margin-top: 0.5rem;
+  justify-content: flex-end;
 }
 
 .btn {
@@ -613,6 +632,11 @@ onMounted(() => {
   box-shadow: 0 24px 60px rgba(15, 23, 42, 0.24);
 }
 
+.modal-card-horizontal {
+  width: min(100%, 720px);
+  padding: 1.25rem;
+}
+
 .modal-header {
   display: flex;
   align-items: flex-start;
@@ -634,6 +658,11 @@ onMounted(() => {
   .page-header,
   .list-header {
     flex-direction: column;
+  }
+
+  .modal-form-horizontal,
+  .modal-section-horizontal {
+    grid-template-columns: 1fr;
   }
 
   .form-buttons {
