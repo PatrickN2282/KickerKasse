@@ -53,8 +53,8 @@
               </span>
             </td>
             <td class="text-right action-cell">
-              <button class="btn-icon" @click="editProduct(product)" title="Bearbeiten" aria-label="Produkt bearbeiten">✏️</button>
-              <button class="btn-icon btn-icon-danger" @click="deleteProduct(product.id)" title="Löschen" aria-label="Produkt löschen">🗑️</button>
+              <button class="btn-action" @click="editProduct(product)">Bearbeiten</button>
+              <button class="btn-action btn-action-danger" @click="deleteProduct(product.id)">Löschen</button>
             </td>
           </tr>
         </tbody>
@@ -393,6 +393,9 @@ onMounted(async () => {
 }
 
 .action-cell {
+  display: flex;
+  justify-content: flex-end;
+  gap: 0.5rem;
   white-space: nowrap;
 }
 
@@ -674,20 +677,19 @@ onMounted(async () => {
   color: #475569;
 }
 
-.btn-icon {
-  background: none;
-  border: none;
-  padding: 0.4rem;
+.btn-action {
+  border: 1px solid var(--border);
+  background: white;
+  color: #334155;
+  padding: 0.45rem 0.75rem;
+  border-radius: 8px;
   cursor: pointer;
-  border-radius: 4px;
+  font-weight: 600;
+}
 
-  &:hover {
-    background: #f1f5f9;
-  }
-
-  &.btn-icon-danger:hover {
-    background: #fee2e2;
-  }
+.btn-action-danger {
+  border-color: #fecaca;
+  color: #b91c1c;
 }
 
 .modal-close {

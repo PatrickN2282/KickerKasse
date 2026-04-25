@@ -71,22 +71,20 @@
             </td>
             <td class="text-right action-cell">
               <button
-                class="btn-icon"
+                class="btn-action"
                 :disabled="category.is_fixed"
-                :title="category.is_fixed ? 'Feste Kategorie kann nicht bearbeitet werden' : 'Bearbeiten'"
-                :aria-label="category.is_fixed ? 'Kategorie kann nicht bearbeitet werden' : 'Kategorie bearbeiten'"
+                :title="category.is_fixed ? 'Feste Kategorie kann nicht bearbeitet werden' : ''"
                 @click="editCategory(category)"
               >
-                ✏️
+                Bearbeiten
               </button>
               <button
-                class="btn-icon btn-icon-danger"
+                class="btn-action btn-action-danger"
                 :disabled="category.is_fixed"
-                :title="category.is_fixed ? 'Feste Kategorie kann nicht gelöscht werden' : 'Löschen'"
-                :aria-label="category.is_fixed ? 'Kategorie kann nicht gelöscht werden' : 'Kategorie löschen'"
+                :title="category.is_fixed ? 'Feste Kategorie kann nicht gelöscht werden' : ''"
                 @click="deleteCategory(category.id)"
               >
-                🗑️
+                Löschen
               </button>
             </td>
           </tr>
@@ -372,6 +370,9 @@ onMounted(() => {
 }
 
 .action-cell {
+  display: flex;
+  justify-content: flex-end;
+  gap: 0.5rem;
   white-space: nowrap;
 }
 
@@ -620,25 +621,24 @@ onMounted(() => {
   white-space: nowrap;
 }
 
-.btn-icon {
-  background: none;
-  border: none;
-  padding: 0.4rem;
+.btn-action {
+  border: 1px solid var(--border);
+  background: white;
+  color: #334155;
+  padding: 0.45rem 0.75rem;
+  border-radius: 8px;
   cursor: pointer;
-  border-radius: 4px;
-
-  &:hover:not(:disabled) {
-    background: #f1f5f9;
-  }
-
-  &.btn-icon-danger:hover:not(:disabled) {
-    background: #fee2e2;
-  }
+  font-weight: 600;
 
   &:disabled {
     opacity: 0.45;
     cursor: not-allowed;
   }
+}
+
+.btn-action-danger {
+  border-color: #fecaca;
+  color: #b91c1c;
 }
 
 .modal-close {

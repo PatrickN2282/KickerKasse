@@ -35,9 +35,9 @@
               <span class="role-tag">{{ roleLabel(user.role) }}</span>
             </td>
             <td class="text-right action-cell">
-              <button v-if="user.deletable" class="btn-icon" @click="openEditModal(user)" title="Bearbeiten" aria-label="Benutzer bearbeiten">✏️</button>
+              <button v-if="user.deletable" class="btn-action" @click="openEditModal(user)">Bearbeiten</button>
               <button v-if="user.canResetPassword" class="btn-action" @click="openPasswordReset(user)">Passwort setzen</button>
-              <button v-if="user.deletable" class="btn-icon btn-icon-danger" @click="deleteUser(user.id)" title="Löschen" aria-label="Benutzer löschen">🗑️</button>
+              <button v-if="user.deletable" class="btn-action btn-action-danger" @click="deleteUser(user.id)">Löschen</button>
             </td>
           </tr>
         </tbody>
@@ -552,20 +552,9 @@ onMounted(async () => {
   color: #475569;
 }
 
-.btn-icon {
-  background: none;
-  border: none;
-  padding: 0.4rem;
-  cursor: pointer;
-  border-radius: 4px;
-
-  &:hover {
-    background: #f1f5f9;
-  }
-
-  &.btn-icon-danger:hover {
-    background: #fee2e2;
-  }
+.btn-action-danger {
+  border-color: #fecaca;
+  color: #b91c1c;
 }
 
 .modal-close {
