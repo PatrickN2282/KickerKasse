@@ -107,51 +107,58 @@
     <div v-if="showCategoryModal" class="modal-overlay" @click.self="closeCategoryModal">
       <div class="modal-card">
         <div class="modal-header">
-          <h3>{{ editingId ? 'Kategorie bearbeiten' : 'Neue Kategorie anlegen' }}</h3>
+          <div>
+            <h3>{{ editingId ? 'Kategorie bearbeiten' : 'Neue Kategorie anlegen' }}</h3>
+            <p class="modal-subtitle">
+              Kategorie mit Namen, Beschreibung und Anzeigeeinstellungen kompakt verwalten.
+            </p>
+          </div>
           <button class="modal-close" @click="closeCategoryModal">×</button>
         </div>
 
-        <form @submit.prevent="submitForm" class="form-group">
-          <div class="form-field">
-            <label for="name">Name:</label>
-            <input
-              v-model="formData.name"
-              id="name"
-              type="text"
-              required
-              class="form-input"
-            />
-          </div>
+        <form @submit.prevent="submitForm" class="modal-form">
+          <section class="modal-section">
+            <div class="form-field">
+              <label for="name">Name</label>
+              <input
+                id="name"
+                v-model="formData.name"
+                type="text"
+                required
+                class="form-input"
+              />
+            </div>
 
-          <div class="form-field">
-            <label for="description">Beschreibung:</label>
-            <textarea
-              v-model="formData.description"
-              id="description"
-              class="form-input"
-              rows="3"
-            ></textarea>
-          </div>
+            <div class="form-field">
+              <label for="description">Beschreibung</label>
+              <textarea
+                id="description"
+                v-model="formData.description"
+                class="form-input"
+                rows="3"
+              ></textarea>
+            </div>
 
-          <div class="form-field">
-            <label for="display_order">Anzeigereihenfolge:</label>
-            <input
-              v-model.number="formData.display_order"
-              id="display_order"
-              type="number"
-              class="form-input"
-            />
-          </div>
+            <div class="form-field">
+              <label for="display_order">Anzeigereihenfolge</label>
+              <input
+                id="display_order"
+                v-model.number="formData.display_order"
+                type="number"
+                class="form-input"
+              />
+            </div>
 
-          <div class="form-field checkbox">
-            <input
-              v-model="formData.is_active_in_kasse"
-              id="is_active"
-              type="checkbox"
-              class="form-checkbox"
-            />
-            <label for="is_active">In Kassenansicht sichtbar</label>
-          </div>
+            <div class="form-field checkbox">
+              <input
+                id="is_active"
+                v-model="formData.is_active_in_kasse"
+                type="checkbox"
+                class="form-checkbox"
+              />
+              <label for="is_active">In Kassenansicht sichtbar</label>
+            </div>
+          </section>
 
           <div class="form-buttons">
             <button type="submit" class="btn btn-primary">
@@ -350,9 +357,23 @@ onMounted(() => {
   color: #6b7280;
 }
 
-.form-group {
+.modal-subtitle {
+  margin-top: 0.35rem;
+  color: #6b7280;
+}
+
+.modal-form {
   display: grid;
   gap: 1rem;
+}
+
+.modal-section {
+  display: grid;
+  gap: 0.9rem;
+  padding: 1rem;
+  border: 1px solid #e5e7eb;
+  border-radius: 10px;
+  background: #f8fafc;
 }
 
 .form-field {
@@ -397,6 +418,7 @@ onMounted(() => {
 
 .form-buttons {
   display: flex;
+  flex-wrap: wrap;
   gap: 1rem;
   margin-top: 0.5rem;
 }
@@ -584,7 +606,7 @@ onMounted(() => {
 }
 
 .modal-card {
-  width: min(100%, 560px);
+  width: min(100%, 460px);
   background: white;
   border-radius: 18px;
   padding: 1.5rem;
@@ -593,7 +615,7 @@ onMounted(() => {
 
 .modal-header {
   display: flex;
-  align-items: center;
+  align-items: flex-start;
   justify-content: space-between;
   gap: 1rem;
   margin-bottom: 1rem;
@@ -606,5 +628,20 @@ onMounted(() => {
   line-height: 1;
   cursor: pointer;
   color: #475569;
+}
+
+@media (max-width: 640px) {
+  .page-header,
+  .list-header {
+    flex-direction: column;
+  }
+
+  .form-buttons {
+    flex-direction: column;
+  }
+
+  .btn {
+    width: 100%;
+  }
 }
 </style>

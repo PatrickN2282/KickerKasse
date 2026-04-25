@@ -78,7 +78,12 @@
     >
       <div class="modal-card">
         <div class="modal-header">
-          <h3>{{ editingId ? 'Produkt bearbeiten' : 'Neues Produkt anlegen' }}</h3>
+          <div>
+            <h3>{{ editingId ? 'Produkt bearbeiten' : 'Neues Produkt anlegen' }}</h3>
+            <p class="modal-subtitle">
+              Pflichtangaben zum Produkt schnell erfassen und bei Bedarf Bild und Rabattoption ergänzen.
+            </p>
+          </div>
           <button
             class="modal-close"
             @click="closeProductModal"
@@ -88,73 +93,53 @@
         </div>
 
         <form
-          class="form-section"
+          class="modal-form"
           @submit.prevent="handleSaveProduct"
         >
-          <div class="form-group">
-            <label for="name">Name*:</label>
-            <input
-              id="name"
-              v-model="formData.name"
-              type="text"
-              class="form-input"
-              required
-            >
-          </div>
-          <div class="form-group">
-            <label for="price">Preis (€)*:</label>
-            <input
-              id="price"
-              v-model.number="formData.price"
-              type="number"
-              step="0.01"
-              class="form-input"
-              required
-            >
-          </div>
-          <div class="form-group">
-            <label for="member-price">Mitgliedspreis (€):</label>
-            <input
-              id="member-price"
-              v-model.number="formData.memberPrice"
-              type="number"
-              step="0.01"
-              class="form-input"
-            >
-          </div>
-          <div class="form-group">
-            <label for="stock">Lagerbestand*:</label>
-            <input
-              id="stock"
-              v-model.number="formData.stock"
-              type="number"
-              min="0"
-              class="form-input"
-              required
-            >
-          </div>
-          <div class="form-group">
-            <label for="image">Bild:</label>
-            <input
-              id="image"
-              type="file"
-              accept="image/*"
-              class="form-input"
-              @change="handleImageUpload"
-            >
-            <div
-              v-if="imagePreview"
-              class="image-preview"
-            >
-              <img
-                :src="imagePreview"
-                :alt="formData.name"
-                style="max-width: 150px; max-height: 150px;"
+          <section class="modal-section">
+            <div class="form-group">
+              <label for="name">Name*</label>
+              <input
+                id="name"
+                v-model="formData.name"
+                type="text"
+                class="form-input"
+                required
               >
             </div>
-          </div>
-          <div class="form-group">
-            <label for="discountable">
+            <div class="form-group">
+              <label for="price">Preis (€)*</label>
+              <input
+                id="price"
+                v-model.number="formData.price"
+                type="number"
+                step="0.01"
+                class="form-input"
+                required
+              >
+            </div>
+            <div class="form-group">
+              <label for="member-price">Mitgliedspreis (€)</label>
+              <input
+                id="member-price"
+                v-model.number="formData.memberPrice"
+                type="number"
+                step="0.01"
+                class="form-input"
+              >
+            </div>
+            <div class="form-group">
+              <label for="stock">Lagerbestand*</label>
+              <input
+                id="stock"
+                v-model.number="formData.stock"
+                type="number"
+                min="0"
+                class="form-input"
+                required
+              >
+            </div>
+            <label class="checkbox-row">
               <input
                 id="discountable"
                 v-model="formData.discountable"
@@ -162,7 +147,30 @@
               >
               Rabattfähig
             </label>
-          </div>
+          </section>
+
+          <section class="modal-section">
+            <div class="form-group">
+              <label for="image">Bild</label>
+              <input
+                id="image"
+                type="file"
+                accept="image/*"
+                class="form-input"
+                @change="handleImageUpload"
+              >
+              <div
+                v-if="imagePreview"
+                class="image-preview"
+              >
+                <img
+                  :src="imagePreview"
+                  :alt="formData.name"
+                  style="max-width: 150px; max-height: 150px;"
+                >
+              </div>
+            </div>
+          </section>
           <div class="form-buttons">
             <button
               type="submit"
@@ -365,15 +373,35 @@ onMounted(async () => {
   margin-bottom: 1rem;
 }
 
-.form-section {
+.modal-subtitle,
+.form-help {
+  color: #6b7280;
+}
+
+.modal-subtitle {
+  margin-top: 0.35rem;
+}
+
+.modal-form {
   display: grid;
   gap: 1rem;
 }
 
+.modal-section {
+  display: grid;
+  gap: 0.9rem;
+  padding: 1rem;
+  border: 1px solid #e5e7eb;
+  border-radius: 10px;
+  background: #f8fafc;
+}
+
 .form-group {
+  display: grid;
+  gap: 0.5rem;
+
   label {
     display: block;
-    margin-bottom: 0.5rem;
     font-weight: 500;
   }
 
@@ -394,8 +422,16 @@ onMounted(async () => {
   }
 }
 
+.checkbox-row {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  font-weight: 600;
+}
+
 .form-buttons {
   display: flex;
+  flex-wrap: wrap;
   gap: 1rem;
   margin-top: 0.5rem;
 }
@@ -499,7 +535,7 @@ onMounted(async () => {
 }
 
 .modal-card {
-  width: min(100%, 520px);
+  width: min(100%, 460px);
   max-height: calc(100vh - 2rem);
   overflow-y: auto;
   background: white;
@@ -510,7 +546,7 @@ onMounted(async () => {
 
 .modal-header {
   display: flex;
-  align-items: center;
+  align-items: flex-start;
   justify-content: space-between;
   gap: 1rem;
   margin-bottom: 1rem;
@@ -540,6 +576,20 @@ onMounted(async () => {
   .no-image {
     font-size: 0.85rem;
     color: #999;
+  }
+}
+
+@media (max-width: 640px) {
+  .page-header {
+    flex-direction: column;
+  }
+
+  .form-buttons {
+    flex-direction: column;
+  }
+
+  .btn {
+    width: 100%;
   }
 }
 </style>

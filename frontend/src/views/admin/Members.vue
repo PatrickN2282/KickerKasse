@@ -91,7 +91,12 @@
     >
       <div class="modal-card">
         <div class="modal-header">
-          <h3>{{ editingId ? 'Mitglied bearbeiten' : 'Neues Mitglied anlegen' }}</h3>
+          <div>
+            <h3>{{ editingId ? 'Mitglied bearbeiten' : 'Neues Mitglied anlegen' }}</h3>
+            <p class="modal-subtitle">
+              Mitglied anlegen oder aktualisieren und alle relevanten Angaben gesammelt pflegen.
+            </p>
+          </div>
           <button
             class="modal-close"
             @click="closeMemberModal"
@@ -101,12 +106,15 @@
         </div>
 
         <form
-          class="form-section"
+          class="modal-form"
           @submit.prevent="handleSaveMember"
         >
-          <div class="form-grid">
+          <section class="modal-section">
+            <h4 class="modal-section-title">
+              Basisdaten
+            </h4>
             <div class="form-group">
-              <label for="first_name">Vorname*:</label>
+              <label for="first_name">Vorname*</label>
               <input
                 id="first_name"
                 v-model="formData.first_name"
@@ -116,7 +124,7 @@
               >
             </div>
             <div class="form-group">
-              <label for="last_name">Nachname*:</label>
+              <label for="last_name">Nachname*</label>
               <input
                 id="last_name"
                 v-model="formData.last_name"
@@ -125,17 +133,15 @@
                 required
               >
             </div>
-          </div>
-          <div class="form-group">
-            <label for="membership_number">Mitgliedsnummer:</label>
-            <input
-              id="membership_number"
-              v-model="formData.membership_number"
-              type="text"
-              class="form-input"
-            >
-          </div>
-          <div class="form-grid">
+            <div class="form-group">
+              <label for="membership_number">Mitgliedsnummer</label>
+              <input
+                id="membership_number"
+                v-model="formData.membership_number"
+                type="text"
+                class="form-input"
+              >
+            </div>
             <label class="checkbox-row">
               <input
                 v-model="formData.has_discount"
@@ -143,11 +149,20 @@
               >
               Rabatt
             </label>
+          </section>
+
+          <section
+            v-if="showContactFields || authStore.isTopAdmin"
+            class="modal-section"
+          >
+            <h4 class="modal-section-title">
+              Zugang & Kontakt
+            </h4>
             <div
               v-if="showContactFields"
               class="form-group"
             >
-              <label for="email">E-Mail:</label>
+              <label for="email">E-Mail</label>
               <input
                 id="email"
                 v-model="formData.email"
@@ -159,7 +174,7 @@
               v-if="showContactFields"
               class="form-group"
             >
-              <label for="phone">Telefon:</label>
+              <label for="phone">Telefon</label>
               <input
                 id="phone"
                 v-model="formData.phone"
@@ -171,7 +186,7 @@
               v-if="authStore.isTopAdmin"
               class="form-group"
             >
-              <label for="role">Rolle:</label>
+              <label for="role">Rolle</label>
               <select
                 id="role"
                 v-model="formData.role"
@@ -191,11 +206,15 @@
                 </option>
               </select>
             </div>
-          </div>
-          <div
+          </section>
+
+          <section
             v-if="showAccountPasswordSection"
-            class="role-account-box"
+            class="modal-section role-account-box"
           >
+            <h4 class="modal-section-title">
+              Benutzerkonto
+            </h4>
             <div
               v-if="currentAccountUsername"
               class="form-group"
@@ -227,22 +246,30 @@
                 ? 'Bei bestehenden Benutzerkonten können Admin und Top-Admin hier ein neues Passwort setzen.'
                 : 'Sobald eine Rolle vergeben wird, wird ein Benutzerkonto angelegt und ein Passwort benötigt.' }}
             </small>
-          </div>
-          <div class="form-group">
-            <label for="notes">Notizen:</label>
-            <textarea
-              id="notes"
-              v-model="formData.notes"
-              class="form-input notes-input"
-              rows="3"
-            />
-          </div>
+          </section>
+          <section class="modal-section">
+            <h4 class="modal-section-title">
+              Zusätzliche Angaben
+            </h4>
+            <div class="form-group">
+              <label for="notes">Notizen</label>
+              <textarea
+                id="notes"
+                v-model="formData.notes"
+                class="form-input notes-input"
+                rows="3"
+              />
+            </div>
+          </section>
 
           <div
             v-if="editingId"
-            class="form-group recharge-section"
+            class="modal-section recharge-section"
           >
-            <label for="recharge">Guthaben aufladen:</label>
+            <h4 class="modal-section-title">
+              Guthaben
+            </h4>
+            <label for="recharge">Guthaben aufladen</label>
             <small class="form-help">
               Aufzuladenden Wert eintragen, Passwort des angemeldeten Benutzers eintragen, Bestätigen
             </small>
@@ -270,26 +297,31 @@
             </small>
           </div>
 
-          <div class="form-group">
-            <label for="photo">Foto:</label>
-            <input
-              id="photo"
-              type="file"
-              accept="image/*"
-              class="form-input"
-              @change="handlePhotoUpload"
-            >
-            <div
-              v-if="photoPreview"
-              class="photo-preview"
-            >
-              <img
-                :src="photoPreview"
-                :alt="fullFormName"
-                style="max-width: 150px; max-height: 150px;"
+          <section class="modal-section">
+            <h4 class="modal-section-title">
+              Foto
+            </h4>
+            <div class="form-group">
+              <label for="photo">Foto</label>
+              <input
+                id="photo"
+                type="file"
+                accept="image/*"
+                class="form-input"
+                @change="handlePhotoUpload"
               >
+              <div
+                v-if="photoPreview"
+                class="photo-preview"
+              >
+                <img
+                  :src="photoPreview"
+                  :alt="fullFormName"
+                  style="max-width: 150px; max-height: 150px;"
+                >
+              </div>
             </div>
-          </div>
+          </section>
 
           <div class="form-buttons">
             <button
@@ -584,23 +616,44 @@ onMounted(async () => {
   margin-bottom: 1rem;
 }
 
-.form-section {
+.modal-subtitle,
+.modal-section-title,
+.form-help {
+  color: #6b7280;
+}
+
+.modal-subtitle {
+  margin-top: 0.35rem;
+}
+
+.modal-form {
   display: grid;
   gap: 1rem;
 }
 
-.form-grid {
+.modal-section {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
-  gap: 1rem;
+  gap: 0.9rem;
+  padding: 1rem;
+  border: 1px solid #e5e7eb;
+  border-radius: 10px;
+  background: #f8fafc;
+}
+
+.modal-section-title {
+  margin: 0;
+  font-size: 0.95rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
 }
 
 .form-group {
-  margin-bottom: 1rem;
+  display: grid;
+  gap: 0.5rem;
 
   label {
     display: block;
-    margin-bottom: 0.5rem;
     font-weight: 500;
   }
 
@@ -623,12 +676,11 @@ onMounted(async () => {
 
 .form-help {
   display: block;
-  margin-bottom: 0.5rem;
-  color: #666;
 }
 
 .form-buttons {
   display: flex;
+  flex-wrap: wrap;
   gap: 1rem;
 }
 
@@ -651,7 +703,6 @@ onMounted(async () => {
   align-items: center;
   gap: 0.6rem;
   font-weight: 600;
-  margin-top: 2rem;
 }
 
 .members-table {
@@ -737,7 +788,7 @@ table {
 }
 
 .modal-card {
-  width: min(100%, 720px);
+  width: min(100%, 560px);
   max-height: calc(100vh - 2rem);
   overflow-y: auto;
   background: white;
@@ -748,7 +799,7 @@ table {
 
 .modal-header {
   display: flex;
-  align-items: center;
+  align-items: flex-start;
   justify-content: space-between;
   gap: 1rem;
   margin-bottom: 1rem;
@@ -761,5 +812,23 @@ table {
   line-height: 1;
   cursor: pointer;
   color: #6b7280;
+}
+
+@media (max-width: 640px) {
+  .page-header {
+    flex-direction: column;
+  }
+
+  .form-buttons {
+    flex-direction: column;
+  }
+
+  .btn {
+    width: 100%;
+  }
+
+  .recharge-input-group {
+    grid-template-columns: 1fr;
+  }
 }
 </style>
