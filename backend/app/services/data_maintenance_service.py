@@ -2,6 +2,7 @@ from sqlalchemy.orm import Session
 
 from app.constants import (
     INTERNAL_MATERIAL_CATEGORY_DESCRIPTION,
+    INTERNAL_MATERIAL_CATEGORY_DISPLAY_ORDER,
     INTERNAL_MATERIAL_CATEGORY_NAME,
 )
 from app.models import (
@@ -37,7 +38,7 @@ class DataMaintenanceService:
             name=INTERNAL_MATERIAL_CATEGORY_NAME,
             description=INTERNAL_MATERIAL_CATEGORY_DESCRIPTION,
             is_active_in_kasse=True,
-            display_order=999,
+            display_order=INTERNAL_MATERIAL_CATEGORY_DISPLAY_ORDER,
         )
 
     def hard_reset(self) -> dict:
