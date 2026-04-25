@@ -44,10 +44,11 @@ class DataMaintenanceService:
         self.db.query(Deckel).delete(synchronize_session=False)
         self.db.query(TransactionItem).delete(synchronize_session=False)
         self.db.query(Transaction).delete(synchronize_session=False)
+        self.db.query(User).update({User.member_id: None}, synchronize_session=False)
+        deleted_users = self.db.query(User).filter(User.role != UserRole.TOP_ADMIN).delete(synchronize_session=False)
         self.db.query(Member).delete(synchronize_session=False)
         self.db.query(Product).delete(synchronize_session=False)
         self.db.query(Category).delete(synchronize_session=False)
-        deleted_users = self.db.query(User).filter(User.role != UserRole.TOP_ADMIN).delete(synchronize_session=False)
         self.db.commit()
 
         for member_id in member_ids:
