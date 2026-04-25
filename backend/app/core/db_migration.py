@@ -634,7 +634,12 @@ class DatabaseMigrator:
                     try:
                         conn.execute(text(
                             "ALTER TABLE material_account_entries "
-                            "ADD COLUMN transaction_item_id INTEGER REFERENCES transaction_items(id)"
+                            "ADD COLUMN transaction_item_id INTEGER"
+                        ))
+                        conn.execute(text(
+                            "ALTER TABLE material_account_entries "
+                            "ADD CONSTRAINT fk_material_account_entries_transaction_item_id "
+                            "FOREIGN KEY (transaction_item_id) REFERENCES transaction_items(id)"
                         ))
                         conn.commit()
                         logger.info("✓ Added transaction_item_id column to material_account_entries")

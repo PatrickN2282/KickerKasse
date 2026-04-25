@@ -100,6 +100,15 @@ class MaterialAccountService:
             query = query.filter(MaterialAccountEntry.created_at > period_start)
         return query.scalar() or 0
 
+    @staticmethod
+    def _resolve_entry_note(relevant_items: list[TransactionItem]) -> str | None:
+        # Current entries reference exactly one transaction item. Older fallback data can
+        # still contain multiple internal-material items on one transaction, where a single
+        # top-level note would be ambiguous, so those notes stay on the item rows only.
+        if len(relevant_items) != 1:
+            return None
+        return relevant_items[0].note
+
     def get_account_summary(self) -> dict:
         entries = self.db.query(MaterialAccountEntry).options(
             joinedload(MaterialAccountEntry.user),
@@ -165,7 +174,7 @@ class MaterialAccountService:
                         for transaction_item in relevant_items
                     ],
                 } if transaction else None,
-                "note": relevant_items[0].note if len(relevant_items) == 1 else None,
+                "note": self._resolve_entry_note(relevant_items),
             })
 
         return {

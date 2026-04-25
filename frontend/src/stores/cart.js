@@ -11,9 +11,13 @@ export const useCartStore = defineStore('cart', () => {
   const appliedBalanceCents = ref(0)
 
   const normalizeItemNote = (note = '') => String(note || '').trim()
+  const hashItemNote = (note = '') => [...normalizeItemNote(note)].reduce(
+    (hash, char) => ((hash * 31) + char.charCodeAt(0)) >>> 0,
+    0
+  ).toString(36)
 
   const buildCartLineId = (productId, isInternalMaterial = false, note = '') => (
-    `${productId}:${isInternalMaterial ? 'internal' : 'regular'}:${encodeURIComponent(normalizeItemNote(note) || '-')}`
+    `${productId}:${isInternalMaterial ? 'internal' : 'regular'}:${hashItemNote(note)}`
   )
 
   const cloneCartItem = (item) => ({
