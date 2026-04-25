@@ -94,7 +94,7 @@
           <div>
             <h3>{{ editingId ? 'Mitglied bearbeiten' : 'Neues Mitglied anlegen' }}</h3>
             <p class="modal-subtitle">
-              Stammdaten, Zugriffsrolle und optionale Zusatzinfos kompakt in einem vertikalen Formular pflegen.
+              Mitglied anlegen oder aktualisieren und alle relevanten Angaben gesammelt pflegen.
             </p>
           </div>
           <button
@@ -147,7 +147,7 @@
                 v-model="formData.has_discount"
                 type="checkbox"
               >
-              Rabatt aktivieren
+              Rabatt
             </label>
           </section>
 

@@ -110,7 +110,7 @@
           <div>
             <h3>{{ editingId ? 'Kategorie bearbeiten' : 'Neue Kategorie anlegen' }}</h3>
             <p class="modal-subtitle">
-              Wenige Kernfelder, vertikal angeordnet und schnell erfassbar.
+              Kategorie mit Namen, Beschreibung und Anzeigeeinstellungen kompakt verwalten.
             </p>
           </div>
           <button class="modal-close" @click="closeCategoryModal">×</button>

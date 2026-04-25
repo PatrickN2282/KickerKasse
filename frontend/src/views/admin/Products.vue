@@ -81,7 +81,7 @@
           <div>
             <h3>{{ editingId ? 'Produkt bearbeiten' : 'Neues Produkt anlegen' }}</h3>
             <p class="modal-subtitle">
-              Das Formular ist bewusst schlank gehalten und führt alle Pflichtfelder untereinander.
+              Pflichtangaben zum Produkt schnell erfassen und bei Bedarf Bild und Rabattoption ergänzen.
             </p>
           </div>
           <button

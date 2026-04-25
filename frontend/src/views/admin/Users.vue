@@ -22,7 +22,7 @@
           <tr>
             <th>Typ</th>
             <th>Benutzername</th>
-            <th>Email</th>
+            <th>E-Mail</th>
             <th>Rolle</th>
             <th>Aktionen</th>
           </tr>
@@ -101,7 +101,7 @@
           </div>
 
           <div class="form-group">
-            <label for="email">Email</label>
+            <label for="email">E-Mail</label>
             <input
               id="email"
               v-model="formData.email"
@@ -132,7 +132,7 @@
 
           <div class="form-group">
             <label for="password">
-              {{ editingUserId ? 'Neues Passwort (optional)' : 'Passwort*' }}
+              {{ editingUserId ? 'Neues Passwort' : 'Passwort*' }}
             </label>
             <input
               id="password"
