@@ -139,5 +139,5 @@ class SchedulerService:
             return {
                 "enabled": True,
                 "running": True,
-                "error": str(e),
+                "message": "Scheduler status could not be determined. Check server logs for details.",
             }

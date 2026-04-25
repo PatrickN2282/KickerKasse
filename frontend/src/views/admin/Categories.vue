@@ -1,21 +1,17 @@
 <template>
-  <div class="categories-container">
+  <div class="admin-categories">
     <div class="page-header">
       <div>
         <h2>Kategorieverwaltung</h2>
-        <p class="page-subtitle">Kategorien verwalten und Artikel den Bereichen zuordnen.</p>
+        <p class="page-subtitle">Kategorien verwalten und Artikel den Bereichen im Layout der Mitgliederverwaltung zuordnen.</p>
       </div>
       <button class="btn btn-primary" @click="openCreateModal">
-        + Neue Kategorie
+        <span class="icon">+</span> Neue Kategorie
       </button>
     </div>
 
-    <div class="list-section">
-      <div class="list-header">
-        <h3>Kategorien</h3>
-      </div>
-
-      <table v-if="categories.length > 0" class="data-table">
+    <div class="categories-table-wrapper">
+      <table v-if="categories.length > 0" class="categories-table">
         <thead>
           <tr>
             <th>Name</th>
@@ -23,40 +19,40 @@
             <th>Reihenfolge</th>
             <th>In Kasse aktiv</th>
             <th>Artikel zuordnen</th>
-            <th>Aktionen</th>
+            <th class="text-right">Aktionen</th>
           </tr>
         </thead>
         <tbody>
           <tr v-for="category in categories" :key="category.id">
             <td>
-              <strong>{{ category.name }}</strong>
-              <span v-if="category.is_fixed" class="badge badge-info">Fest</span>
+              <div class="category-name-cell">
+                <strong>{{ category.name }}</strong>
+                <span v-if="category.is_fixed" class="badge badge-info">Fest</span>
+              </div>
             </td>
             <td>{{ category.description || '-' }}</td>
             <td>{{ category.display_order }}</td>
             <td>
               <span v-if="category.is_active_in_kasse" class="badge badge-success">✓ Ja</span>
-              <span v-else class="badge badge-secondary">✗ Nein</span>
+              <span v-else class="badge badge-light">✗ Nein</span>
             </td>
             <td>
               <div class="assignment-cell">
-                <select v-model="selectedProductByCategory[category.id]" class="form-input compact">
-                  <option value="">Artikel wählen...</option>
-                  <option
-                    v-for="product in unassignedProducts(category.id)"
-                    :key="`assign-${category.id}-${product.id}`"
-                    :value="product.id"
-                  >
-                    {{ product.name }}
-                  </option>
-                </select>
-                <button
-                  @click="assignProduct(category.id)"
-                  :disabled="!selectedProductByCategory[category.id]"
-                  class="btn btn-sm btn-primary"
-                >
-                  Hinzufügen
-                </button>
+                <div class="assignment-controls">
+                  <select v-model="selectedProductByCategory[category.id]" class="form-input compact">
+                    <option value="">Artikel wählen...</option>
+                    <option
+                      v-for="product in unassignedProducts(category.id)"
+                      :key="`assign-${category.id}-${product.id}`"
+                      :value="product.id"
+                    >
+                      {{ product.name }}
+                    </option>
+                  </select>
+                  <button class="btn btn-primary btn-compact" :disabled="!selectedProductByCategory[category.id]" @click="assignProduct(category.id)">
+                    Hinzufügen
+                  </button>
+                </div>
 
                 <div v-if="assignedProducts(category.id).length > 0" class="product-tags">
                   <span
@@ -65,11 +61,7 @@
                     class="product-tag"
                   >
                     {{ product.name }}
-                    <button
-                      @click="removeProduct(category.id, product.id)"
-                      class="tag-remove"
-                      title="Zuordnung entfernen"
-                    >
+                    <button class="tag-remove" title="Zuordnung entfernen" @click="removeProduct(category.id, product.id)">
                       ×
                     </button>
                   </span>
@@ -77,20 +69,20 @@
                 <div v-else class="small-muted">Noch kein Artikel zugeordnet</div>
               </div>
             </td>
-            <td class="actions">
+            <td class="text-right action-cell">
               <button
-                @click="editCategory(category)"
-                class="btn btn-sm btn-info"
+                class="btn-action"
                 :disabled="category.is_fixed"
                 :title="category.is_fixed ? 'Feste Kategorie kann nicht bearbeitet werden' : ''"
+                @click="editCategory(category)"
               >
                 Bearbeiten
               </button>
               <button
-                @click="deleteCategory(category.id)"
-                class="btn btn-sm btn-danger"
+                class="btn-action btn-action-danger"
                 :disabled="category.is_fixed"
                 :title="category.is_fixed ? 'Feste Kategorie kann nicht gelöscht werden' : ''"
+                @click="deleteCategory(category.id)"
               >
                 Löschen
               </button>
@@ -99,75 +91,57 @@
         </tbody>
       </table>
 
-      <div v-else class="empty-message">
-        Noch keine Kategorien vorhanden.
+      <div v-else class="empty-state">
+        <p>Noch keine Kategorien vorhanden.</p>
       </div>
     </div>
 
     <div v-if="showCategoryModal" class="modal-overlay" @click.self="closeCategoryModal">
-      <div class="modal-card modal-card-horizontal">
-        <div class="modal-header">
+      <div class="modal-card modal-card-form">
+        <header class="modal-header">
           <div>
             <h3>{{ editingId ? 'Kategorie bearbeiten' : 'Neue Kategorie anlegen' }}</h3>
-            <p class="modal-subtitle">
-              Kategorie mit Namen, Beschreibung und Anzeigeeinstellungen kompakt verwalten.
-            </p>
+            <p class="modal-subtitle">Kategorie mit Namen, Beschreibung und Anzeigeeinstellungen kompakt verwalten.</p>
           </div>
           <button class="modal-close" @click="closeCategoryModal">×</button>
-        </div>
+        </header>
 
-        <form @submit.prevent="submitForm" class="modal-form modal-form-horizontal">
-          <section class="modal-section modal-section-horizontal">
-            <div class="form-field">
-              <label for="name">Name</label>
-              <input
-                id="name"
-                v-model="formData.name"
-                type="text"
-                required
-                class="form-input"
-              />
+        <form class="modal-form-content" @submit.prevent="submitForm">
+          <section class="form-section">
+            <h4>Stammdaten</h4>
+            <div class="form-row">
+              <div class="form-group">
+                <label for="name">Name</label>
+                <input id="name" v-model="formData.name" type="text" required>
+              </div>
+              <div class="form-group">
+                <label for="display_order">Anzeigereihenfolge</label>
+                <input id="display_order" v-model.number="formData.display_order" type="number">
+              </div>
             </div>
-
-            <div class="form-field form-field-wide">
+            <div class="form-group">
               <label for="description">Beschreibung</label>
-              <textarea
-                id="description"
-                v-model="formData.description"
-                class="form-input"
-                rows="3"
-              ></textarea>
-            </div>
-
-            <div class="form-field">
-              <label for="display_order">Anzeigereihenfolge</label>
-              <input
-                id="display_order"
-                v-model.number="formData.display_order"
-                type="number"
-                class="form-input"
-              />
-            </div>
-
-            <div class="form-field checkbox form-field-wide">
-              <input
-                id="is_active"
-                v-model="formData.is_active_in_kasse"
-                type="checkbox"
-                class="form-checkbox"
-              />
-              <label for="is_active">In Kassenansicht sichtbar</label>
+              <textarea id="description" v-model="formData.description" rows="3"></textarea>
             </div>
           </section>
 
-          <div class="form-buttons">
-            <button type="submit" class="btn btn-primary">
-              {{ editingId ? 'Aktualisieren' : 'Erstellen' }}
+          <section class="form-section highlight">
+            <h4>Darstellung</h4>
+            <label class="checkbox-card">
+              <input id="is_active" v-model="formData.is_active_in_kasse" type="checkbox">
+              <div class="checkbox-content">
+                <span class="label">In Kassenansicht sichtbar</span>
+                <span class="desc">Die Kategorie wird direkt in der Kasse als auswählbarer Bereich angezeigt.</span>
+              </div>
+            </label>
+          </section>
+
+          <footer class="modal-footer">
+            <button type="button" class="btn btn-secondary" @click="closeCategoryModal">Abbrechen</button>
+            <button type="submit" class="btn btn-success">
+              {{ editingId ? 'Änderungen speichern' : 'Kategorie anlegen' }}
             </button>
-            <button type="button" @click="closeCategoryModal" class="btn btn-secondary">
-              Abbrechen / Zurück
-            </button>
-          </div>
+          </footer>
         </form>
       </div>
     </div>
@@ -325,222 +299,112 @@ onMounted(() => {
 </script>
 
 <style scoped lang="scss">
-.categories-container {
-  padding: 2rem;
-  max-width: 1200px;
-  margin: 0 auto;
-
-  h2 {
-    color: #333;
-    margin-bottom: 0.35rem;
-  }
-
-  h3 {
-    color: #555;
-    margin: 0;
-  }
-}
-
-.page-header,
-.list-header {
-  display: flex;
-  align-items: flex-start;
-  justify-content: space-between;
-  gap: 1rem;
+.admin-categories {
+  --primary: #3b82f6;
+  --success: #10b981;
+  --border: #e2e8f0;
+  padding: 1.5rem;
+  background: white;
+  min-height: 100%;
 }
 
 .page-header {
-  margin-bottom: 1.5rem;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 1rem;
+  margin-bottom: 2rem;
+
+  h2 {
+    font-size: 1.5rem;
+    color: #1e293b;
+  }
+}
+
+.page-subtitle,
+.modal-subtitle {
+  color: #64748b;
 }
 
 .page-subtitle {
-  color: #6b7280;
+  margin-top: 0.25rem;
 }
 
-.modal-subtitle {
-  margin-top: 0.35rem;
-  color: #6b7280;
-}
-
-.modal-form {
-  display: grid;
-  gap: 1rem;
-}
-
-.modal-form-horizontal {
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 0.85rem;
-  align-items: start;
-}
-
-.modal-section {
-  display: grid;
-  gap: 0.9rem;
-  padding: 1rem;
-  border: 1px solid #e5e7eb;
-  border-radius: 10px;
-  background: #f8fafc;
-}
-
-.modal-section-horizontal {
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 0.75rem 0.9rem;
-  align-content: start;
-  padding: 0.9rem;
-}
-
-.form-buttons,
-.form-field-wide {
-  grid-column: 1 / -1;
-}
-
-.form-field {
-  display: flex;
-  flex-direction: column;
-
-  label {
-    font-weight: 500;
-    margin-bottom: 0.5rem;
-    color: #333;
-  }
-
-  &.checkbox {
-    flex-direction: row;
-    align-items: center;
-
-    label {
-      margin: 0 0 0 0.5rem;
-    }
-  }
-}
-
-.form-input {
-  padding: 0.75rem;
-  border: 1px solid #ddd;
-  border-radius: 4px;
-  font-size: 0.95rem;
-  font-family: inherit;
-
-  &:focus {
-    outline: none;
-    border-color: #007bff;
-    box-shadow: 0 0 0 3px rgba(0, 123, 255, 0.1);
-  }
-}
-
-.form-checkbox {
-  width: 18px;
-  height: 18px;
-  cursor: pointer;
-}
-
-.form-buttons {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 1rem;
-  margin-top: 0.5rem;
-  justify-content: flex-end;
-}
-
-.btn {
-  padding: 0.75rem 1.5rem;
-  border: none;
-  border-radius: 8px;
-  font-weight: 500;
-  cursor: pointer;
-  transition: all 0.2s;
-
-  &:hover {
-    transform: translateY(-2px);
-  }
-
-  &.btn-primary {
-    background: #007bff;
-    color: white;
-
-    &:hover {
-      background: #0056b3;
-    }
-  }
-
-  &.btn-secondary {
-    background: #6c757d;
-    color: white;
-
-    &:hover {
-      background: #545b62;
-    }
-  }
-
-  &.btn-info {
-    background: #17a2b8;
-    color: white;
-    padding: 0.5rem 1rem;
-    font-size: 0.85rem;
-
-    &:hover {
-      background: #138496;
-    }
-  }
-
-  &.btn-danger {
-    background: #dc3545;
-    color: white;
-    padding: 0.5rem 1rem;
-    font-size: 0.85rem;
-
-    &:hover {
-      background: #bb2d3b;
-    }
-  }
-
-  &.btn-sm {
-    padding: 0.5rem 0.75rem;
-    font-size: 0.85rem;
-  }
-}
-
-.list-section {
+.categories-table-wrapper {
   background: white;
-  padding: 1.5rem;
-  border-radius: 16px;
-  border: 1px solid #eee;
+  border-radius: 12px;
+  border: 1px solid var(--border);
+  overflow-x: auto;
+  overflow-y: hidden;
 }
 
-.data-table {
+.categories-table {
   width: 100%;
+  min-width: 980px;
   border-collapse: collapse;
-  margin-top: 1rem;
-
-  thead {
-    background: #f5f5f5;
-  }
-
-  th, td {
-    padding: 0.75rem;
-    text-align: left;
-    border-bottom: 1px solid #eee;
-  }
 
   th {
-    font-weight: 600;
-    color: #333;
+    background: #f1f5f9;
+    padding: 1rem;
+    font-size: 0.8rem;
+    text-transform: uppercase;
+    color: #64748b;
+    text-align: left;
   }
 
-  tbody tr:hover {
-    background: #f9f9f9;
+  td {
+    padding: 1rem;
+    border-bottom: 1px solid var(--border);
+    vertical-align: top;
   }
 }
 
-.assignment-cell {
-  min-width: 260px;
+.category-name-cell {
   display: flex;
-  flex-direction: column;
+  align-items: center;
   gap: 0.5rem;
 }
 
+.text-right {
+  text-align: right;
+}
+
+.action-cell {
+  display: flex;
+  justify-content: flex-end;
+  gap: 0.5rem;
+  white-space: nowrap;
+}
+
+.assignment-cell {
+  min-width: 320px;
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.assignment-controls {
+  display: flex;
+  gap: 0.75rem;
+}
+
+.form-input {
+  width: 100%;
+  padding: 0.6rem 0.8rem;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  font-size: 0.95rem;
+  background: white;
+
+  &:focus {
+    outline: none;
+    border-color: var(--primary);
+    box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
+  }
+}
+
 .form-input.compact {
-  padding: 0.5rem;
+  padding: 0.55rem 0.75rem;
   font-size: 0.85rem;
 }
 
@@ -558,7 +422,7 @@ onMounted(() => {
   border: 1px solid #c5ddff;
   color: #0f4b8f;
   border-radius: 999px;
-  padding: 0.15rem 0.45rem;
+  padding: 0.25rem 0.55rem;
   font-size: 0.75rem;
 }
 
@@ -567,7 +431,7 @@ onMounted(() => {
   background: transparent;
   cursor: pointer;
   color: #0f4b8f;
-  font-size: 0.9rem;
+  font-size: 0.95rem;
   line-height: 1;
 }
 
@@ -577,99 +441,240 @@ onMounted(() => {
 }
 
 .badge {
-  display: inline-block;
-  padding: 0.25rem 0.75rem;
-  border-radius: 20px;
-  font-size: 0.85rem;
-  font-weight: 500;
-  margin-left: 0.5rem;
-
-  &.badge-success {
-    background: #d4edda;
-    color: #155724;
-  }
-
-  &.badge-secondary {
-    background: #e2e3e5;
-    color: #383d41;
-  }
-
-  &.badge-info {
-    background: #dbeafe;
-    color: #1d4ed8;
-  }
+  display: inline-flex;
+  align-items: center;
+  padding: 0.3rem 0.7rem;
+  border-radius: 999px;
+  font-size: 0.8rem;
+  font-weight: 600;
 }
 
-.actions {
-  display: flex;
-  gap: 0.5rem;
-  flex-wrap: wrap;
+.badge-success {
+  background: #dcfce7;
+  color: #166534;
 }
 
-.empty-message {
-  padding: 2rem;
+.badge-light {
+  background: #f1f5f9;
+  color: #475569;
+}
+
+.badge-info {
+  background: #dbeafe;
+  color: #1d4ed8;
+}
+
+.empty-state {
+  padding: 3rem 1rem;
   text-align: center;
-  color: #666;
-  background: #f9f9f9;
-  border-radius: 4px;
+  color: #64748b;
 }
 
 .modal-overlay {
   position: fixed;
   inset: 0;
-  background: rgba(15, 23, 42, 0.55);
-  display: grid;
-  place-items: center;
-  padding: 1.5rem;
-  z-index: 1500;
+  background: rgba(15, 23, 42, 0.7);
+  backdrop-filter: blur(4px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+  padding: 1rem;
 }
 
 .modal-card {
-  width: min(100%, 460px);
   background: white;
-  border-radius: 18px;
-  padding: 1.5rem;
-  box-shadow: 0 24px 60px rgba(15, 23, 42, 0.24);
+  width: 100%;
+  max-width: 900px;
+  max-height: 90vh;
+  border-radius: 16px;
+  display: flex;
+  flex-direction: column;
+  box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25);
 }
 
-.modal-card-horizontal {
-  width: min(100%, 720px);
-  padding: 1.25rem;
+.modal-card-form {
+  max-width: 760px;
 }
 
 .modal-header {
+  padding: 1.5rem;
+  border-bottom: 1px solid var(--border);
   display: flex;
-  align-items: flex-start;
   justify-content: space-between;
   gap: 1rem;
+
+  h3 {
+    margin: 0;
+    font-size: 1.25rem;
+  }
+}
+
+.modal-form-content {
+  padding: 1.5rem;
+  overflow-y: auto;
+}
+
+.form-section {
+  margin-bottom: 2rem;
+
+  h4 {
+    font-size: 0.875rem;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    color: #64748b;
+    border-bottom: 1px solid var(--border);
+    padding-bottom: 0.5rem;
+    margin-bottom: 1rem;
+  }
+
+  &.highlight {
+    background: #f0f7ff;
+    padding: 1rem;
+    border-radius: 12px;
+    border: 1px solid #bae6fd;
+  }
+}
+
+.form-row {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 1rem;
+}
+
+.form-group {
   margin-bottom: 1rem;
+
+  label {
+    display: block;
+    font-size: 0.875rem;
+    font-weight: 500;
+    margin-bottom: 0.4rem;
+    color: #1e293b;
+  }
+
+  input,
+  textarea {
+    width: 100%;
+    padding: 0.6rem 0.8rem;
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    font-size: 0.95rem;
+
+    &:focus {
+      outline: none;
+      border-color: var(--primary);
+      box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
+    }
+  }
+}
+
+.checkbox-card {
+  display: flex;
+  gap: 0.75rem;
+  padding: 0.9rem 1rem;
+  background: white;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  cursor: pointer;
+}
+
+.checkbox-content {
+  display: flex;
+  flex-direction: column;
+
+  .label {
+    font-weight: 600;
+    font-size: 0.9rem;
+  }
+
+  .desc {
+    font-size: 0.75rem;
+    color: #64748b;
+  }
+}
+
+.btn {
+  padding: 0.6rem 1.2rem;
+  border-radius: 8px;
+  font-weight: 600;
+  cursor: pointer;
+  border: none;
+}
+
+.btn-primary {
+  background: var(--primary);
+  color: white;
+}
+
+.btn-success {
+  background: var(--success);
+  color: white;
+}
+
+.btn-secondary {
+  background: #e2e8f0;
+  color: #475569;
+}
+
+.btn-compact {
+  white-space: nowrap;
+}
+
+.btn-action {
+  border: 1px solid var(--border);
+  background: white;
+  color: #334155;
+  padding: 0.45rem 0.75rem;
+  border-radius: 8px;
+  cursor: pointer;
+  font-weight: 600;
+
+  &:disabled {
+    opacity: 0.45;
+    cursor: not-allowed;
+  }
+}
+
+.btn-action-danger {
+  border-color: #fecaca;
+  color: #b91c1c;
 }
 
 .modal-close {
   border: none;
   background: transparent;
-  font-size: 1.75rem;
+  font-size: 1.6rem;
   line-height: 1;
   cursor: pointer;
-  color: #475569;
+  color: #6b7280;
 }
 
-@media (max-width: 640px) {
-  .page-header,
-  .list-header {
-    flex-direction: column;
-  }
+.modal-footer {
+  display: flex;
+  justify-content: flex-end;
+  gap: 1rem;
+}
 
-  .modal-form-horizontal,
-  .modal-section-horizontal {
+@media (max-width: 900px) {
+  .form-row {
     grid-template-columns: 1fr;
   }
+}
 
-  .form-buttons {
+@media (max-width: 768px) {
+  .page-header {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .assignment-controls,
+  .modal-footer {
     flex-direction: column;
   }
 
-  .btn {
+  .btn,
+  .btn-compact {
     width: 100%;
   }
 }

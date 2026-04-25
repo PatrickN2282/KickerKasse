@@ -1,26 +1,22 @@
 <template>
   <div class="admin-products">
     <div class="page-header">
-      <h2>Produktverwaltung</h2>
-      <button
-        class="btn btn-primary"
-        @click="openCreateModal"
-      >
-        Neues Produkt
+      <div>
+        <h2>Produktverwaltung</h2>
+        <p class="page-subtitle">Produkte, Preise und Lagerbestände im gleichen Layout wie die Mitgliederverwaltung pflegen.</p>
+      </div>
+      <button class="btn btn-primary" @click="openCreateModal">
+        <span class="icon">+</span> Neues Produkt
       </button>
     </div>
 
-    <div
-      v-if="productStore.isLoading"
-      class="loading"
-    >
-      Läuft...
+    <div v-if="productStore.isLoading" class="loading-state">
+      <div class="spinner"></div>
+      <p>Daten werden geladen...</p>
     </div>
-    <div
-      v-else
-      class="products-table"
-    >
-      <table>
+
+    <div v-else class="products-table-wrapper">
+      <table class="products-table">
         <thead>
           <tr>
             <th>Bild</th>
@@ -28,164 +24,121 @@
             <th>Preis</th>
             <th>Mitgliedspreis</th>
             <th>Lager</th>
-            <th>Aktionen</th>
+            <th class="text-right">Aktionen</th>
           </tr>
         </thead>
         <tbody>
-          <tr
-            v-for="product in productStore.products"
-            :key="product.id"
-          >
+          <tr v-for="product in productStore.products" :key="product.id">
             <td class="product-image-cell">
-              <img
-                v-if="product.image_path"
-                :src="`/api/products/${product.id}/image`"
-                :alt="product.name"
-                class="product-thumb"
-              >
-              <span
-                v-else
-                class="no-image"
-              >Kein Bild</span>
+              <div class="product-thumb-frame">
+                <img
+                  v-if="product.image_path"
+                  :src="`/api/products/${product.id}/image`"
+                  :alt="product.name"
+                  class="product-thumb"
+                >
+                <span v-else class="product-thumb-placeholder">Bild</span>
+              </div>
             </td>
-            <td>{{ product.name }}</td>
+            <td class="font-bold">{{ product.name }}</td>
             <td>{{ formatPrice(product.price_cents) }}</td>
-            <td>{{ product.member_price_cents ? formatPrice(product.member_price_cents) : '-' }}</td>
-            <td>{{ product.stock_quantity }}</td>
             <td>
-              <button
-                class="btn-small"
-                @click="editProduct(product)"
-              >
-                Bearbeiten
-              </button>
-              <button
-                class="btn-small btn-danger"
-                @click="deleteProduct(product.id)"
-              >
-                Löschen
-              </button>
+              <span :class="['badge', product.member_price_cents ? 'badge-success' : 'badge-light']">
+                {{ product.member_price_cents ? formatPrice(product.member_price_cents) : 'Kein Sonderpreis' }}
+              </span>
+            </td>
+            <td>
+              <span :class="['badge', product.stock_quantity > 0 ? 'badge-success' : 'badge-danger']">
+                {{ product.stock_quantity }}
+              </span>
+            </td>
+            <td class="text-right action-cell">
+              <button class="btn-action" @click="editProduct(product)">Bearbeiten</button>
+              <button class="btn-action btn-action-danger" @click="deleteProduct(product.id)">Löschen</button>
             </td>
           </tr>
         </tbody>
       </table>
     </div>
 
-    <div
-      v-if="showProductModal"
-      class="modal-overlay"
-      @click.self="closeProductModal"
-    >
-      <div class="modal-card modal-card-horizontal">
-        <div class="modal-header">
+    <div v-if="showProductModal" class="modal-overlay" @click.self="closeProductModal">
+      <div class="modal-card">
+        <header class="modal-header">
           <div>
             <h3>{{ editingId ? 'Produkt bearbeiten' : 'Neues Produkt anlegen' }}</h3>
-            <p class="modal-subtitle">
-              Pflichtangaben zum Produkt schnell erfassen und bei Bedarf Bild und Rabattoption ergänzen.
-            </p>
+            <p class="modal-subtitle">Pflichtangaben, Preise und Bild im angepassten Admin-Layout verwalten.</p>
           </div>
-          <button
-            class="modal-close"
-            @click="closeProductModal"
-          >
-            ×
-          </button>
-        </div>
+          <button class="modal-close" @click="closeProductModal">×</button>
+        </header>
 
-        <form
-          class="modal-form modal-form-horizontal"
-          @submit.prevent="handleSaveProduct"
-        >
-          <section class="modal-section modal-section-horizontal">
-            <div class="form-group">
-              <label for="name">Name*</label>
-              <input
-                id="name"
-                v-model="formData.name"
-                type="text"
-                class="form-input"
-                required
-              >
-            </div>
-            <div class="form-group">
-              <label for="price">Preis (€)*</label>
-              <input
-                id="price"
-                v-model.number="formData.price"
-                type="number"
-                step="0.01"
-                class="form-input"
-                required
-              >
-            </div>
-            <div class="form-group">
-              <label for="member-price">Mitgliedspreis (€)</label>
-              <input
-                id="member-price"
-                v-model.number="formData.memberPrice"
-                type="number"
-                step="0.01"
-                class="form-input"
-              >
-            </div>
-            <div class="form-group">
-              <label for="stock">Lagerbestand*</label>
-              <input
-                id="stock"
-                v-model.number="formData.stock"
-                type="number"
-                min="0"
-                class="form-input"
-                required
-              >
-            </div>
-            <label class="checkbox-row">
-              <input
-                id="discountable"
-                v-model="formData.discountable"
-                type="checkbox"
-              >
-              Rabattfähig
-            </label>
-          </section>
+        <form class="modal-body-layout" @submit.prevent="handleSaveProduct">
+          <aside class="modal-sidebar">
+            <div class="product-image-panel">
+              <div class="avatar-display">
+                <img v-if="imagePreview" :src="imagePreview" :alt="formData.name || 'Produktbild'" class="profile-img">
+                <div v-else class="photo-placeholder">
+                  <span>Bild hochladen</span>
+                </div>
+              </div>
 
-          <section class="modal-section modal-section-horizontal modal-section-wide">
-            <div class="form-group">
-              <label for="image">Bild</label>
-              <input
-                id="image"
-                type="file"
-                accept="image/*"
-                class="form-input"
-                @change="handleImageUpload"
-              >
-              <div
-                v-if="imagePreview"
-                class="image-preview"
-              >
-                <img
-                  :src="imagePreview"
-                  :alt="formData.name"
-                  style="max-width: 150px; max-height: 150px;"
-                >
+              <label class="upload-button">
+                Bild auswählen
+                <input id="image" type="file" accept="image/*" hidden @change="handleImageUpload">
+              </label>
+            </div>
+
+            <div class="sidebar-info-box">
+              <label class="checkbox-card">
+                <input id="discountable" v-model="formData.discountable" type="checkbox">
+                <div class="checkbox-content">
+                  <span class="label">Rabattfähig</span>
+                  <span class="desc">Mitgliederpreis kann an der Kasse verwendet werden.</span>
+                </div>
+              </label>
+
+              <div class="summary-card">
+                <span class="label">Lagerbestand</span>
+                <span class="value">{{ formData.stock }}</span>
               </div>
             </div>
-          </section>
-          <div class="form-buttons">
-            <button
-              type="submit"
-              class="btn btn-success"
-            >
-              {{ editingId ? 'Aktualisieren' : 'Erstellen' }}
+          </aside>
+
+          <main class="modal-form-content">
+            <section class="form-section">
+              <h4>Allgemeine Informationen</h4>
+              <div class="form-row">
+                <div class="form-group">
+                  <label for="name">Name*</label>
+                  <input id="name" v-model="formData.name" type="text" required>
+                </div>
+                <div class="form-group">
+                  <label for="stock">Lagerbestand*</label>
+                  <input id="stock" v-model.number="formData.stock" type="number" min="0" required>
+                </div>
+              </div>
+            </section>
+
+            <section class="form-section">
+              <h4>Preisgestaltung</h4>
+              <div class="form-row">
+                <div class="form-group">
+                  <label for="price">Preis (€)*</label>
+                  <input id="price" v-model.number="formData.price" type="number" step="0.01" required>
+                </div>
+                <div class="form-group">
+                  <label for="member-price">Mitgliedspreis (€)</label>
+                  <input id="member-price" v-model.number="formData.memberPrice" type="number" step="0.01">
+                </div>
+              </div>
+            </section>
+          </main>
+
+          <footer class="modal-footer">
+            <button type="button" class="btn btn-secondary" @click="closeProductModal">Abbrechen</button>
+            <button type="submit" class="btn btn-success">
+              {{ editingId ? 'Änderungen speichern' : 'Produkt anlegen' }}
             </button>
-            <button
-              type="button"
-              class="btn btn-secondary"
-              @click="closeProductModal"
-            >
-              Abbrechen / Zurück
-            </button>
-          </div>
+          </footer>
         </form>
       </div>
     </div>
@@ -225,13 +178,11 @@ const closeProductModal = () => {
 
 const handleSaveProduct = async () => {
   if (editingId.value) {
-    // Upload image first if exists
     const imageUploadSuccess = await uploadImageToProduct(editingId.value)
     if (!imageUploadSuccess && imageFile.value) {
       return
     }
-    
-    // Update existing product
+
     const result = await productStore.updateProduct(editingId.value, {
       name: formData.name,
       price_cents: Math.round(formData.price * 100),
@@ -239,7 +190,7 @@ const handleSaveProduct = async () => {
       stock_quantity: formData.stock,
       is_discountable: formData.discountable,
     })
-    
+
     if (result) {
       notificationStore.success('Produkt aktualisiert')
       resetForm()
@@ -247,7 +198,6 @@ const handleSaveProduct = async () => {
       notificationStore.error(productStore.error)
     }
   } else {
-    // Create new product
     const result = await productStore.createProduct({
       name: formData.name,
       price_cents: Math.round(formData.price * 100),
@@ -257,7 +207,6 @@ const handleSaveProduct = async () => {
     })
 
     if (result) {
-      // Upload image after creation
       if (imageFile.value) {
         const imageUploadSuccess = await uploadImageToProduct(result.id)
         if (!imageUploadSuccess) {
@@ -276,18 +225,18 @@ const handleSaveProduct = async () => {
 }
 
 const uploadImageToProduct = async (productId) => {
-  if (!imageFile.value) return true // No image to upload
-  
+  if (!imageFile.value) return true
+
   try {
     const formDataUpload = new FormData()
     formDataUpload.append('file', imageFile.value)
-    
+
     const response = await fetch(`/api/products/${productId}/image`, {
       method: 'POST',
       body: formDataUpload,
       credentials: 'include',
     })
-    
+
     if (response.ok) {
       imageFile.value = null
       return true
@@ -360,226 +309,387 @@ onMounted(async () => {
 
 <style scoped lang="scss">
 .admin-products {
+  --primary: #3b82f6;
+  --success: #10b981;
+  --bg-main: #f8fafc;
+  --border: #e2e8f0;
+  padding: 1.5rem;
   background: white;
-  padding: 2rem;
-  border-radius: 8px;
+  min-height: 100%;
 }
 
 .page-header {
   display: flex;
-  align-items: center;
   justify-content: space-between;
-  gap: 1rem;
-  margin-bottom: 1rem;
-}
-
-.modal-subtitle,
-.form-help {
-  color: #6b7280;
-}
-
-.modal-subtitle {
-  margin-top: 0.35rem;
-}
-
-.modal-form {
-  display: grid;
-  gap: 1rem;
-}
-
-.modal-form-horizontal {
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 0.85rem;
-  align-items: start;
-}
-
-.modal-section {
-  display: grid;
-  gap: 0.9rem;
-  padding: 1rem;
-  border: 1px solid #e5e7eb;
-  border-radius: 10px;
-  background: #f8fafc;
-}
-
-.modal-section-horizontal {
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 0.75rem 0.9rem;
-  align-content: start;
-  padding: 0.9rem;
-}
-
-.modal-section-wide,
-.form-buttons {
-  grid-column: 1 / -1;
-}
-
-.modal-section-horizontal .checkbox-row,
-.modal-section-horizontal .form-group:first-child:last-child,
-.modal-section-horizontal .image-preview {
-  grid-column: 1 / -1;
-}
-
-.form-group {
-  display: grid;
-  gap: 0.5rem;
-
-  label {
-    display: block;
-    font-weight: 500;
-  }
-
-  .form-input {
-    width: 100%;
-    padding: 0.75rem;
-    border: 1px solid #ddd;
-    border-radius: 4px;
-
-    &:focus {
-      outline: none;
-      border-color: #1976d2;
-    }
-  }
-
-  input[type="checkbox"] {
-    margin-right: 0.5rem;
-  }
-}
-
-.checkbox-row {
-  display: flex;
   align-items: center;
-  gap: 0.6rem;
-  font-weight: 600;
+  gap: 1rem;
+  margin-bottom: 2rem;
+
+  h2 {
+    font-size: 1.5rem;
+    color: #1e293b;
+  }
 }
 
-.form-buttons {
+.page-subtitle,
+.modal-subtitle {
+  color: #64748b;
+}
+
+.page-subtitle {
+  margin-top: 0.25rem;
+}
+
+.loading-state {
   display: flex;
-  flex-wrap: wrap;
-  gap: 1rem;
-  margin-top: 0.5rem;
-  justify-content: flex-end;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 0.75rem;
+  padding: 3rem 1rem;
+  color: #64748b;
+}
+
+.spinner {
+  width: 2rem;
+  height: 2rem;
+  border-radius: 50%;
+  border: 3px solid #e2e8f0;
+  border-top-color: var(--primary);
+  animation: spin 0.8s linear infinite;
+}
+
+.products-table-wrapper {
+  background: white;
+  border-radius: 12px;
+  border: 1px solid var(--border);
+  overflow-x: auto;
+  overflow-y: hidden;
 }
 
 .products-table {
-  overflow-x: auto;
-  margin-top: 2rem;
+  width: 100%;
+  min-width: 760px;
+  border-collapse: collapse;
 
-  table {
-    width: 100%;
-    border-collapse: collapse;
+  th {
+    background: #f1f5f9;
+    padding: 1rem;
+    font-size: 0.8rem;
+    text-transform: uppercase;
+    color: #64748b;
+    text-align: left;
+  }
 
-    th {
-      background: #f0f0f0;
-      padding: 1rem;
-      text-align: left;
-      font-weight: 600;
-      border-bottom: 2px solid #ddd;
-    }
-
-    td {
-      padding: 1rem;
-      border-bottom: 1px solid #ddd;
-    }
-
-    tr:hover {
-      background: #fafafa;
-    }
+  td {
+    padding: 1rem;
+    border-bottom: 1px solid var(--border);
+    vertical-align: middle;
   }
 }
 
-.btn-small {
-  padding: 0.4rem 0.8rem;
-  font-size: 0.85rem;
-  background: #2196f3;
-  color: white;
-  border: none;
-  border-radius: 4px;
-  cursor: pointer;
-  margin-right: 0.5rem;
-
-  &:hover {
-    background: #0b7dda;
-  }
-
-  &.btn-danger {
-    background: #f44336;
-
-    &:hover {
-      background: #da190b;
-    }
-  }
+.text-right {
+  text-align: right;
 }
 
-.btn {
-  padding: 0.75rem 1.5rem;
-  border: none;
-  border-radius: 4px;
-  cursor: pointer;
+.action-cell {
+  display: flex;
+  justify-content: flex-end;
+  gap: 0.5rem;
+  white-space: nowrap;
+}
+
+.font-bold {
   font-weight: 600;
 }
 
-.btn-primary {
-  background: #1976d2;
-  color: white;
-
-  &:hover {
-    background: #1565c0;
-  }
+.product-image-cell {
+  width: 84px;
 }
 
-.btn-success {
-  background: #4caf50;
-  color: white;
-
-  &:hover {
-    background: #45a049;
-  }
+.product-thumb-frame {
+  width: 52px;
+  height: 52px;
+  border-radius: 14px;
+  overflow: hidden;
+  background: #e2e8f0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid var(--border);
 }
 
-.btn-secondary {
-  background: #6b7280;
-  color: white;
+.product-thumb {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
 }
 
-.loading {
-  text-align: center;
-  padding: 2rem;
-  color: #999;
+.product-thumb-placeholder {
+  font-size: 0.75rem;
+  color: #64748b;
+  font-weight: 600;
+}
+
+.badge {
+  display: inline-flex;
+  align-items: center;
+  padding: 0.3rem 0.7rem;
+  border-radius: 999px;
+  font-size: 0.8rem;
+  font-weight: 600;
+}
+
+.badge-success {
+  background: #dcfce7;
+  color: #166534;
+}
+
+.badge-light {
+  background: #f1f5f9;
+  color: #475569;
+}
+
+.badge-danger {
+  background: #fee2e2;
+  color: #b91c1c;
 }
 
 .modal-overlay {
   position: fixed;
   inset: 0;
-  background: rgba(15, 23, 42, 0.55);
+  background: rgba(15, 23, 42, 0.7);
+  backdrop-filter: blur(4px);
   display: flex;
   align-items: center;
   justify-content: center;
-  padding: 1rem;
   z-index: 1000;
+  padding: 1rem;
 }
 
 .modal-card {
-  width: min(100%, 460px);
-  max-height: calc(100vh - 2rem);
-  overflow-y: auto;
   background: white;
-  border-radius: 12px;
-  padding: 1.5rem;
-  box-shadow: 0 18px 40px rgba(15, 23, 42, 0.22);
-}
-
-.modal-card-horizontal {
-  width: min(100%, 760px);
-  padding: 1.25rem;
+  width: 100%;
+  max-width: 900px;
+  max-height: 90vh;
+  border-radius: 16px;
+  display: flex;
+  flex-direction: column;
+  box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25);
 }
 
 .modal-header {
+  padding: 1.5rem;
+  border-bottom: 1px solid var(--border);
   display: flex;
-  align-items: flex-start;
   justify-content: space-between;
   gap: 1rem;
+
+  h3 {
+    margin: 0;
+    font-size: 1.25rem;
+  }
+}
+
+.modal-body-layout {
+  display: grid;
+  grid-template-columns: 260px 1fr;
+  overflow: hidden;
+}
+
+.modal-sidebar {
+  padding: 1.5rem;
+  background: var(--bg-main);
+  border-right: 1px solid var(--border);
+  display: flex;
+  flex-direction: column;
+  gap: 1.5rem;
+}
+
+.product-image-panel,
+.sidebar-info-box {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+.modal-form-content {
+  padding: 1.5rem;
+  overflow-y: auto;
+  max-height: calc(90vh - 160px);
+}
+
+.avatar-display {
+  width: 150px;
+  height: 150px;
+  margin: 0 auto;
+  border-radius: 20px;
+  background: #fff;
+  border: 2px dashed #cbd5e1;
+  overflow: hidden;
+}
+
+.profile-img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.photo-placeholder {
+  height: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  padding: 1rem;
+  font-size: 0.8rem;
+  color: #94a3b8;
+}
+
+.upload-button {
+  display: inline-flex;
+  justify-content: center;
+  align-items: center;
+  padding: 0.65rem 1rem;
+  border-radius: 8px;
+  background: white;
+  border: 1px solid var(--border);
+  cursor: pointer;
+  font-weight: 600;
+  color: #334155;
+}
+
+.checkbox-card,
+.summary-card {
+  padding: 0.9rem 1rem;
+  background: white;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+}
+
+.checkbox-card {
+  display: flex;
+  gap: 0.75rem;
+  cursor: pointer;
+}
+
+.checkbox-content {
+  display: flex;
+  flex-direction: column;
+
+  .label {
+    font-weight: 600;
+    font-size: 0.9rem;
+  }
+
+  .desc {
+    font-size: 0.75rem;
+    color: #64748b;
+  }
+}
+
+.summary-card {
+  background: #ecfdf5;
+  border-color: #a7f3d0;
+
+  .label {
+    font-size: 0.7rem;
+    text-transform: uppercase;
+    color: #065f46;
+    font-weight: 700;
+  }
+
+  .value {
+    display: block;
+    margin-top: 0.35rem;
+    font-size: 1.3rem;
+    font-weight: 700;
+    color: #047857;
+  }
+}
+
+.form-section {
+  margin-bottom: 2rem;
+
+  h4 {
+    font-size: 0.875rem;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    color: #64748b;
+    border-bottom: 1px solid var(--border);
+    padding-bottom: 0.5rem;
+    margin-bottom: 1rem;
+  }
+}
+
+.form-row {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 1rem;
+}
+
+.form-group {
   margin-bottom: 1rem;
+
+  label {
+    display: block;
+    font-size: 0.875rem;
+    font-weight: 500;
+    margin-bottom: 0.4rem;
+    color: #1e293b;
+  }
+
+  input {
+    width: 100%;
+    padding: 0.6rem 0.8rem;
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    font-size: 0.95rem;
+
+    &:focus {
+      outline: none;
+      border-color: var(--primary);
+      box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
+    }
+  }
+}
+
+.btn {
+  padding: 0.6rem 1.2rem;
+  border-radius: 8px;
+  font-weight: 600;
+  cursor: pointer;
+  border: none;
+}
+
+.btn-primary {
+  background: var(--primary);
+  color: white;
+}
+
+.btn-success {
+  background: var(--success);
+  color: white;
+}
+
+.btn-secondary {
+  background: #e2e8f0;
+  color: #475569;
+}
+
+.btn-action {
+  border: 1px solid var(--border);
+  background: white;
+  color: #334155;
+  padding: 0.45rem 0.75rem;
+  border-radius: 8px;
+  cursor: pointer;
+  font-weight: 600;
+}
+
+.btn-action-danger {
+  border-color: #fecaca;
+  color: #b91c1c;
 }
 
 .modal-close {
@@ -591,40 +701,45 @@ onMounted(async () => {
   color: #6b7280;
 }
 
-.product-image-cell {
-  padding: 0.5rem 1rem !important;
-  text-align: center;
+.modal-footer {
+  grid-column: 1 / -1;
+  padding: 1.5rem;
+  border-top: 1px solid var(--border);
+  display: flex;
+  justify-content: flex-end;
+  gap: 1rem;
+}
 
-  .product-thumb {
-    width: 50px;
-    height: 50px;
-    object-fit: contain;
-    border-radius: 4px;
-    border: 1px solid #ddd;
+@media (max-width: 768px) {
+  .modal-body-layout,
+  .form-row {
+    grid-template-columns: 1fr;
   }
 
-  .no-image {
-    font-size: 0.85rem;
-    color: #999;
+  .modal-sidebar {
+    border-right: none;
+    border-bottom: 1px solid var(--border);
   }
 }
 
 @media (max-width: 640px) {
   .page-header {
     flex-direction: column;
+    align-items: stretch;
   }
 
-  .modal-form-horizontal,
-  .modal-section-horizontal {
-    grid-template-columns: 1fr;
-  }
-
-  .form-buttons {
+  .modal-footer {
     flex-direction: column;
   }
 
   .btn {
     width: 100%;
+  }
+}
+
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
   }
 }
 </style>

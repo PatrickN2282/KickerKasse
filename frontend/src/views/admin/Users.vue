@@ -3,219 +3,141 @@
     <div class="page-header">
       <div>
         <h2>Benutzerverwaltung</h2>
-        <p class="page-subtitle">
-          Direkte Benutzerkonten verwalten und Mitgliedskonten separat einsehen.
-        </p>
+        <p class="page-subtitle">Direkte Benutzerkonten verwalten und Mitgliedskonten separat im gleichen Admin-Layout einsehen.</p>
       </div>
 
-      <button
-        class="btn btn-primary"
-        @click="openCreateModal"
-      >
-        Neuer Benutzer
+      <button class="btn btn-primary" @click="openCreateModal">
+        <span class="icon">+</span> Neuer Benutzer
       </button>
     </div>
 
-    <div class="users-table">
-      <table>
+    <div class="users-table-wrapper">
+      <table class="users-table">
         <thead>
           <tr>
             <th>Typ</th>
             <th>Benutzername</th>
             <th>E-Mail</th>
             <th>Rolle</th>
-            <th>Aktionen</th>
+            <th class="text-right">Aktionen</th>
           </tr>
         </thead>
         <tbody>
-          <tr
-            v-for="user in displayedUsers"
-            :key="user.id"
-          >
-            <td>{{ user.entryType }}</td>
-            <td>{{ user.username }}</td>
+          <tr v-for="user in displayedUsers" :key="user.id">
+            <td>
+              <span :class="['badge', user.entryType === 'Benutzer' ? 'badge-success' : 'badge-light']">
+                {{ user.entryType }}
+              </span>
+            </td>
+            <td class="font-bold">{{ user.username }}</td>
             <td>{{ user.email || '-' }}</td>
-            <td>{{ roleLabel(user.role) }}</td>
-            <td class="action-cell">
-              <button
-                v-if="user.deletable"
-                class="btn-small"
-                @click="openEditModal(user)"
-              >
-                Bearbeiten
-              </button>
-              <button
-                v-if="user.canResetPassword"
-                class="btn-small"
-                @click="openPasswordReset(user)"
-              >
-                Passwort setzen
-              </button>
-              <button
-                v-if="user.deletable"
-                class="btn-small btn-danger"
-                @click="deleteUser(user.id)"
-              >
-                Löschen
-              </button>
+            <td>
+              <span class="role-tag">{{ roleLabel(user.role) }}</span>
+            </td>
+            <td class="text-right action-cell">
+              <button v-if="user.deletable" class="btn-action" @click="openEditModal(user)">Bearbeiten</button>
+              <button v-if="user.canResetPassword" class="btn-action" @click="openPasswordReset(user)">Passwort setzen</button>
+              <button v-if="user.deletable" class="btn-action btn-action-danger" @click="deleteUser(user.id)">Löschen</button>
             </td>
           </tr>
         </tbody>
       </table>
     </div>
 
-    <div
-      v-if="showUserModal"
-      class="modal-overlay"
-      @click.self="closeUserModal"
-    >
-      <div class="modal-card user-modal-card modal-card-horizontal">
-        <div class="modal-header">
+    <div v-if="showUserModal" class="modal-overlay" @click.self="closeUserModal">
+      <div class="modal-card modal-card-form">
+        <header class="modal-header">
           <div>
             <h3>{{ editingUserId ? 'Benutzer bearbeiten' : 'Neuen Benutzer anlegen' }}</h3>
-            <p class="modal-subtitle">
-              Direkte Benutzerkonten nutzen eigene Zugangsdaten und sind nicht an ein Mitglied gebunden.
-            </p>
+            <p class="modal-subtitle">Direkte Benutzerkonten nutzen eigene Zugangsdaten und sind nicht an ein Mitglied gebunden.</p>
           </div>
-          <button
-            class="modal-close"
-            @click="closeUserModal"
-          >
-            ×
-          </button>
-        </div>
+          <button class="modal-close" @click="closeUserModal">×</button>
+        </header>
 
-        <form
-          class="modal-form modal-form-horizontal"
-          @submit.prevent="handleSaveUser"
-        >
-          <div class="form-group">
-            <label for="username">Benutzername*</label>
-            <input
-              id="username"
-              v-model="formData.username"
-              type="text"
-              class="form-input"
-              required
-            >
-          </div>
+        <form class="modal-form-content" @submit.prevent="handleSaveUser">
+          <section class="form-section">
+            <h4>Kontodaten</h4>
+            <div class="form-row">
+              <div class="form-group">
+                <label for="username">Benutzername*</label>
+                <input id="username" v-model="formData.username" type="text" required>
+              </div>
 
-          <div class="form-group">
-            <label for="email">E-Mail</label>
-            <input
-              id="email"
-              v-model="formData.email"
-              type="email"
-              class="form-input"
-            >
-          </div>
+              <div class="form-group">
+                <label for="email">E-Mail</label>
+                <input id="email" v-model="formData.email" type="email">
+              </div>
+            </div>
 
-          <div class="form-group">
-            <label for="role">Rolle*</label>
-            <select
-              id="role"
-              v-model="formData.role"
-              class="form-input"
-              required
-            >
-              <option value="VERKAUF">
-                Verkauf
-              </option>
-              <option value="MANAGER">
-                Manager
-              </option>
-              <option value="ADMIN">
-                Admin
-              </option>
-            </select>
-          </div>
+            <div class="form-row">
+              <div class="form-group">
+                <label for="role">Rolle*</label>
+                <select id="role" v-model="formData.role" required>
+                  <option value="VERKAUF">Verkauf</option>
+                  <option value="MANAGER">Manager</option>
+                  <option value="ADMIN">Admin</option>
+                </select>
+              </div>
 
-          <div class="form-group form-group-wide">
-            <label for="password">
-              {{ editingUserId ? 'Neues Passwort' : 'Passwort*' }}
-            </label>
-            <input
-              id="password"
-              v-model="formData.password"
-              type="password"
-              minlength="8"
-              class="form-input"
-              :required="!editingUserId"
-              placeholder="Mindestens 8 Zeichen"
-            >
-            <small class="form-help">
-              {{ editingUserId
-                ? 'Leer lassen, wenn das bestehende Passwort unverändert bleiben soll.'
-                : 'Passwort wird für den ersten Login benötigt.' }}
-            </small>
-          </div>
+              <div class="form-group">
+                <label for="password">{{ editingUserId ? 'Neues Passwort' : 'Passwort*' }}</label>
+                <input
+                  id="password"
+                  v-model="formData.password"
+                  type="password"
+                  minlength="8"
+                  :required="!editingUserId"
+                  placeholder="Mindestens 8 Zeichen"
+                >
+                <small class="help-text">
+                  {{ editingUserId
+                    ? 'Leer lassen, wenn das bestehende Passwort unverändert bleiben soll.'
+                    : 'Passwort wird für den ersten Login benötigt.' }}
+                </small>
+              </div>
+            </div>
+          </section>
 
-          <div class="form-buttons">
-            <button
-              type="submit"
-              class="btn btn-success"
-            >
-              {{ editingUserId ? 'Aktualisieren' : 'Erstellen' }}
+          <footer class="modal-footer">
+            <button type="button" class="btn btn-secondary" @click="closeUserModal">Abbrechen</button>
+            <button type="submit" class="btn btn-success">
+              {{ editingUserId ? 'Änderungen speichern' : 'Benutzer anlegen' }}
             </button>
-            <button
-              type="button"
-              class="btn btn-secondary"
-              @click="closeUserModal"
-            >
-              Abbrechen / Zurück
-            </button>
-          </div>
+          </footer>
         </form>
       </div>
     </div>
 
-    <div
-      v-if="resettingPasswordFor"
-      class="modal-overlay"
-      @click.self="closePasswordReset"
-    >
-      <div class="modal-card password-modal-card">
-        <div class="modal-header">
+    <div v-if="resettingPasswordFor" class="modal-overlay" @click.self="closePasswordReset">
+      <div class="modal-card modal-card-form modal-card-compact">
+        <header class="modal-header">
           <div>
             <h3>Passwort neu vergeben</h3>
-            <p class="modal-subtitle">
-              Neues Passwort für <strong>{{ resettingPasswordFor.username }}</strong> festlegen.
-            </p>
+            <p class="modal-subtitle">Neues Passwort für <strong>{{ resettingPasswordFor.username }}</strong> festlegen.</p>
           </div>
-          <button
-            class="modal-close"
-            @click="closePasswordReset"
-          >
-            ×
-          </button>
-        </div>
+          <button class="modal-close" @click="closePasswordReset">×</button>
+        </header>
 
-        <div class="form-group">
-          <label for="reset-password">Neues Passwort</label>
-          <input
-            id="reset-password"
-            v-model="passwordResetData.password"
-            type="password"
-            minlength="8"
-            class="form-input"
-            placeholder="Mindestens 8 Zeichen"
-          >
-        </div>
+        <div class="modal-form-content">
+          <section class="form-section compact-section">
+            <div class="form-group">
+              <label for="reset-password">Neues Passwort</label>
+              <input
+                id="reset-password"
+                v-model="passwordResetData.password"
+                type="password"
+                minlength="8"
+                placeholder="Mindestens 8 Zeichen"
+              >
+            </div>
+          </section>
 
-        <div class="form-buttons">
-          <button
-            class="btn btn-success"
-            :disabled="passwordResetData.password.length < 8"
-            @click="submitPasswordReset"
-          >
-            Speichern
-          </button>
-          <button
-            class="btn btn-secondary"
-            @click="closePasswordReset"
-          >
-            Abbrechen / Zurück
-          </button>
+          <footer class="modal-footer">
+            <button class="btn btn-secondary" @click="closePasswordReset">Abbrechen</button>
+            <button class="btn btn-success" :disabled="passwordResetData.password.length < 8" @click="submitPasswordReset">
+              Speichern
+            </button>
+          </footer>
         </div>
       </div>
     </div>
@@ -393,96 +315,246 @@ onMounted(async () => {
 
 <style scoped lang="scss">
 .admin-users {
+  --primary: #3b82f6;
+  --success: #10b981;
+  --border: #e2e8f0;
+  padding: 1.5rem;
   background: white;
-  padding: 2rem;
-  border-radius: 8px;
+  min-height: 100%;
 }
 
 .page-header {
   display: flex;
-  align-items: flex-start;
+  align-items: center;
   justify-content: space-between;
   gap: 1rem;
-  margin-bottom: 1.5rem;
+  margin-bottom: 2rem;
+
+  h2 {
+    font-size: 1.5rem;
+    color: #1e293b;
+  }
 }
 
 .page-subtitle,
 .modal-subtitle,
-.form-help {
-  color: #6b7280;
+.help-text {
+  color: #64748b;
 }
 
 .page-subtitle {
-  margin-top: 0.35rem;
+  margin-top: 0.25rem;
 }
 
-.modal-subtitle {
-  margin-top: 0.35rem;
+.users-table-wrapper {
+  background: white;
+  border-radius: 12px;
+  border: 1px solid var(--border);
+  overflow-x: auto;
+  overflow-y: hidden;
 }
 
 .users-table {
-  overflow-x: auto;
+  width: 100%;
+  min-width: 720px;
+  border-collapse: collapse;
 
-  table {
-    width: 100%;
-    border-collapse: collapse;
-  }
-
-  th,
-  td {
+  th {
+    background: #f1f5f9;
     padding: 1rem;
-    border-bottom: 1px solid #ddd;
+    font-size: 0.8rem;
+    text-transform: uppercase;
+    color: #64748b;
     text-align: left;
   }
 
-  th {
-    background: #f0f0f0;
-    font-weight: 600;
-  }
-
-  tr:hover {
-    background: #fafafa;
+  td {
+    padding: 1rem;
+    border-bottom: 1px solid var(--border);
+    vertical-align: middle;
   }
 }
 
+.text-right {
+  text-align: right;
+}
+
 .action-cell {
-  display: flex;
-  flex-wrap: wrap;
+  display: inline-flex;
+  align-items: center;
+  justify-content: flex-end;
   gap: 0.5rem;
+  flex-wrap: wrap;
+  width: 100%;
+}
+
+.font-bold {
+  font-weight: 600;
+}
+
+.badge,
+.role-tag {
+  display: inline-flex;
+  align-items: center;
+  padding: 0.3rem 0.7rem;
+  border-radius: 999px;
+  font-size: 0.8rem;
+  font-weight: 600;
+}
+
+.badge-success {
+  background: #dcfce7;
+  color: #166534;
+}
+
+.badge-light,
+.role-tag {
+  background: #f1f5f9;
+  color: #475569;
+}
+
+.btn-action {
+  border: 1px solid var(--border);
+  background: white;
+  color: #334155;
+  padding: 0.45rem 0.75rem;
+  border-radius: 8px;
+  cursor: pointer;
+  font-weight: 600;
 }
 
 .modal-overlay {
   position: fixed;
   inset: 0;
-  background: rgba(15, 23, 42, 0.55);
+  background: rgba(15, 23, 42, 0.7);
+  backdrop-filter: blur(4px);
   display: flex;
   align-items: center;
   justify-content: center;
+  z-index: 1000;
   padding: 1rem;
-  z-index: 30;
 }
 
 .modal-card {
-  width: min(100%, 460px);
-  max-height: calc(100vh - 2rem);
-  overflow-y: auto;
   background: white;
-  border-radius: 14px;
-  padding: 1.25rem;
-  box-shadow: 0 18px 40px rgba(15, 23, 42, 0.22);
+  width: 100%;
+  max-width: 900px;
+  max-height: 90vh;
+  border-radius: 16px;
+  display: flex;
+  flex-direction: column;
+  box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25);
 }
 
-.modal-card-horizontal {
-  width: min(100%, 720px);
-  padding: 1.15rem 1.25rem 1.25rem;
+.modal-card-form {
+  max-width: 760px;
+}
+
+.modal-card-compact {
+  max-width: 520px;
 }
 
 .modal-header {
+  padding: 1.5rem;
+  border-bottom: 1px solid var(--border);
   display: flex;
-  align-items: flex-start;
   justify-content: space-between;
   gap: 1rem;
+
+  h3 {
+    margin: 0;
+    font-size: 1.25rem;
+  }
+}
+
+.modal-form-content {
+  padding: 1.5rem;
+  overflow-y: auto;
+}
+
+.form-section {
+  margin-bottom: 2rem;
+
+  h4 {
+    font-size: 0.875rem;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    color: #64748b;
+    border-bottom: 1px solid var(--border);
+    padding-bottom: 0.5rem;
+    margin-bottom: 1rem;
+  }
+}
+
+.compact-section {
   margin-bottom: 1rem;
+}
+
+.form-row {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 1rem;
+}
+
+.form-group {
+  margin-bottom: 1rem;
+
+  label {
+    display: block;
+    font-size: 0.875rem;
+    font-weight: 500;
+    margin-bottom: 0.4rem;
+    color: #1e293b;
+  }
+
+  input,
+  select {
+    width: 100%;
+    padding: 0.6rem 0.8rem;
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    font-size: 0.95rem;
+
+    &:focus {
+      outline: none;
+      border-color: var(--primary);
+      box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
+    }
+  }
+}
+
+.help-text {
+  display: block;
+  margin-top: 0.4rem;
+  font-size: 0.75rem;
+}
+
+.btn {
+  padding: 0.6rem 1.2rem;
+  border-radius: 8px;
+  font-weight: 600;
+  cursor: pointer;
+  border: none;
+}
+
+.btn-primary {
+  background: var(--primary);
+  color: white;
+}
+
+.btn-success {
+  background: var(--success);
+  color: white;
+}
+
+.btn-secondary {
+  background: #e2e8f0;
+  color: #475569;
+}
+
+.btn-action-danger {
+  border-color: #fecaca;
+  color: #b91c1c;
 }
 
 .modal-close {
@@ -494,108 +566,28 @@ onMounted(async () => {
   color: #6b7280;
 }
 
-.modal-form {
-  display: grid;
+.modal-footer {
+  display: flex;
+  justify-content: flex-end;
   gap: 1rem;
 }
 
-.modal-form-horizontal {
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 0.85rem;
-  align-items: start;
-}
-
-.form-group-wide,
-.form-buttons {
-  grid-column: 1 / -1;
-}
-
-.form-group {
-  display: grid;
-  gap: 0.5rem;
-
-  label {
-    font-weight: 500;
-  }
-}
-
-.form-input {
-  width: 100%;
-  padding: 0.75rem;
-  border: 1px solid #ddd;
-  border-radius: 8px;
-
-  &:focus {
-    outline: none;
-    border-color: var(--app-highlight-color);
-    box-shadow: 0 0 0 3px rgba(33, 150, 243, 0.12);
-  }
-}
-
-.form-buttons {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 0.75rem;
-  margin-top: 0.25rem;
-  justify-content: flex-end;
-}
-
-.btn,
-.btn-small {
-  border: none;
-  border-radius: 8px;
-  cursor: pointer;
-  font-weight: 600;
-}
-
-.btn {
-  padding: 0.75rem 1.25rem;
-}
-
-.btn-small {
-  padding: 0.45rem 0.8rem;
-  font-size: 0.85rem;
-  background: #2196f3;
-  color: white;
-
-  &.btn-danger {
-    background: #f44336;
-  }
-}
-
-.btn-primary {
-  background: var(--app-highlight-color);
-  color: white;
-}
-
-.btn-success {
-  background: var(--app-banner-color);
-  color: white;
-}
-
-.btn-secondary {
-  background: #6b7280;
-  color: white;
-}
-
-@media (max-width: 640px) {
+@media (max-width: 768px) {
   .page-header {
     flex-direction: column;
+    align-items: stretch;
   }
 
-  .modal-form-horizontal {
+  .form-row,
+  .modal-footer,
+  .action-cell {
     grid-template-columns: 1fr;
+    flex-direction: column;
   }
 
   .btn,
-  .btn-small {
+  .btn-action {
     width: 100%;
-    justify-content: center;
-  }
-
-  .form-buttons,
-  .action-cell {
-    flex-direction: column;
   }
 }
 </style>
