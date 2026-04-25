@@ -29,13 +29,13 @@
               :key="product.id"
                 :disabled="getAvailableStock(product) === 0"
                 class="product-btn"
-                @click="selectProduct(product)"
+                @click="selectProduct(product, category.id)"
             >
               <div v-if="product.image_path" class="product-image">
                 <img :src="`/api/products/${product.id}/image`" :alt="product.name" />
               </div>
               <div class="product-name">{{ product.name }}</div>
-              <div class="product-price">{{ formatPrice(getDisplayedProductPriceCents(product)) }}</div>
+              <div class="product-price">{{ formatPrice(getDisplayedProductPriceCents(product, category.id)) }}</div>
               <div class="product-stock">
                 Verfügbar: {{ getAvailableStock(product) }}
               </div>
@@ -94,7 +94,7 @@
         <div class="bon-items">
           <div
             v-for="item in cartStore.items"
-            :key="item.product_id"
+            :key="item.line_id"
             class="bon-item"
           >
             <div class="item-name">{{ item.product_name }}</div>
@@ -110,7 +110,7 @@
               <button @click="changeCartItemQuantity(item, item.quantity + 1)" class="btn-qty">+</button>
             </div>
             <div class="item-price">{{ formatPrice(item.total_price_cents) }}</div>
-            <button @click="cartStore.removeItem(item.product_id)" class="btn-remove">✕</button>
+            <button @click="cartStore.removeItem(item.line_id)" class="btn-remove">✕</button>
           </div>
         </div>
 
@@ -322,7 +322,7 @@
             {{ getPaymentMethodLabel(pendingPaymentMethod) }}
           </div>
           <div class="payment-summary-list">
-            <div v-for="item in paymentSummaryItems" :key="`${paymentSource}-${item.product_id}-${item.unit_price_cents}`" class="payment-summary-item">
+            <div v-for="item in paymentSummaryItems" :key="item.line_id || `${paymentSource}-${item.product_id}-${item.unit_price_cents}-${item.is_internal_material ? 'internal' : 'regular'}`" class="payment-summary-item">
               <span>{{ item.quantity }}× {{ item.product_name }}</span>
               <strong>{{ formatPrice(item.total_price_cents) }}</strong>
             </div>
@@ -652,12 +652,14 @@ const voucherReasonLabels = {
 const voucherPrefix = `V-${new Date().getFullYear()}-`
 const normalizedVoucherPrefix = voucherPrefix.toUpperCase()
 
-const isInternalMaterialProduct = (product) => (
-  !!product?.categories?.some(category => category.name === INTERNAL_MATERIAL_CATEGORY_NAME)
+const isInternalMaterialSale = (product, categoryId = null) => (
+  !!categoryId && !!product?.categories?.some(category => (
+    category.id === categoryId && category.name === INTERNAL_MATERIAL_CATEGORY_NAME
+  ))
 )
 
-const getDisplayedProductPriceCents = (product) => (
-  isInternalMaterialProduct(product)
+const getDisplayedProductPriceCents = (product, categoryId = null) => (
+  isInternalMaterialSale(product, categoryId)
     ? 0
     : ((cartStore.selectedMemberId && cartStore.selectedMemberHasDiscount && product.member_price_cents)
         ? product.member_price_cents
@@ -800,14 +802,29 @@ const getDeckelReservedQuantity = (productId, excludeDeckelId = null) => {
   }, 0)
 }
 
-const getAvailableStock = (product, excludeDeckelId = null) => {
-  return Math.max((product.stock_quantity || 0) - getDeckelReservedQuantity(product.id, excludeDeckelId), 0)
+const getCartReservedQuantity = (productId, excludeLineId = null) => {
+  return cartStore.items.reduce((sum, item) => {
+    if (item.product_id !== productId || item.line_id === excludeLineId) {
+      return sum
+    }
+
+    return sum + item.quantity
+  }, 0)
 }
 
-const selectProduct = (product) => {
+const getAvailableStock = (product, excludeDeckelId = null, excludeLineId = null) => {
+  return Math.max(
+    (product.stock_quantity || 0)
+      - getDeckelReservedQuantity(product.id, excludeDeckelId)
+      - getCartReservedQuantity(product.id, excludeLineId),
+    0
+  )
+}
+
+const selectProduct = (product, categoryId = null) => {
   const result = cartStore.addItem({
     ...product,
-    is_internal_material: isInternalMaterialProduct(product),
+    is_internal_material: isInternalMaterialSale(product, categoryId),
   }, getAvailableStock(product))
   if (!result.success) {
     notificationStore.error(`Nur ${getAvailableStock(product)} Einheiten von ${product.name} verfügbar`)
@@ -816,8 +833,8 @@ const selectProduct = (product) => {
 
 const changeCartItemQuantity = (item, quantity) => {
   const product = productStore.products.find(productEntry => productEntry.id === item.product_id)
-  const maxQuantity = product ? getAvailableStock(product) : item.quantity
-  const result = cartStore.updateItemQuantity(item.product_id, quantity, maxQuantity)
+  const maxQuantity = product ? getAvailableStock(product, null, item.line_id) : item.quantity
+  const result = cartStore.updateItemQuantity(item.line_id, quantity, maxQuantity)
   if (!result.success && result.quantity > 0) {
     notificationStore.error(`Nur ${maxQuantity} Einheiten von ${item.product_name} verfügbar`)
   }
@@ -1057,6 +1074,7 @@ const serializeCartItems = () => {
     product_id: item.product_id,
     quantity: item.quantity,
     unit_price_cents: item.unit_price_cents,
+    is_internal_material: item.is_internal_material,
   }))
 }
 

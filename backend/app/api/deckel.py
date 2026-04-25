@@ -14,6 +14,7 @@ class DeckelItemPayload(BaseModel):
     product_id: int
     quantity: int = Field(..., ge=1)
     unit_price_cents: int = Field(..., ge=0)
+    is_internal_material: bool = False
 
 
 class DeckelCreatePayload(BaseModel):
@@ -34,6 +35,7 @@ def _serialize_deckel(deckel) -> dict:
             "quantity": item.quantity,
             "unit_price_cents": item.unit_price_cents,
             "total_price_cents": item.total_price_cents,
+            "is_internal_material": item.is_internal_material,
         }
         for item in deckel.items
     ]
@@ -128,6 +130,7 @@ async def pay_deckel(
             "product_id": item.product_id,
             "quantity": item.quantity,
             "unit_price_cents": item.unit_price_cents,
+            "is_internal_material": item.is_internal_material,
         }
         for item in deckel.items
     ]

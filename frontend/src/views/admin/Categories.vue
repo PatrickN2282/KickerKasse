@@ -223,7 +223,7 @@ const loadCategories = async () => {
 
 const loadProducts = async () => {
   try {
-    const response = await apiService.get('/products?only_active=false')
+    const response = await apiService.get('/products')
     products.value = response.data
   } catch (error) {
     console.error('Error loading products:', error)

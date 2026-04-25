@@ -4,13 +4,14 @@ from typing import Optional
 import logging
 
 from sqlalchemy import func
-from sqlalchemy.orm import Session
+from sqlalchemy.orm import Session, joinedload
 
 from app.models import (
     ClubAccountEntry,
     PaymentMethod,
     Product,
     Transaction,
+    TransactionItem,
     TransactionType,
     Voucher,
     VoucherReason,
@@ -421,7 +422,12 @@ class VoucherService:
         }
 
     def get_club_account_summary(self) -> dict:
-        entries = self.db.query(ClubAccountEntry).order_by(ClubAccountEntry.created_at.desc()).all()
+        entries = self.db.query(ClubAccountEntry).options(
+            joinedload(ClubAccountEntry.user),
+            joinedload(ClubAccountEntry.voucher),
+            joinedload(ClubAccountEntry.transaction).joinedload(Transaction.items).joinedload(TransactionItem.product),
+            joinedload(ClubAccountEntry.transaction).joinedload(Transaction.member),
+        ).order_by(ClubAccountEntry.created_at.desc()).all()
         balance_cents = sum(entry.amount_cents for entry in entries)
         return {
             "balance_cents": balance_cents,
@@ -432,6 +438,37 @@ class VoucherService:
                     "reason": entry.reason,
                     "user_name": entry.user.username if entry.user else None,
                     "created_at": entry.created_at,
+                    "voucher": {
+                        "id": entry.voucher.id,
+                        "voucher_number": entry.voucher.voucher_number,
+                        "voucher_type": entry.voucher.voucher_type.value if entry.voucher.voucher_type else None,
+                        "remaining_value_cents": entry.voucher.remaining_value_cents,
+                        "value_cents": entry.voucher.value_cents,
+                    } if entry.voucher else None,
+                    "transaction": {
+                        "id": entry.transaction.id,
+                        "receipt_number": entry.transaction.receipt_number,
+                        "payment_method": entry.transaction.payment_method.value if entry.transaction.payment_method else None,
+                        "voucher_applied_cents": entry.transaction.voucher_applied_cents or 0,
+                        "balance_applied_cents": entry.transaction.balance_applied_cents or 0,
+                        "voucher_type": entry.transaction.voucher_type,
+                        "type": entry.transaction.type.value if entry.transaction.type else None,
+                        "member_name": entry.transaction.member.name if entry.transaction.member else None,
+                        "items": [
+                            {
+                                "id": item.id,
+                                "quantity": item.quantity,
+                                "unit_price_cents": item.unit_price_cents,
+                                "total_price_cents": item.total_price_cents,
+                                "is_internal_material": item.is_internal_material,
+                                "product": {
+                                    "id": item.product.id,
+                                    "name": item.product.name,
+                                } if item.product else None,
+                            }
+                            for item in entry.transaction.items
+                        ],
+                    } if entry.transaction else None,
                 }
                 for entry in entries
             ],

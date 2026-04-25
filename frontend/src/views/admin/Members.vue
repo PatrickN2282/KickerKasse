@@ -330,7 +330,7 @@ const formData = reactive({
 })
 
 const fullFormName = computed(() => [formData.first_name, formData.last_name].filter(Boolean).join(' '))
-const showContactFields = computed(() => !editingId.value || authStore.isTopAdmin)
+const showContactFields = computed(() => authStore.isTopAdmin)
 const showAccountPasswordSection = computed(() => authStore.isTopAdmin && !!formData.role)
 const rechargeModalMessage = computed(() => {
   const amountCents = Math.max(Math.round(Number(rechargeAmount.value || 0) * 100), 0)
@@ -386,13 +386,13 @@ const uploadPhotoToMember = async (memberId) => {
 const handleSaveMember = async () => {
   const payload = { ...formData }
   if (!authStore.isAdmin) {
+    delete payload.email
+    delete payload.phone
     delete payload.role
     delete payload.account_password
   } else if (!authStore.isTopAdmin) {
-    if (editingId.value) {
-      delete payload.email
-      delete payload.phone
-    }
+    delete payload.email
+    delete payload.phone
     delete payload.role
     delete payload.account_password
   } else if (!payload.role) {

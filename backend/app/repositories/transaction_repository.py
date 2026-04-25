@@ -45,6 +45,7 @@ class TransactionRepository:
                     quantity=item_data["quantity"],
                     unit_price_cents=item_data["unit_price_cents"],
                     total_price_cents=item_data["quantity"] * item_data["unit_price_cents"],
+                    is_internal_material=bool(item_data.get("is_internal_material", False)),
                 )
                 transaction.items.append(item)
         

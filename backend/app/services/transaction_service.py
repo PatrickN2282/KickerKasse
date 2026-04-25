@@ -240,6 +240,7 @@ class TransactionService:
                             "quantity": item.quantity,
                             "unit_price_cents": item.unit_price_cents,
                             "total_price_cents": item.total_price_cents,
+                            "is_internal_material": item.is_internal_material,
                             "product": {
                                 "id": item.product.id,
                                 "name": item.product.name,
@@ -255,6 +256,7 @@ class TransactionService:
     def get_filtered_transactions(self, start_date: date, end_date: date, payment_method: str = None):
         """Get filtered transactions with stats"""
         from datetime import datetime, time
+        from app.models import TransactionItem
         
         # Create datetime range
         start_datetime = datetime.combine(start_date, time.min)
@@ -262,7 +264,11 @@ class TransactionService:
         
         print(f"[Service] Filtering transactions from {start_datetime} to {end_datetime}")
         
-        query = self.db.query(Transaction).filter(
+        query = self.db.query(Transaction).options(
+            joinedload(Transaction.items).joinedload(TransactionItem.product),
+            joinedload(Transaction.user),
+            joinedload(Transaction.member),
+        ).filter(
             Transaction.created_at >= start_datetime,
             Transaction.created_at <= end_datetime,
             Transaction.type.in_([
@@ -303,6 +309,20 @@ class TransactionService:
                         "id": t.user.id,
                         "username": t.user.username,
                     } if t.user else None,
+                    "items": [
+                        {
+                            "id": item.id,
+                            "quantity": item.quantity,
+                            "unit_price_cents": item.unit_price_cents,
+                            "total_price_cents": item.total_price_cents,
+                            "is_internal_material": item.is_internal_material,
+                            "product": {
+                                "id": item.product.id,
+                                "name": item.product.name,
+                            } if item.product else None,
+                        }
+                        for item in t.items
+                    ],
                 }
                 for t in transactions
             ],

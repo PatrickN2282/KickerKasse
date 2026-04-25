@@ -7,6 +7,7 @@ class TransactionItemBase(BaseModel):
     product_id: int
     quantity: int = Field(..., ge=1)
     unit_price_cents: int = Field(..., ge=0)
+    is_internal_material: bool = False
 
 
 class TransactionItemCreate(TransactionItemBase):

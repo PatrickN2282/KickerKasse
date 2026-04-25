@@ -1,4 +1,4 @@
-from sqlalchemy import Column, String, Integer, DateTime, ForeignKey
+from sqlalchemy import Column, String, Integer, DateTime, ForeignKey, Boolean
 from sqlalchemy.orm import relationship
 from sqlalchemy.sql import func
 
@@ -25,6 +25,7 @@ class DeckelItem(BaseModel):
     quantity = Column(Integer, nullable=False)
     unit_price_cents = Column(Integer, nullable=False)
     total_price_cents = Column(Integer, nullable=False)
+    is_internal_material = Column(Boolean, nullable=False, default=False)
     created_at = Column(DateTime, default=func.now(), nullable=False)
 
     deckel = relationship("Deckel", back_populates="items")
