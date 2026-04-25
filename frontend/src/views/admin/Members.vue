@@ -1,213 +1,14 @@
 <template>
   <div class="admin-members">
-    <h2>Mitgliederverwaltung</h2>
-
-    <button
-      class="btn btn-primary"
-      @click="showForm = !showForm"
-    >
-      {{ showForm ? 'Abbrechen / Zurück' : 'Neues Mitglied' }}
-    </button>
-
-    <form
-      v-if="showForm"
-      class="form-section"
-      @submit.prevent="handleSaveMember"
-    >
-      <h3>{{ editingId ? 'Mitglied bearbeiten' : 'Neues Mitglied' }}</h3>
-      <div class="form-grid">
-        <div class="form-group">
-          <label for="first_name">Vorname*:</label>
-          <input
-            id="first_name"
-            v-model="formData.first_name"
-            type="text"
-            class="form-input"
-            required
-          >
-        </div>
-        <div class="form-group">
-          <label for="last_name">Nachname*:</label>
-          <input
-            id="last_name"
-            v-model="formData.last_name"
-            type="text"
-            class="form-input"
-            required
-          >
-        </div>
-      </div>
-      <div class="form-group">
-        <label for="membership_number">Mitgliedsnummer:</label>
-        <input
-          id="membership_number"
-          v-model="formData.membership_number"
-          type="text"
-          class="form-input"
-        >
-      </div>
-      <div class="form-grid">
-        <label class="checkbox-row">
-          <input
-            v-model="formData.has_discount"
-            type="checkbox"
-          >
-          Rabatt
-        </label>
-        <div
-          v-if="showContactFields"
-          class="form-group"
-        >
-          <label for="email">E-Mail:</label>
-          <input
-            id="email"
-            v-model="formData.email"
-            type="email"
-            class="form-input"
-          >
-        </div>
-        <div
-          v-if="showContactFields"
-          class="form-group"
-        >
-          <label for="phone">Telefon:</label>
-          <input
-            id="phone"
-            v-model="formData.phone"
-            type="text"
-            class="form-input"
-          >
-        </div>
-        <div
-          v-if="authStore.isTopAdmin"
-          class="form-group"
-        >
-          <label for="role">Rolle:</label>
-          <select
-            id="role"
-            v-model="formData.role"
-            class="form-input"
-          >
-            <option value="">
-              Keine Rolle
-            </option>
-            <option value="VERKAUF">
-              Verkauf
-            </option>
-            <option value="MANAGER">
-              Manager
-            </option>
-            <option value="ADMIN">
-              Admin
-            </option>
-          </select>
-        </div>
-      </div>
-      <div
-        v-if="showAccountPasswordSection"
-        class="role-account-box"
-      >
-        <div
-          v-if="currentAccountUsername"
-          class="form-group"
-        >
-          <label>Loginname</label>
-          <input
-            :value="currentAccountUsername"
-            type="text"
-            class="form-input"
-            readonly
-          >
-        </div>
-        <div class="form-group">
-          <label for="account_password">
-            {{ hasExistingUserAccount ? 'Neues Passwort (optional)' : 'Passwort für Benutzerkonto*' }}
-          </label>
-          <input
-            id="account_password"
-            v-model="formData.account_password"
-            type="password"
-            class="form-input"
-            :required="!hasExistingUserAccount"
-            minlength="8"
-            placeholder="Mindestens 8 Zeichen"
-          >
-        </div>
-        <small class="form-help">
-          {{ hasExistingUserAccount
-            ? 'Bei bestehenden Benutzerkonten können Admin und Top-Admin hier ein neues Passwort setzen.'
-            : 'Sobald eine Rolle vergeben wird, wird ein Benutzerkonto angelegt und ein Passwort benötigt.' }}
-        </small>
-      </div>
-      <div class="form-group">
-        <label for="notes">Notizen:</label>
-        <textarea
-          id="notes"
-          v-model="formData.notes"
-          class="form-input notes-input"
-          rows="3"
-        />
-      </div>
-
-      <div
-        v-if="editingId"
-        class="form-group recharge-section"
-      >
-        <label for="recharge">Guthaben aufladen:</label>
-        <small class="form-help">
-          Aufzuladenden Wert eintragen, Passwort des angemeldeten Benutzers eintragen, Bestätigen
-        </small>
-        <div class="recharge-input-group">
-          <input
-            id="recharge"
-            v-model.number="rechargeAmount"
-            type="number"
-            placeholder="0.00"
-            step="0.01"
-            min="0"
-            class="form-input"
-          >
-          <button
-            type="button"
-            class="btn btn-info"
-            :disabled="!rechargeAmount || rechargeAmount <= 0"
-            @click="openRechargeModal"
-          >
-            + Aufladen
-          </button>
-        </div>
-        <small v-if="editingId && currentMemberBalance !== null">
-          Aktuelles Guthaben: {{ formatBalance(currentMemberBalance) }}
-        </small>
-      </div>
-
-      <div class="form-group">
-        <label for="photo">Foto:</label>
-        <input
-          id="photo"
-          type="file"
-          accept="image/*"
-          class="form-input"
-          @change="handlePhotoUpload"
-        >
-        <div
-          v-if="photoPreview"
-          class="photo-preview"
-        >
-          <img
-            :src="photoPreview"
-            :alt="fullFormName"
-            style="max-width: 150px; max-height: 150px;"
-          >
-        </div>
-      </div>
+    <div class="page-header">
+      <h2>Mitgliederverwaltung</h2>
       <button
-        type="submit"
-        class="btn btn-success"
+        class="btn btn-primary"
+        @click="openCreateModal"
       >
-        Speichern
+        Neues Mitglied
       </button>
-    </form>
+    </div>
 
     <div
       v-if="memberStore.isLoading"
@@ -282,6 +83,232 @@
         </tbody>
       </table>
     </div>
+
+    <div
+      v-if="showMemberModal"
+      class="modal-overlay"
+      @click.self="closeMemberModal"
+    >
+      <div class="modal-card">
+        <div class="modal-header">
+          <h3>{{ editingId ? 'Mitglied bearbeiten' : 'Neues Mitglied anlegen' }}</h3>
+          <button
+            class="modal-close"
+            @click="closeMemberModal"
+          >
+            ×
+          </button>
+        </div>
+
+        <form
+          class="form-section"
+          @submit.prevent="handleSaveMember"
+        >
+          <div class="form-grid">
+            <div class="form-group">
+              <label for="first_name">Vorname*:</label>
+              <input
+                id="first_name"
+                v-model="formData.first_name"
+                type="text"
+                class="form-input"
+                required
+              >
+            </div>
+            <div class="form-group">
+              <label for="last_name">Nachname*:</label>
+              <input
+                id="last_name"
+                v-model="formData.last_name"
+                type="text"
+                class="form-input"
+                required
+              >
+            </div>
+          </div>
+          <div class="form-group">
+            <label for="membership_number">Mitgliedsnummer:</label>
+            <input
+              id="membership_number"
+              v-model="formData.membership_number"
+              type="text"
+              class="form-input"
+            >
+          </div>
+          <div class="form-grid">
+            <label class="checkbox-row">
+              <input
+                v-model="formData.has_discount"
+                type="checkbox"
+              >
+              Rabatt
+            </label>
+            <div
+              v-if="showContactFields"
+              class="form-group"
+            >
+              <label for="email">E-Mail:</label>
+              <input
+                id="email"
+                v-model="formData.email"
+                type="email"
+                class="form-input"
+              >
+            </div>
+            <div
+              v-if="showContactFields"
+              class="form-group"
+            >
+              <label for="phone">Telefon:</label>
+              <input
+                id="phone"
+                v-model="formData.phone"
+                type="text"
+                class="form-input"
+              >
+            </div>
+            <div
+              v-if="authStore.isTopAdmin"
+              class="form-group"
+            >
+              <label for="role">Rolle:</label>
+              <select
+                id="role"
+                v-model="formData.role"
+                class="form-input"
+              >
+                <option value="">
+                  Keine Rolle
+                </option>
+                <option value="VERKAUF">
+                  Verkauf
+                </option>
+                <option value="MANAGER">
+                  Manager
+                </option>
+                <option value="ADMIN">
+                  Admin
+                </option>
+              </select>
+            </div>
+          </div>
+          <div
+            v-if="showAccountPasswordSection"
+            class="role-account-box"
+          >
+            <div
+              v-if="currentAccountUsername"
+              class="form-group"
+            >
+              <label>Loginname</label>
+              <input
+                :value="currentAccountUsername"
+                type="text"
+                class="form-input"
+                readonly
+              >
+            </div>
+            <div class="form-group">
+              <label for="account_password">
+                {{ hasExistingUserAccount ? 'Neues Passwort (optional)' : 'Passwort für Benutzerkonto*' }}
+              </label>
+              <input
+                id="account_password"
+                v-model="formData.account_password"
+                type="password"
+                class="form-input"
+                :required="!hasExistingUserAccount"
+                minlength="8"
+                placeholder="Mindestens 8 Zeichen"
+              >
+            </div>
+            <small class="form-help">
+              {{ hasExistingUserAccount
+                ? 'Bei bestehenden Benutzerkonten können Admin und Top-Admin hier ein neues Passwort setzen.'
+                : 'Sobald eine Rolle vergeben wird, wird ein Benutzerkonto angelegt und ein Passwort benötigt.' }}
+            </small>
+          </div>
+          <div class="form-group">
+            <label for="notes">Notizen:</label>
+            <textarea
+              id="notes"
+              v-model="formData.notes"
+              class="form-input notes-input"
+              rows="3"
+            />
+          </div>
+
+          <div
+            v-if="editingId"
+            class="form-group recharge-section"
+          >
+            <label for="recharge">Guthaben aufladen:</label>
+            <small class="form-help">
+              Aufzuladenden Wert eintragen, Passwort des angemeldeten Benutzers eintragen, Bestätigen
+            </small>
+            <div class="recharge-input-group">
+              <input
+                id="recharge"
+                v-model.number="rechargeAmount"
+                type="number"
+                placeholder="0.00"
+                step="0.01"
+                min="0"
+                class="form-input"
+              >
+              <button
+                type="button"
+                class="btn btn-info"
+                :disabled="!rechargeAmount || rechargeAmount <= 0"
+                @click="openRechargeModal"
+              >
+                + Aufladen
+              </button>
+            </div>
+            <small v-if="editingId && currentMemberBalance !== null">
+              Aktuelles Guthaben: {{ formatBalance(currentMemberBalance) }}
+            </small>
+          </div>
+
+          <div class="form-group">
+            <label for="photo">Foto:</label>
+            <input
+              id="photo"
+              type="file"
+              accept="image/*"
+              class="form-input"
+              @change="handlePhotoUpload"
+            >
+            <div
+              v-if="photoPreview"
+              class="photo-preview"
+            >
+              <img
+                :src="photoPreview"
+                :alt="fullFormName"
+                style="max-width: 150px; max-height: 150px;"
+              >
+            </div>
+          </div>
+
+          <div class="form-buttons">
+            <button
+              type="submit"
+              class="btn btn-success"
+            >
+              {{ editingId ? 'Aktualisieren' : 'Erstellen' }}
+            </button>
+            <button
+              type="button"
+              class="btn btn-secondary"
+              @click="closeMemberModal"
+            >
+              Abbrechen / Zurück
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
     <PasswordConfirmModal
       :show="showRechargeModal"
       title="Mitgliedsguthaben aufladen"
@@ -308,7 +335,7 @@ const authStore = useAuthStore()
 const memberStore = useMemberStore()
 const notificationStore = useNotificationStore()
 
-const showForm = ref(false)
+const showMemberModal = ref(false)
 const editingId = ref(null)
 const photoFile = ref(null)
 const photoPreview = ref(null)
@@ -328,6 +355,17 @@ const formData = reactive({
   role: '',
   account_password: '',
 })
+
+const openCreateModal = () => {
+  resetForm()
+  showMemberModal.value = true
+}
+
+const closeMemberModal = () => {
+  showRechargeModal.value = false
+  showMemberModal.value = false
+  resetForm()
+}
 
 const fullFormName = computed(() => [formData.first_name, formData.last_name].filter(Boolean).join(' '))
 const showContactFields = computed(() => authStore.isTopAdmin)
@@ -457,7 +495,7 @@ const resetForm = () => {
   currentAccountUsername.value = ''
   hasExistingUserAccount.value = false
   editingId.value = null
-  showForm.value = false
+  showMemberModal.value = false
 }
 
 const editMember = (member) => {
@@ -471,11 +509,13 @@ const editMember = (member) => {
   formData.has_discount = member.has_discount ?? true
   formData.role = member.role || ''
   formData.account_password = ''
+  photoFile.value = null
+  photoPreview.value = member.photo_path ? `/api/members/${member.id}/photo` : null
   currentMemberBalance.value = member.balance_cents
   currentAccountUsername.value = member.account_username || ''
   hasExistingUserAccount.value = !!member.has_user_account
   rechargeAmount.value = null
-  showForm.value = true
+  showMemberModal.value = true
 }
 
 const openRechargeModal = () => {
@@ -536,11 +576,17 @@ onMounted(async () => {
   border-radius: 8px;
 }
 
+.page-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  margin-bottom: 1rem;
+}
+
 .form-section {
-  background: #f5f5f5;
-  padding: 1.5rem;
-  border-radius: 4px;
-  margin: 1rem 0;
+  display: grid;
+  gap: 1rem;
 }
 
 .form-grid {
@@ -579,6 +625,11 @@ onMounted(async () => {
   display: block;
   margin-bottom: 0.5rem;
   color: #666;
+}
+
+.form-buttons {
+  display: flex;
+  gap: 1rem;
 }
 
 .role-account-box {
@@ -653,6 +704,11 @@ onMounted(async () => {
   color: white;
 }
 
+.btn-secondary {
+  background: #6b7280;
+  color: white;
+}
+
 table {
   width: 100%;
   border-collapse: collapse;
@@ -667,5 +723,43 @@ table {
   th {
     background: #f0f0f0;
   }
+}
+
+.modal-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(15, 23, 42, 0.55);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 1rem;
+  z-index: 1000;
+}
+
+.modal-card {
+  width: min(100%, 720px);
+  max-height: calc(100vh - 2rem);
+  overflow-y: auto;
+  background: white;
+  border-radius: 12px;
+  padding: 1.5rem;
+  box-shadow: 0 18px 40px rgba(15, 23, 42, 0.22);
+}
+
+.modal-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  margin-bottom: 1rem;
+}
+
+.modal-close {
+  border: none;
+  background: transparent;
+  font-size: 1.6rem;
+  line-height: 1;
+  cursor: pointer;
+  color: #6b7280;
 }
 </style>

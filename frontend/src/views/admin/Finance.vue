@@ -206,6 +206,7 @@
           >
             <thead>
               <tr>
+                <th>Datum</th>
                 <th>Zeit</th>
                 <th>Belegnummer</th>
                 <th>Mitglied</th>
@@ -223,6 +224,7 @@
                   style="cursor: pointer;"
                   @click="toggleTransaction(transaction.id)"
                 >
+                  <td>{{ formatDate(transaction.created_at) }}</td>
                   <td>{{ formatTime(transaction.created_at) }}</td>
                   <td><strong>{{ transaction.receipt_number }}</strong></td>
                   <td>{{ getTransactionMemberLabel(transaction) }}</td>
@@ -249,7 +251,7 @@
                   class="items-row"
                 >
                   <td
-                    colspan="5"
+                    colspan="6"
                     class="items-cell"
                   >
                     <div class="items-list">
@@ -920,6 +922,7 @@
                 <thead>
                   <tr>
                     <th>Datum</th>
+                    <th>Zeit</th>
                     <th>Betrag</th>
                     <th>Grund</th>
                     <th>Beleg</th>
@@ -936,7 +939,8 @@
                       style="cursor: pointer;"
                       @click="toggleInternalAccountEntry('club', entry.id)"
                     >
-                      <td>{{ formatDate(entry.created_at) }} {{ formatTime(entry.created_at) }}</td>
+                      <td>{{ formatDate(entry.created_at) }}</td>
+                      <td>{{ formatTime(entry.created_at) }}</td>
                       <td class="amount" :class="{ withdrawal: entry.amount_cents < 0 }">
                         {{ formatPrice(entry.amount_cents) }}
                       </td>
@@ -949,7 +953,7 @@
                       class="items-row"
                     >
                       <td
-                        colspan="5"
+                        colspan="6"
                         class="items-cell"
                       >
                         <div class="items-list">
@@ -1038,6 +1042,7 @@
                 <thead>
                   <tr>
                     <th>Datum</th>
+                    <th>Zeit</th>
                     <th>Typ</th>
                     <th>Artikel</th>
                     <th>Menge</th>
@@ -1056,6 +1061,7 @@
                       @click="toggleInternalAccountEntry('material', entry.id)"
                     >
                       <td>{{ formatDate(entry.created_at) }}</td>
+                      <td>{{ formatTime(entry.created_at) }}</td>
                       <td>{{ entry.entry_type_label }}</td>
                       <td>{{ entry.product_name || entry.reason }}</td>
                       <td>{{ entry.quantity ?? '-' }}</td>
@@ -1067,7 +1073,7 @@
                       class="items-row"
                     >
                       <td
-                        colspan="6"
+                        colspan="7"
                         class="items-cell"
                       >
                         <div class="items-list">
