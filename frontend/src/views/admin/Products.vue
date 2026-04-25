@@ -53,8 +53,8 @@
               </span>
             </td>
             <td class="text-right action-cell">
-              <button class="btn-icon" @click="editProduct(product)" title="Bearbeiten">✏️</button>
-              <button class="btn-icon btn-icon-danger" @click="deleteProduct(product.id)" title="Löschen">🗑️</button>
+              <button class="btn-icon" @click="editProduct(product)" title="Bearbeiten" aria-label="Produkt bearbeiten">✏️</button>
+              <button class="btn-icon btn-icon-danger" @click="deleteProduct(product.id)" title="Löschen" aria-label="Produkt löschen">🗑️</button>
             </td>
           </tr>
         </tbody>

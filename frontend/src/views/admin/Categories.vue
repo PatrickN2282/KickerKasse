@@ -74,6 +74,7 @@
                 class="btn-icon"
                 :disabled="category.is_fixed"
                 :title="category.is_fixed ? 'Feste Kategorie kann nicht bearbeitet werden' : 'Bearbeiten'"
+                :aria-label="category.is_fixed ? 'Kategorie kann nicht bearbeitet werden' : 'Kategorie bearbeiten'"
                 @click="editCategory(category)"
               >
                 ✏️
@@ -82,6 +83,7 @@
                 class="btn-icon btn-icon-danger"
                 :disabled="category.is_fixed"
                 :title="category.is_fixed ? 'Feste Kategorie kann nicht gelöscht werden' : 'Löschen'"
+                :aria-label="category.is_fixed ? 'Kategorie kann nicht gelöscht werden' : 'Kategorie löschen'"
                 @click="deleteCategory(category.id)"
               >
                 🗑️

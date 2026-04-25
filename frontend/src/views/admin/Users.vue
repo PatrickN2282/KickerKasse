@@ -35,9 +35,9 @@
               <span class="role-tag">{{ roleLabel(user.role) }}</span>
             </td>
             <td class="text-right action-cell">
-              <button v-if="user.deletable" class="btn-icon" @click="openEditModal(user)" title="Bearbeiten">✏️</button>
+              <button v-if="user.deletable" class="btn-icon" @click="openEditModal(user)" title="Bearbeiten" aria-label="Benutzer bearbeiten">✏️</button>
               <button v-if="user.canResetPassword" class="btn-action" @click="openPasswordReset(user)">Passwort setzen</button>
-              <button v-if="user.deletable" class="btn-icon btn-icon-danger" @click="deleteUser(user.id)" title="Löschen">🗑️</button>
+              <button v-if="user.deletable" class="btn-icon btn-icon-danger" @click="deleteUser(user.id)" title="Löschen" aria-label="Benutzer löschen">🗑️</button>
             </td>
           </tr>
         </tbody>
