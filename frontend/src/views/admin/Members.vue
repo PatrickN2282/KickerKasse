@@ -429,7 +429,7 @@ onMounted(() => memberStore.getMembers())
 
 .action-cell { display: flex; justify-content: flex-end; gap: 0.5rem; }
 
-/* Modal */
+/* Modal Basis */
 .modal-overlay {
   position: fixed; inset: 0;
   background: rgba(15, 23, 42, 0.7); backdrop-filter: blur(4px);
@@ -440,6 +440,7 @@ onMounted(() => memberStore.getMembers())
   background: white; width: 100%; max-width: 900px; max-height: 90vh;
   border-radius: 16px; display: flex; flex-direction: column;
   box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25);
+  overflow: hidden;
 }
 
 .modal-header {
@@ -448,15 +449,26 @@ onMounted(() => memberStore.getMembers())
   h3 { margin: 0; font-size: 1.25rem; }
 }
 
-.modal-body-layout { display: grid; grid-template-columns: 260px 1fr; overflow: hidden; }
+/* Modal Body Layout (Grid) */
+.modal-body-layout { 
+  display: grid; 
+  grid-template-columns: 260px 1fr; 
+  overflow: hidden;
+  height: 100%;
+}
 
 .modal-sidebar {
   padding: 1.5rem; background: var(--bg-main);
   border-right: 1px solid var(--border); display: flex; flex-direction: column; gap: 1.5rem;
 }
 
-.modal-form-content { padding: 1.5rem; overflow-y: auto; max-height: calc(90vh - 160px); }
+.modal-form-content { 
+  padding: 1.5rem; 
+  overflow-y: auto; 
+  max-height: calc(90vh - 160px); 
+}
 
+/* Foto & Sidebar Komponenten */
 .avatar-display {
   width: 150px; height: 150px; margin: 0 auto;
   border-radius: 20px; background: #fff; border: 2px dashed #cbd5e1;
@@ -489,6 +501,7 @@ onMounted(() => memberStore.getMembers())
   .desc { font-size: 0.75rem; color: #64748b; display: block; }
 }
 
+/* Formular Sektionen */
 .form-section {
   margin-bottom: 2rem;
   h4 { font-size: 0.875rem; text-transform: uppercase; color: #64748b; border-bottom: 1px solid var(--border); padding-bottom: 0.5rem; margin-bottom: 1rem; }
@@ -508,8 +521,19 @@ onMounted(() => memberStore.getMembers())
 .password-box { margin-top: 1rem; padding-top: 1rem; border-top: 1px dashed #bae6fd; }
 .help-text { font-size: 0.75rem; color: #64748b; margin-top: 0.4rem; }
 
-/* Buttons */
-.btn { padding: 0.6rem 1.2rem; border-radius: 8px; font-weight: 600; cursor: pointer; border: none; }
+/* Modal Footer - Rechts unten platziert */
+.modal-footer { 
+  grid-column: 1 / -1; // Spannt über beide Grid-Spalten
+  padding: 1.5rem; 
+  border-top: 1px solid var(--border); 
+  display: flex; 
+  justify-content: flex-end; // Schiebt Buttons nach rechts
+  gap: 1rem; 
+  background: white;
+}
+
+/* Button & Action Styles */
+.btn { padding: 0.6rem 1.2rem; border-radius: 8px; font-weight: 600; cursor: pointer; border: none; min-width: 120px; }
 .btn-primary { background: var(--primary); color: white; }
 .btn-success { background: var(--success); color: white; }
 .btn-secondary { background: #e2e8f0; color: #475569; }
@@ -520,8 +544,18 @@ onMounted(() => memberStore.getMembers())
 }
 .btn-action-danger { border-color: #fecaca; color: #b91c1c; }
 
-.modal-footer { padding: 1.5rem; border-top: 1px solid var(--border); display: flex; justify-content: flex-end; gap: 1rem; }
 .modal-close { border: none; background: transparent; font-size: 1.6rem; cursor: pointer; color: #6b7280; }
+
+.loading-state {
+  display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 3rem; color: #64748b;
+}
+
+.spinner {
+  width: 2rem; height: 2rem; border-radius: 50%; border: 3px solid #e2e8f0; border-top-color: var(--primary);
+  animation: spin 0.8s linear infinite; margin-bottom: 1rem;
+}
+
+@keyframes spin { to { transform: rotate(360deg); } }
 
 @media (max-width: 768px) {
   .modal-body-layout, .form-row { grid-template-columns: 1fr; }
