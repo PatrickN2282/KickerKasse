@@ -22,6 +22,7 @@ class MaterialAccountService:
         return any((getattr(category, "name", None) or "").strip() == INTERNAL_MATERIAL_CATEGORY_NAME for category in categories)
 
     def is_internal_material_sale_item(self, item) -> bool:
+        """Return True only for zero-priced sale rows booked via the internal material category."""
         product = getattr(item, "product", None)
         return bool(product and self.is_internal_material_product(product) and item.unit_price_cents == 0)
 

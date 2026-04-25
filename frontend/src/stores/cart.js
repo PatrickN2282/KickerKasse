@@ -10,12 +10,12 @@ export const useCartStore = defineStore('cart', () => {
   const appliedVouchers = ref([])
   const appliedBalanceCents = ref(0)
 
-  const buildLineId = (productId, isInternalMaterial = false) => (
+  const buildCartLineId = (productId, isInternalMaterial = false) => (
     `${productId}:${isInternalMaterial ? 'internal' : 'regular'}`
   )
 
   const cloneCartItem = (item) => ({
-    line_id: item.line_id || buildLineId(item.product_id, item.is_internal_material),
+    line_id: item.line_id || buildCartLineId(item.product_id, item.is_internal_material),
     product_id: item.product_id,
     product_name: item.product_name,
     quantity: item.quantity,
@@ -27,7 +27,7 @@ export const useCartStore = defineStore('cart', () => {
   })
 
   const addItem = (product, maxQuantity = product.stock_quantity) => {
-    const lineId = buildLineId(product.id, product.is_internal_material)
+    const lineId = buildCartLineId(product.id, product.is_internal_material)
     const existingItem = items.value.find(item => item.line_id === lineId)
     const allowedQuantity = Math.max(Number(maxQuantity ?? product.stock_quantity ?? 0), 0)
 

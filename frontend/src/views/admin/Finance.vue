@@ -835,7 +835,7 @@
       <div class="summary-grid">
         <div class="summary-card neutral">
           <div class="card-label">
-            Gutscheinkonto Saldo
+            Gutscheinkonto gesamt
           </div>
           <div class="card-value">
             {{ formatPrice(clubAccount.balance_cents) }}
