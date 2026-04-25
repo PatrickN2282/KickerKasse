@@ -1,7 +1,10 @@
 <template>
   <div class="admin-members">
     <div class="page-header">
-      <h2>Mitgliederverwaltung</h2>
+      <div>
+        <h2>Mitgliederverwaltung</h2>
+        <p class="page-subtitle">Stammdaten, Guthaben und System-Zugänge zentral pflegen.</p>
+      </div>
       <button class="btn btn-primary" @click="openCreateModal">
         <span class="icon">+</span> Neues Mitglied
       </button>
@@ -16,7 +19,7 @@
       <table class="members-table">
         <thead>
           <tr>
-            <th style="width: 70px;">Foto</th>
+            <th>Foto</th>
             <th>Nr.</th>
             <th>Mitgliedsnummer</th>
             <th>Name</th>
@@ -29,10 +32,17 @@
         </thead>
         <tbody>
           <tr v-for="member in memberStore.members" :key="member.id">
-            <td>
-              <div class="avatar-mini">
-                <img v-if="member.photo_path" :src="`/api/members/${member.id}/photo`" :alt="getMemberFullName(member)">
-                <span v-else class="avatar-placeholder">{{ member.first_name[0] }}{{ member.last_name[0] }}</span>
+            <td class="photo-cell">
+              <div class="member-thumb-frame">
+                <img
+                  v-if="member.photo_path"
+                  :src="`/api/members/${member.id}/photo`"
+                  :alt="getMemberFullName(member)"
+                  class="member-thumb"
+                >
+                <span v-else class="member-thumb-placeholder">
+                  {{ member.first_name[0] }}{{ member.last_name[0] }}
+                </span>
               </div>
             </td>
             <td>{{ member.member_number }}</td>
@@ -40,7 +50,7 @@
             <td class="font-bold">{{ getMemberFullName(member) }}</td>
             <td>
               <span :class="['badge', member.has_discount ? 'badge-success' : 'badge-light']">
-                {{ member.has_discount ? 'Ja' : 'Nein' }}
+                {{ member.has_discount ? 'Berechtigt' : 'Kein Rabatt' }}
               </span>
             </td>
             <td v-if="authStore.isTopAdmin">
@@ -50,10 +60,14 @@
               <div class="small-text">{{ member.email || '-' }}</div>
               <div class="small-text text-muted">{{ member.phone || '' }}</div>
             </td>
-            <td class="balance-cell">{{ formatBalance(member.balance_cents) }}</td>
-            <td class="text-right">
-              <button class="btn-icon" @click="editMember(member)" title="Bearbeiten">✏️</button>
-              <button class="btn-icon btn-icon-danger" :disabled="!authStore.isAdmin" @click="deleteMember(member.id)" title="Löschen">🗑️</button>
+            <td class="balance-cell font-bold">{{ formatBalance(member.balance_cents) }}</td>
+            <td class="text-right action-cell">
+              <button class="btn-action" @click="editMember(member)">Bearbeiten</button>
+              <button 
+                class="btn-action btn-action-danger" 
+                :disabled="!authStore.isAdmin" 
+                @click="deleteMember(member.id)"
+              >Löschen</button>
             </td>
           </tr>
         </tbody>
@@ -64,8 +78,8 @@
       <div class="modal-card">
         <header class="modal-header">
           <div>
-            <h3>{{ editingId ? 'Mitglied bearbeiten' : 'Neues Mitglied' }}</h3>
-            <p class="modal-subtitle">Stammdaten und Berechtigungen verwalten</p>
+            <h3>{{ editingId ? 'Mitglied bearbeiten' : 'Neues Mitglied anlegen' }}</h3>
+            <p class="modal-subtitle">Stammdaten und Berechtigungen im Admin-Layout verwalten.</p>
           </div>
           <button class="modal-close" @click="closeMemberModal">×</button>
         </header>
@@ -87,17 +101,17 @@
               <label class="checkbox-card">
                 <input v-model="formData.has_discount" type="checkbox">
                 <div class="checkbox-content">
-                  <span class="label">Rabatt</span>
-                  <span class="desc">Berechtigt für Preisnachlass</span>
+                  <span class="label">Rabattberechtigt</span>
+                  <span class="desc">Darf Mitgliederpreise an der Kasse nutzen.</span>
                 </div>
               </label>
 
-              <div v-if="editingId" class="balance-display">
+              <div v-if="editingId" class="summary-card balance-card">
                 <span class="label">Aktuelles Guthaben</span>
                 <span class="value">{{ formatBalance(currentMemberBalance || 0) }}</span>
                 <div class="recharge-trigger">
                   <input v-model.number="rechargeAmount" type="number" step="0.01" placeholder="0,00€">
-                  <button type="button" @click="openRechargeModal" :disabled="!rechargeAmount">Aufladen</button>
+                  <button type="button" class="btn-recharge" @click="openRechargeModal" :disabled="!rechargeAmount">Laden</button>
                 </div>
               </div>
             </div>
@@ -105,15 +119,15 @@
 
           <main class="modal-form-content">
             <section class="form-section">
-              <h4>Allgemeine Informationen</h4>
+              <h4>Stammdaten</h4>
               <div class="form-row">
                 <div class="form-group">
                   <label>Vorname*</label>
-                  <input v-model="formData.first_name" type="text" required placeholder="z.B. Max">
+                  <input v-model="formData.first_name" type="text" required>
                 </div>
                 <div class="form-group">
                   <label>Nachname*</label>
-                  <input v-model="formData.last_name" type="text" required placeholder="z.B. Mustermann">
+                  <input v-model="formData.last_name" type="text" required>
                 </div>
               </div>
               <div class="form-group">
@@ -122,8 +136,8 @@
               </div>
             </section>
 
-            <section v-if="authStore.isTopAdmin" class="form-section highlight">
-              <h4>System-Zugang</h4>
+            <section v-if="authStore.isTopAdmin" class="form-section highlight-box">
+              <h4>System-Zugang & Berechtigungen</h4>
               <div class="form-row">
                 <div class="form-group">
                   <label>E-Mail Adresse</label>
@@ -132,7 +146,7 @@
                 <div class="form-group">
                   <label>Rolle im System</label>
                   <select v-model="formData.role">
-                    <option value="">Keine Berechtigung</option>
+                    <option value="">Keine Berechtigung (Nur Mitglied)</option>
                     <option value="VERKAUF">Verkaufspersonal</option>
                     <option value="MANAGER">Manager</option>
                     <option value="ADMIN">Administrator</option>
@@ -142,13 +156,12 @@
               
               <div v-if="formData.role" class="password-box">
                 <div class="form-group">
-                  <label>{{ hasExistingUserAccount ? 'Passwort zurücksetzen' : 'Initial-Passwort festlegen*' }}</label>
+                  <label>{{ hasExistingUserAccount ? 'Passwort überschreiben' : 'Initial-Passwort festlegen*' }}</label>
                   <input v-model="formData.account_password" type="password" 
-                         :required="!hasExistingUserAccount" minlength="8" 
-                         placeholder="Mind. 8 Zeichen">
+                         :required="!hasExistingUserAccount" minlength="8">
                 </div>
                 <p class="help-text">
-                  {{ hasExistingUserAccount ? 'Nur ausfüllen, wenn das Passwort geändert werden soll.' : 'Erforderlich, da eine Systemrolle zugewiesen wurde.' }}
+                  {{ hasExistingUserAccount ? 'Nur ausfüllen, wenn das Passwort neu gesetzt werden soll.' : 'Erforderlich für den ersten System-Login.' }}
                 </p>
               </div>
             </section>
@@ -157,7 +170,7 @@
               <h4>Zusatzangaben</h4>
               <div class="form-group">
                 <label>Interne Notizen</label>
-                <textarea v-model="formData.notes" rows="3" placeholder="Besonderheiten, Allergien, etc..."></textarea>
+                <textarea v-model="formData.notes" rows="3" placeholder="Interne Bemerkungen..."></textarea>
               </div>
             </section>
           </main>
@@ -194,12 +207,10 @@ import { getMemberFullName, getRoleLabel } from '@/services/member'
 import PasswordConfirmModal from '@/components/PasswordConfirmModal.vue'
 import apiService from '@/services/api'
 
-// Stores
 const authStore = useAuthStore()
 const memberStore = useMemberStore()
 const notificationStore = useNotificationStore()
 
-// State
 const showMemberModal = ref(false)
 const editingId = ref(null)
 const photoFile = ref(null)
@@ -207,7 +218,6 @@ const photoPreview = ref(null)
 const rechargeAmount = ref(null)
 const currentMemberBalance = ref(null)
 const showRechargeModal = ref(false)
-const currentAccountUsername = ref('')
 const hasExistingUserAccount = ref(false)
 
 const formData = reactive({
@@ -222,14 +232,12 @@ const formData = reactive({
   account_password: '',
 })
 
-// Computed
 const rechargeModalMessage = computed(() => {
   const amountCents = Math.round(Number(rechargeAmount.value || 0) * 100)
   const current = Number(currentMemberBalance.value || 0)
   return `Möchtest du ${formatBalance(amountCents)} aufladen?\nNeuer Kontostand: ${formatBalance(current + amountCents)}`
 })
 
-// Methods
 const openCreateModal = () => {
   resetForm()
   showMemberModal.value = true
@@ -270,8 +278,6 @@ const uploadPhotoToMember = async (memberId) => {
 
 const handleSaveMember = async () => {
   const payload = { ...formData }
-  
-  // Berechtigungsschutz Logik
   if (!authStore.isTopAdmin) {
     ['email', 'phone', 'role', 'account_password'].forEach(key => delete payload[key])
   } else if (!payload.role) {
@@ -283,7 +289,7 @@ const handleSaveMember = async () => {
     const success = await memberStore.updateMember(editingId.value, payload)
     if (success) {
       await uploadPhotoToMember(editingId.value)
-      notificationStore.success('Aktualisiert')
+      notificationStore.success('Mitglied aktualisiert')
       closeMemberModal()
     }
   } else {
@@ -332,7 +338,7 @@ const deleteMember = async (id) => {
   if (confirm('Mitglied wirklich unwiderruflich löschen?')) {
     try {
       await apiService.delete(`/members/${id}`)
-      notificationStore.success('Gelöscht')
+      notificationStore.success('Mitglied gelöscht')
       await memberStore.getMembers()
     } catch (e) { notificationStore.error('Fehler beim Löschen') }
   }
@@ -352,15 +358,11 @@ onMounted(() => memberStore.getMembers())
 </script>
 
 <style scoped lang="scss">
-:root {
+.admin-members {
   --primary: #3b82f6;
   --success: #10b981;
-  --danger: #ef4444;
   --bg-main: #f8fafc;
   --border: #e2e8f0;
-}
-
-.admin-members {
   padding: 1.5rem;
   background: white;
   min-height: 100%;
@@ -371,22 +373,22 @@ onMounted(() => memberStore.getMembers())
   justify-content: space-between;
   align-items: center;
   margin-bottom: 2rem;
-  
   h2 { font-size: 1.5rem; color: #1e293b; }
 }
 
-/* Tabelle Styling */
+.page-subtitle, .modal-subtitle { color: #64748b; margin-top: 0.25rem; }
+
+/* Tabelle */
 .members-table-wrapper {
   background: white;
   border-radius: 12px;
   border: 1px solid var(--border);
-  overflow: hidden;
+  overflow-x: auto;
 }
 
 .members-table {
   width: 100%;
   border-collapse: collapse;
-  
   th {
     background: #f1f5f9;
     padding: 1rem;
@@ -395,7 +397,6 @@ onMounted(() => memberStore.getMembers())
     color: #64748b;
     text-align: left;
   }
-
   td {
     padding: 1rem;
     border-bottom: 1px solid var(--border);
@@ -403,236 +404,127 @@ onMounted(() => memberStore.getMembers())
   }
 }
 
-.avatar-mini {
-  width: 40px;
-  height: 40px;
-  border-radius: 50%;
+.photo-cell { width: 74px; }
+.member-thumb-frame {
+  width: 44px; height: 44px;
+  border-radius: 10px;
   overflow: hidden;
   background: #e2e8f0;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font-weight: bold;
-  font-size: 0.8rem;
-  color: #64748b;
-  
-  img { width: 100%; height: 100%; object-fit: cover; }
+  display: flex; align-items: center; justify-content: center;
+  border: 1px solid var(--border);
 }
 
-/* Modal Layout */
+.member-thumb { width: 100%; height: 100%; object-fit: cover; }
+.member-thumb-placeholder { font-size: 0.8rem; font-weight: bold; color: #64748b; }
+
+.badge {
+  display: inline-flex; padding: 0.3rem 0.7rem; border-radius: 999px;
+  font-size: 0.8rem; font-weight: 600;
+}
+.badge-success { background: #dcfce7; color: #166534; }
+.badge-light { background: #f1f5f9; color: #475569; }
+
+.role-tag { background: #f1f5f9; color: #475569; padding: 0.25rem 0.6rem; border-radius: 6px; font-size: 0.75rem; font-weight: 600; }
+.member-code { background: #f8fafc; padding: 0.2rem 0.4rem; border-radius: 4px; border: 1px solid var(--border); font-size: 0.85rem; }
+
+.action-cell { display: flex; justify-content: flex-end; gap: 0.5rem; }
+
+/* Modal */
 .modal-overlay {
-  position: fixed;
-  inset: 0;
-  background: rgba(15, 23, 42, 0.7);
-  backdrop-filter: blur(4px);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  z-index: 1000;
-  padding: 1rem;
+  position: fixed; inset: 0;
+  background: rgba(15, 23, 42, 0.7); backdrop-filter: blur(4px);
+  display: flex; align-items: center; justify-content: center; z-index: 1000; padding: 1rem;
 }
 
 .modal-card {
-  background: white;
-  width: 100%;
-  max-width: 900px;
-  max-height: 90vh;
-  border-radius: 16px;
-  display: flex;
-  flex-direction: column;
+  background: white; width: 100%; max-width: 900px; max-height: 90vh;
+  border-radius: 16px; display: flex; flex-direction: column;
   box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25);
 }
 
 .modal-header {
-  padding: 1.5rem;
-  border-bottom: 1px solid var(--border);
-  display: flex;
-  justify-content: space-between;
-  
+  padding: 1.5rem; border-bottom: 1px solid var(--border);
+  display: flex; justify-content: space-between;
   h3 { margin: 0; font-size: 1.25rem; }
-  .modal-subtitle { font-size: 0.875rem; color: #64748b; margin: 0.25rem 0 0; }
 }
 
-.modal-body-layout {
-  display: grid;
-  grid-template-columns: 260px 1fr;
-  overflow: hidden;
-}
+.modal-body-layout { display: grid; grid-template-columns: 260px 1fr; overflow: hidden; }
 
 .modal-sidebar {
-  padding: 1.5rem;
-  background: #f8fafc;
-  border-right: 1px solid var(--border);
-  display: flex;
-  flex-direction: column;
-  gap: 1.5rem;
+  padding: 1.5rem; background: var(--bg-main);
+  border-right: 1px solid var(--border); display: flex; flex-direction: column; gap: 1.5rem;
 }
 
-.modal-form-content {
-  padding: 1.5rem;
-  overflow-y: auto;
-  max-height: calc(90vh - 160px);
-}
+.modal-form-content { padding: 1.5rem; overflow-y: auto; max-height: calc(90vh - 160px); }
 
-/* Photo Uploader */
 .avatar-display {
-  width: 150px;
-  height: 150px;
-  margin: 0 auto;
-  border-radius: 20px;
-  background: #fff;
-  border: 2px dashed #cbd5e1;
-  position: relative;
-  overflow: hidden;
-  cursor: pointer;
-  transition: all 0.2s;
-
-  &:hover {
-    border-color: var(--primary);
-    .hover-overlay { opacity: 1; }
-  }
-
-  .profile-img { width: 100%; height: 100%; object-fit: cover; }
-  .photo-placeholder {
-    height: 100%;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    text-align: center;
-    padding: 1rem;
-    font-size: 0.8rem;
-    color: #94a3b8;
-  }
-  .hover-overlay {
-    position: absolute; inset: 0; background: rgba(0,0,0,0.5);
-    color: white; display: flex; align-items: center; justify-content: center;
-    opacity: 0; transition: 0.2s;
-  }
+  width: 150px; height: 150px; margin: 0 auto;
+  border-radius: 20px; background: #fff; border: 2px dashed #cbd5e1;
+  position: relative; overflow: hidden; cursor: pointer;
+  &:hover .hover-overlay { opacity: 1; }
 }
 
-/* Sidebar Info */
-.sidebar-info-box {
-  display: flex;
-  flex-direction: column;
-  gap: 1rem;
+.profile-img { width: 100%; height: 100%; object-fit: cover; }
+.photo-placeholder { height: 100%; display: flex; align-items: center; justify-content: center; color: #94a3b8; font-size: 0.8rem; }
+.hover-overlay {
+  position: absolute; inset: 0; background: rgba(0,0,0,0.4);
+  color: white; display: flex; align-items: center; justify-content: center; opacity: 0; transition: 0.2s;
 }
 
-.checkbox-card {
-  display: flex;
-  gap: 0.75rem;
-  padding: 0.75rem;
-  background: white;
-  border: 1px solid var(--border);
-  border-radius: 10px;
-  cursor: pointer;
-  
-  .checkbox-content {
-    display: flex;
-    flex-direction: column;
-    .label { font-weight: 600; font-size: 0.9rem; }
-    .desc { font-size: 0.75rem; color: #64748b; }
-  }
-}
-
-.balance-display {
-  padding: 1rem;
-  background: #ecfdf5;
-  border: 1px solid #a7f3d0;
-  border-radius: 10px;
-  
-  .label { font-size: 0.7rem; text-transform: uppercase; color: #065f46; font-weight: bold; }
-  .value { display: block; font-size: 1.25rem; font-weight: bold; color: #047857; margin: 0.25rem 0; }
+.summary-card {
+  padding: 1rem; border-radius: 10px; border: 1px solid #a7f3d0; background: #ecfdf5;
+  .label { font-size: 0.7rem; text-transform: uppercase; color: #065f46; font-weight: 700; }
+  .value { display: block; font-size: 1.3rem; font-weight: 700; color: #047857; margin-top: 0.25rem; }
 }
 
 .recharge-trigger {
-  display: flex;
-  gap: 0.5rem;
-  margin-top: 0.5rem;
-  
-  input { width: 100%; padding: 0.4rem; border: 1px solid #a7f3d0; border-radius: 4px; }
-  button { background: #059669; color: white; border: none; padding: 0.4rem 0.6rem; border-radius: 4px; font-size: 0.75rem; cursor: pointer; }
+  display: flex; gap: 0.5rem; margin-top: 0.75rem;
+  input { width: 100%; padding: 0.4rem; border: 1px solid #a7f3d0; border-radius: 6px; font-size: 0.9rem; }
+  .btn-recharge { background: #059669; color: white; border: none; padding: 0.4rem 0.75rem; border-radius: 6px; font-weight: 600; cursor: pointer; }
 }
 
-/* Form Sektionen */
+.checkbox-card {
+  display: flex; gap: 0.75rem; padding: 0.9rem 1rem; background: white; border: 1px solid var(--border); border-radius: 10px; cursor: pointer;
+  .label { font-weight: 600; font-size: 0.9rem; }
+  .desc { font-size: 0.75rem; color: #64748b; display: block; }
+}
+
 .form-section {
   margin-bottom: 2rem;
-  
-  h4 {
-    font-size: 0.875rem;
-    text-transform: uppercase;
-    letter-spacing: 0.05em;
-    color: #64748b;
-    border-bottom: 1px solid var(--border);
-    padding-bottom: 0.5rem;
-    margin-bottom: 1rem;
-  }
-
-  &.highlight {
-    background: #f0f7ff;
-    padding: 1rem;
-    border-radius: 12px;
-    border: 1px solid #bae6fd;
-  }
+  h4 { font-size: 0.875rem; text-transform: uppercase; color: #64748b; border-bottom: 1px solid var(--border); padding-bottom: 0.5rem; margin-bottom: 1rem; }
+  &.highlight-box { background: #f0f7ff; padding: 1.25rem; border-radius: 12px; border: 1px solid #bae6fd; }
 }
 
-.form-row {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 1rem;
-}
-
+.form-row { display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; }
 .form-group {
   margin-bottom: 1rem;
   label { display: block; font-size: 0.875rem; font-weight: 500; margin-bottom: 0.4rem; color: #1e293b; }
   input, select, textarea {
-    width: 100%;
-    padding: 0.6rem 0.8rem;
-    border: 1px solid var(--border);
-    border-radius: 8px;
-    font-size: 0.95rem;
+    width: 100%; padding: 0.6rem 0.8rem; border: 1px solid var(--border); border-radius: 8px; font-size: 0.95rem;
     &:focus { outline: none; border-color: var(--primary); box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1); }
   }
 }
 
-.password-box {
-  margin-top: 1rem;
-  padding-top: 1rem;
-  border-top: 1px dashed #bae6fd;
-  .help-text { font-size: 0.75rem; color: #64748b; margin-top: 0.4rem; }
-}
+.password-box { margin-top: 1rem; padding-top: 1rem; border-top: 1px dashed #bae6fd; }
+.help-text { font-size: 0.75rem; color: #64748b; margin-top: 0.4rem; }
 
 /* Buttons */
-.modal-footer {
-  grid-column: 1 / -1;
-  padding: 1.5rem;
-  border-top: 1px solid var(--border);
-  display: flex;
-  justify-content: flex-end;
-  gap: 1rem;
-}
-
-.btn {
-  padding: 0.6rem 1.2rem;
-  border-radius: 8px;
-  font-weight: 600;
-  cursor: pointer;
-  border: none;
-  transition: 0.2s;
-}
-
+.btn { padding: 0.6rem 1.2rem; border-radius: 8px; font-weight: 600; cursor: pointer; border: none; }
 .btn-primary { background: var(--primary); color: white; }
 .btn-success { background: var(--success); color: white; }
 .btn-secondary { background: #e2e8f0; color: #475569; }
 
-.btn-icon {
-  background: none; border: none; padding: 0.4rem; cursor: pointer; border-radius: 4px;
-  &:hover { background: #f1f5f9; }
-  &.btn-icon-danger:hover { background: #fee2e2; }
+.btn-action {
+  border: 1px solid var(--border); background: white; color: #334155;
+  padding: 0.45rem 0.75rem; border-radius: 8px; cursor: pointer; font-weight: 600;
 }
+.btn-action-danger { border-color: #fecaca; color: #b91c1c; }
+
+.modal-footer { padding: 1.5rem; border-top: 1px solid var(--border); display: flex; justify-content: flex-end; gap: 1rem; }
+.modal-close { border: none; background: transparent; font-size: 1.6rem; cursor: pointer; color: #6b7280; }
 
 @media (max-width: 768px) {
-  .modal-body-layout { grid-template-columns: 1fr; }
+  .modal-body-layout, .form-row { grid-template-columns: 1fr; }
   .modal-sidebar { border-right: none; border-bottom: 1px solid var(--border); }
-  .form-row { grid-template-columns: 1fr; }
 }
 </style>
