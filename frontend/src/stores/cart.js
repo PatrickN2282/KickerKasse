@@ -10,7 +10,12 @@ export const useCartStore = defineStore('cart', () => {
   const appliedVouchers = ref([])
   const appliedBalanceCents = ref(0)
 
+  const buildLineId = (productId, isInternalMaterial = false) => (
+    `${productId}:${isInternalMaterial ? 'internal' : 'regular'}`
+  )
+
   const cloneCartItem = (item) => ({
+    line_id: item.line_id || buildLineId(item.product_id, item.is_internal_material),
     product_id: item.product_id,
     product_name: item.product_name,
     quantity: item.quantity,
@@ -22,7 +27,8 @@ export const useCartStore = defineStore('cart', () => {
   })
 
   const addItem = (product, maxQuantity = product.stock_quantity) => {
-    const existingItem = items.value.find(item => item.product_id === product.id)
+    const lineId = buildLineId(product.id, product.is_internal_material)
+    const existingItem = items.value.find(item => item.line_id === lineId)
     const allowedQuantity = Math.max(Number(maxQuantity ?? product.stock_quantity ?? 0), 0)
 
     if (existingItem) {
@@ -45,6 +51,7 @@ export const useCartStore = defineStore('cart', () => {
           ? product.member_price_cents
           : product.price_cents)
     items.value.push({
+      line_id: lineId,
       product_id: product.id,
       product_name: product.name,
       quantity: 1,
@@ -74,12 +81,12 @@ export const useCartStore = defineStore('cart', () => {
     })
   }
 
-  const removeItem = (productId) => {
-    items.value = items.value.filter(item => item.product_id !== productId)
+  const removeItem = (lineId) => {
+    items.value = items.value.filter(item => item.line_id !== lineId)
   }
 
-  const updateItemQuantity = (productId, quantity, maxQuantity = null) => {
-    const item = items.value.find(item => item.product_id === productId)
+  const updateItemQuantity = (lineId, quantity, maxQuantity = null) => {
+    const item = items.value.find(item => item.line_id === lineId)
     if (item) {
       const maxAllowed = (maxQuantity === null || maxQuantity === undefined)
         ? Math.max(item.quantity, 0)
@@ -87,7 +94,7 @@ export const useCartStore = defineStore('cart', () => {
       item.quantity = Math.min(Math.max(0, quantity), maxAllowed)
       item.total_price_cents = item.quantity * item.unit_price_cents
       if (item.quantity === 0) {
-        removeItem(productId)
+        removeItem(lineId)
       }
       return { success: quantity <= maxAllowed, quantity: item.quantity }
     }

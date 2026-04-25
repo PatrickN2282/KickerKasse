@@ -135,7 +135,7 @@
             </div>
             <div class="summary-card neutral">
               <div class="card-label">
-                Materialkonto
+                Gutscheinkonto
               </div>
               <div class="card-value">
                 {{ formatEuroValue(dailyStats.club_account_total) }}
@@ -575,33 +575,69 @@
             </tr>
           </thead>
           <tbody>
-            <tr
+            <template
               v-for="transaction in filteredTransactions"
               :key="transaction.id"
             >
-              <td>{{ formatDate(transaction.created_at) }}</td>
-              <td>{{ formatTime(transaction.created_at) }}</td>
-              <td><strong>{{ transaction.receipt_number }}</strong></td>
-              <td>{{ getTransactionMemberLabel(transaction) }}</td>
-              <td class="amount">
-                {{ formatPrice(transaction.total_amount_cents) }}
-              </td>
-              <td>
-                <span
-                  v-if="transaction.type === 'RECHARGE'"
-                  class="payment-badge recharge"
+              <tr
+                class="transaction-row"
+                style="cursor: pointer;"
+                @click="toggleTransaction(transaction.id)"
+              >
+                <td>{{ formatDate(transaction.created_at) }}</td>
+                <td>{{ formatTime(transaction.created_at) }}</td>
+                <td><strong>{{ transaction.receipt_number }}</strong></td>
+                <td>{{ getTransactionMemberLabel(transaction) }}</td>
+                <td class="amount">
+                  {{ formatPrice(transaction.total_amount_cents) }}
+                </td>
+                <td>
+                  <span
+                    v-if="transaction.type === 'RECHARGE'"
+                    class="payment-badge recharge"
+                  >
+                    ⬆️ Aufladen
+                  </span>
+                  <span
+                    v-else
+                    :class="['payment-badge', getPaymentBadgeClass(transaction)]"
+                  >
+                    {{ getPaymentBadgeLabel(transaction) }}
+                  </span>
+                </td>
+                <td>{{ transaction.user?.username || '-' }}</td>
+              </tr>
+              <tr
+                v-if="expandedTransactions.has(transaction.id)"
+                class="items-row"
+              >
+                <td
+                  colspan="7"
+                  class="items-cell"
                 >
-                  ⬆️ Aufladen
-                </span>
-                <span
-                  v-else
-                  :class="['payment-badge', getPaymentBadgeClass(transaction)]"
-                >
-                  {{ getPaymentBadgeLabel(transaction) }}
-                </span>
-              </td>
-              <td>{{ transaction.user?.username || '-' }}</td>
-            </tr>
+                  <div class="items-list">
+                    <div v-if="transaction.items && transaction.items.length > 0">
+                      <div
+                        v-for="item in transaction.items"
+                        :key="item.id"
+                        class="item-detail"
+                      >
+                        <span class="item-name">{{ item.product?.name || item.id }}: </span>
+                        <span class="item-qty">{{ item.quantity }}×</span>
+                        <span class="item-price">{{ formatPrice(item.unit_price_cents) }}</span>
+                        <span class="item-total">= {{ formatPrice(item.total_price_cents) }}</span>
+                      </div>
+                    </div>
+                    <div
+                      v-else
+                      class="no-items"
+                    >
+                      Keine Artikel
+                    </div>
+                  </div>
+                </td>
+              </tr>
+            </template>
           </tbody>
         </table>
         <div
@@ -799,34 +835,34 @@
       <div class="summary-grid">
         <div class="summary-card neutral">
           <div class="card-label">
-            Gutscheinkonto offen
+            Gutscheinkonto Saldo
           </div>
           <div class="card-value">
-            {{ formatEuroValue(dailyStats.voucher_open_total) }}
+            {{ formatPrice(clubAccount.balance_cents) }}
           </div>
         </div>
         <div class="summary-card neutral">
           <div class="card-label">
+            Materialkonto gesamt
+          </div>
+          <div class="card-value">
+            {{ formatEuroValue(dailyStats.material_account_total) }}
+          </div>
+        </div>
+        <div class="summary-card">
+          <div class="card-label">
+            Gutscheinbuchungen
+          </div>
+          <div class="card-value">
+            {{ clubAccount.entries.length }}
+          </div>
+        </div>
+        <div class="summary-card">
+          <div class="card-label">
             Materialbuchungen
           </div>
           <div class="card-value">
-            {{ materialAccount.total_quantity }}
-          </div>
-        </div>
-        <div class="summary-card">
-          <div class="card-label">
-            Offene Gutscheine
-          </div>
-          <div class="card-value">
-            {{ dailyStats.voucher_open_count }}
-          </div>
-        </div>
-        <div class="summary-card">
-          <div class="card-label">
-            Gutscheine erstellt
-          </div>
-          <div class="card-value">
-            {{ dailyStats.voucher_created_count }}
+            {{ materialAccount.entries.length }}
           </div>
         </div>
       </div>
@@ -835,33 +871,113 @@
         <div class="zbon-section-header">
           <div>
             <h4>Gutscheinkonto</h4>
-            <p>Überblick über offene, erstellte und eingelöste Gutscheinwerte.</p>
+            <p>Saldo und Verlauf aller Buchungen auf dem Gutscheinkonto.</p>
           </div>
         </div>
         <div class="summary-grid zbon-card-grid secondary">
           <div class="summary-card neutral">
             <div class="card-label">
-              Offen
+              Kontostand
+            </div>
+            <div class="card-value">
+              {{ formatPrice(clubAccount.balance_cents) }}
+            </div>
+          </div>
+          <div class="summary-card neutral">
+            <div class="card-label">
+              Buchungen
+            </div>
+            <div class="card-value">
+              {{ clubAccount.entries.length }}
+            </div>
+          </div>
+          <div class="summary-card neutral">
+            <div class="card-label">
+              Offene Gutscheine
             </div>
             <div class="card-value">
               {{ formatEuroValue(dailyStats.voucher_open_total) }}
             </div>
           </div>
-          <div class="summary-card neutral">
-            <div class="card-label">
-              Erstellt
-            </div>
-            <div class="card-value">
-              {{ formatEuroValue(dailyStats.voucher_created_total) }}
-            </div>
-          </div>
-          <div class="summary-card neutral">
-            <div class="card-label">
-              Eingelöst
-            </div>
-            <div class="card-value">
-              {{ formatEuroValue(dailyStats.voucher_redeemed_total) }}
-            </div>
+        </div>
+
+        <div class="table-container">
+          <table
+            v-if="clubAccount.entries.length"
+            class="transactions-table"
+          >
+            <thead>
+              <tr>
+                <th>Datum</th>
+                <th>Betrag</th>
+                <th>Grund</th>
+                <th>Beleg</th>
+                <th>Benutzer</th>
+              </tr>
+            </thead>
+            <tbody>
+              <template
+                v-for="entry in clubAccount.entries"
+                :key="`club-${entry.id}`"
+              >
+                <tr
+                  class="transaction-row"
+                  style="cursor: pointer;"
+                  @click="toggleInternalAccountEntry('club', entry.id)"
+                >
+                  <td>{{ formatDate(entry.created_at) }} {{ formatTime(entry.created_at) }}</td>
+                  <td class="amount" :class="{ withdrawal: entry.amount_cents < 0 }">
+                    {{ formatPrice(entry.amount_cents) }}
+                  </td>
+                  <td>{{ entry.reason }}</td>
+                  <td>{{ entry.transaction?.receipt_number ? `#${entry.transaction.receipt_number}` : '-' }}</td>
+                  <td>{{ entry.user_name || '-' }}</td>
+                </tr>
+                <tr
+                  v-if="isInternalAccountEntryExpanded('club', entry.id)"
+                  class="items-row"
+                >
+                  <td
+                    colspan="5"
+                    class="items-cell"
+                  >
+                    <div class="items-list">
+                      <div class="item-detail">
+                        <span class="item-name">Buchungsgrund</span>
+                        <span class="item-total">{{ entry.reason }}</span>
+                      </div>
+                      <div
+                        v-if="entry.voucher"
+                        class="item-detail"
+                      >
+                        <span class="item-name">Gutschein</span>
+                        <span class="item-total">
+                          {{ entry.voucher.voucher_number }} · {{ getVoucherTypeLabel(entry.voucher.voucher_type) }}
+                        </span>
+                      </div>
+                      <div v-if="entry.transaction?.items?.length">
+                        <div
+                          v-for="item in entry.transaction.items"
+                          :key="item.id"
+                          class="item-detail"
+                        >
+                          <span class="item-name">{{ item.product?.name || item.id }}: </span>
+                          <span class="item-qty">{{ item.quantity }}×</span>
+                          <span class="item-price">{{ formatPrice(item.unit_price_cents) }}</span>
+                          <span class="item-total">= {{ formatPrice(item.total_price_cents) }}</span>
+                        </div>
+                      </div>
+                    </div>
+                  </td>
+                </tr>
+              </template>
+            </tbody>
+          </table>
+          <div
+            v-else
+            class="empty"
+          >
+            Keine Buchungen im Gutscheinkonto vorhanden
           </div>
         </div>
       </section>
@@ -870,7 +986,7 @@
         <div class="zbon-section-header">
           <div>
             <h4>Materialkonto</h4>
-            <p>Gebuchte Materialbewegungen aus der Kasse mit Artikel-, Mengen- und Buchungsdaten.</p>
+            <p>Gebuchte interne Materialverkäufe mit Verlauf und Belegdaten.</p>
           </div>
         </div>
         <div class="summary-grid zbon-card-grid secondary">
@@ -882,15 +998,23 @@
               {{ materialAccount.total_quantity }}
             </div>
           </div>
-          <div class="summary-card neutral">
-            <div class="card-label">
-              Buchungen
+            <div class="summary-card neutral">
+              <div class="card-label">
+                Gesamtwert
+              </div>
+              <div class="card-value">
+                {{ formatEuroValue(dailyStats.material_account_total) }}
+              </div>
             </div>
-            <div class="card-value">
-              {{ materialAccount.entries.length }}
+            <div class="summary-card neutral">
+              <div class="card-label">
+                Buchungen
+              </div>
+              <div class="card-value">
+                {{ materialAccount.entries.length }}
+              </div>
             </div>
           </div>
-        </div>
 
         <div class="table-container">
           <table
@@ -903,24 +1027,65 @@
                 <th>Typ</th>
                 <th>Artikel</th>
                 <th>Menge</th>
+                <th>Wert</th>
                 <th>Beleg</th>
-                <th>Zahlart</th>
                 <th>Benutzer</th>
               </tr>
             </thead>
             <tbody>
-              <tr
+              <template
                 v-for="entry in materialAccount.entries"
-                :key="entry.id"
+                :key="`material-${entry.id}`"
               >
-                <td>{{ formatDate(entry.created_at) }}</td>
-                <td>{{ entry.entry_type_label }}</td>
-                <td>{{ entry.product_name || entry.reason }}</td>
-                <td>{{ entry.quantity ?? '-' }}</td>
-                <td>{{ entry.receipt_number ? `#${entry.receipt_number}` : '-' }}</td>
-                <td>{{ entry.transaction ? getPaymentBadgeLabel(entry.transaction) : '-' }}</td>
-                <td>{{ entry.user_name || '-' }}</td>
-              </tr>
+                <tr
+                  class="transaction-row"
+                  style="cursor: pointer;"
+                  @click="toggleInternalAccountEntry('material', entry.id)"
+                >
+                  <td>{{ formatDate(entry.created_at) }}</td>
+                  <td>{{ entry.entry_type_label }}</td>
+                  <td>{{ entry.product_name || entry.reason }}</td>
+                  <td>{{ entry.quantity ?? '-' }}</td>
+                  <td>{{ formatPrice(entry.amount_cents) }}</td>
+                  <td>{{ entry.receipt_number ? `#${entry.receipt_number}` : '-' }}</td>
+                  <td>{{ entry.user_name || '-' }}</td>
+                </tr>
+                <tr
+                  v-if="isInternalAccountEntryExpanded('material', entry.id)"
+                  class="items-row"
+                >
+                  <td
+                    colspan="7"
+                    class="items-cell"
+                  >
+                    <div class="items-list">
+                      <div class="item-detail">
+                        <span class="item-name">Buchungsgrund</span>
+                        <span class="item-total">{{ entry.reason }}</span>
+                      </div>
+                      <div
+                        v-if="entry.transaction"
+                        class="item-detail"
+                      >
+                        <span class="item-name">Zahlung</span>
+                        <span class="item-total">{{ getPaymentBadgeLabel(entry.transaction) }}</span>
+                      </div>
+                      <div v-if="entry.transaction?.items?.length">
+                        <div
+                          v-for="item in entry.transaction.items"
+                          :key="item.id"
+                          class="item-detail"
+                        >
+                          <span class="item-name">{{ item.product?.name || item.id }}: </span>
+                          <span class="item-qty">{{ item.quantity }}×</span>
+                          <span class="item-price">{{ formatPrice(item.unit_price_cents) }}</span>
+                          <span class="item-total">= {{ formatPrice(item.total_price_cents) }}</span>
+                        </div>
+                      </div>
+                    </div>
+                  </td>
+                </tr>
+              </template>
             </tbody>
           </table>
           <div
@@ -1277,6 +1442,7 @@ const memberSearch = ref('')
 const financeUsers = ref([])
 const zbonHtmlModalTitle = ref('📋 Z-Bon Vorschau')
 const zbonHtmlDownloadMeta = ref(null)
+const clubAccount = ref({ balance_cents: 0, entries: [] })
 const materialAccount = ref({ total_quantity: 0, entries: [] })
 const zbonForm = ref({
   createdByUserId: null,
@@ -1291,6 +1457,7 @@ const withdrawalForm = ref({
 const pendingWithdrawals = ref([])
 // Expanded transactions state
 const expandedTransactions = ref(new Set())
+const expandedInternalAccountEntries = ref(new Set())
 
 // Z-Bon HTML preview
 const zBonHtml = ref('')
@@ -1539,6 +1706,18 @@ const getSelectedVerifierName = (memberId, fallback = '-') => {
   return getMemberFullName(member) || fallback
 }
 
+const getVoucherTypeLabel = (voucherType) => {
+  if (voucherType === 'GIFT') {
+    return 'Geschenk-Gutschein'
+  }
+
+  if (voucherType === 'PREPAID') {
+    return 'Verzehrkarte'
+  }
+
+  return voucherType || '-'
+}
+
 const getCurrentFinanceUserOptionId = () => {
   if (!authStore.user?.id) return null
   const optionId = `user-${authStore.user.id}`
@@ -1727,6 +1906,26 @@ const loadMaterialAccount = async () => {
   }
 }
 
+const loadClubAccount = async () => {
+  if (!authStore.isAdmin) return
+
+  try {
+    const response = await apiService.get('/admin/vouchers/club-account')
+    clubAccount.value = response.data
+  } catch (error) {
+    console.error('Error loading club account:', error)
+  }
+}
+
+const loadInternalAccounts = async () => {
+  if (!authStore.isAdmin) return
+
+  await Promise.all([
+    loadClubAccount(),
+    loadMaterialAccount(),
+  ])
+}
+
 const toggleTransaction = (transactionId) => {
   if (expandedTransactions.value.has(transactionId)) {
     expandedTransactions.value.delete(transactionId)
@@ -1734,6 +1933,21 @@ const toggleTransaction = (transactionId) => {
     expandedTransactions.value.add(transactionId)
   }
 }
+
+const buildInternalAccountEntryKey = (accountType, entryId) => `${accountType}:${entryId}`
+
+const toggleInternalAccountEntry = (accountType, entryId) => {
+  const key = buildInternalAccountEntryKey(accountType, entryId)
+  if (expandedInternalAccountEntries.value.has(key)) {
+    expandedInternalAccountEntries.value.delete(key)
+  } else {
+    expandedInternalAccountEntries.value.add(key)
+  }
+}
+
+const isInternalAccountEntryExpanded = (accountType, entryId) => (
+  expandedInternalAccountEntries.value.has(buildInternalAccountEntryKey(accountType, entryId))
+)
 
 const openCashCounterModal = () => {
   showCashCounterModal.value = true
@@ -2066,8 +2280,13 @@ watch(activeTab, (newTab) => {
     loadRevenueStats()
   } else if (newTab === 'members' && memberStats.value.total_members === 0) {
     loadMemberStats()
-  } else if (newTab === 'internalAccounts' && authStore.isAdmin && materialAccount.value.entries.length === 0) {
-    loadMaterialAccount()
+  } else if (
+    newTab === 'internalAccounts'
+    && authStore.isAdmin
+    && !clubAccount.value.entries.length
+    && !materialAccount.value.entries.length
+  ) {
+    loadInternalAccounts()
   }
 })
 
@@ -2086,7 +2305,7 @@ onMounted(() => {
   applyFilters()
   loadRevenueStats()
   loadMemberStats()
-  loadMaterialAccount()
+  loadInternalAccounts()
   loadSchedulerStatus()
 })
 </script>

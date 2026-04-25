@@ -2,10 +2,10 @@ from datetime import datetime
 import re
 
 from sqlalchemy import func
-from sqlalchemy.orm import Session
+from sqlalchemy.orm import Session, joinedload
 
 from app.constants import INTERNAL_MATERIAL_CATEGORY_NAME
-from app.models import ClubAccountEntry, MaterialAccountEntry, Transaction
+from app.models import ClubAccountEntry, MaterialAccountEntry, Transaction, TransactionItem
 
 
 class MaterialAccountService:
@@ -20,6 +20,10 @@ class MaterialAccountService:
     def is_internal_material_product(product) -> bool:
         categories = getattr(product, "categories", None) or []
         return any((getattr(category, "name", None) or "").strip() == INTERNAL_MATERIAL_CATEGORY_NAME for category in categories)
+
+    def is_internal_material_sale_item(self, item) -> bool:
+        product = getattr(item, "product", None)
+        return bool(product and self.is_internal_material_product(product) and item.unit_price_cents == 0)
 
     @staticmethod
     def _resolve_material_amount_cents(transaction: Transaction, item) -> int:
@@ -36,9 +40,9 @@ class MaterialAccountService:
 
     def record_sale_transaction(self, transaction: Transaction) -> None:
         for item in transaction.items:
-            product = getattr(item, "product", None)
-            if not product or not self.is_internal_material_product(product):
+            if not self.is_internal_material_sale_item(item):
                 continue
+            product = item.product
 
             self.db.add(MaterialAccountEntry(
                 amount_cents=self._resolve_material_amount_cents(transaction, item),
@@ -87,9 +91,9 @@ class MaterialAccountService:
         # has internal material items but no persisted material-account entry rows yet.
         reference_items = getattr(reference_transaction, "items", None) or []
         for item in reference_items:
-            product = getattr(item, "product", None)
-            if not product or not self.is_internal_material_product(product):
+            if not self.is_internal_material_sale_item(item):
                 continue
+            product = item.product
 
             self.db.add(MaterialAccountEntry(
                 amount_cents=-self._resolve_material_amount_cents(reference_transaction, item),
@@ -111,7 +115,11 @@ class MaterialAccountService:
         return query.scalar() or 0
 
     def get_account_summary(self) -> dict:
-        entries = self.db.query(MaterialAccountEntry).order_by(MaterialAccountEntry.created_at.desc()).all()
+        entries = self.db.query(MaterialAccountEntry).options(
+            joinedload(MaterialAccountEntry.user),
+            joinedload(MaterialAccountEntry.transaction).joinedload(Transaction.items).joinedload(TransactionItem.product),
+            joinedload(MaterialAccountEntry.transaction).joinedload(Transaction.member),
+        ).order_by(MaterialAccountEntry.created_at.desc()).all()
         serialized_entries = []
         total_quantity = 0
 
@@ -138,11 +146,27 @@ class MaterialAccountService:
                 "created_at": entry.created_at,
                 "receipt_number": transaction.receipt_number if transaction else None,
                 "transaction": {
+                    "id": transaction.id,
+                    "receipt_number": transaction.receipt_number,
                     "payment_method": transaction.payment_method.value if transaction and transaction.payment_method else None,
                     "voucher_applied_cents": transaction.voucher_applied_cents if transaction else 0,
                     "balance_applied_cents": transaction.balance_applied_cents if transaction else 0,
                     "voucher_type": transaction.voucher_type if transaction else None,
                     "type": transaction.type.value if transaction and transaction.type else None,
+                    "member_name": transaction.member.name if transaction and transaction.member else None,
+                    "items": [
+                        {
+                            "id": transaction_item.id,
+                            "quantity": transaction_item.quantity,
+                            "unit_price_cents": transaction_item.unit_price_cents,
+                            "total_price_cents": transaction_item.total_price_cents,
+                            "product": {
+                                "id": transaction_item.product.id,
+                                "name": transaction_item.product.name,
+                            } if transaction_item.product else None,
+                        }
+                        for transaction_item in (transaction.items if transaction else [])
+                    ],
                 } if transaction else None,
             })
 
