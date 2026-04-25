@@ -31,13 +31,14 @@ class DataMaintenanceService:
     def __init__(self, db: Session):
         self.db = db
 
-    def _restore_fixed_categories(self) -> None:
-        self.db.add(Category(
+    @staticmethod
+    def _build_fixed_internal_material_category() -> Category:
+        return Category(
             name=INTERNAL_MATERIAL_CATEGORY_NAME,
             description=INTERNAL_MATERIAL_CATEGORY_DESCRIPTION,
             is_active_in_kasse=True,
             display_order=999,
-        ))
+        )
 
     def hard_reset(self) -> dict:
         member_ids = [member_id for (member_id,) in self.db.query(Member.id).all()]
@@ -60,7 +61,7 @@ class DataMaintenanceService:
         self.db.query(Member).delete(synchronize_session=False)
         self.db.query(Product).delete(synchronize_session=False)
         self.db.query(Category).delete(synchronize_session=False)
-        self._restore_fixed_categories()
+        self.db.add(self._build_fixed_internal_material_category())
         self.db.commit()
 
         for member_id in member_ids:
