@@ -843,10 +843,10 @@
         </div>
         <div class="summary-card neutral">
           <div class="card-label">
-            Materialkonto gesamt
+            Materialartikel gesamt
           </div>
           <div class="card-value">
-            {{ formatEuroValue(dailyStats.material_account_total) }}
+            {{ materialAccount.total_quantity }}
           </div>
         </div>
         <div class="summary-card">
@@ -881,7 +881,10 @@
               {{ isInternalAccountSectionExpanded('club') ? 'Ausblenden' : 'Einblenden' }}
             </button>
           </div>
-          <div v-if="isInternalAccountSectionExpanded('club')" class="internal-account-section-body">
+          <div
+            v-if="isInternalAccountSectionExpanded('club')"
+            class="internal-account-section-body"
+          >
             <div class="summary-grid zbon-card-grid secondary">
               <div class="summary-card neutral">
                 <div class="card-label">
@@ -1004,7 +1007,10 @@
               {{ isInternalAccountSectionExpanded('material') ? 'Ausblenden' : 'Einblenden' }}
             </button>
           </div>
-          <div v-if="isInternalAccountSectionExpanded('material')" class="internal-account-section-body">
+          <div
+            v-if="isInternalAccountSectionExpanded('material')"
+            class="internal-account-section-body"
+          >
             <div class="summary-grid zbon-card-grid secondary">
               <div class="summary-card neutral">
                 <div class="card-label">
@@ -1012,14 +1018,6 @@
                 </div>
                 <div class="card-value">
                   {{ materialAccount.total_quantity }}
-                </div>
-              </div>
-              <div class="summary-card neutral">
-                <div class="card-label">
-                  Gesamtwert
-                </div>
-                <div class="card-value">
-                  {{ formatEuroValue(dailyStats.material_account_total) }}
                 </div>
               </div>
               <div class="summary-card neutral">
@@ -1038,15 +1036,14 @@
                 class="transactions-table"
               >
                 <thead>
-                  <tr>
-                    <th>Datum</th>
-                    <th>Typ</th>
-                    <th>Artikel</th>
-                    <th>Menge</th>
-                    <th>Wert</th>
-                    <th>Beleg</th>
-                    <th>Benutzer</th>
-                  </tr>
+                    <tr>
+                      <th>Datum</th>
+                      <th>Typ</th>
+                      <th>Artikel</th>
+                      <th>Menge</th>
+                      <th>Beleg</th>
+                      <th>Benutzer</th>
+                    </tr>
                 </thead>
                 <tbody>
                   <template
@@ -1062,7 +1059,6 @@
                       <td>{{ entry.entry_type_label }}</td>
                       <td>{{ entry.product_name || entry.reason }}</td>
                       <td>{{ entry.quantity ?? '-' }}</td>
-                      <td>{{ formatPrice(entry.amount_cents) }}</td>
                       <td>{{ entry.receipt_number ? `#${entry.receipt_number}` : '-' }}</td>
                       <td>{{ entry.user_name || '-' }}</td>
                     </tr>
@@ -1071,7 +1067,7 @@
                       class="items-row"
                     >
                       <td
-                        colspan="7"
+                        colspan="6"
                         class="items-cell"
                       >
                         <div class="items-list">
@@ -1094,8 +1090,6 @@
                             >
                               <span class="item-name">{{ item.product?.name || item.id }}: </span>
                               <span class="item-qty">{{ item.quantity }}×</span>
-                              <span class="item-price">{{ formatPrice(item.unit_price_cents) }}</span>
-                              <span class="item-total">= {{ formatPrice(item.total_price_cents) }}</span>
                               <div v-if="item.note" class="item-detail-note">
                                 Notiz: {{ item.note }}
                               </div>
@@ -1486,7 +1480,7 @@ const pendingWithdrawals = ref([])
 // Expanded transactions state
 const expandedTransactions = ref(new Set())
 const expandedInternalAccountEntries = ref(new Set())
-const expandedInternalAccountSections = ref(new Set(['club', 'material']))
+const expandedInternalAccountSections = ref(new Set())
 
 // Z-Bon HTML preview
 const zBonHtml = ref('')
@@ -2454,8 +2448,8 @@ onMounted(() => {
 }
 
 .internal-account-sections {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(340px, 1fr));
+  display: flex;
+  flex-direction: column;
   gap: 1rem;
 }
 
