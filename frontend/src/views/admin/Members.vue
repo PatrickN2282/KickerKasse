@@ -363,7 +363,7 @@ onMounted(() => memberStore.getMembers())
 .admin-members {
   padding: 1.5rem;
   background: white;
-  min-height: 100vh;
+  min-height: 100%;
 }
 
 .page-header {

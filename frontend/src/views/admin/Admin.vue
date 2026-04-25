@@ -99,8 +99,8 @@ const isTabActive = (path) => route.path === path
 .tab-content {
   flex: 1;
   min-height: 0;
+  overflow-x: hidden;
   overflow-y: auto;
-  padding-right: 0.25rem;
   animation: fadeIn 0.2s;
 }
 
