@@ -2,351 +2,182 @@
   <div class="admin-members">
     <div class="page-header">
       <h2>Mitgliederverwaltung</h2>
-      <button
-        class="btn btn-primary"
-        @click="openCreateModal"
-      >
-        Neues Mitglied
+      <button class="btn btn-primary" @click="openCreateModal">
+        <span class="icon">+</span> Neues Mitglied
       </button>
     </div>
 
-    <div
-      v-if="memberStore.isLoading"
-      class="loading"
-    >
-      Läuft...
+    <div v-if="memberStore.isLoading" class="loading-state">
+      <div class="spinner"></div>
+      <p>Daten werden geladen...</p>
     </div>
-    <div
-      v-else
-      class="members-table"
-    >
-      <table>
+
+    <div v-else class="members-table-wrapper">
+      <table class="members-table">
         <thead>
           <tr>
-            <th style="width: 60px;">
-              Foto
-            </th>
+            <th style="width: 70px;">Foto</th>
             <th>Nr.</th>
             <th>Mitgliedsnummer</th>
             <th>Name</th>
             <th>Rabatt</th>
             <th v-if="authStore.isTopAdmin">Rolle</th>
-            <th v-if="authStore.isTopAdmin">E-Mail</th>
-            <th v-if="authStore.isTopAdmin">Telefon</th>
+            <th v-if="authStore.isTopAdmin">Kontakt</th>
             <th>Guthaben</th>
-            <th>Aktionen</th>
+            <th class="text-right">Aktionen</th>
           </tr>
         </thead>
         <tbody>
-          <tr
-            v-for="member in memberStore.members"
-            :key="member.id"
-          >
-            <td class="photo-cell">
-              <img
-                v-if="member.photo_path"
-                :src="`/api/members/${member.id}/photo`"
-                :alt="getMemberFullName(member)"
-                class="member-thumb"
-              >
-              <span
-                v-else
-                class="no-photo"
-              >-</span>
+          <tr v-for="member in memberStore.members" :key="member.id">
+            <td>
+              <div class="avatar-mini">
+                <img v-if="member.photo_path" :src="`/api/members/${member.id}/photo`" :alt="getMemberFullName(member)">
+                <span v-else class="avatar-placeholder">{{ member.first_name[0] }}{{ member.last_name[0] }}</span>
+              </div>
             </td>
             <td>{{ member.member_number }}</td>
-            <td>{{ member.membership_number || '-' }}</td>
-            <td>{{ getMemberFullName(member) }}</td>
-            <td>{{ member.has_discount ? 'Ja' : 'Nein' }}</td>
-            <td v-if="authStore.isTopAdmin">{{ getRoleLabel(member.role) }}</td>
-            <td v-if="authStore.isTopAdmin">{{ member.email || '-' }}</td>
-            <td v-if="authStore.isTopAdmin">{{ member.phone || '-' }}</td>
-            <td class="balance">
-              {{ formatBalance(member.balance_cents) }}
-            </td>
+            <td><code class="member-code">{{ member.membership_number || '-' }}</code></td>
+            <td class="font-bold">{{ getMemberFullName(member) }}</td>
             <td>
-              <button
-                class="btn-small"
-                @click="editMember(member)"
-              >
-                Bearbeiten
-              </button>
-              <button
-                class="btn-small btn-danger"
-                :disabled="!authStore.isAdmin"
-                @click="deleteMember(member.id)"
-              >
-                Löschen
-              </button>
+              <span :class="['badge', member.has_discount ? 'badge-success' : 'badge-light']">
+                {{ member.has_discount ? 'Ja' : 'Nein' }}
+              </span>
+            </td>
+            <td v-if="authStore.isTopAdmin">
+              <span class="role-tag">{{ getRoleLabel(member.role) }}</span>
+            </td>
+            <td v-if="authStore.isTopAdmin" class="contact-cell">
+              <div class="small-text">{{ member.email || '-' }}</div>
+              <div class="small-text text-muted">{{ member.phone || '' }}</div>
+            </td>
+            <td class="balance-cell">{{ formatBalance(member.balance_cents) }}</td>
+            <td class="text-right">
+              <button class="btn-icon" @click="editMember(member)" title="Bearbeiten">✏️</button>
+              <button class="btn-icon btn-icon-danger" :disabled="!authStore.isAdmin" @click="deleteMember(member.id)" title="Löschen">🗑️</button>
             </td>
           </tr>
         </tbody>
       </table>
     </div>
 
-    <div
-      v-if="showMemberModal"
-      class="modal-overlay"
-      @click.self="closeMemberModal"
-    >
-      <div class="modal-card modal-card-horizontal">
-        <div class="modal-header">
+    <div v-if="showMemberModal" class="modal-overlay" @click.self="closeMemberModal">
+      <div class="modal-card">
+        <header class="modal-header">
           <div>
-            <h3>{{ editingId ? 'Mitglied bearbeiten' : 'Neues Mitglied anlegen' }}</h3>
-            <p class="modal-subtitle">
-              Mitglied anlegen oder aktualisieren und alle relevanten Angaben gesammelt pflegen.
-            </p>
+            <h3>{{ editingId ? 'Mitglied bearbeiten' : 'Neues Mitglied' }}</h3>
+            <p class="modal-subtitle">Stammdaten und Berechtigungen verwalten</p>
           </div>
-          <button
-            class="modal-close"
-            @click="closeMemberModal"
-          >
-            ×
-          </button>
-        </div>
+          <button class="modal-close" @click="closeMemberModal">×</button>
+        </header>
 
-        <form
-          class="modal-form modal-form-horizontal"
-          @submit.prevent="handleSaveMember"
-        >
-          <section class="modal-section modal-section-horizontal">
-            <h4 class="modal-section-title">
-              Basisdaten
-            </h4>
-            <div class="form-group">
-              <label for="first_name">Vorname*</label>
-              <input
-                id="first_name"
-                v-model="formData.first_name"
-                type="text"
-                class="form-input"
-                required
-              >
+        <form class="modal-body-layout" @submit.prevent="handleSaveMember">
+          <aside class="modal-sidebar">
+            <div class="photo-uploader">
+              <div class="avatar-display" @click="$refs.fileInput.click()">
+                <img v-if="photoPreview" :src="photoPreview" class="profile-img">
+                <div v-else class="photo-placeholder">
+                  <span>Bild hochladen</span>
+                </div>
+                <div class="hover-overlay">Ändern</div>
+              </div>
+              <input type="file" ref="fileInput" hidden @change="handlePhotoUpload" accept="image/*">
             </div>
-            <div class="form-group">
-              <label for="last_name">Nachname*</label>
-              <input
-                id="last_name"
-                v-model="formData.last_name"
-                type="text"
-                class="form-input"
-                required
-              >
-            </div>
-            <div class="form-group">
-              <label for="membership_number">Mitgliedsnummer</label>
-              <input
-                id="membership_number"
-                v-model="formData.membership_number"
-                type="text"
-                class="form-input"
-              >
-            </div>
-            <label class="checkbox-row">
-              <input
-                v-model="formData.has_discount"
-                type="checkbox"
-              >
-              Rabatt
-            </label>
-          </section>
 
-          <section
-            v-if="showContactFields || authStore.isTopAdmin"
-            class="modal-section modal-section-horizontal"
-          >
-            <h4 class="modal-section-title">
-              Zugang & Kontakt
-            </h4>
-            <div
-              v-if="showContactFields"
-              class="form-group"
-            >
-              <label for="email">E-Mail</label>
-              <input
-                id="email"
-                v-model="formData.email"
-                type="email"
-                class="form-input"
-              >
-            </div>
-            <div
-              v-if="showContactFields"
-              class="form-group"
-            >
-              <label for="phone">Telefon</label>
-              <input
-                id="phone"
-                v-model="formData.phone"
-                type="text"
-                class="form-input"
-              >
-            </div>
-            <div
-              v-if="authStore.isTopAdmin"
-              class="form-group"
-            >
-              <label for="role">Rolle</label>
-              <select
-                id="role"
-                v-model="formData.role"
-                class="form-input"
-              >
-                <option value="">
-                  Keine Rolle
-                </option>
-                <option value="VERKAUF">
-                  Verkauf
-                </option>
-                <option value="MANAGER">
-                  Manager
-                </option>
-                <option value="ADMIN">
-                  Admin
-                </option>
-              </select>
-            </div>
-          </section>
-
-          <section
-            v-if="showAccountPasswordSection"
-            class="modal-section modal-section-horizontal role-account-box"
-          >
-            <h4 class="modal-section-title">
-              Benutzerkonto
-            </h4>
-            <div
-              v-if="currentAccountUsername"
-              class="form-group"
-            >
-              <label>Loginname</label>
-              <input
-                :value="currentAccountUsername"
-                type="text"
-                class="form-input"
-                readonly
-              >
-            </div>
-            <div class="form-group">
-              <label for="account_password">
-                {{ hasExistingUserAccount ? 'Neues Passwort (optional)' : 'Passwort für Benutzerkonto*' }}
+            <div class="sidebar-info-box">
+              <label class="checkbox-card">
+                <input v-model="formData.has_discount" type="checkbox">
+                <div class="checkbox-content">
+                  <span class="label">Rabatt</span>
+                  <span class="desc">Berechtigt für Preisnachlass</span>
+                </div>
               </label>
-              <input
-                id="account_password"
-                v-model="formData.account_password"
-                type="password"
-                class="form-input"
-                :required="!hasExistingUserAccount"
-                minlength="8"
-                placeholder="Mindestens 8 Zeichen"
-              >
-            </div>
-            <small class="form-help">
-              {{ hasExistingUserAccount
-                ? 'Bei bestehenden Benutzerkonten können Admin und Top-Admin hier ein neues Passwort setzen.'
-                : 'Sobald eine Rolle vergeben wird, wird ein Benutzerkonto angelegt und ein Passwort benötigt.' }}
-            </small>
-          </section>
-          <section class="modal-section modal-section-horizontal modal-section-wide modal-section-single">
-            <h4 class="modal-section-title">
-              Zusätzliche Angaben
-            </h4>
-            <div class="form-group">
-              <label for="notes">Notizen</label>
-              <textarea
-                id="notes"
-                v-model="formData.notes"
-                class="form-input notes-input"
-                rows="3"
-              />
-            </div>
-          </section>
 
-          <div
-            v-if="editingId"
-            class="modal-section modal-section-horizontal modal-section-wide"
-          >
-            <h4 class="modal-section-title">
-              Guthaben
-            </h4>
-            <label for="recharge">Guthaben aufladen</label>
-            <small class="form-help">
-              Aufzuladenden Wert eintragen, Passwort des angemeldeten Benutzers eintragen, Bestätigen
-            </small>
-            <div class="recharge-input-group">
-              <input
-                id="recharge"
-                v-model.number="rechargeAmount"
-                type="number"
-                placeholder="0.00"
-                step="0.01"
-                min="0"
-                class="form-input"
-              >
-              <button
-                type="button"
-                class="btn btn-info"
-                :disabled="!rechargeAmount || rechargeAmount <= 0"
-                @click="openRechargeModal"
-              >
-                + Aufladen
-              </button>
-            </div>
-            <small v-if="editingId && currentMemberBalance !== null">
-              Aktuelles Guthaben: {{ formatBalance(currentMemberBalance) }}
-            </small>
-          </div>
-
-          <section class="modal-section modal-section-horizontal modal-section-wide modal-section-single">
-            <h4 class="modal-section-title">
-              Foto
-            </h4>
-            <div class="form-group">
-              <label for="photo">Foto</label>
-              <input
-                id="photo"
-                type="file"
-                accept="image/*"
-                class="form-input"
-                @change="handlePhotoUpload"
-              >
-              <div
-                v-if="photoPreview"
-                class="photo-preview"
-              >
-                <img
-                  :src="photoPreview"
-                  :alt="fullFormName"
-                  style="max-width: 150px; max-height: 150px;"
-                >
+              <div v-if="editingId" class="balance-display">
+                <span class="label">Aktuelles Guthaben</span>
+                <span class="value">{{ formatBalance(currentMemberBalance || 0) }}</span>
+                <div class="recharge-trigger">
+                  <input v-model.number="rechargeAmount" type="number" step="0.01" placeholder="0,00€">
+                  <button type="button" @click="openRechargeModal" :disabled="!rechargeAmount">Aufladen</button>
+                </div>
               </div>
             </div>
-          </section>
+          </aside>
 
-          <div class="form-buttons">
-            <button
-              type="submit"
-              class="btn btn-success"
-            >
-              {{ editingId ? 'Aktualisieren' : 'Erstellen' }}
+          <main class="modal-form-content">
+            <section class="form-section">
+              <h4>Allgemeine Informationen</h4>
+              <div class="form-row">
+                <div class="form-group">
+                  <label>Vorname*</label>
+                  <input v-model="formData.first_name" type="text" required placeholder="z.B. Max">
+                </div>
+                <div class="form-group">
+                  <label>Nachname*</label>
+                  <input v-model="formData.last_name" type="text" required placeholder="z.B. Mustermann">
+                </div>
+              </div>
+              <div class="form-group">
+                <label>Mitgliedsnummer (Extern)</label>
+                <input v-model="formData.membership_number" type="text" placeholder="Optional">
+              </div>
+            </section>
+
+            <section v-if="authStore.isTopAdmin" class="form-section highlight">
+              <h4>System-Zugang</h4>
+              <div class="form-row">
+                <div class="form-group">
+                  <label>E-Mail Adresse</label>
+                  <input v-model="formData.email" type="email" placeholder="mail@beispiel.de">
+                </div>
+                <div class="form-group">
+                  <label>Rolle im System</label>
+                  <select v-model="formData.role">
+                    <option value="">Keine Berechtigung</option>
+                    <option value="VERKAUF">Verkaufspersonal</option>
+                    <option value="MANAGER">Manager</option>
+                    <option value="ADMIN">Administrator</option>
+                  </select>
+                </div>
+              </div>
+              
+              <div v-if="formData.role" class="password-box">
+                <div class="form-group">
+                  <label>{{ hasExistingUserAccount ? 'Passwort zurücksetzen' : 'Initial-Passwort festlegen*' }}</label>
+                  <input v-model="formData.account_password" type="password" 
+                         :required="!hasExistingUserAccount" minlength="8" 
+                         placeholder="Mind. 8 Zeichen">
+                </div>
+                <p class="help-text">
+                  {{ hasExistingUserAccount ? 'Nur ausfüllen, wenn das Passwort geändert werden soll.' : 'Erforderlich, da eine Systemrolle zugewiesen wurde.' }}
+                </p>
+              </div>
+            </section>
+
+            <section class="form-section">
+              <h4>Zusatzangaben</h4>
+              <div class="form-group">
+                <label>Interne Notizen</label>
+                <textarea v-model="formData.notes" rows="3" placeholder="Besonderheiten, Allergien, etc..."></textarea>
+              </div>
+            </section>
+          </main>
+
+          <footer class="modal-footer">
+            <button type="button" class="btn btn-secondary" @click="closeMemberModal">Abbrechen</button>
+            <button type="submit" class="btn btn-success">
+              {{ editingId ? 'Änderungen speichern' : 'Mitglied anlegen' }}
             </button>
-            <button
-              type="button"
-              class="btn btn-secondary"
-              @click="closeMemberModal"
-            >
-              Abbrechen / Zurück
-            </button>
-          </div>
+          </footer>
         </form>
       </div>
     </div>
+
     <PasswordConfirmModal
       :show="showRechargeModal"
-      title="Mitgliedsguthaben aufladen"
+      title="Guthaben aufladen"
       :message="rechargeModalMessage"
       :username="authStore.user?.username || ''"
-      confirm-label="Aufladen"
+      confirm-label="Jetzt aufladen"
       @close="showRechargeModal = false"
       @confirm="handleRecharge"
     />
@@ -363,10 +194,12 @@ import { getMemberFullName, getRoleLabel } from '@/services/member'
 import PasswordConfirmModal from '@/components/PasswordConfirmModal.vue'
 import apiService from '@/services/api'
 
+// Stores
 const authStore = useAuthStore()
 const memberStore = useMemberStore()
 const notificationStore = useNotificationStore()
 
+// State
 const showMemberModal = ref(false)
 const editingId = ref(null)
 const photoFile = ref(null)
@@ -376,6 +209,7 @@ const currentMemberBalance = ref(null)
 const showRechargeModal = ref(false)
 const currentAccountUsername = ref('')
 const hasExistingUserAccount = ref(false)
+
 const formData = reactive({
   first_name: '',
   last_name: '',
@@ -388,487 +222,417 @@ const formData = reactive({
   account_password: '',
 })
 
+// Computed
+const rechargeModalMessage = computed(() => {
+  const amountCents = Math.round(Number(rechargeAmount.value || 0) * 100)
+  const current = Number(currentMemberBalance.value || 0)
+  return `Möchtest du ${formatBalance(amountCents)} aufladen?\nNeuer Kontostand: ${formatBalance(current + amountCents)}`
+})
+
+// Methods
 const openCreateModal = () => {
   resetForm()
   showMemberModal.value = true
 }
 
 const closeMemberModal = () => {
-  showRechargeModal.value = false
   showMemberModal.value = false
   resetForm()
 }
 
-const fullFormName = computed(() => [formData.first_name, formData.last_name].filter(Boolean).join(' '))
-const showContactFields = computed(() => authStore.isTopAdmin)
-const showAccountPasswordSection = computed(() => authStore.isTopAdmin && !!formData.role)
-const rechargeModalMessage = computed(() => {
-  const amountCents = Math.max(Math.round(Number(rechargeAmount.value || 0) * 100), 0)
-  const currentBalance = Number(currentMemberBalance.value || 0)
-  const nextBalance = currentBalance + amountCents
-
-  return [
-    'Bitte Zugangsdaten des aktuell angemeldeten Benutzers bestätigen.',
-    amountCents > 0 ? `Aufzuladender Wert: ${formatBalance(amountCents)}` : null,
-    `Neuer Gesamtwert: ${formatBalance(nextBalance)}`,
-  ].filter(Boolean).join('\n')
-})
-
 const handlePhotoUpload = (event) => {
   const file = event.target.files[0]
   if (file) {
+    if (file.size > 2 * 1024 * 1024) {
+      notificationStore.error('Bild ist zu groß (max 2MB)')
+      return
+    }
     photoFile.value = file
     const reader = new FileReader()
-    reader.onload = (e) => {
-      photoPreview.value = e.target.result
-    }
+    reader.onload = (e) => photoPreview.value = e.target.result
     reader.readAsDataURL(file)
   }
 }
 
 const uploadPhotoToMember = async (memberId) => {
   if (!photoFile.value) return true
-
   try {
-    const formDataUpload = new FormData()
-    formDataUpload.append('file', photoFile.value)
-
+    const fd = new FormData()
+    fd.append('file', photoFile.value)
     const response = await fetch(`/api/members/${memberId}/photo`, {
       method: 'POST',
-      body: formDataUpload,
-      credentials: 'include',
+      body: fd,
+      credentials: 'include'
     })
-
-    if (response.ok) {
-      photoFile.value = null
-      return true
-    }
-
-    notificationStore.error('Foto-Upload fehlgeschlagen')
-    return false
-  } catch (error) {
-    console.error('Photo upload error:', error)
-    notificationStore.error('Fehler beim Foto-Upload')
-    return false
-  }
+    return response.ok
+  } catch (e) { return false }
 }
 
 const handleSaveMember = async () => {
   const payload = { ...formData }
-  if (!authStore.isAdmin) {
-    delete payload.email
-    delete payload.phone
-    delete payload.role
-    delete payload.account_password
-  } else if (!authStore.isTopAdmin) {
-    delete payload.email
-    delete payload.phone
-    delete payload.role
-    delete payload.account_password
+  
+  // Berechtigungsschutz Logik
+  if (!authStore.isTopAdmin) {
+    ['email', 'phone', 'role', 'account_password'].forEach(key => delete payload[key])
   } else if (!payload.role) {
     payload.role = null
     delete payload.account_password
-  } else if (!payload.account_password) {
-    delete payload.account_password
-  }
-
-  if (authStore.isTopAdmin && payload.role && !hasExistingUserAccount.value && !formData.account_password) {
-    notificationStore.error('Bitte ein Passwort für das Benutzerkonto vergeben')
-    return
   }
 
   if (editingId.value) {
-    const photoUploadSuccess = await uploadPhotoToMember(editingId.value)
-    if (!photoUploadSuccess && photoFile.value) {
-      return
-    }
-
-    const result = await memberStore.updateMember(editingId.value, payload)
-    if (result) {
-      notificationStore.success('Mitglied aktualisiert')
-      resetForm()
-    } else {
-      notificationStore.error(memberStore.error)
+    const success = await memberStore.updateMember(editingId.value, payload)
+    if (success) {
+      await uploadPhotoToMember(editingId.value)
+      notificationStore.success('Aktualisiert')
+      closeMemberModal()
     }
   } else {
     const result = await memberStore.createMember(payload)
     if (result) {
-      if (photoFile.value) {
-        const photoUploadSuccess = await uploadPhotoToMember(result.id)
-        if (!photoUploadSuccess) {
-          notificationStore.warning('Mitglied erstellt, aber Foto-Upload fehlgeschlagen')
-        } else {
-          notificationStore.success('Mitglied mit Foto erstellt')
-        }
-      } else {
-        notificationStore.success('Mitglied erstellt')
-      }
-      resetForm()
-    } else {
-      notificationStore.error(memberStore.error)
+      await uploadPhotoToMember(result.id)
+      notificationStore.success('Mitglied erstellt')
+      closeMemberModal()
     }
   }
-}
-
-const resetForm = () => {
-  formData.first_name = ''
-  formData.last_name = ''
-  formData.membership_number = ''
-  formData.email = ''
-  formData.phone = ''
-  formData.notes = ''
-  formData.has_discount = true
-  formData.role = ''
-  formData.account_password = ''
-  photoFile.value = null
-  photoPreview.value = null
-  rechargeAmount.value = null
-  currentMemberBalance.value = null
-  currentAccountUsername.value = ''
-  hasExistingUserAccount.value = false
-  editingId.value = null
-  showMemberModal.value = false
 }
 
 const editMember = (member) => {
   editingId.value = member.id
-  formData.first_name = member.first_name || ''
-  formData.last_name = member.last_name || ''
-  formData.membership_number = member.membership_number || ''
-  formData.email = member.email || ''
-  formData.phone = member.phone || ''
-  formData.notes = member.notes || ''
-  formData.has_discount = member.has_discount ?? true
-  formData.role = member.role || ''
-  formData.account_password = ''
-  photoFile.value = null
+  Object.assign(formData, {
+    first_name: member.first_name || '',
+    last_name: member.last_name || '',
+    membership_number: member.membership_number || '',
+    email: member.email || '',
+    phone: member.phone || '',
+    notes: member.notes || '',
+    has_discount: member.has_discount ?? true,
+    role: member.role || '',
+    account_password: ''
+  })
   photoPreview.value = member.photo_path ? `/api/members/${member.id}/photo` : null
   currentMemberBalance.value = member.balance_cents
-  currentAccountUsername.value = member.account_username || ''
   hasExistingUserAccount.value = !!member.has_user_account
-  rechargeAmount.value = null
   showMemberModal.value = true
 }
 
-const openRechargeModal = () => {
-  if (!editingId.value || !rechargeAmount.value || rechargeAmount.value <= 0) {
-    notificationStore.error('Bitte einen gültigen Betrag eingeben')
-    return
-  }
-
-  showRechargeModal.value = true
-}
+const openRechargeModal = () => { showRechargeModal.value = true }
 
 const handleRecharge = async (password) => {
   showRechargeModal.value = false
-
-  try {
-    const amountCents = Math.round(rechargeAmount.value * 100)
-    const updatedMember = await memberStore.rechargeMember(editingId.value, amountCents, password)
-
-    if (updatedMember) {
-      currentMemberBalance.value = updatedMember.balance_cents
-      rechargeAmount.value = null
-      notificationStore.success(`Guthaben aufgeladen! Neuer Betrag: ${formatBalance(updatedMember.balance_cents)}`)
-    } else {
-      notificationStore.error(memberStore.error || 'Fehler beim Aufladen')
-    }
-  } catch (error) {
-    console.error('[Members] Recharge error:', error)
-    notificationStore.error('Fehler beim Aufladen: ' + (error.message || 'Unbekannter Fehler'))
+  const amountCents = Math.round(rechargeAmount.value * 100)
+  const updated = await memberStore.rechargeMember(editingId.value, amountCents, password)
+  if (updated) {
+    currentMemberBalance.value = updated.balance_cents
+    rechargeAmount.value = null
+    notificationStore.success('Guthaben aufgeladen')
   }
 }
 
-const deleteMember = async (memberId) => {
-  if (!authStore.isAdmin) {
-    notificationStore.error('Nur Admins dürfen Mitglieder löschen')
-    return
-  }
-
-  if (confirm('Wirklich löschen?')) {
+const deleteMember = async (id) => {
+  if (confirm('Mitglied wirklich unwiderruflich löschen?')) {
     try {
-      await apiService.delete(`/members/${memberId}`)
-      notificationStore.success('Mitglied gelöscht')
+      await apiService.delete(`/members/${id}`)
+      notificationStore.success('Gelöscht')
       await memberStore.getMembers()
-    } catch (error) {
-      notificationStore.error(error.response?.data?.detail || 'Fehler beim Löschen')
-    }
+    } catch (e) { notificationStore.error('Fehler beim Löschen') }
   }
 }
 
-onMounted(async () => {
-  await memberStore.getMembers()
-})
+const resetForm = () => {
+  editingId.value = null
+  photoFile.value = null
+  photoPreview.value = null
+  rechargeAmount.value = null
+  Object.keys(formData).forEach(key => {
+    formData[key] = key === 'has_discount' ? true : ''
+  })
+}
+
+onMounted(() => memberStore.getMembers())
 </script>
 
 <style scoped lang="scss">
+:root {
+  --primary: #3b82f6;
+  --success: #10b981;
+  --danger: #ef4444;
+  --bg-main: #f8fafc;
+  --border: #e2e8f0;
+}
+
 .admin-members {
+  padding: 1.5rem;
   background: white;
-  padding: 2rem;
-  border-radius: 8px;
+  min-height: 100vh;
 }
 
 .page-header {
   display: flex;
-  align-items: center;
   justify-content: space-between;
-  gap: 1rem;
-  margin-bottom: 1rem;
-}
-
-.modal-subtitle,
-.modal-section-title,
-.form-help {
-  color: #6b7280;
-}
-
-.modal-subtitle {
-  margin-top: 0.35rem;
-}
-
-.modal-form {
-  display: grid;
-  gap: 1rem;
-}
-
-.modal-form-horizontal {
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 0.85rem;
-  align-items: start;
-}
-
-.modal-section {
-  display: grid;
-  gap: 0.9rem;
-  padding: 1rem;
-  border: 1px solid #e5e7eb;
-  border-radius: 10px;
-  background: #f8fafc;
-}
-
-.modal-section-horizontal {
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 0.75rem 0.9rem;
-  align-content: start;
-  padding: 0.9rem;
-}
-
-.modal-section-wide,
-.form-buttons {
-  grid-column: 1 / -1;
-}
-
-.modal-section-horizontal .modal-section-title,
-.modal-section-horizontal > label,
-.modal-section-horizontal > small,
-.modal-section-horizontal .form-help,
-.modal-section-horizontal .checkbox-row,
-.modal-section-horizontal .recharge-input-group,
-.modal-section-horizontal .photo-preview,
-.modal-section-single .form-group {
-  grid-column: 1 / -1;
-}
-
-.modal-section-title {
-  margin: 0;
-  font-size: 0.95rem;
-  font-weight: 700;
-  text-transform: uppercase;
-  letter-spacing: 0.04em;
-}
-
-.form-group {
-  display: grid;
-  gap: 0.5rem;
-
-  label {
-    display: block;
-    font-weight: 500;
-  }
-
-  .form-input {
-    width: 100%;
-    padding: 0.75rem;
-    border: 1px solid #ddd;
-    border-radius: 4px;
-
-    &:focus {
-      outline: none;
-      border-color: var(--app-highlight-color);
-    }
-  }
-
-  .notes-input {
-    resize: vertical;
-  }
-}
-
-.form-help {
-  display: block;
-}
-
-.form-buttons {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 1rem;
-  justify-content: flex-end;
-}
-
-.role-account-box {
-  margin-bottom: 1rem;
-  padding: 1rem;
-  border-radius: 8px;
-  background: #eef4ea;
-  border: 1px solid rgba(92, 143, 58, 0.2);
-}
-
-.recharge-input-group {
-  display: grid;
-  grid-template-columns: 1fr auto;
-  gap: 0.75rem;
-}
-
-.checkbox-row {
-  display: flex;
   align-items: center;
-  gap: 0.6rem;
-  font-weight: 600;
+  margin-bottom: 2rem;
+  
+  h2 { font-size: 1.5rem; color: #1e293b; }
+}
+
+/* Tabelle Styling */
+.members-table-wrapper {
+  background: white;
+  border-radius: 12px;
+  border: 1px solid var(--border);
+  overflow: hidden;
 }
 
 .members-table {
-  overflow-x: auto;
-  margin-top: 2rem;
-}
-
-.photo-cell,
-.balance {
-  font-weight: 600;
-}
-
-.member-thumb {
-  width: 44px;
-  height: 44px;
-  object-fit: cover;
-  border-radius: 50%;
-}
-
-.btn,
-.btn-small {
-  border: none;
-  border-radius: 4px;
-  cursor: pointer;
-  font-weight: 600;
-}
-
-.btn {
-  padding: 0.75rem 1.5rem;
-}
-
-.btn-small {
-  padding: 0.4rem 0.8rem;
-  margin-right: 0.5rem;
-}
-
-.btn-primary,
-.btn-info {
-  background: var(--app-highlight-color);
-  color: white;
-}
-
-.btn-success {
-  background: var(--app-banner-color);
-  color: white;
-}
-
-.btn-danger {
-  background: #f44336;
-  color: white;
-}
-
-.btn-secondary {
-  background: #6b7280;
-  color: white;
-}
-
-table {
   width: 100%;
   border-collapse: collapse;
-
-  th,
-  td {
+  
+  th {
+    background: #f1f5f9;
     padding: 1rem;
-    border-bottom: 1px solid #ddd;
+    font-size: 0.8rem;
+    text-transform: uppercase;
+    color: #64748b;
     text-align: left;
   }
 
-  th {
-    background: #f0f0f0;
+  td {
+    padding: 1rem;
+    border-bottom: 1px solid var(--border);
+    vertical-align: middle;
   }
 }
 
-.modal-overlay {
-  position: fixed;
-  inset: 0;
-  background: rgba(15, 23, 42, 0.55);
+.avatar-mini {
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  overflow: hidden;
+  background: #e2e8f0;
   display: flex;
   align-items: center;
   justify-content: center;
-  padding: 1rem;
+  font-weight: bold;
+  font-size: 0.8rem;
+  color: #64748b;
+  
+  img { width: 100%; height: 100%; object-fit: cover; }
+}
+
+/* Modal Layout */
+.modal-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(15, 23, 42, 0.7);
+  backdrop-filter: blur(4px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
   z-index: 1000;
+  padding: 1rem;
 }
 
 .modal-card {
-  width: min(100%, 560px);
-  max-height: calc(100vh - 2rem);
-  overflow-y: auto;
   background: white;
-  border-radius: 12px;
-  padding: 1.5rem;
-  box-shadow: 0 18px 40px rgba(15, 23, 42, 0.22);
-}
-
-.modal-card-horizontal {
-  width: min(100%, 860px);
-  padding: 1.25rem;
+  width: 100%;
+  max-width: 900px;
+  max-height: 90vh;
+  border-radius: 16px;
+  display: flex;
+  flex-direction: column;
+  box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25);
 }
 
 .modal-header {
+  padding: 1.5rem;
+  border-bottom: 1px solid var(--border);
   display: flex;
-  align-items: flex-start;
   justify-content: space-between;
-  gap: 1rem;
-  margin-bottom: 1rem;
+  
+  h3 { margin: 0; font-size: 1.25rem; }
+  .modal-subtitle { font-size: 0.875rem; color: #64748b; margin: 0.25rem 0 0; }
 }
 
-.modal-close {
-  border: none;
-  background: transparent;
-  font-size: 1.6rem;
-  line-height: 1;
+.modal-body-layout {
+  display: grid;
+  grid-template-columns: 260px 1fr;
+  overflow: hidden;
+}
+
+.modal-sidebar {
+  padding: 1.5rem;
+  background: #f8fafc;
+  border-right: 1px solid var(--border);
+  display: flex;
+  flex-direction: column;
+  gap: 1.5rem;
+}
+
+.modal-form-content {
+  padding: 1.5rem;
+  overflow-y: auto;
+  max-height: calc(90vh - 160px);
+}
+
+/* Photo Uploader */
+.avatar-display {
+  width: 150px;
+  height: 150px;
+  margin: 0 auto;
+  border-radius: 20px;
+  background: #fff;
+  border: 2px dashed #cbd5e1;
+  position: relative;
+  overflow: hidden;
   cursor: pointer;
-  color: #6b7280;
+  transition: all 0.2s;
+
+  &:hover {
+    border-color: var(--primary);
+    .hover-overlay { opacity: 1; }
+  }
+
+  .profile-img { width: 100%; height: 100%; object-fit: cover; }
+  .photo-placeholder {
+    height: 100%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    text-align: center;
+    padding: 1rem;
+    font-size: 0.8rem;
+    color: #94a3b8;
+  }
+  .hover-overlay {
+    position: absolute; inset: 0; background: rgba(0,0,0,0.5);
+    color: white; display: flex; align-items: center; justify-content: center;
+    opacity: 0; transition: 0.2s;
+  }
 }
 
-@media (max-width: 640px) {
-  .page-header {
+/* Sidebar Info */
+.sidebar-info-box {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+.checkbox-card {
+  display: flex;
+  gap: 0.75rem;
+  padding: 0.75rem;
+  background: white;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  cursor: pointer;
+  
+  .checkbox-content {
+    display: flex;
     flex-direction: column;
+    .label { font-weight: 600; font-size: 0.9rem; }
+    .desc { font-size: 0.75rem; color: #64748b; }
+  }
+}
+
+.balance-display {
+  padding: 1rem;
+  background: #ecfdf5;
+  border: 1px solid #a7f3d0;
+  border-radius: 10px;
+  
+  .label { font-size: 0.7rem; text-transform: uppercase; color: #065f46; font-weight: bold; }
+  .value { display: block; font-size: 1.25rem; font-weight: bold; color: #047857; margin: 0.25rem 0; }
+}
+
+.recharge-trigger {
+  display: flex;
+  gap: 0.5rem;
+  margin-top: 0.5rem;
+  
+  input { width: 100%; padding: 0.4rem; border: 1px solid #a7f3d0; border-radius: 4px; }
+  button { background: #059669; color: white; border: none; padding: 0.4rem 0.6rem; border-radius: 4px; font-size: 0.75rem; cursor: pointer; }
+}
+
+/* Form Sektionen */
+.form-section {
+  margin-bottom: 2rem;
+  
+  h4 {
+    font-size: 0.875rem;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    color: #64748b;
+    border-bottom: 1px solid var(--border);
+    padding-bottom: 0.5rem;
+    margin-bottom: 1rem;
   }
 
-  .modal-form-horizontal,
-  .modal-section-horizontal {
-    grid-template-columns: 1fr;
+  &.highlight {
+    background: #f0f7ff;
+    padding: 1rem;
+    border-radius: 12px;
+    border: 1px solid #bae6fd;
   }
+}
 
-  .form-buttons {
-    flex-direction: column;
-  }
+.form-row {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 1rem;
+}
 
-  .btn {
+.form-group {
+  margin-bottom: 1rem;
+  label { display: block; font-size: 0.875rem; font-weight: 500; margin-bottom: 0.4rem; color: #1e293b; }
+  input, select, textarea {
     width: 100%;
+    padding: 0.6rem 0.8rem;
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    font-size: 0.95rem;
+    &:focus { outline: none; border-color: var(--primary); box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1); }
   }
+}
 
-  .recharge-input-group {
-    grid-template-columns: 1fr;
-  }
+.password-box {
+  margin-top: 1rem;
+  padding-top: 1rem;
+  border-top: 1px dashed #bae6fd;
+  .help-text { font-size: 0.75rem; color: #64748b; margin-top: 0.4rem; }
+}
+
+/* Buttons */
+.modal-footer {
+  grid-column: 1 / -1;
+  padding: 1.5rem;
+  border-top: 1px solid var(--border);
+  display: flex;
+  justify-content: flex-end;
+  gap: 1rem;
+}
+
+.btn {
+  padding: 0.6rem 1.2rem;
+  border-radius: 8px;
+  font-weight: 600;
+  cursor: pointer;
+  border: none;
+  transition: 0.2s;
+}
+
+.btn-primary { background: var(--primary); color: white; }
+.btn-success { background: var(--success); color: white; }
+.btn-secondary { background: #e2e8f0; color: #475569; }
+
+.btn-icon {
+  background: none; border: none; padding: 0.4rem; cursor: pointer; border-radius: 4px;
+  &:hover { background: #f1f5f9; }
+  &.btn-icon-danger:hover { background: #fee2e2; }
+}
+
+@media (max-width: 768px) {
+  .modal-body-layout { grid-template-columns: 1fr; }
+  .modal-sidebar { border-right: none; border-bottom: 1px solid var(--border); }
+  .form-row { grid-template-columns: 1fr; }
 }
 </style>
