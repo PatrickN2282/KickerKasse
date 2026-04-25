@@ -510,7 +510,7 @@ const editMember = (member) => {
   formData.role = member.role || ''
   formData.account_password = ''
   photoFile.value = null
-  photoPreview.value = null
+  photoPreview.value = member.photo_path ? `/api/members/${member.id}/photo` : null
   currentMemberBalance.value = member.balance_cents
   currentAccountUsername.value = member.account_username || ''
   hasExistingUserAccount.value = !!member.has_user_account

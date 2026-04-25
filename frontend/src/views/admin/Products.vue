@@ -314,7 +314,7 @@ const editProduct = (product) => {
   formData.stock = product.stock_quantity
   formData.discountable = product.is_discountable
   imageFile.value = null
-  imagePreview.value = product.image ? 'data:image/jpeg;base64,' + product.image : null
+  imagePreview.value = product.image_path ? `/api/products/${product.id}/image` : null
   showProductModal.value = true
 }
 
