@@ -252,6 +252,7 @@
 
       <div class="deckel-section">
         <button @click="openDeckelOverview" class="btn-deckel" :disabled="cartStore.items.length === 0 && deckelList.length === 0" title="Bon als Deckel speichern oder vorhandenen Deckel öffnen">
+          <span v-if="activeDeckelCount > 0" class="deckel-badge">{{ activeDeckelCount }}</span>
           <span>Deckel - Gastteam</span>
           <span>Ligaspiel</span>
         </button>
@@ -781,6 +782,7 @@ const voucherAppliedAmount = computed(() => cartStore.getVoucherAppliedAmount())
 const balanceAppliedAmount = computed(() => cartStore.getBalanceAppliedAmount())
 const hasAppliedVoucher = computed(() => cartStore.appliedVouchers.length > 0)
 const hasAppliedBalance = computed(() => balanceAppliedAmount.value > 0)
+const activeDeckelCount = computed(() => deckelList.value.length)
 const paymentSummaryItems = computed(() => paymentSource.value === 'deckel'
   ? (activePaymentDeckel.value?.items || [])
   : cartStore.items
@@ -2055,6 +2057,7 @@ onBeforeUnmount(() => {
   color: #334155;
   border: 1px solid #b8c6d8;
   display: flex;
+  position: relative;
   flex-direction: column;
   justify-content: center;
   align-items: center;
@@ -2067,6 +2070,25 @@ onBeforeUnmount(() => {
     border-color: #9fb2c8;
     color: #1f2937;
   }
+}
+
+.deckel-badge {
+  position: absolute;
+  top: 0.55rem;
+  right: 0.7rem;
+  min-width: 1.5rem;
+  height: 1.5rem;
+  padding: 0 0.35rem;
+  border-radius: 999px;
+  background: var(--app-highlight-color, #0f766e);
+  color: var(--app-highlight-contrast, #ffffff);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 0.8rem;
+  font-weight: 800;
+  line-height: 1;
+  box-shadow: 0 4px 12px rgba(15, 23, 42, 0.18);
 }
 
 .btn-cancel {
