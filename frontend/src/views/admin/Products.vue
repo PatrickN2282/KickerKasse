@@ -76,7 +76,7 @@
       class="modal-overlay"
       @click.self="closeProductModal"
     >
-      <div class="modal-card">
+      <div class="modal-card modal-card-horizontal">
         <div class="modal-header">
           <div>
             <h3>{{ editingId ? 'Produkt bearbeiten' : 'Neues Produkt anlegen' }}</h3>
@@ -93,10 +93,10 @@
         </div>
 
         <form
-          class="modal-form"
+          class="modal-form modal-form-horizontal"
           @submit.prevent="handleSaveProduct"
         >
-          <section class="modal-section">
+          <section class="modal-section modal-section-horizontal">
             <div class="form-group">
               <label for="name">Name*</label>
               <input
@@ -149,7 +149,7 @@
             </label>
           </section>
 
-          <section class="modal-section">
+          <section class="modal-section modal-section-horizontal modal-section-wide">
             <div class="form-group">
               <label for="image">Bild</label>
               <input
@@ -387,6 +387,12 @@ onMounted(async () => {
   gap: 1rem;
 }
 
+.modal-form-horizontal {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.85rem;
+  align-items: start;
+}
+
 .modal-section {
   display: grid;
   gap: 0.9rem;
@@ -394,6 +400,24 @@ onMounted(async () => {
   border: 1px solid #e5e7eb;
   border-radius: 10px;
   background: #f8fafc;
+}
+
+.modal-section-horizontal {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.75rem 0.9rem;
+  align-content: start;
+  padding: 0.9rem;
+}
+
+.modal-section-wide,
+.form-buttons {
+  grid-column: 1 / -1;
+}
+
+.modal-section-horizontal .checkbox-row,
+.modal-section-horizontal .form-group:first-child:last-child,
+.modal-section-horizontal .image-preview {
+  grid-column: 1 / -1;
 }
 
 .form-group {
@@ -434,6 +458,7 @@ onMounted(async () => {
   flex-wrap: wrap;
   gap: 1rem;
   margin-top: 0.5rem;
+  justify-content: flex-end;
 }
 
 .products-table {
@@ -544,6 +569,11 @@ onMounted(async () => {
   box-shadow: 0 18px 40px rgba(15, 23, 42, 0.22);
 }
 
+.modal-card-horizontal {
+  width: min(100%, 760px);
+  padding: 1.25rem;
+}
+
 .modal-header {
   display: flex;
   align-items: flex-start;
@@ -582,6 +612,11 @@ onMounted(async () => {
 @media (max-width: 640px) {
   .page-header {
     flex-direction: column;
+  }
+
+  .modal-form-horizontal,
+  .modal-section-horizontal {
+    grid-template-columns: 1fr;
   }
 
   .form-buttons {

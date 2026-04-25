@@ -89,7 +89,7 @@
       class="modal-overlay"
       @click.self="closeMemberModal"
     >
-      <div class="modal-card">
+      <div class="modal-card modal-card-horizontal">
         <div class="modal-header">
           <div>
             <h3>{{ editingId ? 'Mitglied bearbeiten' : 'Neues Mitglied anlegen' }}</h3>
@@ -106,10 +106,10 @@
         </div>
 
         <form
-          class="modal-form"
+          class="modal-form modal-form-horizontal"
           @submit.prevent="handleSaveMember"
         >
-          <section class="modal-section">
+          <section class="modal-section modal-section-horizontal">
             <h4 class="modal-section-title">
               Basisdaten
             </h4>
@@ -153,7 +153,7 @@
 
           <section
             v-if="showContactFields || authStore.isTopAdmin"
-            class="modal-section"
+            class="modal-section modal-section-horizontal"
           >
             <h4 class="modal-section-title">
               Zugang & Kontakt
@@ -210,7 +210,7 @@
 
           <section
             v-if="showAccountPasswordSection"
-            class="modal-section role-account-box"
+            class="modal-section modal-section-horizontal role-account-box"
           >
             <h4 class="modal-section-title">
               Benutzerkonto
@@ -247,7 +247,7 @@
                 : 'Sobald eine Rolle vergeben wird, wird ein Benutzerkonto angelegt und ein Passwort benötigt.' }}
             </small>
           </section>
-          <section class="modal-section">
+          <section class="modal-section modal-section-horizontal modal-section-wide modal-section-single">
             <h4 class="modal-section-title">
               Zusätzliche Angaben
             </h4>
@@ -264,7 +264,7 @@
 
           <div
             v-if="editingId"
-            class="modal-section recharge-section"
+            class="modal-section modal-section-horizontal modal-section-wide"
           >
             <h4 class="modal-section-title">
               Guthaben
@@ -297,7 +297,7 @@
             </small>
           </div>
 
-          <section class="modal-section">
+          <section class="modal-section modal-section-horizontal modal-section-wide modal-section-single">
             <h4 class="modal-section-title">
               Foto
             </h4>
@@ -631,6 +631,12 @@ onMounted(async () => {
   gap: 1rem;
 }
 
+.modal-form-horizontal {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.85rem;
+  align-items: start;
+}
+
 .modal-section {
   display: grid;
   gap: 0.9rem;
@@ -638,6 +644,29 @@ onMounted(async () => {
   border: 1px solid #e5e7eb;
   border-radius: 10px;
   background: #f8fafc;
+}
+
+.modal-section-horizontal {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.75rem 0.9rem;
+  align-content: start;
+  padding: 0.9rem;
+}
+
+.modal-section-wide,
+.form-buttons {
+  grid-column: 1 / -1;
+}
+
+.modal-section-horizontal .modal-section-title,
+.modal-section-horizontal > label,
+.modal-section-horizontal > small,
+.modal-section-horizontal .form-help,
+.modal-section-horizontal .checkbox-row,
+.modal-section-horizontal .recharge-input-group,
+.modal-section-horizontal .photo-preview,
+.modal-section-single .form-group {
+  grid-column: 1 / -1;
 }
 
 .modal-section-title {
@@ -682,6 +711,7 @@ onMounted(async () => {
   display: flex;
   flex-wrap: wrap;
   gap: 1rem;
+  justify-content: flex-end;
 }
 
 .role-account-box {
@@ -797,6 +827,11 @@ table {
   box-shadow: 0 18px 40px rgba(15, 23, 42, 0.22);
 }
 
+.modal-card-horizontal {
+  width: min(100%, 860px);
+  padding: 1.25rem;
+}
+
 .modal-header {
   display: flex;
   align-items: flex-start;
@@ -817,6 +852,11 @@ table {
 @media (max-width: 640px) {
   .page-header {
     flex-direction: column;
+  }
+
+  .modal-form-horizontal,
+  .modal-section-horizontal {
+    grid-template-columns: 1fr;
   }
 
   .form-buttons {
