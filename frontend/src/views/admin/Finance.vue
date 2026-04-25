@@ -1036,14 +1036,14 @@
                 class="transactions-table"
               >
                 <thead>
-                    <tr>
-                      <th>Datum</th>
-                      <th>Typ</th>
-                      <th>Artikel</th>
-                      <th>Menge</th>
-                      <th>Beleg</th>
-                      <th>Benutzer</th>
-                    </tr>
+                  <tr>
+                    <th>Datum</th>
+                    <th>Typ</th>
+                    <th>Artikel</th>
+                    <th>Menge</th>
+                    <th>Beleg</th>
+                    <th>Benutzer</th>
+                  </tr>
                 </thead>
                 <tbody>
                   <template
@@ -1090,7 +1090,10 @@
                             >
                               <span class="item-name">{{ item.product?.name || item.id }}: </span>
                               <span class="item-qty">{{ item.quantity }}×</span>
-                              <div v-if="item.note" class="item-detail-note">
+                              <div
+                                v-if="item.note"
+                                class="item-detail-note"
+                              >
                                 Notiz: {{ item.note }}
                               </div>
                             </div>
