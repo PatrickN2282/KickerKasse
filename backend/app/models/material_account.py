@@ -12,8 +12,10 @@ class MaterialAccountEntry(BaseModel):
     reason = Column(String(255), nullable=False)
     user_id = Column(Integer, ForeignKey("users.id"), nullable=False)
     transaction_id = Column(Integer, ForeignKey("transactions.id"), nullable=False)
+    transaction_item_id = Column(Integer, ForeignKey("transaction_items.id"), nullable=True)
     created_at = Column(DateTime, default=func.now(), nullable=False)
     updated_at = Column(DateTime, default=func.now(), onupdate=func.now(), nullable=False)
 
     user = relationship("User")
     transaction = relationship("Transaction")
+    transaction_item = relationship("TransactionItem")

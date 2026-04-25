@@ -241,6 +241,7 @@ class TransactionService:
                             "unit_price_cents": item.unit_price_cents,
                             "total_price_cents": item.total_price_cents,
                             "is_internal_material": item.is_internal_material,
+                            "note": item.note,
                             "product": {
                                 "id": item.product.id,
                                 "name": item.product.name,
@@ -316,6 +317,7 @@ class TransactionService:
                             "unit_price_cents": item.unit_price_cents,
                             "total_price_cents": item.total_price_cents,
                             "is_internal_material": item.is_internal_material,
+                            "note": item.note,
                             "product": {
                                 "id": item.product.id,
                                 "name": item.product.name,

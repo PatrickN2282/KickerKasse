@@ -26,6 +26,7 @@ class DeckelItem(BaseModel):
     unit_price_cents = Column(Integer, nullable=False)
     total_price_cents = Column(Integer, nullable=False)
     is_internal_material = Column(Boolean, nullable=False, default=False)
+    note = Column(String(500), nullable=True)
     created_at = Column(DateTime, default=func.now(), nullable=False)
 
     deckel = relationship("Deckel", back_populates="items")

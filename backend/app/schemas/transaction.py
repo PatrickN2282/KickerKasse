@@ -8,6 +8,7 @@ class TransactionItemBase(BaseModel):
     quantity: int = Field(..., ge=1)
     unit_price_cents: int = Field(..., ge=0)
     is_internal_material: bool = False
+    note: Optional[str] = Field(default=None, max_length=500)
 
 
 class TransactionItemCreate(TransactionItemBase):

@@ -4,6 +4,7 @@ import json
 from jinja2 import Template
 from sqlalchemy.orm import Session
 from sqlalchemy import func, desc
+from app.constants import INTERNAL_MATERIAL_CLUB_ACCOUNT_REASON_PREFIX
 from app.models import (
     Transaction, TransactionType, PaymentMethod, BalanceLog,
     ZBonHistory, Member, Product, Voucher, VoucherType, VoucherStatus, CashEntry, CashEntryType,
@@ -135,7 +136,12 @@ class ZBonService:
         return total_balance_cents / 100
 
     def _get_club_account_total(self) -> float:
-        total_balance_cents = self.db.query(func.sum(ClubAccountEntry.amount_cents)).scalar() or 0
+        total_balance_cents = (
+            self.db.query(func.sum(ClubAccountEntry.amount_cents))
+            .filter(~ClubAccountEntry.reason.like(f"{INTERNAL_MATERIAL_CLUB_ACCOUNT_REASON_PREFIX}%"))
+            .scalar()
+            or 0
+        )
         return total_balance_cents / 100
 
     def _format_datetime_display(self, value: str | datetime | None, fallback: str = "-") -> str:
@@ -236,6 +242,7 @@ class ZBonService:
                         "quantity": item.quantity,
                         "unit_price_cents": item.unit_price_cents,
                         "total_price_cents": item.total_price_cents,
+                        "note": item.note,
                         "product": {
                             "id": item.product.id if item.product else None,
                             "name": item.product.name if item.product else None,
