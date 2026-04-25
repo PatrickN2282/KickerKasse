@@ -1089,8 +1089,7 @@ async def get_scheduler_status(
             detail="Admin access required",
         )
     
-    scheduler_status = SchedulerService.get_scheduler_status()
-    return scheduler_status
+    return SchedulerService.get_scheduler_status()
 
 
 # ============================================================
