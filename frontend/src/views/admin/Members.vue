@@ -362,6 +362,7 @@ const openCreateModal = () => {
 }
 
 const closeMemberModal = () => {
+  showRechargeModal.value = false
   showMemberModal.value = false
   resetForm()
 }
@@ -494,7 +495,6 @@ const resetForm = () => {
   currentAccountUsername.value = ''
   hasExistingUserAccount.value = false
   editingId.value = null
-  showRechargeModal.value = false
   showMemberModal.value = false
 }
 
