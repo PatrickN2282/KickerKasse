@@ -39,7 +39,6 @@
 
 <script setup>
 import { ref } from 'vue'
-import { useRouter } from 'vue-router'
 import apiService from '@/services/api'
 import { useAuthStore } from '@/stores/auth'
 import { useNotificationStore } from '@/stores/notification'
@@ -47,7 +46,6 @@ import CredentialConfirmModal from '@/components/CredentialConfirmModal.vue'
 
 const authStore = useAuthStore()
 const notificationStore = useNotificationStore()
-const router = useRouter()
 
 const showResetModal = ref(false)
 
@@ -60,7 +58,8 @@ const handleHardReset = async ({ password, confirmationText }) => {
       confirmation_text: confirmationText,
     })
     notificationStore.success('Hard-Reset erfolgreich durchgeführt')
-    router.push('/admin/members')
+    await authStore.logout()
+    window.location.href = '/login'
   } catch (error) {
     notificationStore.error(error.response?.data?.detail || 'Hard-Reset fehlgeschlagen')
   }

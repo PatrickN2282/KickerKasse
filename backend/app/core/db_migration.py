@@ -9,6 +9,7 @@ import logging
 
 from app.constants import (
     INTERNAL_MATERIAL_CATEGORY_DESCRIPTION,
+    INTERNAL_MATERIAL_CATEGORY_DISPLAY_ORDER,
     INTERNAL_MATERIAL_CATEGORY_NAME,
 )
 from app.services.app_settings_service import DEFAULT_APP_NAME
@@ -506,13 +507,14 @@ class DatabaseMigrator:
                 try:
                     conn.execute(text("""
                         INSERT INTO categories (name, description, is_active_in_kasse, display_order, created_at, updated_at)
-                        SELECT :name, :description, TRUE, 999, NOW(), NOW()
+                        SELECT :name, :description, TRUE, :display_order, NOW(), NOW()
                         WHERE NOT EXISTS (
                             SELECT 1 FROM categories WHERE name = :name
                         )
                     """), {
                         "name": INTERNAL_MATERIAL_CATEGORY_NAME,
                         "description": INTERNAL_MATERIAL_CATEGORY_DESCRIPTION,
+                        "display_order": INTERNAL_MATERIAL_CATEGORY_DISPLAY_ORDER,
                     })
                     conn.commit()
                 except Exception as e:
