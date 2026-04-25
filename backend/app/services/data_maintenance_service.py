@@ -1,5 +1,9 @@
 from sqlalchemy.orm import Session
 
+from app.constants import (
+    INTERNAL_MATERIAL_CATEGORY_DESCRIPTION,
+    INTERNAL_MATERIAL_CATEGORY_NAME,
+)
 from app.models import (
     BalanceLog,
     CashBalance,
@@ -14,7 +18,6 @@ from app.models import (
     Transaction,
     TransactionItem,
     User,
-    UserRole,
     Voucher,
     ZBonHistory,
     product_category,
@@ -27,6 +30,14 @@ class DataMaintenanceService:
 
     def __init__(self, db: Session):
         self.db = db
+
+    def _restore_fixed_categories(self) -> None:
+        self.db.add(Category(
+            name=INTERNAL_MATERIAL_CATEGORY_NAME,
+            description=INTERNAL_MATERIAL_CATEGORY_DESCRIPTION,
+            is_active_in_kasse=True,
+            display_order=999,
+        ))
 
     def hard_reset(self) -> dict:
         member_ids = [member_id for (member_id,) in self.db.query(Member.id).all()]
@@ -45,10 +56,11 @@ class DataMaintenanceService:
         self.db.query(TransactionItem).delete(synchronize_session=False)
         self.db.query(Transaction).delete(synchronize_session=False)
         self.db.query(User).update({User.member_id: None}, synchronize_session=False)
-        deleted_users = self.db.query(User).filter(User.role != UserRole.TOP_ADMIN).delete(synchronize_session=False)
+        deleted_users = self.db.query(User).delete(synchronize_session=False)
         self.db.query(Member).delete(synchronize_session=False)
         self.db.query(Product).delete(synchronize_session=False)
         self.db.query(Category).delete(synchronize_session=False)
+        self._restore_fixed_categories()
         self.db.commit()
 
         for member_id in member_ids:

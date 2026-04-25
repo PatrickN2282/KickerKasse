@@ -60,7 +60,9 @@ const handleHardReset = async ({ password, confirmationText }) => {
       confirmation_text: confirmationText,
     })
     notificationStore.success('Hard-Reset erfolgreich durchgeführt')
-    router.push('/admin/members')
+    await authStore.logout()
+    await router.replace('/login')
+    window.location.reload()
   } catch (error) {
     notificationStore.error(error.response?.data?.detail || 'Hard-Reset fehlgeschlagen')
   }
