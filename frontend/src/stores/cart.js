@@ -10,12 +10,18 @@ export const useCartStore = defineStore('cart', () => {
   const appliedVouchers = ref([])
   const appliedBalanceCents = ref(0)
 
-  const buildCartLineId = (productId, isInternalMaterial = false) => (
-    `${productId}:${isInternalMaterial ? 'internal' : 'regular'}`
+  const normalizeItemNote = (note = '') => String(note || '').trim()
+  const hashItemNote = (note = '') => [...normalizeItemNote(note)].reduce(
+    (hash, char) => ((hash * 31) + char.charCodeAt(0)) >>> 0,
+    0
+  ).toString(36)
+
+  const buildCartLineId = (productId, isInternalMaterial = false, note = '') => (
+    `${productId}:${isInternalMaterial ? 'internal' : 'regular'}:${hashItemNote(note)}`
   )
 
   const cloneCartItem = (item) => ({
-    line_id: item.line_id || buildCartLineId(item.product_id, item.is_internal_material),
+    line_id: item.line_id || buildCartLineId(item.product_id, item.is_internal_material, item.note),
     product_id: item.product_id,
     product_name: item.product_name,
     quantity: item.quantity,
@@ -24,10 +30,12 @@ export const useCartStore = defineStore('cart', () => {
     member_price_cents: item.member_price_cents ?? null,
     regular_price_cents: item.regular_price_cents ?? item.unit_price_cents,
     is_internal_material: !!item.is_internal_material,
+    note: normalizeItemNote(item.note) || null,
   })
 
   const addItem = (product, maxQuantity = product.stock_quantity) => {
-    const lineId = buildCartLineId(product.id, product.is_internal_material)
+    const normalizedNote = normalizeItemNote(product.note)
+    const lineId = buildCartLineId(product.id, product.is_internal_material, normalizedNote)
     const existingItem = items.value.find(item => item.line_id === lineId)
     const allowedQuantity = Math.max(Number(maxQuantity ?? product.stock_quantity ?? 0), 0)
 
@@ -60,6 +68,7 @@ export const useCartStore = defineStore('cart', () => {
       member_price_cents: product.member_price_cents,
       regular_price_cents: product.price_cents,
       is_internal_material: !!product.is_internal_material,
+      note: normalizedNote || null,
     })
     return { success: true, quantity: 1 }
   }
@@ -165,6 +174,7 @@ export const useCartStore = defineStore('cart', () => {
             quantity: item.quantity,
             unit_price_cents: item.unit_price_cents,
             is_internal_material: item.is_internal_material,
+            note: item.note,
           })),
       })
 

@@ -97,7 +97,10 @@
             :key="item.line_id"
             class="bon-item"
           >
-            <div class="item-name">{{ item.product_name }}</div>
+            <div class="item-name">
+              <span>{{ item.product_name }}</span>
+              <span v-if="item.note" class="item-note-preview">{{ item.note }}</span>
+            </div>
             <div class="item-controls">
               <button @click="changeCartItemQuantity(item, item.quantity - 1)" class="btn-qty">−</button>
               <input
@@ -323,7 +326,10 @@
           </div>
           <div class="payment-summary-list">
             <div v-for="item in paymentSummaryItems" :key="item.line_id || `${paymentSource}-${item.product_id}-${item.unit_price_cents}-${item.is_internal_material ? 'internal' : 'regular'}`" class="payment-summary-item">
-              <span>{{ item.quantity }}× {{ item.product_name }}</span>
+              <div class="payment-summary-copy">
+                <span>{{ item.quantity }}× {{ item.product_name }}</span>
+                <small v-if="item.note">{{ item.note }}</small>
+              </div>
               <strong>{{ formatPrice(item.total_price_cents) }}</strong>
             </div>
           </div>
@@ -573,7 +579,10 @@
         <p class="info-text">Hier sehen Sie alle bisher gebuchten Artikel und können den Deckel direkt bar abrechnen.</p>
         <div class="payment-summary-list">
           <div v-for="item in activeDeckel.items" :key="`deckel-${item.id || item.product_id}-${item.unit_price_cents}`" class="payment-summary-item">
-            <span>{{ item.quantity }}× {{ item.product_name }}</span>
+            <div class="payment-summary-copy">
+              <span>{{ item.quantity }}× {{ item.product_name }}</span>
+              <small v-if="item.note">{{ item.note }}</small>
+            </div>
             <strong>{{ formatPrice(item.total_price_cents) }}</strong>
           </div>
         </div>
@@ -588,6 +597,32 @@
             💰 Zahlen - BAR
           </button>
           <button @click="closeDeckelDetailsModal" class="btn btn-danger">
+            Abbrechen / Zurück
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <div v-if="showInternalMaterialNoteModal && pendingInternalMaterialProduct" class="modal">
+      <div class="modal-content internal-material-note-modal">
+        <h3>Notiz für internes Material</h3>
+        <p class="info-text">
+          Optional können Sie eine Notiz für
+          <strong>{{ pendingInternalMaterialProduct.name }}</strong>
+          hinterlegen.
+        </p>
+        <textarea
+          v-model.trim="internalMaterialNote"
+          class="form-input"
+          rows="4"
+          maxlength="500"
+          placeholder="z. B. Einsatzort, Zweck oder Ansprechpartner"
+        ></textarea>
+        <div class="modal-actions">
+          <button @click="confirmInternalMaterialSelection" class="btn btn-confirm-payment" :class="{ selected: true }">
+            Artikel hinzufügen
+          </button>
+          <button @click="closeInternalMaterialNoteModal" class="btn btn-danger">
             Abbrechen / Zurück
           </button>
         </div>
@@ -616,6 +651,7 @@ const INTERNAL_MATERIAL_CATEGORY_NAME = 'Verbrauchsmaterial - Intern'
 
 const showMemberModal = ref(false)
 const showPaymentConfirmModal = ref(false)
+const showInternalMaterialNoteModal = ref(false)
 const memberSearch = ref('')
 const pendingPaymentMethod = ref(null)
 const processingPayment = ref(false)
@@ -644,6 +680,8 @@ const deckelList = ref([])
 const activeDeckel = ref(null)
 const paymentSource = ref('cart')
 const activePaymentDeckel = ref(null)
+const pendingInternalMaterialProduct = ref(null)
+const internalMaterialNote = ref('')
 
 const voucherReasonLabels = {
   DYP_SIEGER: 'DYP-Sieger',
@@ -822,13 +860,48 @@ const getAvailableStock = (product, excludeDeckelId = null, excludeLineId = null
 }
 
 const selectProduct = (product, categoryId = null) => {
+  if (isInternalMaterialSale(product, categoryId)) {
+    pendingInternalMaterialProduct.value = {
+      ...product,
+      is_internal_material: true,
+    }
+    internalMaterialNote.value = ''
+    showInternalMaterialNoteModal.value = true
+    return
+  }
+
   const result = cartStore.addItem({
     ...product,
-    is_internal_material: isInternalMaterialSale(product, categoryId),
+    is_internal_material: false,
   }, getAvailableStock(product))
   if (!result.success) {
     notificationStore.error(`Nur ${getAvailableStock(product)} Einheiten von ${product.name} verfügbar`)
   }
+}
+
+const closeInternalMaterialNoteModal = () => {
+  showInternalMaterialNoteModal.value = false
+  pendingInternalMaterialProduct.value = null
+  internalMaterialNote.value = ''
+}
+
+const confirmInternalMaterialSelection = () => {
+  if (!pendingInternalMaterialProduct.value) {
+    return
+  }
+
+  const product = pendingInternalMaterialProduct.value
+  const result = cartStore.addItem({
+    ...product,
+    note: internalMaterialNote.value,
+  }, getAvailableStock(product))
+
+  if (!result.success) {
+    notificationStore.error(`Nur ${getAvailableStock(product)} Einheiten von ${product.name} verfügbar`)
+    return
+  }
+
+  closeInternalMaterialNoteModal()
 }
 
 const changeCartItemQuantity = (item, quantity) => {
@@ -1075,6 +1148,7 @@ const serializeCartItems = () => {
     quantity: item.quantity,
     unit_price_cents: item.unit_price_cents,
     is_internal_material: item.is_internal_material,
+    note: item.note,
   }))
 }
 
@@ -1656,6 +1730,16 @@ onBeforeUnmount(() => {
   .item-name {
     flex: 1;
     font-weight: 500;
+    display: flex;
+    flex-direction: column;
+    gap: 0.2rem;
+  }
+
+  .item-note-preview {
+    font-size: 0.75rem;
+    color: #5b6470;
+    font-weight: 400;
+    white-space: normal;
   }
 
   .item-controls {
@@ -2273,6 +2357,15 @@ onBeforeUnmount(() => {
         }
       }
     }
+
+    &.internal-material-note-modal {
+      max-width: 460px;
+
+      textarea.form-input {
+        min-height: 110px;
+        resize: vertical;
+      }
+    }
   }
 }
 
@@ -2410,6 +2503,19 @@ onBeforeUnmount(() => {
   padding: 0.65rem 0.75rem;
   border-radius: 6px;
   background: #f5f5f5;
+
+  .payment-summary-copy {
+    display: flex;
+    flex-direction: column;
+    gap: 0.2rem;
+    min-width: 0;
+
+    small {
+      color: #5b6470;
+      font-size: 0.75rem;
+      white-space: normal;
+    }
+  }
 }
 
 .deckel-list {

@@ -575,6 +575,22 @@ class DatabaseMigrator:
                         except:
                             pass
 
+                if 'note' not in transaction_item_columns:
+                    logger.info("Adding note column to transaction_items table...")
+                    try:
+                        conn.execute(text(
+                            "ALTER TABLE transaction_items "
+                            "ADD COLUMN note VARCHAR(500)"
+                        ))
+                        conn.commit()
+                        logger.info("✓ Added note column to transaction_items")
+                    except Exception as e:
+                        logger.warning(f"Could not add note to transaction_items: {str(e)}")
+                        try:
+                            conn.rollback()
+                        except:
+                            pass
+
             if 'deckel_items' in inspector.get_table_names():
                 deckel_item_columns = {col['name'] for col in inspector.get_columns('deckel_items')}
 
@@ -589,6 +605,46 @@ class DatabaseMigrator:
                         logger.info("✓ Added is_internal_material column to deckel_items")
                     except Exception as e:
                         logger.warning(f"Could not add is_internal_material to deckel_items: {str(e)}")
+                        try:
+                            conn.rollback()
+                        except:
+                            pass
+
+                if 'note' not in deckel_item_columns:
+                    logger.info("Adding note column to deckel_items table...")
+                    try:
+                        conn.execute(text(
+                            "ALTER TABLE deckel_items "
+                            "ADD COLUMN note VARCHAR(500)"
+                        ))
+                        conn.commit()
+                        logger.info("✓ Added note column to deckel_items")
+                    except Exception as e:
+                        logger.warning(f"Could not add note to deckel_items: {str(e)}")
+                        try:
+                            conn.rollback()
+                        except:
+                            pass
+
+            if 'material_account_entries' in inspector.get_table_names():
+                material_account_columns = {col['name'] for col in inspector.get_columns('material_account_entries')}
+
+                if 'transaction_item_id' not in material_account_columns:
+                    logger.info("Adding transaction_item_id column to material_account_entries table...")
+                    try:
+                        conn.execute(text(
+                            "ALTER TABLE material_account_entries "
+                            "ADD COLUMN transaction_item_id INTEGER"
+                        ))
+                        conn.execute(text(
+                            "ALTER TABLE material_account_entries "
+                            "ADD CONSTRAINT fk_material_account_entries_transaction_item_id "
+                            "FOREIGN KEY (transaction_item_id) REFERENCES transaction_items(id)"
+                        ))
+                        conn.commit()
+                        logger.info("✓ Added transaction_item_id column to material_account_entries")
+                    except Exception as e:
+                        logger.warning(f"Could not add transaction_item_id to material_account_entries: {str(e)}")
                         try:
                             conn.rollback()
                         except:

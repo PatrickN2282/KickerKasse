@@ -5,11 +5,10 @@ from sqlalchemy import func
 from sqlalchemy.orm import Session, joinedload
 
 from app.constants import INTERNAL_MATERIAL_CATEGORY_NAME
-from app.models import ClubAccountEntry, MaterialAccountEntry, Transaction, TransactionItem
+from app.models import MaterialAccountEntry, Transaction, TransactionItem
 
 
 class MaterialAccountService:
-    CLUB_ACCOUNT_REASON_PREFIX = "Verbrauchsmaterial intern:"
     # Matches: "[Storno ]<quantity>× <product_name>"
     REASON_PATTERN = re.compile(r"^(?P<storno>Storno )?(?P<quantity>\d+)× (?P<product>.+)$")
 
@@ -50,12 +49,7 @@ class MaterialAccountService:
                 reason=f"{item.quantity}× {product.name}",
                 user_id=transaction.user_id,
                 transaction_id=transaction.id,
-            ))
-            self.db.add(ClubAccountEntry(
-                amount_cents=-self._resolve_material_amount_cents(transaction, item),
-                reason=f"{self.CLUB_ACCOUNT_REASON_PREFIX} {item.quantity}× {product.name}",
-                user_id=transaction.user_id,
-                transaction_id=transaction.id,
+                transaction_item_id=item.id,
             ))
 
     def record_storno_transaction(self, transaction: Transaction) -> None:
@@ -68,23 +62,13 @@ class MaterialAccountService:
         ).all()
 
         if original_entries:
-            original_club_entries = self.db.query(ClubAccountEntry).filter(
-                ClubAccountEntry.transaction_id == reference_transaction.id,
-                ClubAccountEntry.reason.like(f"{self.CLUB_ACCOUNT_REASON_PREFIX}%"),
-            ).all()
             for entry in original_entries:
                 self.db.add(MaterialAccountEntry(
                     amount_cents=-entry.amount_cents,
                     reason=f"Storno {entry.reason}",
                     user_id=transaction.user_id,
                     transaction_id=transaction.id,
-                ))
-            for entry in original_club_entries:
-                self.db.add(ClubAccountEntry(
-                    amount_cents=-entry.amount_cents,
-                    reason=f"Storno {entry.reason}",
-                    user_id=transaction.user_id,
-                    transaction_id=transaction.id,
+                    transaction_item_id=entry.transaction_item_id,
                 ))
             return
 
@@ -101,6 +85,7 @@ class MaterialAccountService:
                 reason=f"Storno {item.quantity}× {product.name}",
                 user_id=transaction.user_id,
                 transaction_id=transaction.id,
+                transaction_item_id=item.id,
             ))
 
     def get_period_total_cents(
@@ -115,11 +100,21 @@ class MaterialAccountService:
             query = query.filter(MaterialAccountEntry.created_at > period_start)
         return query.scalar() or 0
 
+    @staticmethod
+    def _resolve_entry_note(relevant_items: list[TransactionItem]) -> str | None:
+        # Current entries reference exactly one transaction item. Older fallback data can
+        # still contain multiple internal-material items on one transaction, where a single
+        # top-level note would be ambiguous, so those notes stay on the item rows only.
+        if len(relevant_items) != 1:
+            return None
+        return relevant_items[0].note
+
     def get_account_summary(self) -> dict:
         entries = self.db.query(MaterialAccountEntry).options(
             joinedload(MaterialAccountEntry.user),
             joinedload(MaterialAccountEntry.transaction).joinedload(Transaction.items).joinedload(TransactionItem.product),
             joinedload(MaterialAccountEntry.transaction).joinedload(Transaction.member),
+            joinedload(MaterialAccountEntry.transaction_item).joinedload(TransactionItem.product),
         ).order_by(MaterialAccountEntry.created_at.desc()).all()
         serialized_entries = []
         total_quantity = 0
@@ -134,6 +129,15 @@ class MaterialAccountService:
             is_storno = storno_marker is not None
             total_quantity += 0 if quantity is None else quantity * (-1 if is_storno else 1)
             transaction = entry.transaction
+            relevant_items = []
+            if entry.transaction_item:
+                relevant_items = [entry.transaction_item]
+            elif transaction:
+                relevant_items = [
+                    transaction_item
+                    for transaction_item in transaction.items
+                    if self.is_internal_material_sale_item(transaction_item)
+                ]
 
             serialized_entries.append({
                 "id": entry.id,
@@ -161,14 +165,16 @@ class MaterialAccountService:
                             "quantity": transaction_item.quantity,
                             "unit_price_cents": transaction_item.unit_price_cents,
                             "total_price_cents": transaction_item.total_price_cents,
+                            "note": transaction_item.note,
                             "product": {
                                 "id": transaction_item.product.id,
                                 "name": transaction_item.product.name,
                             } if transaction_item.product else None,
                         }
-                        for transaction_item in (transaction.items if transaction else [])
+                        for transaction_item in relevant_items
                     ],
                 } if transaction else None,
+                "note": self._resolve_entry_note(relevant_items),
             })
 
         return {

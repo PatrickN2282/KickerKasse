@@ -6,6 +6,7 @@ import logging
 from sqlalchemy import func
 from sqlalchemy.orm import Session, joinedload
 
+from app.constants import INTERNAL_MATERIAL_CLUB_ACCOUNT_REASON_PREFIX
 from app.models import (
     ClubAccountEntry,
     PaymentMethod,
@@ -35,6 +36,11 @@ class VoucherService:
         self.db = db
         self.repository = VoucherRepository(db)
         self.product_repository = ProductRepository(db)
+
+    def _club_account_entries_query(self):
+        return self.db.query(ClubAccountEntry).filter(
+            ~ClubAccountEntry.reason.like(f"{INTERNAL_MATERIAL_CLUB_ACCOUNT_REASON_PREFIX}%")
+        )
 
     @classmethod
     def build_prepaid_product_name(cls, value_cents: int) -> str:
@@ -83,7 +89,9 @@ class VoucherService:
 
     def _get_club_account_balance_cents(self) -> int:
         return (
-            self.db.query(func.coalesce(func.sum(ClubAccountEntry.amount_cents), 0)).scalar()
+            self._club_account_entries_query().with_entities(
+                func.coalesce(func.sum(ClubAccountEntry.amount_cents), 0)
+            ).scalar()
             or 0
         )
 
@@ -422,7 +430,7 @@ class VoucherService:
         }
 
     def get_club_account_summary(self) -> dict:
-        entries = self.db.query(ClubAccountEntry).options(
+        entries = self._club_account_entries_query().options(
             joinedload(ClubAccountEntry.user),
             joinedload(ClubAccountEntry.voucher),
             joinedload(ClubAccountEntry.transaction).joinedload(Transaction.items).joinedload(TransactionItem.product),
@@ -461,6 +469,7 @@ class VoucherService:
                                 "unit_price_cents": item.unit_price_cents,
                                 "total_price_cents": item.total_price_cents,
                                 "is_internal_material": item.is_internal_material,
+                                "note": item.note,
                                 "product": {
                                     "id": item.product.id,
                                     "name": item.product.name,

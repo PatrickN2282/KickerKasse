@@ -52,12 +52,14 @@ class DeckelService:
 
     @staticmethod
     def _merge_item_payload(items: list[dict]) -> list[dict]:
-        merged: dict[tuple[int, int, bool], dict] = {}
+        merged: dict[tuple[int, int, bool, str], dict] = {}
         for item in items:
+            note = (item.get("note") or "").strip()
             key = (
                 item["product_id"],
                 item["unit_price_cents"],
                 bool(item.get("is_internal_material", False)),
+                note,
             )
             if key not in merged:
                 merged[key] = {
@@ -65,6 +67,7 @@ class DeckelService:
                     "quantity": 0,
                     "unit_price_cents": item["unit_price_cents"],
                     "is_internal_material": bool(item.get("is_internal_material", False)),
+                    "note": note or None,
                 }
             merged[key]["quantity"] += item["quantity"]
 
@@ -91,6 +94,7 @@ class DeckelService:
                 unit_price_cents=item["unit_price_cents"],
                 total_price_cents=item["quantity"] * item["unit_price_cents"],
                 is_internal_material=bool(item.get("is_internal_material", False)),
+                note=item.get("note"),
             ))
 
         self.db.commit()
@@ -134,6 +138,7 @@ class DeckelService:
                     if existing_item.product_id == item["product_id"]
                     and existing_item.unit_price_cents == item["unit_price_cents"]
                     and existing_item.is_internal_material == bool(item.get("is_internal_material", False))
+                    and (existing_item.note or None) == (item.get("note") or None)
                 ),
                 None,
             )
@@ -148,6 +153,7 @@ class DeckelService:
                 unit_price_cents=item["unit_price_cents"],
                 total_price_cents=item["quantity"] * item["unit_price_cents"],
                 is_internal_material=bool(item.get("is_internal_material", False)),
+                note=item.get("note"),
             ))
 
         self.db.commit()
