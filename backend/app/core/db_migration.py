@@ -556,6 +556,44 @@ class DatabaseMigrator:
                         except:
                             pass
 
+            if 'transaction_items' in inspector.get_table_names():
+                transaction_item_columns = {col['name'] for col in inspector.get_columns('transaction_items')}
+
+                if 'is_internal_material' not in transaction_item_columns:
+                    logger.info("Adding is_internal_material column to transaction_items table...")
+                    try:
+                        conn.execute(text(
+                            "ALTER TABLE transaction_items "
+                            "ADD COLUMN is_internal_material BOOLEAN DEFAULT FALSE NOT NULL"
+                        ))
+                        conn.commit()
+                        logger.info("✓ Added is_internal_material column to transaction_items")
+                    except Exception as e:
+                        logger.warning(f"Could not add is_internal_material to transaction_items: {str(e)}")
+                        try:
+                            conn.rollback()
+                        except:
+                            pass
+
+            if 'deckel_items' in inspector.get_table_names():
+                deckel_item_columns = {col['name'] for col in inspector.get_columns('deckel_items')}
+
+                if 'is_internal_material' not in deckel_item_columns:
+                    logger.info("Adding is_internal_material column to deckel_items table...")
+                    try:
+                        conn.execute(text(
+                            "ALTER TABLE deckel_items "
+                            "ADD COLUMN is_internal_material BOOLEAN DEFAULT FALSE NOT NULL"
+                        ))
+                        conn.commit()
+                        logger.info("✓ Added is_internal_material column to deckel_items")
+                    except Exception as e:
+                        logger.warning(f"Could not add is_internal_material to deckel_items: {str(e)}")
+                        try:
+                            conn.rollback()
+                        except:
+                            pass
+
             if 'vouchers' in inspector.get_table_names():
                 voucher_columns = {col['name'] for col in inspector.get_columns('vouchers')}
 

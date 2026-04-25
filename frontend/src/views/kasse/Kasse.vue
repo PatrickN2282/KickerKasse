@@ -322,7 +322,7 @@
             {{ getPaymentMethodLabel(pendingPaymentMethod) }}
           </div>
           <div class="payment-summary-list">
-            <div v-for="item in paymentSummaryItems" :key="item.line_id || `${paymentSource}-${item.product_id}-${item.unit_price_cents}`" class="payment-summary-item">
+            <div v-for="item in paymentSummaryItems" :key="item.line_id || `${paymentSource}-${item.product_id}-${item.unit_price_cents}-${item.is_internal_material ? 'internal' : 'regular'}`" class="payment-summary-item">
               <span>{{ item.quantity }}× {{ item.product_name }}</span>
               <strong>{{ formatPrice(item.total_price_cents) }}</strong>
             </div>
@@ -1074,6 +1074,7 @@ const serializeCartItems = () => {
     product_id: item.product_id,
     quantity: item.quantity,
     unit_price_cents: item.unit_price_cents,
+    is_internal_material: item.is_internal_material,
   }))
 }
 

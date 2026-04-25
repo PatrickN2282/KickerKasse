@@ -52,14 +52,19 @@ class DeckelService:
 
     @staticmethod
     def _merge_item_payload(items: list[dict]) -> list[dict]:
-        merged: dict[tuple[int, int], dict] = {}
+        merged: dict[tuple[int, int, bool], dict] = {}
         for item in items:
-            key = (item["product_id"], item["unit_price_cents"])
+            key = (
+                item["product_id"],
+                item["unit_price_cents"],
+                bool(item.get("is_internal_material", False)),
+            )
             if key not in merged:
                 merged[key] = {
                     "product_id": item["product_id"],
                     "quantity": 0,
                     "unit_price_cents": item["unit_price_cents"],
+                    "is_internal_material": bool(item.get("is_internal_material", False)),
                 }
             merged[key]["quantity"] += item["quantity"]
 
@@ -85,6 +90,7 @@ class DeckelService:
                 quantity=item["quantity"],
                 unit_price_cents=item["unit_price_cents"],
                 total_price_cents=item["quantity"] * item["unit_price_cents"],
+                is_internal_material=bool(item.get("is_internal_material", False)),
             ))
 
         self.db.commit()
@@ -112,6 +118,10 @@ class DeckelService:
                 "product_id": product_id,
                 "quantity": quantity,
                 "unit_price_cents": unit_price,
+                "is_internal_material": any(
+                    item.product_id == product_id and item.is_internal_material
+                    for item in deckel.items
+                ),
             })
         combined_items.extend(merged_new_items)
 
@@ -123,6 +133,7 @@ class DeckelService:
                     existing_item for existing_item in deckel.items
                     if existing_item.product_id == item["product_id"]
                     and existing_item.unit_price_cents == item["unit_price_cents"]
+                    and existing_item.is_internal_material == bool(item.get("is_internal_material", False))
                 ),
                 None,
             )
@@ -136,6 +147,7 @@ class DeckelService:
                 quantity=item["quantity"],
                 unit_price_cents=item["unit_price_cents"],
                 total_price_cents=item["quantity"] * item["unit_price_cents"],
+                is_internal_material=bool(item.get("is_internal_material", False)),
             ))
 
         self.db.commit()

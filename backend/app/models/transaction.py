@@ -65,6 +65,7 @@ class TransactionItem(BaseModel):
     quantity = Column(Integer, nullable=False)
     unit_price_cents = Column(Integer, nullable=False)  # Preis zum Zeitpunkt des Verkaufs
     total_price_cents = Column(Integer, nullable=False)  # quantity * unit_price
+    is_internal_material = Column(Boolean, nullable=False, default=False)
     
     created_at = Column(DateTime, default=func.now(), nullable=False)
 
