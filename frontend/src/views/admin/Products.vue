@@ -308,15 +308,11 @@ onMounted(async () => {
 </script>
 
 <style scoped lang="scss">
-:root {
+.admin-products {
   --primary: #3b82f6;
   --success: #10b981;
-  --danger: #ef4444;
   --bg-main: #f8fafc;
   --border: #e2e8f0;
-}
-
-.admin-products {
   padding: 1.5rem;
   background: white;
   min-height: 100%;
