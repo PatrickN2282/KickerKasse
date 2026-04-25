@@ -1,99 +1,14 @@
 <template>
   <div class="admin-products">
-    <h2>Produktverwaltung</h2>
-
-    <button
-      class="btn btn-primary"
-      @click="showForm = !showForm"
-    >
-      {{ showForm ? 'Abbrechen / Zurück' : 'Neues Produkt' }}
-    </button>
-
-    <form
-      v-if="showForm"
-      class="form-section"
-      @submit.prevent="handleSaveProduct"
-    >
-      <h3>{{ editingId ? 'Produkt bearbeiten' : 'Neues Produkt' }}</h3>
-      <div class="form-group">
-        <label for="name">Name*:</label>
-        <input
-          id="name"
-          v-model="formData.name"
-          type="text"
-          class="form-input"
-          required
-        >
-      </div>
-      <div class="form-group">
-        <label for="price">Preis (€)*:</label>
-        <input
-          id="price"
-          v-model.number="formData.price"
-          type="number"
-          step="0.01"
-          class="form-input"
-          required
-        >
-      </div>
-      <div class="form-group">
-        <label for="member-price">Mitgliedspreis (€):</label>
-        <input
-          id="member-price"
-          v-model.number="formData.memberPrice"
-          type="number"
-          step="0.01"
-          class="form-input"
-        >
-      </div>
-      <div class="form-group">
-        <label for="stock">Lagerbestand*:</label>
-        <input
-          id="stock"
-          v-model.number="formData.stock"
-          type="number"
-          min="0"
-          class="form-input"
-          required
-        >
-      </div>
-      <div class="form-group">
-        <label for="image">Bild:</label>
-        <input
-          id="image"
-          type="file"
-          accept="image/*"
-          class="form-input"
-          @change="handleImageUpload"
-        >
-        <div
-          v-if="imagePreview"
-          class="image-preview"
-        >
-          <img
-            :src="imagePreview"
-            :alt="formData.name"
-            style="max-width: 150px; max-height: 150px;"
-          >
-        </div>
-      </div>
-      <div class="form-group">
-        <label for="discountable">
-          <input
-            id="discountable"
-            v-model="formData.discountable"
-            type="checkbox"
-          >
-          Rabattfähig
-        </label>
-      </div>
+    <div class="page-header">
+      <h2>Produktverwaltung</h2>
       <button
-        type="submit"
-        class="btn btn-success"
+        class="btn btn-primary"
+        @click="openCreateModal"
       >
-        Speichern
+        Neues Produkt
       </button>
-    </form>
+    </div>
 
     <div
       v-if="productStore.isLoading"
@@ -155,6 +70,117 @@
         </tbody>
       </table>
     </div>
+
+    <div
+      v-if="showProductModal"
+      class="modal-overlay"
+      @click.self="closeProductModal"
+    >
+      <div class="modal-card">
+        <div class="modal-header">
+          <h3>{{ editingId ? 'Produkt bearbeiten' : 'Neues Produkt anlegen' }}</h3>
+          <button
+            class="modal-close"
+            @click="closeProductModal"
+          >
+            ×
+          </button>
+        </div>
+
+        <form
+          class="form-section"
+          @submit.prevent="handleSaveProduct"
+        >
+          <div class="form-group">
+            <label for="name">Name*:</label>
+            <input
+              id="name"
+              v-model="formData.name"
+              type="text"
+              class="form-input"
+              required
+            >
+          </div>
+          <div class="form-group">
+            <label for="price">Preis (€)*:</label>
+            <input
+              id="price"
+              v-model.number="formData.price"
+              type="number"
+              step="0.01"
+              class="form-input"
+              required
+            >
+          </div>
+          <div class="form-group">
+            <label for="member-price">Mitgliedspreis (€):</label>
+            <input
+              id="member-price"
+              v-model.number="formData.memberPrice"
+              type="number"
+              step="0.01"
+              class="form-input"
+            >
+          </div>
+          <div class="form-group">
+            <label for="stock">Lagerbestand*:</label>
+            <input
+              id="stock"
+              v-model.number="formData.stock"
+              type="number"
+              min="0"
+              class="form-input"
+              required
+            >
+          </div>
+          <div class="form-group">
+            <label for="image">Bild:</label>
+            <input
+              id="image"
+              type="file"
+              accept="image/*"
+              class="form-input"
+              @change="handleImageUpload"
+            >
+            <div
+              v-if="imagePreview"
+              class="image-preview"
+            >
+              <img
+                :src="imagePreview"
+                :alt="formData.name"
+                style="max-width: 150px; max-height: 150px;"
+              >
+            </div>
+          </div>
+          <div class="form-group">
+            <label for="discountable">
+              <input
+                id="discountable"
+                v-model="formData.discountable"
+                type="checkbox"
+              >
+              Rabattfähig
+            </label>
+          </div>
+          <div class="form-buttons">
+            <button
+              type="submit"
+              class="btn btn-success"
+            >
+              {{ editingId ? 'Aktualisieren' : 'Erstellen' }}
+            </button>
+            <button
+              type="button"
+              class="btn btn-secondary"
+              @click="closeProductModal"
+            >
+              Abbrechen / Zurück
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
   </div>
 </template>
 
@@ -167,7 +193,7 @@ import { formatPrice } from '@/services/utils'
 const productStore = useProductStore()
 const notificationStore = useNotificationStore()
 
-const showForm = ref(false)
+const showProductModal = ref(false)
 const editingId = ref(null)
 const imagePreview = ref(null)
 const imageFile = ref(null)
@@ -178,6 +204,16 @@ const formData = reactive({
   stock: 0,
   discountable: true,
 })
+
+const openCreateModal = () => {
+  resetForm()
+  showProductModal.value = true
+}
+
+const closeProductModal = () => {
+  showProductModal.value = false
+  resetForm()
+}
 
 const handleSaveProduct = async () => {
   if (editingId.value) {
@@ -267,7 +303,7 @@ const resetForm = () => {
   imageFile.value = null
   imagePreview.value = null
   editingId.value = null
-  showForm.value = false
+  showProductModal.value = false
 }
 
 const editProduct = (product) => {
@@ -277,10 +313,9 @@ const editProduct = (product) => {
   formData.memberPrice = product.member_price_cents ? product.member_price_cents / 100 : null
   formData.stock = product.stock_quantity
   formData.discountable = product.is_discountable
-  if (product.image) {
-    imagePreview.value = 'data:image/jpeg;base64,' + product.image
-  }
-  showForm.value = true
+  imageFile.value = null
+  imagePreview.value = product.image ? 'data:image/jpeg;base64,' + product.image : null
+  showProductModal.value = true
 }
 
 const handleImageUpload = (event) => {
@@ -322,16 +357,20 @@ onMounted(async () => {
   border-radius: 8px;
 }
 
+.page-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  margin-bottom: 1rem;
+}
+
 .form-section {
-  background: #f5f5f5;
-  padding: 1.5rem;
-  border-radius: 4px;
-  margin: 1rem 0;
+  display: grid;
+  gap: 1rem;
 }
 
 .form-group {
-  margin-bottom: 1rem;
-
   label {
     display: block;
     margin-bottom: 0.5rem;
@@ -353,6 +392,12 @@ onMounted(async () => {
   input[type="checkbox"] {
     margin-right: 0.5rem;
   }
+}
+
+.form-buttons {
+  display: flex;
+  gap: 1rem;
+  margin-top: 0.5rem;
 }
 
 .products-table {
@@ -431,10 +476,53 @@ onMounted(async () => {
   }
 }
 
+.btn-secondary {
+  background: #6b7280;
+  color: white;
+}
+
 .loading {
   text-align: center;
   padding: 2rem;
   color: #999;
+}
+
+.modal-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(15, 23, 42, 0.55);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 1rem;
+  z-index: 1000;
+}
+
+.modal-card {
+  width: min(100%, 520px);
+  max-height: calc(100vh - 2rem);
+  overflow-y: auto;
+  background: white;
+  border-radius: 12px;
+  padding: 1.5rem;
+  box-shadow: 0 18px 40px rgba(15, 23, 42, 0.22);
+}
+
+.modal-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  margin-bottom: 1rem;
+}
+
+.modal-close {
+  border: none;
+  background: transparent;
+  font-size: 1.6rem;
+  line-height: 1;
+  cursor: pointer;
+  color: #6b7280;
 }
 
 .product-image-cell {
