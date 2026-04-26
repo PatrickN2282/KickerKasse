@@ -26,11 +26,14 @@
 - Darf zusätzlich als **Kassenprüfer** jedes Mitglied auswählen oder die Auswahl wieder entfernen
 
 ## Admin
+- Darf zusätzlich Mitgliedsguthaben aufladen
+- Darf zusätzlich **Geschenk-Gutscheine** erstellen
 - Darf zusätzlich **Verzehrkarten** erstellen
 - Darf zusätzlich mehrere Verzehrkarten gleichzeitig erstellen
 - Darf zusätzlich für Verzehrkarten automatisch Produktartikel anlegen und deren Lagerbestand erhöhen
 - Darf zusätzlich Geschenk-Gutscheine in der Verwaltung bearbeiten
 - Darf zusätzlich den Bereich **Gutscheine → Vereinskonto** verwenden
+- Darf zusätzlich das **Gutscheinkonto** aufbuchen
 - Darf zusätzlich Abschöpfungen außerhalb des Z-Bon-Modals direkt buchen
 - Darf zusätzlich die Tabs **Kategorien**, **Benutzer**, **Design** und **Datenpflege** öffnen
 - Darf zusätzlich Benutzer anlegen und löschen

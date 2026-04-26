@@ -40,16 +40,24 @@
                 <span v-else class="product-thumb-placeholder">Bild</span>
               </div>
             </td>
-            <td class="font-bold">{{ product.name }}</td>
+            <td>
+              <div class="product-name-cell">
+                <span class="font-bold">{{ product.name }}</span>
+                <div class="product-badges">
+                  <span v-if="hasMemberPrice(product)" class="badge badge-info">Rabatt</span>
+                  <span v-if="product.is_unlimited_stock" class="badge badge-dark">∞</span>
+                </div>
+              </div>
+            </td>
             <td>{{ formatPrice(product.price_cents) }}</td>
             <td>
-              <span :class="['badge', product.member_price_cents ? 'badge-success' : 'badge-light']">
-                {{ product.member_price_cents ? formatPrice(product.member_price_cents) : 'Kein Sonderpreis' }}
+              <span :class="['badge', hasMemberPrice(product) ? 'badge-success' : 'badge-light']">
+                {{ hasMemberPrice(product) ? formatPrice(product.member_price_cents) : 'Kein Sonderpreis' }}
               </span>
             </td>
             <td>
-              <span :class="['badge', product.stock_quantity > 0 ? 'badge-success' : 'badge-danger']">
-                {{ product.stock_quantity }}
+              <span :class="['badge', product.is_unlimited_stock ? 'badge-dark' : (product.stock_quantity > 0 ? 'badge-success' : 'badge-danger')]">
+                {{ product.is_unlimited_stock ? '∞' : product.stock_quantity }}
               </span>
             </td>
             <td class="text-right action-cell">
@@ -89,16 +97,16 @@
 
             <div class="sidebar-info-box">
               <label class="checkbox-card">
-                <input id="discountable" v-model="formData.discountable" type="checkbox">
+                <input id="unlimited-stock" v-model="formData.isUnlimitedStock" type="checkbox" @change="handleUnlimitedStockChange">
                 <div class="checkbox-content">
-                  <span class="label">Rabattfähig</span>
-                  <span class="desc">Mitgliederpreis kann an der Kasse verwendet werden.</span>
+                  <span class="label">Unendlich verfügbar</span>
+                  <span class="desc">Artikel ohne Bestand, z. B. Eintrittspreise, bleiben immer buchbar.</span>
                 </div>
               </label>
 
               <div class="summary-card">
                 <span class="label">Lagerbestand</span>
-                <span class="value">{{ formData.stock }}</span>
+                <span class="value">{{ formData.isUnlimitedStock ? '∞' : formData.stock }}</span>
               </div>
             </div>
           </aside>
@@ -113,7 +121,7 @@
                 </div>
                 <div class="form-group">
                   <label for="stock">Lagerbestand*</label>
-                  <input id="stock" v-model.number="formData.stock" type="number" min="0" required>
+                  <input id="stock" v-model.number="formData.stock" type="number" min="0" :disabled="formData.isUnlimitedStock" required>
                 </div>
               </div>
             </section>
@@ -158,13 +166,34 @@ const showProductModal = ref(false)
 const editingId = ref(null)
 const imagePreview = ref(null)
 const imageFile = ref(null)
+const lastFiniteStock = ref(0)
 const formData = reactive({
   name: '',
   price: 0,
   memberPrice: null,
   stock: 0,
-  discountable: true,
+  isUnlimitedStock: false,
 })
+
+const hasMemberPrice = (product) => product.member_price_cents !== null && product.member_price_cents !== undefined
+
+const toMemberPriceCents = () => (
+  formData.memberPrice === null || formData.memberPrice === ''
+    ? null
+    : Math.round(formData.memberPrice * 100)
+)
+
+const handleUnlimitedStockChange = () => {
+  if (formData.isUnlimitedStock) {
+    lastFiniteStock.value = formData.stock
+    formData.stock = 0
+    return
+  }
+
+  if (formData.stock === 0 && lastFiniteStock.value > 0) {
+    formData.stock = lastFiniteStock.value
+  }
+}
 
 const openCreateModal = () => {
   resetForm()
@@ -186,9 +215,9 @@ const handleSaveProduct = async () => {
     const result = await productStore.updateProduct(editingId.value, {
       name: formData.name,
       price_cents: Math.round(formData.price * 100),
-      member_price_cents: formData.memberPrice ? Math.round(formData.memberPrice * 100) : null,
-      stock_quantity: formData.stock,
-      is_discountable: formData.discountable,
+      member_price_cents: toMemberPriceCents(),
+      stock_quantity: formData.isUnlimitedStock ? 0 : formData.stock,
+      is_unlimited_stock: formData.isUnlimitedStock,
     })
 
     if (result) {
@@ -201,9 +230,9 @@ const handleSaveProduct = async () => {
     const result = await productStore.createProduct({
       name: formData.name,
       price_cents: Math.round(formData.price * 100),
-      member_price_cents: formData.memberPrice ? Math.round(formData.memberPrice * 100) : null,
-      stock_quantity: formData.stock,
-      is_discountable: formData.discountable,
+      member_price_cents: toMemberPriceCents(),
+      stock_quantity: formData.isUnlimitedStock ? 0 : formData.stock,
+      is_unlimited_stock: formData.isUnlimitedStock,
     })
 
     if (result) {
@@ -256,7 +285,8 @@ const resetForm = () => {
   formData.price = 0
   formData.memberPrice = null
   formData.stock = 0
-  formData.discountable = true
+  formData.isUnlimitedStock = false
+  lastFiniteStock.value = 0
   imageFile.value = null
   imagePreview.value = null
   editingId.value = null
@@ -267,9 +297,10 @@ const editProduct = (product) => {
   editingId.value = product.id
   formData.name = product.name
   formData.price = product.price_cents / 100
-  formData.memberPrice = product.member_price_cents ? product.member_price_cents / 100 : null
+  formData.memberPrice = hasMemberPrice(product) ? product.member_price_cents / 100 : null
   formData.stock = product.stock_quantity
-  formData.discountable = product.is_discountable
+  formData.isUnlimitedStock = !!product.is_unlimited_stock
+  lastFiniteStock.value = product.stock_quantity
   imageFile.value = null
   imagePreview.value = product.image_path ? `/api/products/${product.id}/image` : null
   showProductModal.value = true
@@ -403,6 +434,18 @@ onMounted(async () => {
   font-weight: 600;
 }
 
+.product-name-cell {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+}
+
+.product-badges {
+  display: inline-flex;
+  gap: 0.35rem;
+}
+
 .product-image-cell {
   width: 84px;
 }
@@ -450,9 +493,19 @@ onMounted(async () => {
   color: #475569;
 }
 
+.badge-info {
+  background: #dbeafe;
+  color: #1d4ed8;
+}
+
 .badge-danger {
   background: #fee2e2;
   color: #b91c1c;
+}
+
+.badge-dark {
+  background: #e2e8f0;
+  color: #0f172a;
 }
 
 .modal-overlay {

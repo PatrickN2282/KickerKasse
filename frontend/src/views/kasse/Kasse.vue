@@ -27,17 +27,21 @@
             <button
               v-for="product in getProductsByCategory(category.id)"
               :key="product.id"
-                :disabled="getAvailableStock(product) === 0"
+                :disabled="isProductOutOfStock(product)"
                 class="product-btn"
                 @click="selectProduct(product, category.id)"
             >
+              <div v-if="showProductBadge(product)" class="product-badges">
+                <span v-if="hasMemberPrice(product)" class="product-badge discount-badge">Rabatt</span>
+                <span v-if="product.is_unlimited_stock" class="product-badge unlimited-badge">∞</span>
+              </div>
               <div v-if="product.image_path" class="product-image">
                 <img :src="`/api/products/${product.id}/image`" :alt="product.name" />
               </div>
               <div class="product-name">{{ product.name }}</div>
               <div class="product-price">{{ formatPrice(getDisplayedProductPriceCents(product, category.id)) }}</div>
               <div class="product-stock">
-                Verfügbar: {{ getAvailableStock(product) }}
+                {{ getStockLabel(product) }}
               </div>
             </button>
           </div>
@@ -62,17 +66,21 @@
             <button
               v-for="product in productsWithoutCategory"
               :key="product.id"
-                :disabled="getAvailableStock(product) === 0"
+                :disabled="isProductOutOfStock(product)"
                 class="product-btn"
                 @click="selectProduct(product)"
             >
+              <div v-if="showProductBadge(product)" class="product-badges">
+                <span v-if="hasMemberPrice(product)" class="product-badge discount-badge">Rabatt</span>
+                <span v-if="product.is_unlimited_stock" class="product-badge unlimited-badge">∞</span>
+              </div>
               <div v-if="product.image_path" class="product-image">
                 <img :src="`/api/products/${product.id}/image`" :alt="product.name" />
               </div>
               <div class="product-name">{{ product.name }}</div>
               <div class="product-price">{{ formatPrice(product.price_cents) }}</div>
               <div class="product-stock">
-                Verfügbar: {{ getAvailableStock(product) }}
+                {{ getStockLabel(product) }}
               </div>
             </button>
           </div>
@@ -852,7 +860,15 @@ const getCartReservedQuantity = (productId, excludeLineId = null) => {
   }, 0)
 }
 
+const hasMemberPrice = (product) => product.member_price_cents !== null && product.member_price_cents !== undefined
+
+const showProductBadge = (product) => hasMemberPrice(product) || product.is_unlimited_stock
+
 const getAvailableStock = (product, excludeDeckelId = null, excludeLineId = null) => {
+  if (product.is_unlimited_stock) {
+    return Number.POSITIVE_INFINITY
+  }
+
   return Math.max(
     (product.stock_quantity || 0)
       - getDeckelReservedQuantity(product.id, excludeDeckelId)
@@ -860,6 +876,14 @@ const getAvailableStock = (product, excludeDeckelId = null, excludeLineId = null
     0
   )
 }
+
+const isProductOutOfStock = (product) => !product.is_unlimited_stock && getAvailableStock(product) === 0
+
+const getStockLabel = (product) => (
+  product.is_unlimited_stock
+    ? 'Unbegrenzt verfügbar'
+    : `Verfügbar: ${getAvailableStock(product)}`
+)
 
 const selectProduct = (product, categoryId = null) => {
   if (isInternalMaterialSale(product, categoryId)) {
@@ -1578,6 +1602,7 @@ onBeforeUnmount(() => {
   display: flex;
   flex-direction: column;
   gap: 0.5rem;
+  position: relative;
 
   &:hover:not(:disabled) {
     background: color-mix(in srgb, var(--app-highlight-color) 10%, white 90%);
@@ -1609,6 +1634,36 @@ onBeforeUnmount(() => {
 
   .product-name {
     font-weight: 600;
+  }
+
+  .product-badges {
+    position: absolute;
+    top: 0.55rem;
+    right: 0.55rem;
+    display: flex;
+    gap: 0.35rem;
+  }
+
+  .product-badge {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 1.6rem;
+    padding: 0.15rem 0.45rem;
+    border-radius: 999px;
+    font-size: 0.7rem;
+    font-weight: 700;
+    line-height: 1.2;
+  }
+
+  .discount-badge {
+    background: #dbeafe;
+    color: #1d4ed8;
+  }
+
+  .unlimited-badge {
+    background: #e2e8f0;
+    color: #0f172a;
   }
 
   .product-price {
