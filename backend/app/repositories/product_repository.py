@@ -73,12 +73,12 @@ class ProductRepository:
         if not product:
             return False
 
-        if product.is_unlimited_stock:
-            return True
-        
-        if product.stock_quantity < quantity:
+        if not (product.is_unlimited_stock or product.stock_quantity >= quantity):
             return False
         
+        if product.is_unlimited_stock:
+            return True
+
         product.stock_quantity -= quantity
         self.db.commit()
         return True

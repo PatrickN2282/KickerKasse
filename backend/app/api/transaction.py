@@ -139,12 +139,13 @@ async def create_sale(
                 status_code=status.HTTP_404_NOT_FOUND,
                 detail=f"Product {item.product_id} not found",
             )
-        available_quantity = max(product.stock_quantity - reserved_quantities.get(product.id, 0), 0)
-        if not product.is_unlimited_stock and available_quantity < item.quantity:
-            raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST,
-                detail=f"Unzureichender Bestand für Produkt {product.name}",
-            )
+        if not product.is_unlimited_stock:
+            available_quantity = max(product.stock_quantity - reserved_quantities.get(product.id, 0), 0)
+            if available_quantity < item.quantity:
+                raise HTTPException(
+                    status_code=status.HTTP_400_BAD_REQUEST,
+                    detail=f"Unzureichender Bestand für Produkt {product.name}",
+                )
         prepaid_value_cents = voucher_service.get_prepaid_value_from_product(product)
         if prepaid_value_cents is not None:
             sold_prepaid_quantities_by_value[prepaid_value_cents] = (
