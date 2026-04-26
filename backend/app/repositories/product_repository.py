@@ -24,7 +24,7 @@ class ProductRepository:
             description=description,
             price_cents=price_cents,
             member_price_cents=member_price_cents,
-            is_discountable=member_price_cents is not None if member_price_cents is not None else is_discountable,
+            is_discountable=is_discountable,
             stock_quantity=0 if is_unlimited_stock else stock_quantity,
             is_unlimited_stock=is_unlimited_stock,
         )
@@ -53,9 +53,6 @@ class ProductRepository:
         for key, value in kwargs.items():
             if hasattr(product, key) and key != "id":
                 setattr(product, key, value)
-
-        if "member_price_cents" in kwargs:
-            product.is_discountable = kwargs["member_price_cents"] is not None
 
         if product.is_unlimited_stock:
             product.stock_quantity = 0
