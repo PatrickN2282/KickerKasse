@@ -1,3 +1,4 @@
+from sqlalchemy import text
 from sqlalchemy.orm import Session
 
 from app.constants import (
@@ -26,6 +27,25 @@ from app.models import (
 from app.services.file_service import delete_member_photo, delete_product_image
 
 
+_TABLES_WITH_SEQUENCES = [
+    "transactions",
+    "transaction_items",
+    "vouchers",
+    "members",
+    "users",
+    "products",
+    "categories",
+    "balance_logs",
+    "cash_entries",
+    "cash_balances",
+    "club_account_entries",
+    "material_account_entries",
+    "deckel",
+    "deckel_items",
+    "zbon_history",
+]
+
+
 class DataMaintenanceService:
     """Maintenance operations for privileged admin cleanup flows."""
 
@@ -40,6 +60,15 @@ class DataMaintenanceService:
             is_active_in_kasse=True,
             display_order=INTERNAL_MATERIAL_CATEGORY_DISPLAY_ORDER,
         )
+
+    def _reset_sequences(self) -> None:
+        """Reset all auto-increment sequences for tables cleared during hard reset."""
+        for table in _TABLES_WITH_SEQUENCES:
+            self.db.execute(
+                text(
+                    f"SELECT setval(pg_get_serial_sequence('{table}', 'id'), 1, false)"
+                )
+            )
 
     def hard_reset(self) -> dict:
         member_ids = [member_id for (member_id,) in self.db.query(Member.id).all()]
@@ -63,6 +92,7 @@ class DataMaintenanceService:
         self.db.query(Product).delete(synchronize_session=False)
         self.db.query(Category).delete(synchronize_session=False)
         self.db.add(self._build_fixed_internal_material_category())
+        self._reset_sequences()
         self.db.commit()
 
         for member_id in member_ids:

@@ -143,6 +143,7 @@ import NotificationCenter from '@/components/NotificationCenter.vue'
 import PwaInstallButton from '@/components/PwaInstallButton.vue'
 
 import pkg from '../package.json'
+import { SESSION_RELOAD_FLAG_KEY } from '@/constants'
 
 const authStore = useAuthStore()
 const appSettingsStore = useAppSettingsStore()
@@ -195,6 +196,7 @@ const loginFromModal = async () => {
 }
 
 const handleBeforeUnload = () => {
+  sessionStorage.setItem(SESSION_RELOAD_FLAG_KEY, '1')
   authStore.clearClientSession()
 }
 
