@@ -7,6 +7,13 @@ class ProductRepository:
     
     def __init__(self, db: Session):
         self.db = db
+
+    @staticmethod
+    def _normalize_stock_fields(values: dict) -> dict:
+        normalized_values = dict(values)
+        if normalized_values.get("is_unlimited_stock"):
+            normalized_values["stock_quantity"] = 0
+        return normalized_values
     
     def create(
         self,
@@ -19,15 +26,16 @@ class ProductRepository:
         is_unlimited_stock: bool = False,
     ) -> Product:
         """Create a new product"""
-        product = Product(
-            name=name,
-            description=description,
-            price_cents=price_cents,
-            member_price_cents=member_price_cents,
-            is_discountable=is_discountable,
-            stock_quantity=0 if is_unlimited_stock else stock_quantity,
-            is_unlimited_stock=is_unlimited_stock,
-        )
+        product_data = self._normalize_stock_fields({
+            "name": name,
+            "description": description,
+            "price_cents": price_cents,
+            "member_price_cents": member_price_cents,
+            "is_discountable": is_discountable,
+            "stock_quantity": stock_quantity,
+            "is_unlimited_stock": is_unlimited_stock,
+        })
+        product = Product(**product_data)
         self.db.add(product)
         self.db.commit()
         self.db.refresh(product)
@@ -49,13 +57,11 @@ class ProductRepository:
         product = self.get_by_id(product_id)
         if not product:
             return None
-        
-        for key, value in kwargs.items():
+
+        normalized_kwargs = self._normalize_stock_fields(kwargs)
+        for key, value in normalized_kwargs.items():
             if hasattr(product, key) and key != "id":
                 setattr(product, key, value)
-
-        if product.is_unlimited_stock:
-            product.stock_quantity = 0
         
         self.db.commit()
         self.db.refresh(product)

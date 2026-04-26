@@ -139,10 +139,8 @@ async def create_sale(
                 status_code=status.HTTP_404_NOT_FOUND,
                 detail=f"Product {item.product_id} not found",
             )
-        available_quantity = None if product.is_unlimited_stock else max(
-            product.stock_quantity - reserved_quantities.get(product.id, 0), 0
-        )
-        if available_quantity is not None and available_quantity < item.quantity:
+        available_quantity = max(product.stock_quantity - reserved_quantities.get(product.id, 0), 0)
+        if not product.is_unlimited_stock and available_quantity < item.quantity:
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
                 detail=f"Unzureichender Bestand für Produkt {product.name}",

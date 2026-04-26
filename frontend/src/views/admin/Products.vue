@@ -166,6 +166,7 @@ const showProductModal = ref(false)
 const editingId = ref(null)
 const imagePreview = ref(null)
 const imageFile = ref(null)
+const lastFiniteStock = ref(0)
 const formData = reactive({
   name: '',
   price: 0,
@@ -184,7 +185,13 @@ const toMemberPriceCents = () => (
 
 const handleUnlimitedStockChange = () => {
   if (formData.isUnlimitedStock) {
+    lastFiniteStock.value = formData.stock
     formData.stock = 0
+    return
+  }
+
+  if (formData.stock === 0 && lastFiniteStock.value > 0) {
+    formData.stock = lastFiniteStock.value
   }
 }
 
@@ -279,6 +286,7 @@ const resetForm = () => {
   formData.memberPrice = null
   formData.stock = 0
   formData.isUnlimitedStock = false
+  lastFiniteStock.value = 0
   imageFile.value = null
   imagePreview.value = null
   editingId.value = null
@@ -292,6 +300,7 @@ const editProduct = (product) => {
   formData.memberPrice = hasMemberPrice(product) ? product.member_price_cents / 100 : null
   formData.stock = product.stock_quantity
   formData.isUnlimitedStock = !!product.is_unlimited_stock
+  lastFiniteStock.value = product.stock_quantity
   imageFile.value = null
   imagePreview.value = product.image_path ? `/api/products/${product.id}/image` : null
   showProductModal.value = true
