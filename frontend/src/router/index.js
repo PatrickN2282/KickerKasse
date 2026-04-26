@@ -1,5 +1,6 @@
 import { createRouter, createWebHistory } from 'vue-router'
 import { useAuthStore } from '@/stores/auth'
+import { SESSION_RELOAD_FLAG_KEY } from '@/constants'
 
 const routes = [
   {
@@ -77,8 +78,20 @@ const router = createRouter({
   routes,
 })
 
+let sessionHandled = false
+
 router.beforeEach(async (to, from, next) => {
   const authStore = useAuthStore()
+
+  if (!sessionHandled) {
+    sessionHandled = true
+    const wasReloading = sessionStorage.getItem(SESSION_RELOAD_FLAG_KEY)
+    if (wasReloading) {
+      sessionStorage.removeItem(SESSION_RELOAD_FLAG_KEY)
+    } else {
+      await authStore.logout()
+    }
+  }
 
   if (to.meta.requiresAuth && !authStore.isAuthenticated) {
     await authStore.checkAuth()
