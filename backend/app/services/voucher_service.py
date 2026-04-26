@@ -70,6 +70,7 @@ class VoucherService:
             prepaid_product.price_cents = value_cents
             prepaid_product.member_price_cents = None
             prepaid_product.is_discountable = False
+            prepaid_product.is_unlimited_stock = False
             prepaid_product.is_active = True
             self.db.flush()
             return prepaid_product
@@ -81,6 +82,7 @@ class VoucherService:
             member_price_cents=None,
             is_discountable=False,
             stock_quantity=0,
+            is_unlimited_stock=False,
             is_active=True,
         )
         self.db.add(prepaid_product)

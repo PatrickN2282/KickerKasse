@@ -43,6 +43,9 @@ class DeckelService:
             if not product:
                 raise ValueError(f"Produkt {product_id} nicht gefunden")
 
+            if product.is_unlimited_stock:
+                continue
+
             available_quantity = max(product.stock_quantity - reserved_quantities.get(product_id, 0), 0)
             if requested_quantity > available_quantity:
                 raise ValueError(

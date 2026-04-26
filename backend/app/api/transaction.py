@@ -139,8 +139,10 @@ async def create_sale(
                 status_code=status.HTTP_404_NOT_FOUND,
                 detail=f"Product {item.product_id} not found",
             )
-        available_quantity = max(product.stock_quantity - reserved_quantities.get(product.id, 0), 0)
-        if available_quantity < item.quantity:
+        available_quantity = None if product.is_unlimited_stock else max(
+            product.stock_quantity - reserved_quantities.get(product.id, 0), 0
+        )
+        if available_quantity is not None and available_quantity < item.quantity:
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
                 detail=f"Unzureichender Bestand für Produkt {product.name}",
@@ -250,7 +252,9 @@ async def create_sale(
     
     # Deduct stock for each item
     for item in transaction.items:
-        product_repo.deduct_stock(item.product_id, item.quantity)
+        product = product_repo.get_by_id(item.product_id)
+        if product and not product.is_unlimited_stock:
+            product_repo.deduct_stock(item.product_id, item.quantity)
 
     MaterialAccountService(db).record_sale_transaction(transaction)
 

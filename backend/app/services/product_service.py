@@ -13,11 +13,12 @@ class ProductService:
         self, name: str, price_cents: int, description: str = None,
         member_price_cents: int = None, is_discountable: bool = True,
         stock_quantity: int = 0,
+        is_unlimited_stock: bool = False,
     ):
         """Create a new product"""
         return self.repo.create(
             name, price_cents, description, member_price_cents,
-            is_discountable, stock_quantity
+            is_discountable, stock_quantity, is_unlimited_stock
         )
     
     def get_product(self, product_id: int):
@@ -35,7 +36,7 @@ class ProductService:
     def check_stock(self, product_id: int, quantity: int) -> bool:
         """Check if product has sufficient stock"""
         product = self.repo.get_by_id(product_id)
-        return product and product.stock_quantity >= quantity
+        return bool(product and (product.is_unlimited_stock or product.stock_quantity >= quantity))
     
     def adjust_stock(self, product_id: int, quantity: int):
         """Adjust product stock (positive or negative)"""

@@ -13,6 +13,7 @@ class Product(BaseModel):
     member_price_cents = Column(Integer, nullable=True)  # Mitgliedspreis in Cent
     is_discountable = Column(Boolean, default=True, nullable=False)  # Rabattfähig
     stock_quantity = Column(Integer, default=0, nullable=False)  # Lagerbestand
+    is_unlimited_stock = Column(Boolean, default=False, nullable=False)  # Immer verfügbar
     image_path = Column(String(255), nullable=True)  # Pfad zum Produktbild
     is_active = Column(Boolean, default=True, nullable=False)
     tax_rate = Column(Float, default=0.0, nullable=False)  # Steuersatz in % (z.B. 19.0, 7.0, 0.0)
