@@ -1,5 +1,5 @@
 from sqlalchemy.orm import Session, joinedload
-from sqlalchemy import func, and_, false
+from sqlalchemy import func, and_
 from datetime import date, datetime, time, timedelta
 from app.repositories import TransactionRepository, BalanceLogRepository
 from app.models import Transaction, TransactionType, PaymentMethod, Product, CashEntry, CashEntryType, ClubAccountEntry
@@ -382,12 +382,13 @@ class TransactionService:
             ])
         )
         
-        if payment_method == CashEntryType.WITHDRAWAL.value:
-            query = query.filter(false())
-        elif payment_method:
+        if payment_method and payment_method != CashEntryType.WITHDRAWAL.value:
             query = query.filter(Transaction.payment_method == PaymentMethod[payment_method])
 
-        transactions = query.order_by(Transaction.created_at.desc(), Transaction.id.desc()).all()
+        if payment_method == CashEntryType.WITHDRAWAL.value:
+            transactions = []
+        else:
+            transactions = query.order_by(Transaction.created_at.desc(), Transaction.id.desc()).all()
         club_account_transaction_ids = self._get_club_account_transaction_ids(start_datetime, end_datetime)
 
         cash_entries_query = self.db.query(CashEntry).options(joinedload(CashEntry.user)).filter(

@@ -1986,7 +1986,7 @@ const getPaymentBadgeClass = (transaction) => {
 
 const hasCashPaymentPortion = (transaction) => (
   transaction?.payment_method === 'CASH'
-  && Number(transaction?.total_amount_cents || 0) > 0
+  && Number(transaction?.total_amount_cents || 0) !== 0
 )
 
 const hasBalancePaymentPortion = (transaction) => (
