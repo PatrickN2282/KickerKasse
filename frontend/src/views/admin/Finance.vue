@@ -52,7 +52,7 @@
           <div class="summary-grid zbon-card-grid">
             <div class="summary-card">
               <div class="card-label">
-                Umsatz (BAR)
+                Bar-Einnahmen
               </div>
               <div class="card-value">
                 {{ formatPrice(dailyStats.cash_total) }}
@@ -226,20 +226,13 @@
                 >
                   <td>{{ formatDate(transaction.created_at) }}</td>
                   <td>{{ formatTime(transaction.created_at) }}</td>
-                  <td><strong>{{ transaction.receipt_number }}</strong></td>
+                  <td><strong>{{ transaction.receipt_number ?? '-' }}</strong></td>
                   <td>{{ getTransactionMemberLabel(transaction) }}</td>
                   <td class="amount">
                     {{ formatPrice(transaction.gross_amount_cents || transaction.total_amount_cents) }}
                   </td>
                   <td>
                     <span
-                      v-if="transaction.type === 'RECHARGE'"
-                      class="payment-badge recharge"
-                    >
-                      ⬆️ Aufladen
-                    </span>
-                    <span
-                      v-else
                       :class="['payment-badge', getPaymentBadgeClass(transaction)]"
                     >
                       {{ getPaymentBadgeLabel(transaction) }}
@@ -255,6 +248,13 @@
                     class="items-cell"
                   >
                     <div class="items-list">
+                      <div
+                        v-if="transaction.reason"
+                        class="item-detail"
+                      >
+                        <span class="item-name">Buchungsgrund</span>
+                        <span class="item-total">{{ transaction.reason }}</span>
+                      </div>
                       <div v-if="transaction.items && transaction.items.length > 0">
                         <div
                           v-for="item in transaction.items"
@@ -268,7 +268,7 @@
                         </div>
                       </div>
                       <div
-                        v-else
+                        v-else-if="!transaction.reason"
                         class="no-items"
                       >
                         Keine Artikel
@@ -584,29 +584,22 @@
               <tr
                 class="transaction-row"
                 style="cursor: pointer;"
-                @click="toggleTransaction(transaction.id)"
-              >
-                <td>{{ formatDate(transaction.created_at) }}</td>
-                <td>{{ formatTime(transaction.created_at) }}</td>
-                <td><strong>{{ transaction.receipt_number }}</strong></td>
-                <td>{{ getTransactionMemberLabel(transaction) }}</td>
-                <td class="amount">
-                  {{ formatPrice(transaction.total_amount_cents) }}
-                </td>
-                <td>
-                  <span
-                    v-if="transaction.type === 'RECHARGE'"
-                    class="payment-badge recharge"
-                  >
-                    ⬆️ Aufladen
-                  </span>
-                  <span
-                    v-else
-                    :class="['payment-badge', getPaymentBadgeClass(transaction)]"
-                  >
-                    {{ getPaymentBadgeLabel(transaction) }}
-                  </span>
-                </td>
+                  @click="toggleTransaction(transaction.id)"
+                >
+                  <td>{{ formatDate(transaction.created_at) }}</td>
+                  <td>{{ formatTime(transaction.created_at) }}</td>
+                  <td><strong>{{ transaction.receipt_number ?? '-' }}</strong></td>
+                  <td>{{ getTransactionMemberLabel(transaction) }}</td>
+                  <td class="amount">
+                    {{ formatPrice(transaction.gross_amount_cents || transaction.total_amount_cents) }}
+                  </td>
+                  <td>
+                    <span
+                      :class="['payment-badge', getPaymentBadgeClass(transaction)]"
+                    >
+                      {{ getPaymentBadgeLabel(transaction) }}
+                    </span>
+                  </td>
                 <td>{{ transaction.user?.username || '-' }}</td>
               </tr>
               <tr
@@ -616,26 +609,33 @@
                 <td
                   colspan="7"
                   class="items-cell"
-                >
-                  <div class="items-list">
-                    <div v-if="transaction.items && transaction.items.length > 0">
+                  >
+                    <div class="items-list">
                       <div
-                        v-for="item in transaction.items"
-                        :key="item.id"
+                        v-if="transaction.reason"
                         class="item-detail"
+                      >
+                        <span class="item-name">Buchungsgrund</span>
+                        <span class="item-total">{{ transaction.reason }}</span>
+                      </div>
+                      <div v-if="transaction.items && transaction.items.length > 0">
+                        <div
+                          v-for="item in transaction.items"
+                          :key="item.id"
+                          class="item-detail"
                       >
                         <span class="item-name">{{ item.product?.name || item.id }}: </span>
                         <span class="item-qty">{{ item.quantity }}×</span>
                         <span class="item-price">{{ formatPrice(item.unit_price_cents) }}</span>
                         <span class="item-total">= {{ formatPrice(item.total_price_cents) }}</span>
                       </div>
-                    </div>
-                    <div
-                      v-else
-                      class="no-items"
-                    >
-                      Keine Artikel
-                    </div>
+                      </div>
+                      <div
+                        v-else-if="!transaction.reason"
+                        class="no-items"
+                      >
+                        Keine Artikel
+                      </div>
                   </div>
                 </td>
               </tr>
@@ -1716,7 +1716,11 @@ const getMemberById = (memberId) => {
 const getTransactionMemberLabel = (transaction) => {
   if (!transaction) return 'Gast'
 
-  if (transaction.type === 'RECHARGE' && !transaction.member && (!transaction.member_name || transaction.member_name === 'Gast')) {
+  if (transaction.booking_type === 'CASH_WITHDRAWAL') {
+    return transaction.performed_by || 'Abschöpfung'
+  }
+
+  if (transaction.booking_type === 'CLUB_ACCOUNT_TOP_UP') {
     return 'Gutscheinkonto'
   }
 
@@ -1760,6 +1764,25 @@ const getCurrentFinanceUserOptionId = () => {
   return matchedUser?.id || null
 }
 
+const getSortableTransactionId = (transaction) => {
+  const rawId = transaction?.id
+  if (typeof rawId === 'string') {
+    const pendingMatch = rawId.match(/^pending-withdrawal-(\d+)$/)
+    if (pendingMatch) {
+      return {
+        group: 2,
+        id: Number(pendingMatch[1]),
+      }
+    }
+  }
+
+  const numericId = Number(rawId)
+  return {
+    group: Number.isFinite(numericId) && numericId < 0 ? 1 : 0,
+    id: Number.isFinite(numericId) ? Math.abs(numericId) : 0,
+  }
+}
+
 const loadDailyStats = async () => {
   loading.value = true
   try {
@@ -1798,9 +1821,14 @@ const loadDailyStats = async () => {
       receipt_min: preview.summary?.receipt_number_min,
       receipt_max: preview.summary?.receipt_number_max,
       report_content: preview.report_content || '',
-      transactions: [...(preview.transactions || [])].sort((left, right) => (
-        right.created_at.localeCompare(left.created_at) || ((right.id || 0) - (left.id || 0))
-      )),
+      transactions: [...(preview.transactions || [])].sort((left, right) => {
+        const dateDiff = right.created_at.localeCompare(left.created_at)
+        if (dateDiff !== 0) return dateDiff
+
+        const rightSortKey = getSortableTransactionId(right)
+        const leftSortKey = getSortableTransactionId(left)
+        return (rightSortKey.group - leftSortKey.group) || (rightSortKey.id - leftSortKey.id)
+      }),
     }
     zBonHtml.value = preview.report_content || ''
   } catch (error) {
@@ -1868,6 +1896,14 @@ const applyFilters = async () => {
 }
 
 const getPaymentBadgeClass = (transaction) => {
+  if (transaction.booking_type === 'CASH_WITHDRAWAL') {
+    return 'withdrawal'
+  }
+
+  if (transaction.booking_type === 'CLUB_ACCOUNT_TOP_UP' || transaction.booking_type === 'MEMBER_BALANCE_RECHARGE') {
+    return 'recharge'
+  }
+
   if (transaction.voucher_applied_cents > 0 && transaction.voucher_type) {
     return transaction.voucher_type === 'GIFT' ? 'voucher-gift' : 'voucher-prepaid'
   }
@@ -1880,6 +1916,18 @@ const getPaymentBadgeClass = (transaction) => {
 }
 
 const getPaymentBadgeLabel = (transaction) => {
+  if (transaction.booking_type === 'CASH_WITHDRAWAL') {
+    return '💸 Abschöpfung'
+  }
+
+  if (transaction.booking_type === 'CLUB_ACCOUNT_TOP_UP') {
+    return '🏦 Gutscheinkonto'
+  }
+
+  if (transaction.booking_type === 'MEMBER_BALANCE_RECHARGE') {
+    return '⬆️ Guthaben aufladen'
+  }
+
   if (transaction.voucher_applied_cents > 0 && transaction.voucher_type) {
     const baseLabel = transaction.payment_method === 'BALANCE' ? '💳 Guthaben' : '💰 BAR'
     const voucherLabel = transaction.voucher_type === 'GIFT' ? '🎁 Geschenk-Gutschein' : '🎫 Verzehrkarte'
@@ -2644,6 +2692,11 @@ onMounted(() => {
   &.recharge {
     background: #fff3e0;
     color: #e65100;
+  }
+
+  &.withdrawal {
+    background: #ffebee;
+    color: #c62828;
   }
 
   &.voucher-gift {

@@ -62,6 +62,126 @@ class ZBonService:
 
         return member.name or "Gast"
 
+    def _get_club_account_transaction_ids(
+        self,
+        period_start: datetime | None,
+        period_end: datetime,
+    ) -> set[int]:
+        query = self.db.query(ClubAccountEntry.transaction_id).filter(
+            ClubAccountEntry.transaction_id.isnot(None),
+            ClubAccountEntry.created_at <= period_end,
+        )
+        if period_start:
+            query = query.filter(ClubAccountEntry.created_at > period_start)
+        return {transaction_id for transaction_id, in query.all() if transaction_id is not None}
+
+    @staticmethod
+    def _get_booking_type(transaction: Transaction, club_account_transaction_ids: set[int]) -> str:
+        if transaction.type == TransactionType.RECHARGE:
+            if transaction.id in club_account_transaction_ids:
+                return "CLUB_ACCOUNT_TOP_UP"
+            if transaction.member_id:
+                return "MEMBER_BALANCE_RECHARGE"
+        return transaction.type.value
+
+    def _serialize_transaction(self, transaction: Transaction, club_account_transaction_ids: set[int]) -> dict:
+        booking_type = self._get_booking_type(transaction, club_account_transaction_ids)
+        reason = None
+        if booking_type == "CLUB_ACCOUNT_TOP_UP":
+            reason = "Gutscheinkonto aufgeladen"
+        elif booking_type == "MEMBER_BALANCE_RECHARGE":
+            reason = "Mitgliedsguthaben aufgeladen"
+
+        return {
+            "id": transaction.id,
+            "receipt_number": transaction.receipt_number,
+            "created_at": transaction.created_at.isoformat(),
+            "type": transaction.type.value,
+            "booking_type": booking_type,
+            "payment_method": transaction.payment_method.value,
+            "total_amount_cents": transaction.total_amount_cents,
+            "gross_amount_cents": (
+                self._calculate_sale_gross_cents(transaction)
+                if transaction.type == TransactionType.SALE
+                else transaction.total_amount_cents
+            ),
+            "voucher_applied_cents": transaction.voucher_applied_cents or 0,
+            "balance_applied_cents": transaction.balance_applied_cents or 0,
+            "voucher_type": transaction.voucher_type,
+            "member_name": self._format_member_name(transaction.member),
+            "performed_by": transaction.user.username if transaction.user else None,
+            "reason": reason,
+            "items": [
+                {
+                    "id": item.id,
+                    "quantity": item.quantity,
+                    "unit_price_cents": item.unit_price_cents,
+                    "total_price_cents": item.total_price_cents,
+                    "note": item.note,
+                    "product": {
+                        "id": item.product.id if item.product else None,
+                        "name": item.product.name if item.product else None,
+                    },
+                }
+                for item in transaction.items
+            ],
+        }
+
+    @staticmethod
+    def _serialize_cash_entry(entry: CashEntry) -> dict:
+        signed_amount_cents = -entry.amount_cents if entry.entry_type == CashEntryType.WITHDRAWAL else entry.amount_cents
+        return {
+            "id": -entry.id,
+            "receipt_number": None,
+            "created_at": entry.created_at.isoformat(),
+            "type": entry.entry_type.value,
+            "booking_type": f"CASH_{entry.entry_type.value}",
+            "payment_method": PaymentMethod.CASH.value,
+            "total_amount_cents": signed_amount_cents,
+            "gross_amount_cents": signed_amount_cents,
+            "voucher_applied_cents": 0,
+            "balance_applied_cents": 0,
+            "voucher_type": None,
+            "member_name": None,
+            "performed_by": entry.user.username if entry.user else None,
+            "reason": entry.reason,
+            "items": [],
+        }
+
+    @staticmethod
+    def _serialize_pending_withdrawal(entry: dict, created_at: datetime, index: int) -> dict:
+        amount_cents = int(entry.get("amount_cents", 0) or 0)
+        return {
+            "id": f"pending-withdrawal-{index}",
+            "receipt_number": None,
+            "created_at": created_at.isoformat(),
+            "type": CashEntryType.WITHDRAWAL.value,
+            "booking_type": "CASH_WITHDRAWAL",
+            "payment_method": PaymentMethod.CASH.value,
+            "total_amount_cents": -amount_cents,
+            "gross_amount_cents": -amount_cents,
+            "voucher_applied_cents": 0,
+            "balance_applied_cents": 0,
+            "voucher_type": None,
+            "member_name": None,
+            "performed_by": None,
+            "reason": entry.get("reason"),
+            "items": [],
+        }
+
+    @staticmethod
+    def _get_transaction_row_sort_key(entry: dict) -> tuple[str, int, int]:
+        entry_id = entry.get("id")
+        if isinstance(entry_id, str) and entry_id.startswith("pending-withdrawal-"):
+            try:
+                pending_index = int(entry_id.rsplit("-", 1)[-1])
+            except ValueError:
+                pending_index = 0
+            return (entry["created_at"], 2, pending_index)
+        if isinstance(entry_id, int) and entry_id < 0:
+            return (entry["created_at"], 1, abs(entry_id))
+        return (entry["created_at"], 0, int(entry_id or 0))
+
     def _get_current_period_bounds(self) -> tuple[datetime, datetime, ZBonHistory | None]:
         period_end = datetime.now()
         last_zbon = self.db.query(ZBonHistory).order_by(desc(ZBonHistory.sequence_number)).first()
@@ -167,24 +287,36 @@ class ZBonService:
         period_start, period_end, last_zbon = self._get_current_period_bounds()
         transactions = self._get_transactions_for_period(period_start, period_end)
         cash_summary = self._get_cash_entry_summary(period_start, period_end, pending_withdrawals)
+        club_account_transaction_ids = self._get_club_account_transaction_ids(period_start, period_end)
         voucher_summary = self._get_voucher_summary(period_start, period_end)
         open_balance_total = self._get_open_member_balance_total()
         club_account_total = self._get_club_account_total()
         material_account_total_euros = MaterialAccountService(self.db).get_period_total_cents(period_start, period_end) / 100
 
         sales = [t for t in transactions if t.type == TransactionType.SALE]
-        recharges = [t for t in transactions if t.type == TransactionType.RECHARGE]
+        member_recharges = [
+            t for t in transactions
+            if t.type == TransactionType.RECHARGE
+            and t.member_id is not None
+            and t.id not in club_account_transaction_ids
+        ]
+        club_account_recharges = [
+            t for t in transactions
+            if t.type == TransactionType.RECHARGE and t.id in club_account_transaction_ids
+        ]
         stornos = [t for t in transactions if t.type == TransactionType.STORNO]
         first_transaction_at = transactions[0].created_at if transactions else None
         effective_period_start = period_start or first_transaction_at
 
         gross_sales_total = sum(self._calculate_non_prepaid_sale_gross_cents(t) for t in sales) / 100
         prepaid_voucher_sales_total = sum(self._calculate_prepaid_item_total_cents(t) for t in sales) / 100
-        total_revenue = gross_sales_total + prepaid_voucher_sales_total
-        cash_sales_total = sum(
+        recharge_total = sum(t.total_amount_cents for t in member_recharges) / 100
+        article_cash_sales_total = sum(
             t.total_amount_cents
             for t in sales if t.payment_method == PaymentMethod.CASH
         ) / 100
+        cash_sales_total = article_cash_sales_total + recharge_total
+        total_revenue = gross_sales_total + prepaid_voucher_sales_total + recharge_total
         cash_sales_count = len([t for t in sales if t.payment_method == PaymentMethod.CASH])
         balance_sales_total = sum(
             (t.balance_applied_cents or 0)
@@ -197,13 +329,11 @@ class ZBonService:
         ])
         voucher_sales_total = sum(t.voucher_applied_cents or 0 for t in sales) / 100
         voucher_sales_count = len([t for t in sales if (t.voucher_applied_cents or 0) > 0])
-        recharge_total = sum(t.total_amount_cents for t in recharges) / 100
         storno_total = sum(t.total_amount_cents for t in stornos) / 100
         opening_balance = self._get_opening_cash_balance(last_zbon)
         cash_calculated = (
             opening_balance
             + cash_sales_total
-            + recharge_total
             - cash_summary["withdrawals_total"]
         )
 
@@ -224,35 +354,18 @@ class ZBonService:
 
         receipt_numbers = [t.receipt_number for t in transactions if t.receipt_number is not None]
         transaction_rows = [
-            {
-                "id": t.id,
-                "receipt_number": t.receipt_number,
-                "created_at": t.created_at.isoformat(),
-                "type": t.type.value,
-                "payment_method": t.payment_method.value,
-                "total_amount_cents": t.total_amount_cents,
-                "gross_amount_cents": self._calculate_sale_gross_cents(t) if t.type == TransactionType.SALE else t.total_amount_cents,
-                "voucher_applied_cents": t.voucher_applied_cents or 0,
-                "balance_applied_cents": t.balance_applied_cents or 0,
-                "voucher_type": t.voucher_type,
-                "member_name": self._format_member_name(t.member),
-                "items": [
-                    {
-                        "id": item.id,
-                        "quantity": item.quantity,
-                        "unit_price_cents": item.unit_price_cents,
-                        "total_price_cents": item.total_price_cents,
-                        "note": item.note,
-                        "product": {
-                            "id": item.product.id if item.product else None,
-                            "name": item.product.name if item.product else None,
-                        },
-                    }
-                    for item in t.items
-                ],
-            }
-            for t in transactions
+            *[self._serialize_transaction(t, club_account_transaction_ids) for t in transactions],
+            *[
+                self._serialize_cash_entry(entry)
+                for entry in cash_summary["entries"]
+                if entry.entry_type == CashEntryType.WITHDRAWAL
+            ],
+            *[
+                self._serialize_pending_withdrawal(entry, period_end, index)
+                for index, entry in enumerate(cash_summary.get("pending_withdrawals", []), start=1)
+            ],
         ]
+        transaction_rows.sort(key=self._get_transaction_row_sort_key)
 
         payload = {
             "sequence_number": (last_zbon.sequence_number + 1) if last_zbon else 1,
@@ -266,9 +379,10 @@ class ZBonService:
             "cash_counted_by_name": cash_counted_by_name,
             "transactions": transaction_rows,
             "summary": {
-                "transaction_count": len(transactions),
+                "transaction_count": len(transaction_rows),
                 "sales_count": len(sales),
-                "recharge_count": len(recharges),
+                "recharge_count": len(member_recharges),
+                "club_account_recharge_count": len(club_account_recharges),
                 "prepaid_voucher_sales_count": sum(
                     item.quantity
                     for t in sales
@@ -282,9 +396,11 @@ class ZBonService:
                 "gross_sales_total": gross_sales_total,
                 "total_revenue": total_revenue,
                 "cash_sales_total": cash_sales_total,
+                "article_cash_sales_total": article_cash_sales_total,
                 "balance_sales_total": balance_sales_total,
                 "voucher_sales_total": voucher_sales_total,
                 "recharge_total": recharge_total,
+                "club_account_recharge_total": sum(t.total_amount_cents for t in club_account_recharges) / 100,
                 "prepaid_voucher_sales_total": prepaid_voucher_sales_total,
                 "storno_total": storno_total,
                 "opening_cash_balance": opening_balance,
@@ -415,9 +531,9 @@ class ZBonService:
             created_by_name=payload.get("created_by_name") or "-",
             cash_counted_by_name=payload.get("cash_counted_by_name") or "-",
             cash_sales_count=summary.get("cash_sales_count", 0),
-            cash_sales_net=f"{summary.get('cash_sales_total', 0):.2f}",
+            article_cash_sales_net=f"{summary.get('article_cash_sales_total', 0):.2f}",
             cash_sales_tax="0.00",
-            cash_sales_gross=f"{summary.get('cash_sales_total', 0):.2f}",
+            article_cash_sales_gross=f"{summary.get('article_cash_sales_total', 0):.2f}",
             balance_sales_count=summary.get("balance_sales_count", 0),
             balance_sales_net=f"{summary.get('balance_sales_total', 0):.2f}",
             balance_sales_tax="0.00",
@@ -445,7 +561,7 @@ class ZBonService:
             storno_count=summary.get("storno_count", 0),
             storno_total=f"{summary.get('storno_total', 0):.2f}",
             cash_opening_balance=f"{summary.get('opening_cash_balance', 0):.2f}",
-            cash_revenue=f"{summary.get('cash_sales_total', 0):.2f}",
+            article_cash_revenue=f"{summary.get('article_cash_sales_total', 0):.2f}",
             cash_withdrawals_total=f"{summary.get('cash_withdrawals_total', 0):.2f}",
             cash_calculated=f"{summary.get('cash_calculated', 0):.2f}",
             cash_counted=f"{summary.get('cash_counted', 0):.2f}" if summary.get("cash_counted") is not None else "-",

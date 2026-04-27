@@ -333,7 +333,7 @@
             class="btn-primary"
             @click="requestClubAccountTopUp"
           >
-            Als Bareinnahme buchen
+            Nur im Gutscheinkonto buchen
           </button>
         </div>
       </div>

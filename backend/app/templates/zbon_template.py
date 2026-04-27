@@ -372,7 +372,7 @@ ZBON_HTML_TEMPLATE = """
                 <tr>
                     <td>Verkäufe (Bargeld)</td>
                     <td class="amount">{{ cash_sales_count }}</td>
-                    <td class="amount"><strong>{{ cash_sales_gross }}</strong></td>
+                    <td class="amount"><strong>{{ article_cash_sales_gross }}</strong></td>
                 </tr>
                 <tr>
                     <td>Verkäufe (Guthaben)</td>
@@ -403,7 +403,7 @@ ZBON_HTML_TEMPLATE = """
             <tbody>
                 <tr>
                     <td>Barzahlung</td>
-                    <td class="amount"><strong>{{ cash_sales_gross }}</strong></td>
+                    <td class="amount"><strong>{{ article_cash_sales_gross }}</strong></td>
                 </tr>
                 <tr>
                     <td>Guthaben</td>
@@ -527,8 +527,8 @@ ZBON_HTML_TEMPLATE = """
                     <td class="amount">{{ cash_opening_balance|default("0.00") }}</td>
                 </tr>
                 <tr>
-                    <td>Bareinnahmen</td>
-                    <td class="amount">{{ cash_revenue|default("0.00") }}</td>
+                    <td>Bareinnahmen aus Artikelverkäufen</td>
+                    <td class="amount">{{ article_cash_revenue|default("0.00") }}</td>
                 </tr>
                 <tr>
                     <td>Einnahmen aus Guthabenverkäufen</td>
