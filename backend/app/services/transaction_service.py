@@ -235,7 +235,7 @@ class TransactionService:
             "receipt_number": entry.receipt_number,
             "total_amount_cents": signed_amount_cents,
             "gross_amount_cents": signed_amount_cents,
-            "payment_method": PaymentMethod.CASH.value,
+            "payment_method": CashEntryType.WITHDRAWAL.value if entry.entry_type == CashEntryType.WITHDRAWAL else PaymentMethod.CASH.value,
             "type": entry.entry_type.value,
             "booking_type": f"CASH_{entry.entry_type.value}",
             "voucher_code": None,
@@ -382,7 +382,9 @@ class TransactionService:
             ])
         )
         
-        if payment_method:
+        if payment_method == CashEntryType.WITHDRAWAL.value:
+            query = query.filter(False)
+        elif payment_method:
             query = query.filter(Transaction.payment_method == PaymentMethod[payment_method])
 
         transactions = query.order_by(Transaction.created_at.desc(), Transaction.id.desc()).all()
@@ -393,7 +395,9 @@ class TransactionService:
             CashEntry.created_at >= start_datetime,
             CashEntry.created_at <= end_datetime,
         )
-        if payment_method and payment_method != PaymentMethod.CASH.value:
+        if payment_method == CashEntryType.WITHDRAWAL.value:
+            cash_entries = cash_entries_query.order_by(CashEntry.created_at.desc(), CashEntry.id.desc()).all()
+        elif payment_method and payment_method != PaymentMethod.CASH.value:
             cash_entries = []
         else:
             cash_entries = cash_entries_query.order_by(CashEntry.created_at.desc(), CashEntry.id.desc()).all()

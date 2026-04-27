@@ -32,7 +32,7 @@
             <td class="font-bold">{{ user.username }}</td>
             <td>{{ user.email || '-' }}</td>
             <td>
-              <span class="role-tag">{{ roleLabel(user.role) }}</span>
+              <span :class="['role-tag', roleClass(user.role)]">{{ roleLabel(user.role) }}</span>
             </td>
             <td class="text-right action-cell">
               <button v-if="user.deletable" class="btn-action" @click="openEditModal(user)">Bearbeiten</button>
@@ -168,6 +168,12 @@ const passwordResetData = reactive({
 })
 
 const roleLabel = getRoleLabel
+const roleClass = (role) => ({
+  TOP_ADMIN: 'role-tag-top-admin',
+  ADMIN: 'role-tag-admin',
+  MANAGER: 'role-tag-manager',
+  VERKAUF: 'role-tag-verkauf',
+}[role] || 'role-tag-default')
 
 const displayedUsers = computed(() => [
   ...users.value.map(user => ({
@@ -408,9 +414,29 @@ onMounted(async () => {
 }
 
 .badge-light,
-.role-tag {
+.role-tag-default {
   background: #f1f5f9;
   color: #475569;
+}
+
+.role-tag-top-admin {
+  background: #fee2e2;
+  color: #b91c1c;
+}
+
+.role-tag-admin {
+  background: #ede9fe;
+  color: #6d28d9;
+}
+
+.role-tag-manager {
+  background: #dbeafe;
+  color: #1d4ed8;
+}
+
+.role-tag-verkauf {
+  background: #dcfce7;
+  color: #15803d;
 }
 
 .btn-action {

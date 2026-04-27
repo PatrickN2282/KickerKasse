@@ -419,6 +419,7 @@
                 <th>Kasse Ende</th>
                 <th>Differenz</th>
                 <th>Entnahmen</th>
+                <th>Benutzer</th>
                 <th>Erstellt</th>
               </tr>
             </thead>
@@ -453,6 +454,7 @@
                 <td class="amount withdrawal">
                   {{ formatPrice(zbon.cash_withdrawals * 100) }}
                 </td>
+                <td>{{ zbon.created_by_name || '-' }}</td>
                 <td class="date">
                   {{ formatTime(zbon.generated_at) }}
                 </td>
@@ -535,6 +537,9 @@
             </option>
             <option value="VOUCHER_PREPAID">
               Verzehrkarte
+            </option>
+            <option value="WITHDRAWAL">
+              Abschöpfung
             </option>
           </select>
         </div>
@@ -1964,11 +1969,46 @@ const getPaymentBadgeClass = (transaction) => {
     return transaction.voucher_type === 'GIFT' ? 'voucher-gift' : 'voucher-prepaid'
   }
 
+  if (transaction.payment_method === 'VOUCHER_GIFT') {
+    return 'voucher-gift'
+  }
+
+  if (transaction.payment_method === 'VOUCHER_PREPAID') {
+    return 'voucher-prepaid'
+  }
+
   if (transaction.balance_applied_cents > 0 && transaction.payment_method === 'CASH') {
     return 'balance'
   }
 
   return transaction.payment_method.toLowerCase()
+}
+
+const getPaymentBadgeParts = (transaction) => {
+  if (!transaction) return []
+
+  const parts = []
+
+  if (transaction.voucher_applied_cents > 0 && transaction.voucher_type) {
+    parts.push(transaction.voucher_type === 'GIFT' ? '🎁 Geschenk-Gutschein' : '🎫 Verzehrkarte')
+  } else if (transaction.payment_method === 'VOUCHER_GIFT') {
+    parts.push('🎁 Geschenk-Gutschein')
+  } else if (transaction.payment_method === 'VOUCHER_PREPAID') {
+    parts.push('🎫 Verzehrkarte')
+  }
+
+  if (
+    transaction.payment_method === 'BALANCE'
+    || transaction.balance_applied_cents > 0
+  ) {
+    parts.push('💳 Guthaben')
+  }
+
+  if (transaction.payment_method === 'CASH' && transaction.total_amount_cents > 0) {
+    parts.push('💰 BAR')
+  }
+
+  return [...new Set(parts)]
 }
 
 const getPaymentBadgeLabel = (transaction) => {
@@ -1984,26 +2024,17 @@ const getPaymentBadgeLabel = (transaction) => {
     return '⬆️ Guthaben aufladen'
   }
 
-  if (transaction.voucher_applied_cents > 0 && transaction.voucher_type) {
-    const baseLabel = transaction.payment_method === 'BALANCE' ? '💳 Guthaben' : '💰 BAR'
-    const voucherLabel = transaction.voucher_type === 'GIFT' ? '🎁 Geschenk-Gutschein' : '🎫 Verzehrkarte'
-    return `${voucherLabel} + ${baseLabel}`
-  }
-
-  if (transaction.payment_method === 'VOUCHER_GIFT') {
-    return '🎁 Geschenk-Gutschein'
-  }
-
-  if (transaction.payment_method === 'VOUCHER_PREPAID') {
-    return '🎫 Verzehrkarte'
-  }
-
   if (transaction.type === 'VOUCHER_SALE' && transaction.voucher_type === 'PREPAID') {
     return '💳 Verzehrkarte Verkauf'
   }
 
-  if (transaction.balance_applied_cents > 0 && transaction.payment_method === 'CASH') {
-    return '💳 Guthaben + 💰 BAR'
+  const paymentBadgeParts = getPaymentBadgeParts(transaction)
+  if (paymentBadgeParts.length > 0) {
+    return paymentBadgeParts.join(' + ')
+  }
+
+  if (transaction.payment_method === 'WITHDRAWAL') {
+    return '💸 Abschöpfung'
   }
 
   return transaction.payment_method === 'CASH' ? '💰 BAR' : '💳 Guthaben'
