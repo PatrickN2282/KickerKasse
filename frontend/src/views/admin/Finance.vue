@@ -1765,8 +1765,22 @@ const getCurrentFinanceUserOptionId = () => {
 }
 
 const getSortableTransactionId = (transaction) => {
-  const numericId = Number(transaction?.id)
-  return Number.isFinite(numericId) ? numericId : 0
+  const rawId = transaction?.id
+  if (typeof rawId === 'string') {
+    const pendingMatch = rawId.match(/^pending-withdrawal-(\d+)$/)
+    if (pendingMatch) {
+      return {
+        group: 2,
+        id: Number(pendingMatch[1]),
+      }
+    }
+  }
+
+  const numericId = Number(rawId)
+  return {
+    group: Number.isFinite(numericId) && numericId < 0 ? 1 : 0,
+    id: Number.isFinite(numericId) ? Math.abs(numericId) : 0,
+  }
 }
 
 const loadDailyStats = async () => {
@@ -1807,10 +1821,14 @@ const loadDailyStats = async () => {
       receipt_min: preview.summary?.receipt_number_min,
       receipt_max: preview.summary?.receipt_number_max,
       report_content: preview.report_content || '',
-      transactions: [...(preview.transactions || [])].sort((left, right) => (
-        right.created_at.localeCompare(left.created_at)
-        || (getSortableTransactionId(right) - getSortableTransactionId(left))
-      )),
+      transactions: [...(preview.transactions || [])].sort((left, right) => {
+        const dateDiff = right.created_at.localeCompare(left.created_at)
+        if (dateDiff !== 0) return dateDiff
+
+        const rightSortKey = getSortableTransactionId(right)
+        const leftSortKey = getSortableTransactionId(left)
+        return (rightSortKey.group - leftSortKey.group) || (rightSortKey.id - leftSortKey.id)
+      }),
     }
     zBonHtml.value = preview.report_content || ''
   } catch (error) {

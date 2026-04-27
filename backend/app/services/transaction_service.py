@@ -248,6 +248,13 @@ class TransactionService:
             } if entry.user else None,
             "items": [],
         }
+
+    @staticmethod
+    def _get_transaction_row_sort_key(entry: dict) -> tuple[datetime, int, int]:
+        entry_id = entry.get("id")
+        if isinstance(entry_id, int) and entry_id < 0:
+            return (entry["created_at"], 1, abs(entry_id))
+        return (entry["created_at"], 0, int(entry_id or 0))
     
     def get_daily_stats(self, date_from: date):
         """Get detailed daily statistics with transaction list"""
@@ -392,7 +399,7 @@ class TransactionService:
             *[self._serialize_transaction(t, club_account_transaction_ids) for t in transactions],
             *[self._serialize_cash_entry(entry) for entry in cash_entries],
         ]
-        rows.sort(key=lambda entry: (entry["created_at"], entry["id"]), reverse=True)
+        rows.sort(key=self._get_transaction_row_sort_key, reverse=True)
         total_amount = sum(row["total_amount_cents"] for row in rows)
 
         return {

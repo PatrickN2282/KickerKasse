@@ -169,6 +169,19 @@ class ZBonService:
             "items": [],
         }
 
+    @staticmethod
+    def _get_transaction_row_sort_key(entry: dict) -> tuple[str, int, int]:
+        entry_id = entry.get("id")
+        if isinstance(entry_id, str) and entry_id.startswith("pending-withdrawal-"):
+            try:
+                pending_index = int(entry_id.rsplit("-", 1)[-1])
+            except ValueError:
+                pending_index = 0
+            return (entry["created_at"], 2, pending_index)
+        if isinstance(entry_id, int) and entry_id < 0:
+            return (entry["created_at"], 1, abs(entry_id))
+        return (entry["created_at"], 0, int(entry_id or 0))
+
     def _get_current_period_bounds(self) -> tuple[datetime, datetime, ZBonHistory | None]:
         period_end = datetime.now()
         last_zbon = self.db.query(ZBonHistory).order_by(desc(ZBonHistory.sequence_number)).first()
@@ -352,7 +365,7 @@ class ZBonService:
                 for index, entry in enumerate(cash_summary.get("pending_withdrawals", []), start=1)
             ],
         ]
-        transaction_rows.sort(key=lambda entry: (entry["created_at"], entry["id"]))
+        transaction_rows.sort(key=self._get_transaction_row_sort_key)
 
         payload = {
             "sequence_number": (last_zbon.sequence_number + 1) if last_zbon else 1,
