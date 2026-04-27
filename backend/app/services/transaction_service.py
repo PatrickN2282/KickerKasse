@@ -1,5 +1,5 @@
 from sqlalchemy.orm import Session, joinedload
-from sqlalchemy import func, and_
+from sqlalchemy import func, and_, false
 from datetime import date, datetime, time, timedelta
 from app.repositories import TransactionRepository, BalanceLogRepository
 from app.models import Transaction, TransactionType, PaymentMethod, Product, CashEntry, CashEntryType, ClubAccountEntry
@@ -383,7 +383,7 @@ class TransactionService:
         )
         
         if payment_method == CashEntryType.WITHDRAWAL.value:
-            query = query.filter(False)
+            query = query.filter(false())
         elif payment_method:
             query = query.filter(Transaction.payment_method == PaymentMethod[payment_method])
 

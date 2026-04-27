@@ -1984,6 +1984,16 @@ const getPaymentBadgeClass = (transaction) => {
   return transaction.payment_method.toLowerCase()
 }
 
+const hasCashPaymentPortion = (transaction) => (
+  transaction?.payment_method === 'CASH'
+  && Number(transaction?.total_amount_cents || 0) > 0
+)
+
+const hasBalancePaymentPortion = (transaction) => (
+  transaction?.payment_method === 'BALANCE'
+  || Number(transaction?.balance_applied_cents || 0) > 0
+)
+
 const getPaymentBadgeParts = (transaction) => {
   if (!transaction) return []
 
@@ -1997,14 +2007,11 @@ const getPaymentBadgeParts = (transaction) => {
     parts.push('🎫 Verzehrkarte')
   }
 
-  if (
-    transaction.payment_method === 'BALANCE'
-    || transaction.balance_applied_cents > 0
-  ) {
+  if (hasBalancePaymentPortion(transaction)) {
     parts.push('💳 Guthaben')
   }
 
-  if (transaction.payment_method === 'CASH' && transaction.total_amount_cents > 0) {
+  if (hasCashPaymentPortion(transaction)) {
     parts.push('💰 BAR')
   }
 
