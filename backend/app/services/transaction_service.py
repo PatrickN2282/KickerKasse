@@ -202,6 +202,10 @@ class TransactionService:
             "created_at": transaction.created_at,
             "reason": reason,
             "performed_by": transaction.user.username if transaction.user else None,
+            "user": {
+                "id": transaction.user.id,
+                "username": transaction.user.username,
+            } if transaction.user else None,
             "member": {
                 "id": transaction.member.id,
                 "name": transaction.member.name,
@@ -228,7 +232,7 @@ class TransactionService:
         signed_amount_cents = -entry.amount_cents if entry.entry_type == CashEntryType.WITHDRAWAL else entry.amount_cents
         return {
             "id": -entry.id,
-            "receipt_number": None,
+            "receipt_number": entry.receipt_number,
             "total_amount_cents": signed_amount_cents,
             "gross_amount_cents": signed_amount_cents,
             "payment_method": PaymentMethod.CASH.value,
@@ -400,7 +404,11 @@ class TransactionService:
             *[self._serialize_cash_entry(entry) for entry in cash_entries],
         ]
         rows.sort(key=self._get_transaction_row_sort_key, reverse=True)
-        total_amount = sum(row["total_amount_cents"] for row in rows)
+        total_amount = sum(
+            row["total_amount_cents"]
+            for row in rows
+            if row.get("booking_type") != "CLUB_ACCOUNT_TOP_UP"
+        )
 
         return {
             "transactions": rows,

@@ -387,7 +387,7 @@ ZBON_HTML_TEMPLATE = """
                 <tr class="total-row">
                     <td>Gesamtumsatz Artikel</td>
                     <td class="amount">{{ total_items_count }}</td>
-                    <td class="amount">{{ total_gross }}</td>
+                    <td class="amount">{{ article_sales_total }}</td>
                 </tr>
             </tbody>
         </table>
@@ -415,7 +415,7 @@ ZBON_HTML_TEMPLATE = """
                 </tr>
                 <tr class="total-row">
                     <td>Gesamtsumme Zahlungsarten</td>
-                    <td class="amount">{{ total_gross }}</td>
+                    <td class="amount">{{ article_sales_total }}</td>
                 </tr>
             </tbody>
         </table>
@@ -436,7 +436,7 @@ ZBON_HTML_TEMPLATE = """
             </tbody>
         </table>
 
-        <div class="section-title">🏦 Materialkonto</div>
+        <div class="section-title">🏦 Gutscheinkonto</div>
         <table>
             <thead>
                 <tr>
@@ -446,13 +446,13 @@ ZBON_HTML_TEMPLATE = """
             </thead>
             <tbody>
                 <tr>
-                    <td>Kontostand Materialkonto</td>
+                    <td>Kontostand Gutscheinkonto</td>
                     <td class="amount"><strong>{{ club_account_total|default("0.00") }}</strong></td>
                 </tr>
             </tbody>
         </table>
          
-        <div class="section-title">💰 Guthaben</div>
+        <div class="section-title">💳 Mitgliedsguthaben</div>
         <table>
             <thead>
                 <tr>
@@ -468,19 +468,42 @@ ZBON_HTML_TEMPLATE = """
                     <td class="amount"><strong>{{ recharge_total }}</strong></td>
                 </tr>
                 <tr>
-                    <td>Verzehrkarten verkauft</td>
-                    <td class="amount">{{ prepaid_voucher_sales_count|default(0) }}</td>
-                    <td class="amount"><strong>{{ prepaid_voucher_sales_total|default("0.00") }}</strong></td>
-                </tr>
-                <tr>
                     <td>Guthaben eingelöst</td>
                     <td class="amount">{{ balance_sales_count }}</td>
                     <td class="amount"><strong>{{ balance_sales_gross }}</strong></td>
                 </tr>
                 <tr class="total-row">
                     <td>Offenes Guthaben</td>
-                    <td class="amount">-</td>
+                    <td class="amount">{{ member_balance_open_count|default(0) }}</td>
                     <td class="amount">{{ balance_open_total|default("0.00") }}</td>
+                </tr>
+            </tbody>
+        </table>
+
+        <div class="section-title">🎫 Verzehrkarten</div>
+        <table>
+            <thead>
+                <tr>
+                    <th>Beschreibung</th>
+                    <th class="amount">Anzahl</th>
+                    <th class="amount">Betrag</th>
+                </tr>
+            </thead>
+            <tbody>
+                <tr>
+                    <td>Verzehrkarten verkauft</td>
+                    <td class="amount">{{ prepaid_voucher_sales_count|default(0) }}</td>
+                    <td class="amount"><strong>{{ prepaid_voucher_sales_total|default("0.00") }}</strong></td>
+                </tr>
+                <tr>
+                    <td>Verzehrkarten eingelöst</td>
+                    <td class="amount">{{ prepaid_voucher_redeemed_count|default(0) }}</td>
+                    <td class="amount"><strong>{{ prepaid_voucher_redeemed_total|default("0.00") }}</strong></td>
+                </tr>
+                <tr class="total-row">
+                    <td>Offene Verzehrkarten</td>
+                    <td class="amount">{{ prepaid_voucher_open_count|default(0) }}</td>
+                    <td class="amount">{{ prepaid_voucher_open_total|default("0.00") }}</td>
                 </tr>
             </tbody>
         </table>
@@ -564,6 +587,7 @@ ZBON_HTML_TEMPLATE = """
         <table>
             <thead>
                 <tr>
+                    <th>Beleg</th>
                     <th>Zeitpunkt</th>
                     <th>Grund</th>
                     <th>Person</th>
@@ -573,6 +597,7 @@ ZBON_HTML_TEMPLATE = """
             <tbody>
                 {% for withdrawal in withdrawals %}
                 <tr>
+                    <td>{% if withdrawal.receipt_number %}#{{ withdrawal.receipt_number }}{% else %}-{% endif %}</td>
                     <td>{{ withdrawal.created_at }}</td>
                     <td>{{ withdrawal.reason }}</td>
                     <td>{{ withdrawal.performed_by|default("-") }}</td>
@@ -580,7 +605,7 @@ ZBON_HTML_TEMPLATE = """
                 </tr>
                 {% endfor %}
                 <tr class="total-row">
-                    <td colspan="3">Gesamt</td>
+                    <td colspan="4">Gesamt</td>
                     <td class="amount">{{ cash_withdrawals_total|default("0.00") }} EUR</td>
                 </tr>
             </tbody>
