@@ -187,7 +187,11 @@ class TransactionService:
             "id": transaction.id,
             "receipt_number": transaction.receipt_number,
             "total_amount_cents": transaction.total_amount_cents,
-            "gross_amount_cents": transaction.total_amount_cents,
+            "gross_amount_cents": (
+                sum(item.total_price_cents for item in transaction.items)
+                if transaction.type == TransactionType.SALE
+                else transaction.total_amount_cents
+            ),
             "payment_method": transaction.payment_method.value,
             "type": transaction.type.value,
             "booking_type": booking_type,

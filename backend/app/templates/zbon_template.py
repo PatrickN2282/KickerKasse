@@ -372,7 +372,7 @@ ZBON_HTML_TEMPLATE = """
                 <tr>
                     <td>Verkäufe (Bargeld)</td>
                     <td class="amount">{{ cash_sales_count }}</td>
-                    <td class="amount"><strong>{{ cash_sales_gross }}</strong></td>
+                    <td class="amount"><strong>{{ article_cash_sales_gross }}</strong></td>
                 </tr>
                 <tr>
                     <td>Verkäufe (Guthaben)</td>
@@ -403,7 +403,7 @@ ZBON_HTML_TEMPLATE = """
             <tbody>
                 <tr>
                     <td>Barzahlung</td>
-                    <td class="amount"><strong>{{ cash_sales_gross }}</strong></td>
+                    <td class="amount"><strong>{{ article_cash_sales_gross }}</strong></td>
                 </tr>
                 <tr>
                     <td>Guthaben</td>
