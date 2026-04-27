@@ -2,6 +2,7 @@ from sqlalchemy.orm import Session
 from app.models import CashEntry, CashBalance, CashEntryType
 from sqlalchemy import desc, func
 from datetime import date
+from app.models import Transaction
 
 
 class CashEntryRepository:
@@ -15,19 +16,37 @@ class CashEntryRepository:
         entry_type: CashEntryType,
         amount_cents: int,
         reason: str,
-        user_id: int
+        user_id: int,
+        created_at=None,
+        commit: bool = True,
     ) -> CashEntry:
         """Create new cash entry"""
+        entry_kwargs = {
+            "receipt_number": self.get_next_receipt_number(),
+            "entry_type": entry_type,
+            "amount_cents": amount_cents,
+            "reason": reason,
+            "user_id": user_id,
+        }
+        if created_at is not None:
+            entry_kwargs["created_at"] = created_at
+
         entry = CashEntry(
-            entry_type=entry_type,
-            amount_cents=amount_cents,
-            reason=reason,
-            user_id=user_id,
+            **entry_kwargs,
         )
         self.db.add(entry)
-        self.db.commit()
-        self.db.refresh(entry)
+        self.db.flush()
+
+        if commit:
+            self.db.commit()
+            self.db.refresh(entry)
         return entry
+
+    def get_next_receipt_number(self) -> int:
+        """Get the next sequential receipt number across transactions and cash entries."""
+        transaction_max = self.db.query(func.max(Transaction.receipt_number)).scalar() or 0
+        cash_entry_max = self.db.query(func.max(CashEntry.receipt_number)).scalar() or 0
+        return max(transaction_max, cash_entry_max) + 1
     
     def get_by_id(self, entry_id: int) -> CashEntry:
         """Get entry by ID"""

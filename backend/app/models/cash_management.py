@@ -14,6 +14,7 @@ class CashEntry(BaseModel):
     """Track cash deposits and withdrawals (Einlagen/Entnahmen)"""
     __tablename__ = "cash_entries"
 
+    receipt_number = Column(Integer, nullable=True, index=True)
     entry_type = Column(Enum(CashEntryType), nullable=False)  # Einlage oder Entnahme
     amount_cents = Column(Integer, nullable=False)  # Betrag in Cent
     reason = Column(String(255), nullable=False)  # Grund (z.B. "Abschöpfung Benny u.Carsten")

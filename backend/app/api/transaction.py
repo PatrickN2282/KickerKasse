@@ -27,7 +27,7 @@ from app.services import (
 )
 from app.services.zbon_html_exporter import ZBonHTMLExporter
 from app.repositories import MemberRepository, ProductRepository
-from app.models import CashEntry, CashEntryType, PaymentMethod, Transaction, ZBonHistory, UserRole
+from app.models import CashEntryType, PaymentMethod, Transaction, ZBonHistory, UserRole
 
 from app.services import SchedulerService
 
@@ -619,6 +619,21 @@ async def create_zbon(
         if withdrawal.amount_cents > 0
     ]
 
+    if pending_withdrawals:
+        from app.repositories import CashEntryRepository
+
+        period_end = datetime.now()
+        cash_repo = CashEntryRepository(db)
+        for withdrawal in pending_withdrawals:
+            cash_repo.create(
+                entry_type=CashEntryType.WITHDRAWAL,
+                amount_cents=withdrawal["amount_cents"],
+                reason=withdrawal["reason"],
+                user_id=current_user.id,
+                created_at=period_end,
+                commit=False,
+            )
+
     service = ZBonService(db)
     payload = service.create_zbon(
         created_by_name=zbon_req.created_by_name,
@@ -626,20 +641,8 @@ async def create_zbon(
         cash_counted_by_name=zbon_req.cash_counted_by_name,
         include_cash_count=cash_count,
         cash_count_total=zbon_req.cash_count_total,
-        pending_withdrawals=pending_withdrawals,
+        pending_withdrawals=None,
     )
-
-    if pending_withdrawals:
-        period_end = datetime.fromisoformat(payload["period_end"])
-        for withdrawal in pending_withdrawals:
-            db.add(CashEntry(
-                entry_type=CashEntryType.WITHDRAWAL,
-                amount_cents=withdrawal["amount_cents"],
-                reason=withdrawal["reason"],
-                user_id=current_user.id,
-                created_at=period_end,
-            ))
-        db.commit()
 
     return payload
 

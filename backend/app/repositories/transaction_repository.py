@@ -1,6 +1,6 @@
 from sqlalchemy.orm import Session
-from sqlalchemy import and_, desc
-from app.models import Transaction, TransactionItem, TransactionType, PaymentMethod, BalanceLog
+from sqlalchemy import and_, desc, func
+from app.models import Transaction, TransactionItem, TransactionType, PaymentMethod, BalanceLog, CashEntry
 from datetime import datetime, date
 
 
@@ -50,15 +50,19 @@ class TransactionRepository:
                 )
                 transaction.items.append(item)
         
+        transaction.receipt_number = self.get_next_receipt_number()
         self.db.add(transaction)
         self.db.flush()  # Flush to get the ID
-        
-        # Set receipt_number based on transaction ID
-        transaction.receipt_number = transaction.id
-        
+         
         self.db.commit()
         self.db.refresh(transaction)
         return transaction
+
+    def get_next_receipt_number(self) -> int:
+        """Get the next sequential receipt number across transactions and cash entries."""
+        transaction_max = self.db.query(func.max(Transaction.receipt_number)).scalar() or 0
+        cash_entry_max = self.db.query(func.max(CashEntry.receipt_number)).scalar() or 0
+        return max(transaction_max, cash_entry_max) + 1
     
     def get_by_id(self, transaction_id: int) -> Transaction | None:
         """Get transaction by ID"""

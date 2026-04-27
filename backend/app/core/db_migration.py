@@ -335,6 +335,55 @@ class DatabaseMigrator:
                         except:
                             pass
 
+            if 'cash_entries' in inspector.get_table_names():
+                cash_entry_columns = {col['name'] for col in inspector.get_columns('cash_entries')}
+
+                if 'receipt_number' not in cash_entry_columns:
+                    try:
+                        conn.execute(text(
+                            "ALTER TABLE cash_entries ADD COLUMN receipt_number INTEGER"
+                        ))
+                        conn.execute(text(
+                            "CREATE INDEX IF NOT EXISTS ix_cash_entries_receipt_number ON cash_entries (receipt_number)"
+                        ))
+                        conn.commit()
+                    except Exception as e:
+                        logger.warning(f"Could not add cash_entries.receipt_number column: {str(e)}")
+                        try:
+                            conn.rollback()
+                        except:
+                            pass
+
+                try:
+                    current_max_result = conn.execute(text("""
+                        SELECT GREATEST(
+                            COALESCE((SELECT MAX(receipt_number) FROM transactions), 0),
+                            COALESCE((SELECT MAX(receipt_number) FROM cash_entries), 0)
+                        )
+                    """))
+                    current_max_receipt = current_max_result.scalar() or 0
+
+                    conn.execute(text("""
+                        WITH numbered_entries AS (
+                            SELECT
+                                id,
+                                ROW_NUMBER() OVER (ORDER BY created_at ASC, id ASC) + :current_max AS next_receipt_number
+                            FROM cash_entries
+                            WHERE receipt_number IS NULL
+                        )
+                        UPDATE cash_entries
+                        SET receipt_number = numbered_entries.next_receipt_number
+                        FROM numbered_entries
+                        WHERE cash_entries.id = numbered_entries.id
+                    """), {"current_max": current_max_receipt})
+                    conn.commit()
+                except Exception as e:
+                    logger.warning(f"Could not backfill cash_entries.receipt_number values: {str(e)}")
+                    try:
+                        conn.rollback()
+                    except:
+                        pass
+
             if 'users' in inspector.get_table_names():
                 users_columns = {col['name']: col for col in inspector.get_columns('users')}
                 if 'email' in users_columns:

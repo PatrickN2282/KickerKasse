@@ -132,7 +132,7 @@ class ZBonService:
         signed_amount_cents = -entry.amount_cents if entry.entry_type == CashEntryType.WITHDRAWAL else entry.amount_cents
         return {
             "id": -entry.id,
-            "receipt_number": None,
+            "receipt_number": entry.receipt_number,
             "created_at": entry.created_at.isoformat(),
             "type": entry.entry_type.value,
             "booking_type": f"CASH_{entry.entry_type.value}",
@@ -251,9 +251,78 @@ class ZBonService:
             "open_total": sum(v.remaining_value_cents or 0 for v in open_vouchers) / 100,
         }
 
+    def _get_gift_voucher_summary(self, period_start: datetime | None, period_end: datetime) -> dict:
+        created_query = self.db.query(Voucher).filter(
+            Voucher.voucher_type == VoucherType.GIFT,
+            Voucher.created_at <= period_end,
+        )
+        if period_start:
+            created_query = created_query.filter(Voucher.created_at > period_start)
+        created_vouchers = created_query.all()
+
+        redeemed_query = self.db.query(Voucher).filter(
+            Voucher.voucher_type == VoucherType.GIFT,
+            Voucher.redeemed_at.isnot(None),
+            Voucher.redeemed_at <= period_end,
+        )
+        if period_start:
+            redeemed_query = redeemed_query.filter(Voucher.redeemed_at > period_start)
+        redeemed_vouchers = redeemed_query.all()
+
+        open_vouchers = self.db.query(Voucher).filter(
+            Voucher.voucher_type == VoucherType.GIFT,
+            Voucher.remaining_value_cents > 0,
+        ).all()
+
+        return {
+            "created_count": len(created_vouchers),
+            "created_total": sum(v.original_value_cents or v.value_cents for v in created_vouchers) / 100,
+            "redeemed_count": len(redeemed_vouchers),
+            "redeemed_total": sum(v.redeemed_amount_cents or 0 for v in redeemed_vouchers) / 100,
+            "open_count": len(open_vouchers),
+            "open_total": sum(v.remaining_value_cents or 0 for v in open_vouchers) / 100,
+        }
+
+    def _get_prepaid_voucher_summary(self, period_start: datetime | None, period_end: datetime) -> dict:
+        sold_query = self.db.query(Voucher).filter(
+            Voucher.voucher_type == VoucherType.PREPAID,
+            Voucher.sold_at.isnot(None),
+            Voucher.sold_at <= period_end,
+        )
+        if period_start:
+            sold_query = sold_query.filter(Voucher.sold_at > period_start)
+        sold_vouchers = sold_query.all()
+
+        redeemed_query = self.db.query(Voucher).filter(
+            Voucher.voucher_type == VoucherType.PREPAID,
+            Voucher.redeemed_at.isnot(None),
+            Voucher.redeemed_at <= period_end,
+        )
+        if period_start:
+            redeemed_query = redeemed_query.filter(Voucher.redeemed_at > period_start)
+        redeemed_vouchers = redeemed_query.all()
+
+        open_vouchers = self.db.query(Voucher).filter(
+            Voucher.voucher_type == VoucherType.PREPAID,
+            Voucher.sold_at.isnot(None),
+            Voucher.remaining_value_cents > 0,
+        ).all()
+
+        return {
+            "sold_count": len(sold_vouchers),
+            "sold_total": sum(v.original_value_cents or v.value_cents for v in sold_vouchers) / 100,
+            "redeemed_count": len(redeemed_vouchers),
+            "redeemed_total": sum(v.redeemed_amount_cents or 0 for v in redeemed_vouchers) / 100,
+            "open_count": len(open_vouchers),
+            "open_total": sum(v.remaining_value_cents or 0 for v in open_vouchers) / 100,
+        }
+
     def _get_open_member_balance_total(self) -> float:
         total_balance_cents = self.db.query(func.sum(Member.balance_cents)).scalar() or 0
         return total_balance_cents / 100
+
+    def _get_open_member_balance_count(self) -> int:
+        return self.db.query(func.count(Member.id)).filter(Member.balance_cents > 0).scalar() or 0
 
     def _get_club_account_total(self) -> float:
         total_balance_cents = (
@@ -288,8 +357,10 @@ class ZBonService:
         transactions = self._get_transactions_for_period(period_start, period_end)
         cash_summary = self._get_cash_entry_summary(period_start, period_end, pending_withdrawals)
         club_account_transaction_ids = self._get_club_account_transaction_ids(period_start, period_end)
-        voucher_summary = self._get_voucher_summary(period_start, period_end)
+        gift_voucher_summary = self._get_gift_voucher_summary(period_start, period_end)
+        prepaid_voucher_summary = self._get_prepaid_voucher_summary(period_start, period_end)
         open_balance_total = self._get_open_member_balance_total()
+        open_balance_count = self._get_open_member_balance_count()
         club_account_total = self._get_club_account_total()
         material_account_total_euros = MaterialAccountService(self.db).get_period_total_cents(period_start, period_end) / 100
 
@@ -309,7 +380,7 @@ class ZBonService:
         effective_period_start = period_start or first_transaction_at
 
         gross_sales_total = sum(self._calculate_non_prepaid_sale_gross_cents(t) for t in sales) / 100
-        prepaid_voucher_sales_total = sum(self._calculate_prepaid_item_total_cents(t) for t in sales) / 100
+        prepaid_voucher_sales_total = prepaid_voucher_summary["sold_total"]
         recharge_total = sum(t.total_amount_cents for t in member_recharges) / 100
         article_cash_sales_total = sum(
             t.total_amount_cents
@@ -352,7 +423,10 @@ class ZBonService:
         if resolved_cash_count_total is not None:
             cash_difference = resolved_cash_count_total - cash_calculated
 
-        receipt_numbers = [t.receipt_number for t in transactions if t.receipt_number is not None]
+        receipt_numbers = [
+            *[t.receipt_number for t in transactions if t.receipt_number is not None],
+            *[entry.receipt_number for entry in cash_summary["entries"] if entry.receipt_number is not None],
+        ]
         transaction_rows = [
             *[self._serialize_transaction(t, club_account_transaction_ids) for t in transactions],
             *[
@@ -383,12 +457,7 @@ class ZBonService:
                 "sales_count": len(sales),
                 "recharge_count": len(member_recharges),
                 "club_account_recharge_count": len(club_account_recharges),
-                "prepaid_voucher_sales_count": sum(
-                    item.quantity
-                    for t in sales
-                    for item in t.items
-                    if self._get_prepaid_product_value_cents(item.product) is not None
-                ),
+                "prepaid_voucher_sales_count": prepaid_voucher_summary["sold_count"],
                 "storno_count": len(stornos),
                 "cash_sales_count": cash_sales_count,
                 "balance_sales_count": balance_sales_count,
@@ -411,17 +480,23 @@ class ZBonService:
                 "cash_difference": cash_difference,
                 "receipt_number_min": min(receipt_numbers) if receipt_numbers else None,
                 "receipt_number_max": max(receipt_numbers) if receipt_numbers else None,
-                "voucher_created_count": voucher_summary["created_count"],
-                "voucher_created_total": voucher_summary["created_total"],
-                "voucher_redeemed_count": voucher_summary["redeemed_count"],
-                "voucher_redeemed_total": voucher_summary["redeemed_total"],
-                "voucher_open_count": voucher_summary["open_count"],
-                "voucher_open_total": voucher_summary["open_total"],
+                "voucher_created_count": gift_voucher_summary["created_count"],
+                "voucher_created_total": gift_voucher_summary["created_total"],
+                "voucher_redeemed_count": gift_voucher_summary["redeemed_count"],
+                "voucher_redeemed_total": gift_voucher_summary["redeemed_total"],
+                "voucher_open_count": gift_voucher_summary["open_count"],
+                "voucher_open_total": gift_voucher_summary["open_total"],
+                "prepaid_voucher_redeemed_count": prepaid_voucher_summary["redeemed_count"],
+                "prepaid_voucher_redeemed_total": prepaid_voucher_summary["redeemed_total"],
+                "prepaid_voucher_open_count": prepaid_voucher_summary["open_count"],
+                "prepaid_voucher_open_total": prepaid_voucher_summary["open_total"],
+                "member_balance_open_count": open_balance_count,
                 "balance_open_total": open_balance_total,
                 "club_account_total": club_account_total,
                 "material_account_total": material_account_total_euros,
                 "withdrawals": [
                     {
+                        "receipt_number": entry.receipt_number,
                         "created_at": entry.created_at.isoformat(),
                         "amount": entry.amount_cents / 100,
                         "reason": entry.reason,
@@ -431,6 +506,7 @@ class ZBonService:
                     if entry.entry_type == CashEntryType.WITHDRAWAL
                 ] + [
                     {
+                        "receipt_number": None,
                         "created_at": period_end.isoformat(),
                         "amount": entry.get("amount_cents", 0) / 100,
                         "reason": entry.get("reason"),
@@ -544,13 +620,18 @@ class ZBonService:
             recharge_total=f"{summary.get('recharge_total', 0):.2f}",
             prepaid_voucher_sales_count=summary.get("prepaid_voucher_sales_count", 0),
             prepaid_voucher_sales_total=f"{summary.get('prepaid_voucher_sales_total', 0):.2f}",
+            prepaid_voucher_redeemed_count=summary.get("prepaid_voucher_redeemed_count", 0),
+            prepaid_voucher_redeemed_total=f"{summary.get('prepaid_voucher_redeemed_total', 0):.2f}",
+            prepaid_voucher_open_count=summary.get("prepaid_voucher_open_count", 0),
+            prepaid_voucher_open_total=f"{summary.get('prepaid_voucher_open_total', 0):.2f}",
             material_account_total=f"{summary.get('material_account_total', 0):.2f}",
+            member_balance_open_count=summary.get("member_balance_open_count", 0),
             balance_open_total=f"{summary.get('balance_open_total', 0):.2f}",
             club_account_total=f"{summary.get('club_account_total', 0):.2f}",
             total_items_count=summary.get("sales_count", 0),
-            total_net=f"{summary.get('total_revenue', 0):.2f}",
+            total_net=f"{summary.get('gross_sales_total', 0):.2f}",
             total_tax="0.00",
-            total_gross=f"{summary.get('total_revenue', 0):.2f}",
+            total_gross=f"{summary.get('gross_sales_total', 0):.2f}",
             total_revenue=f"{summary.get('total_revenue', 0):.2f}",
             voucher_created_count=summary.get("voucher_created_count", 0),
             voucher_created_total=f"{summary.get('voucher_created_total', 0):.2f}",

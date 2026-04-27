@@ -209,9 +209,11 @@
                 <th>Datum</th>
                 <th>Zeit</th>
                 <th>Belegnummer</th>
-                <th>Mitglied</th>
+                <th>Typ</th>
+                <th>Mitglied / Konto</th>
                 <th>Betrag</th>
                 <th>Zahlungsart</th>
+                <th>Benutzer</th>
               </tr>
             </thead>
             <tbody>
@@ -227,6 +229,7 @@
                   <td>{{ formatDate(transaction.created_at) }}</td>
                   <td>{{ formatTime(transaction.created_at) }}</td>
                   <td><strong>{{ transaction.receipt_number ?? '-' }}</strong></td>
+                  <td>{{ getTransactionTypeLabel(transaction) }}</td>
                   <td>{{ getTransactionMemberLabel(transaction) }}</td>
                   <td class="amount">
                     {{ formatPrice(transaction.gross_amount_cents || transaction.total_amount_cents) }}
@@ -238,13 +241,14 @@
                       {{ getPaymentBadgeLabel(transaction) }}
                     </span>
                   </td>
+                  <td>{{ getTransactionUserLabel(transaction) }}</td>
                 </tr>
                 <tr
                   v-if="expandedTransactions.has(transaction.id)"
                   class="items-row"
                 >
                   <td
-                    colspan="6"
+                    colspan="8"
                     class="items-cell"
                   >
                     <div class="items-list">
@@ -570,7 +574,8 @@
               <th>Datum</th>
               <th>Zeit</th>
               <th>Belegnummer</th>
-              <th>Mitglied</th>
+              <th>Typ</th>
+              <th>Mitglied / Konto</th>
               <th>Betrag</th>
               <th>Zahlungsart</th>
               <th>Benutzer</th>
@@ -589,6 +594,7 @@
                   <td>{{ formatDate(transaction.created_at) }}</td>
                   <td>{{ formatTime(transaction.created_at) }}</td>
                   <td><strong>{{ transaction.receipt_number ?? '-' }}</strong></td>
+                  <td>{{ getTransactionTypeLabel(transaction) }}</td>
                   <td>{{ getTransactionMemberLabel(transaction) }}</td>
                   <td class="amount">
                     {{ formatPrice(transaction.gross_amount_cents || transaction.total_amount_cents) }}
@@ -600,14 +606,14 @@
                       {{ getPaymentBadgeLabel(transaction) }}
                     </span>
                   </td>
-                <td>{{ transaction.user?.username || '-' }}</td>
+                <td>{{ getTransactionUserLabel(transaction) }}</td>
               </tr>
               <tr
                 v-if="expandedTransactions.has(transaction.id)"
                 class="items-row"
               >
                 <td
-                  colspan="7"
+                  colspan="8"
                   class="items-cell"
                   >
                     <div class="items-list">
@@ -1717,7 +1723,7 @@ const getTransactionMemberLabel = (transaction) => {
   if (!transaction) return 'Gast'
 
   if (transaction.booking_type === 'CASH_WITHDRAWAL') {
-    return transaction.performed_by || 'Abschöpfung'
+    return 'Abschöpfung'
   }
 
   if (transaction.booking_type === 'CLUB_ACCOUNT_TOP_UP') {
@@ -1727,6 +1733,50 @@ const getTransactionMemberLabel = (transaction) => {
   const member = transaction.member || (transaction.member_name ? { name: transaction.member_name } : null)
   return formatMemberLabel(member) || transaction.member_name || 'Gast'
 }
+
+const getTransactionTypeLabel = (transaction) => {
+  if (!transaction) return '-'
+
+  if (transaction.booking_type === 'CASH_WITHDRAWAL') {
+    return 'Abschöpfung'
+  }
+
+  if (transaction.booking_type === 'CLUB_ACCOUNT_TOP_UP') {
+    return 'Gutscheinkonto'
+  }
+
+  if (transaction.booking_type === 'MEMBER_BALANCE_RECHARGE') {
+    return 'Mitgliedsguthaben'
+  }
+
+  if (transaction.type === 'STORNO') {
+    return 'Storno'
+  }
+
+  if (transaction.type === 'VOUCHER_REDEMPTION') {
+    return 'Einlösung'
+  }
+
+  if (transaction.type === 'VOUCHER_SALE') {
+    return 'Gutscheinverkauf'
+  }
+
+  if (transaction.type === 'DEPOSIT') {
+    return 'Einlage'
+  }
+
+  if (transaction.type === 'RECHARGE') {
+    return 'Aufladung'
+  }
+
+  return 'Verkauf'
+}
+
+const getTransactionUserLabel = (transaction) => (
+  transaction?.performed_by
+  || transaction?.user?.username
+  || '-'
+)
 
 const getUserById = (userId) => {
   if (!userId) return null
