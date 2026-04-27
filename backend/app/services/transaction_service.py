@@ -2,7 +2,7 @@ from sqlalchemy.orm import Session, joinedload
 from sqlalchemy import func, and_
 from datetime import date, datetime, time, timedelta
 from app.repositories import TransactionRepository, BalanceLogRepository
-from app.models import Transaction, TransactionType, PaymentMethod, Product, CashEntry, CashEntryType
+from app.models import Transaction, TransactionType, PaymentMethod, Product, CashEntry, CashEntryType, ClubAccountEntry
 
 
 class TransactionService:
@@ -157,6 +157,93 @@ class TransactionService:
     def get_all_transactions(self, skip: int = 0, limit: int = 100) -> list[Transaction]:
         """Get all transactions"""
         return self.transaction_repo.get_all(skip=skip, limit=limit)
+
+    def _get_club_account_transaction_ids(self, start_datetime: datetime, end_datetime: datetime) -> set[int]:
+        rows = self.db.query(ClubAccountEntry.transaction_id).filter(
+            ClubAccountEntry.transaction_id.isnot(None),
+            ClubAccountEntry.created_at >= start_datetime,
+            ClubAccountEntry.created_at <= end_datetime,
+        ).all()
+        return {transaction_id for transaction_id, in rows if transaction_id is not None}
+
+    @staticmethod
+    def _get_booking_type(transaction: Transaction, club_account_transaction_ids: set[int]) -> str:
+        if transaction.type == TransactionType.RECHARGE:
+            if transaction.id in club_account_transaction_ids:
+                return "CLUB_ACCOUNT_TOP_UP"
+            if transaction.member_id:
+                return "MEMBER_BALANCE_RECHARGE"
+        return transaction.type.value
+
+    def _serialize_transaction(self, transaction: Transaction, club_account_transaction_ids: set[int]) -> dict:
+        booking_type = self._get_booking_type(transaction, club_account_transaction_ids)
+        reason = None
+        if booking_type == "CLUB_ACCOUNT_TOP_UP":
+            reason = "Gutscheinkonto aufgeladen"
+        elif booking_type == "MEMBER_BALANCE_RECHARGE":
+            reason = "Mitgliedsguthaben aufgeladen"
+
+        return {
+            "id": transaction.id,
+            "receipt_number": transaction.receipt_number,
+            "total_amount_cents": transaction.total_amount_cents,
+            "gross_amount_cents": transaction.total_amount_cents,
+            "payment_method": transaction.payment_method.value,
+            "type": transaction.type.value,
+            "booking_type": booking_type,
+            "voucher_code": transaction.voucher_code,
+            "voucher_type": transaction.voucher_type,
+            "voucher_applied_cents": transaction.voucher_applied_cents,
+            "balance_applied_cents": transaction.balance_applied_cents,
+            "created_at": transaction.created_at,
+            "reason": reason,
+            "performed_by": transaction.user.username if transaction.user else None,
+            "member": {
+                "id": transaction.member.id,
+                "name": transaction.member.name,
+            } if transaction.member else None,
+            "items": [
+                {
+                    "id": item.id,
+                    "quantity": item.quantity,
+                    "unit_price_cents": item.unit_price_cents,
+                    "total_price_cents": item.total_price_cents,
+                    "is_internal_material": item.is_internal_material,
+                    "note": item.note,
+                    "product": {
+                        "id": item.product.id,
+                        "name": item.product.name,
+                    } if item.product else None,
+                }
+                for item in transaction.items
+            ],
+        }
+
+    @staticmethod
+    def _serialize_cash_entry(entry: CashEntry) -> dict:
+        signed_amount_cents = -entry.amount_cents if entry.entry_type == CashEntryType.WITHDRAWAL else entry.amount_cents
+        return {
+            "id": -entry.id,
+            "receipt_number": None,
+            "total_amount_cents": signed_amount_cents,
+            "gross_amount_cents": signed_amount_cents,
+            "payment_method": PaymentMethod.CASH.value,
+            "type": entry.entry_type.value,
+            "booking_type": f"CASH_{entry.entry_type.value}",
+            "voucher_code": None,
+            "voucher_type": None,
+            "voucher_applied_cents": 0,
+            "balance_applied_cents": 0,
+            "created_at": entry.created_at,
+            "reason": entry.reason,
+            "performed_by": entry.user.username if entry.user else None,
+            "member": None,
+            "user": {
+                "id": entry.user.id,
+                "username": entry.user.username,
+            } if entry.user else None,
+            "items": [],
+        }
     
     def get_daily_stats(self, date_from: date):
         """Get detailed daily statistics with transaction list"""
@@ -282,52 +369,30 @@ class TransactionService:
         
         if payment_method:
             query = query.filter(Transaction.payment_method == PaymentMethod[payment_method])
-        
+
         transactions = query.order_by(Transaction.created_at.desc(), Transaction.id.desc()).all()
-        
+        club_account_transaction_ids = self._get_club_account_transaction_ids(start_datetime, end_datetime)
+
+        cash_entries_query = self.db.query(CashEntry).options(joinedload(CashEntry.user)).filter(
+            CashEntry.entry_type == CashEntryType.WITHDRAWAL,
+            CashEntry.created_at >= start_datetime,
+            CashEntry.created_at <= end_datetime,
+        )
+        if payment_method and payment_method != PaymentMethod.CASH.value:
+            cash_entries = []
+        else:
+            cash_entries = cash_entries_query.order_by(CashEntry.created_at.desc(), CashEntry.id.desc()).all()
+
         print(f"[Service] Found {len(transactions)} filtered transactions")
-        
-        total_amount = sum(t.total_amount_cents for t in transactions)
-        
+        rows = [
+            *[self._serialize_transaction(t, club_account_transaction_ids) for t in transactions],
+            *[self._serialize_cash_entry(entry) for entry in cash_entries],
+        ]
+        rows.sort(key=lambda entry: (entry["created_at"], entry["id"]), reverse=True)
+        total_amount = sum(row["total_amount_cents"] for row in rows)
+
         return {
-            "transactions": [
-                {
-                    "id": t.id,
-                    "receipt_number": t.receipt_number,
-                    "total_amount_cents": t.total_amount_cents,
-                    "payment_method": t.payment_method.value,
-                    "type": t.type.value,
-                    "voucher_code": t.voucher_code,
-                    "voucher_type": t.voucher_type,
-                    "voucher_applied_cents": t.voucher_applied_cents,
-                    "balance_applied_cents": t.balance_applied_cents,
-                    "created_at": t.created_at,
-                    "member": {
-                        "id": t.member.id,
-                        "name": t.member.name,
-                    } if t.member else None,
-                    "user": {
-                        "id": t.user.id,
-                        "username": t.user.username,
-                    } if t.user else None,
-                    "items": [
-                        {
-                            "id": item.id,
-                            "quantity": item.quantity,
-                            "unit_price_cents": item.unit_price_cents,
-                            "total_price_cents": item.total_price_cents,
-                            "is_internal_material": item.is_internal_material,
-                            "note": item.note,
-                            "product": {
-                                "id": item.product.id,
-                                "name": item.product.name,
-                            } if item.product else None,
-                        }
-                        for item in t.items
-                    ],
-                }
-                for t in transactions
-            ],
+            "transactions": rows,
             "total_amount": total_amount,
         }
     
