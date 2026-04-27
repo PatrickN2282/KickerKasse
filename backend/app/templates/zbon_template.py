@@ -387,7 +387,7 @@ ZBON_HTML_TEMPLATE = """
                 <tr class="total-row">
                     <td>Gesamtumsatz Artikel</td>
                     <td class="amount">{{ total_items_count }}</td>
-                    <td class="amount">{{ total_gross }}</td>
+                    <td class="amount">{{ article_sales_total }}</td>
                 </tr>
             </tbody>
         </table>
@@ -415,7 +415,7 @@ ZBON_HTML_TEMPLATE = """
                 </tr>
                 <tr class="total-row">
                     <td>Gesamtsumme Zahlungsarten</td>
-                    <td class="amount">{{ total_gross }}</td>
+                    <td class="amount">{{ article_sales_total }}</td>
                 </tr>
             </tbody>
         </table>

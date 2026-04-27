@@ -444,7 +444,10 @@
                 <td class="amount">
                   {{ formatPrice((zbon.cash_calculated || 0) * 100) }}
                 </td>
-                <td class="amount" :class="{ withdrawal: (zbon.cash_difference || 0) !== 0 }">
+                <td
+                  class="amount"
+                  :class="{ withdrawal: (zbon.cash_difference || 0) !== 0 }"
+                >
                   {{ formatPrice((zbon.cash_difference || 0) * 100) }}
                 </td>
                 <td class="amount withdrawal">
@@ -589,23 +592,23 @@
               <tr
                 class="transaction-row"
                 style="cursor: pointer;"
-                  @click="toggleTransaction(transaction.id)"
-                >
-                  <td>{{ formatDate(transaction.created_at) }}</td>
-                  <td>{{ formatTime(transaction.created_at) }}</td>
-                  <td><strong>{{ transaction.receipt_number ?? '-' }}</strong></td>
-                  <td>{{ getTransactionTypeLabel(transaction) }}</td>
-                  <td>{{ getTransactionMemberLabel(transaction) }}</td>
-                  <td class="amount">
-                    {{ formatPrice(transaction.gross_amount_cents || transaction.total_amount_cents) }}
-                  </td>
-                  <td>
-                    <span
-                      :class="['payment-badge', getPaymentBadgeClass(transaction)]"
-                    >
-                      {{ getPaymentBadgeLabel(transaction) }}
-                    </span>
-                  </td>
+                @click="toggleTransaction(transaction.id)"
+              >
+                <td>{{ formatDate(transaction.created_at) }}</td>
+                <td>{{ formatTime(transaction.created_at) }}</td>
+                <td><strong>{{ transaction.receipt_number ?? '-' }}</strong></td>
+                <td>{{ getTransactionTypeLabel(transaction) }}</td>
+                <td>{{ getTransactionMemberLabel(transaction) }}</td>
+                <td class="amount">
+                  {{ formatPrice(transaction.gross_amount_cents || transaction.total_amount_cents) }}
+                </td>
+                <td>
+                  <span
+                    :class="['payment-badge', getPaymentBadgeClass(transaction)]"
+                  >
+                    {{ getPaymentBadgeLabel(transaction) }}
+                  </span>
+                </td>
                 <td>{{ getTransactionUserLabel(transaction) }}</td>
               </tr>
               <tr
@@ -615,33 +618,33 @@
                 <td
                   colspan="8"
                   class="items-cell"
-                  >
-                    <div class="items-list">
+                >
+                  <div class="items-list">
+                    <div
+                      v-if="transaction.reason"
+                      class="item-detail"
+                    >
+                      <span class="item-name">Buchungsgrund</span>
+                      <span class="item-total">{{ transaction.reason }}</span>
+                    </div>
+                    <div v-if="transaction.items && transaction.items.length > 0">
                       <div
-                        v-if="transaction.reason"
+                        v-for="item in transaction.items"
+                        :key="item.id"
                         class="item-detail"
-                      >
-                        <span class="item-name">Buchungsgrund</span>
-                        <span class="item-total">{{ transaction.reason }}</span>
-                      </div>
-                      <div v-if="transaction.items && transaction.items.length > 0">
-                        <div
-                          v-for="item in transaction.items"
-                          :key="item.id"
-                          class="item-detail"
                       >
                         <span class="item-name">{{ item.product?.name || item.id }}: </span>
                         <span class="item-qty">{{ item.quantity }}×</span>
                         <span class="item-price">{{ formatPrice(item.unit_price_cents) }}</span>
                         <span class="item-total">= {{ formatPrice(item.total_price_cents) }}</span>
                       </div>
-                      </div>
-                      <div
-                        v-else-if="!transaction.reason"
-                        class="no-items"
-                      >
-                        Keine Artikel
-                      </div>
+                    </div>
+                    <div
+                      v-else-if="!transaction.reason"
+                      class="no-items"
+                    >
+                      Keine Artikel
+                    </div>
                   </div>
                 </td>
               </tr>
@@ -947,7 +950,10 @@
                     >
                       <td>{{ formatDate(entry.created_at) }}</td>
                       <td>{{ formatTime(entry.created_at) }}</td>
-                      <td class="amount" :class="{ withdrawal: entry.amount_cents < 0 }">
+                      <td
+                        class="amount"
+                        :class="{ withdrawal: entry.amount_cents < 0 }"
+                      >
                         {{ formatPrice(entry.amount_cents) }}
                       </td>
                       <td>{{ entry.reason }}</td>
