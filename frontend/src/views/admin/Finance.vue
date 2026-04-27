@@ -1764,6 +1764,11 @@ const getCurrentFinanceUserOptionId = () => {
   return matchedUser?.id || null
 }
 
+const getSortableTransactionId = (transaction) => {
+  const numericId = Number(transaction?.id)
+  return Number.isFinite(numericId) ? numericId : 0
+}
+
 const loadDailyStats = async () => {
   loading.value = true
   try {
@@ -1803,7 +1808,8 @@ const loadDailyStats = async () => {
       receipt_max: preview.summary?.receipt_number_max,
       report_content: preview.report_content || '',
       transactions: [...(preview.transactions || [])].sort((left, right) => (
-        right.created_at.localeCompare(left.created_at) || ((right.id || 0) - (left.id || 0))
+        right.created_at.localeCompare(left.created_at)
+        || (getSortableTransactionId(right) - getSortableTransactionId(left))
       )),
     }
     zBonHtml.value = preview.report_content || ''

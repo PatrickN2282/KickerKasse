@@ -152,7 +152,7 @@ class ZBonService:
     def _serialize_pending_withdrawal(entry: dict, created_at: datetime, index: int) -> dict:
         amount_cents = int(entry.get("amount_cents", 0) or 0)
         return {
-            "id": -(1_000_000 + index),
+            "id": f"pending-withdrawal-{index}",
             "receipt_number": None,
             "created_at": created_at.isoformat(),
             "type": CashEntryType.WITHDRAWAL.value,
@@ -534,7 +534,7 @@ class ZBonService:
             material_account_total=f"{summary.get('material_account_total', 0):.2f}",
             balance_open_total=f"{summary.get('balance_open_total', 0):.2f}",
             club_account_total=f"{summary.get('club_account_total', 0):.2f}",
-            total_items_count=summary.get("transaction_count", 0),
+            total_items_count=summary.get("sales_count", 0),
             total_net=f"{summary.get('total_revenue', 0):.2f}",
             total_tax="0.00",
             total_gross=f"{summary.get('total_revenue', 0):.2f}",
