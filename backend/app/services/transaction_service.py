@@ -386,6 +386,7 @@ class TransactionService:
             query = query.filter(Transaction.payment_method == PaymentMethod[payment_method])
 
         if payment_method == CashEntryType.WITHDRAWAL.value:
+            # WITHDRAWAL exists only on cash entries, so regular sale transactions are excluded here.
             transactions = []
         else:
             transactions = query.order_by(Transaction.created_at.desc(), Transaction.id.desc()).all()
