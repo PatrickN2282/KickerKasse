@@ -527,8 +527,8 @@ ZBON_HTML_TEMPLATE = """
                     <td class="amount">{{ cash_opening_balance|default("0.00") }}</td>
                 </tr>
                 <tr>
-                    <td>Bareinnahmen</td>
-                    <td class="amount">{{ cash_revenue|default("0.00") }}</td>
+                    <td>Bareinnahmen aus Artikelverkäufen</td>
+                    <td class="amount">{{ article_cash_revenue|default("0.00") }}</td>
                 </tr>
                 <tr>
                     <td>Einnahmen aus Guthabenverkäufen</td>

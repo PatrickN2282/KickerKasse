@@ -548,7 +548,7 @@ class ZBonService:
             storno_count=summary.get("storno_count", 0),
             storno_total=f"{summary.get('storno_total', 0):.2f}",
             cash_opening_balance=f"{summary.get('opening_cash_balance', 0):.2f}",
-            cash_revenue=f"{summary.get('article_cash_sales_total', 0):.2f}",
+            article_cash_revenue=f"{summary.get('article_cash_sales_total', 0):.2f}",
             cash_withdrawals_total=f"{summary.get('cash_withdrawals_total', 0):.2f}",
             cash_calculated=f"{summary.get('cash_calculated', 0):.2f}",
             cash_counted=f"{summary.get('cash_counted', 0):.2f}" if summary.get("cash_counted") is not None else "-",
