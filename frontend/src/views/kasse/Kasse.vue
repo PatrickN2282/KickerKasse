@@ -960,7 +960,7 @@ const validatePaymentMethod = (method) => {
   return true
 }
 
-const applyAvailableMemberBalanceAndOpenCashConfirmation = ({ notify = false } = {}) => {
+const applyPartialBalanceAndContinue = ({ notify = false } = {}) => {
   const currentlyAppliedBalance = cartStore.getBalanceAppliedAmount()
   const remainingMemberBalance = Math.max(selectedMemberBalance.value - currentlyAppliedBalance, 0)
   const remainingTotal = cartStore.getTotalAmount()
@@ -1050,7 +1050,7 @@ const handlePaymentAndCheckout = async (method) => {
   }
 
   if (method === 'BALANCE' && selectedMemberBalance.value < cartStore.getTotalAmount()) {
-    applyAvailableMemberBalanceAndOpenCashConfirmation({ notify: true })
+    applyPartialBalanceAndContinue({ notify: true })
     return { appliedBalanceOnly: true }
   }
 
@@ -1135,7 +1135,7 @@ const redeemVoucher = async () => {
     }
     notificationStore.success(`Gutschein ${voucherValidation.value.voucher_number} als Rabatt übernommen`)
     closeVoucherModal()
-    applyAvailableMemberBalanceAndOpenCashConfirmation({ notify: true })
+    applyPartialBalanceAndContinue({ notify: true })
   } catch (error) {
     const detail = error.response?.data?.detail || error.message || 'Fehler bei der Einlösung'
     voucherError.value = detail
