@@ -240,7 +240,7 @@ const filteredProducts = computed(() => {
 const warengruppeOptions = computed(() => (
   [...new Set(
     productStore.products
-      .map(product => product?.warengruppe?.trim?.())
+      .map(product => product?.warengruppe?.trim())
       .filter(Boolean),
   )].sort((left, right) => left.localeCompare(right, 'de'))
 ))

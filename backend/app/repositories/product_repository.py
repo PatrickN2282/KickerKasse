@@ -36,7 +36,7 @@ class ProductRepository:
         warengruppe: str = None,
     ) -> Product:
         """Create a new product"""
-        product_data = self._normalize_metadata_fields(self._normalize_stock_fields({
+        product_data = {
             "name": name,
             "description": description,
             "warengruppe": warengruppe,
@@ -45,7 +45,9 @@ class ProductRepository:
             "is_discountable": is_discountable,
             "stock_quantity": stock_quantity,
             "is_unlimited_stock": is_unlimited_stock,
-        }))
+        }
+        product_data = self._normalize_stock_fields(product_data)
+        product_data = self._normalize_metadata_fields(product_data)
         product = Product(**product_data)
         self.db.add(product)
         self.db.commit()

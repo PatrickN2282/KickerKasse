@@ -891,7 +891,8 @@ class ZBonService:
 
             for item in trans.items:
                 product = item.product
-                group_name = ((getattr(product, "warengruppe", None) or "").strip() or "Ohne Warengruppe")
+                raw_group_name = getattr(product, "warengruppe", None) or ""
+                group_name = raw_group_name.strip() or "Ohne Warengruppe"
                 aggregation[group_name]["gross_total"] += item.total_price_cents / 100
 
         return dict(aggregation)
