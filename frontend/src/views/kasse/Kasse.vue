@@ -960,6 +960,22 @@ const validatePaymentMethod = (method) => {
   return true
 }
 
+const openCashConfirmationWithPartialMemberBalance = ({ notify = false } = {}) => {
+  const currentlyAppliedBalance = cartStore.getBalanceAppliedAmount()
+  const remainingMemberBalance = Math.max(selectedMemberBalance.value - currentlyAppliedBalance, 0)
+  const remainingTotal = cartStore.getTotalAmount()
+
+  if (cartStore.selectedMemberId && remainingMemberBalance > 0 && remainingMemberBalance < remainingTotal) {
+    cartStore.applyBalanceDiscount(currentlyAppliedBalance + remainingMemberBalance)
+
+    if (notify) {
+      notificationStore.success('Mitgliedsguthaben wurde als Rabatt auf den Warenkorb angerechnet')
+    }
+  }
+
+  openPaymentConfirmation('CASH')
+}
+
 const openPaymentConfirmation = (method, options = {}) => {
   const nextSource = options.source || 'cart'
   if (nextSource === 'cart' && !validatePaymentMethod(method)) {
@@ -1034,9 +1050,7 @@ const handlePaymentAndCheckout = async (method) => {
   }
 
   if (method === 'BALANCE' && selectedMemberBalance.value < cartStore.getTotalAmount()) {
-    cartStore.applyBalanceDiscount(selectedMemberBalance.value)
-    notificationStore.success('Mitgliedsguthaben wurde als Rabatt auf den Warenkorb angerechnet')
-    openPaymentConfirmation('CASH')
+    openCashConfirmationWithPartialMemberBalance({ notify: true })
     return { appliedBalanceOnly: true }
   }
 
@@ -1121,7 +1135,7 @@ const redeemVoucher = async () => {
     }
     notificationStore.success(`Gutschein ${voucherValidation.value.voucher_number} als Rabatt übernommen`)
     closeVoucherModal()
-    openPaymentConfirmation('CASH')
+    openCashConfirmationWithPartialMemberBalance({ notify: true })
   } catch (error) {
     const detail = error.response?.data?.detail || error.message || 'Fehler bei der Einlösung'
     voucherError.value = detail

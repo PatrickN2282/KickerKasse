@@ -370,10 +370,13 @@ onMounted(() => {
 }
 
 .action-cell {
-  display: flex;
+  display: inline-flex;
+  align-items: center;
   justify-content: flex-end;
   gap: 0.5rem;
+  flex-wrap: wrap;
   white-space: nowrap;
+  width: 100%;
 }
 
 .assignment-cell {
@@ -669,12 +672,14 @@ onMounted(() => {
   }
 
   .assignment-controls,
-  .modal-footer {
+  .modal-footer,
+  .action-cell {
     flex-direction: column;
   }
 
   .btn,
-  .btn-compact {
+  .btn-compact,
+  .btn-action {
     width: 100%;
   }
 }

@@ -470,7 +470,14 @@ onMounted(() => memberStore.getMembers())
 .role-tag { background: #f1f5f9; color: #475569; padding: 0.25rem 0.6rem; border-radius: 6px; font-size: 0.75rem; font-weight: 600; }
 .member-code { background: #f8fafc; padding: 0.2rem 0.4rem; border-radius: 4px; border: 1px solid var(--border); font-size: 0.85rem; }
 
-.action-cell { display: flex; justify-content: flex-end; gap: 0.5rem; }
+.action-cell {
+  display: inline-flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+  width: 100%;
+}
 .empty-state-cell { text-align: center; color: #64748b; }
 
 /* Modal Basis */
