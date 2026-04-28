@@ -70,13 +70,15 @@
                 <div class="small-text text-muted">{{ member.phone || '' }}</div>
               </td>
               <td class="balance-cell font-bold">{{ formatBalance(member.balance_cents) }}</td>
-              <td class="text-right action-cell">
-                <button class="btn-action" @click="editMember(member)">Bearbeiten</button>
-                <button 
-                  class="btn-action btn-action-danger" 
-                  :disabled="!authStore.isAdmin" 
-                  @click="deleteMember(member.id)"
-                >Löschen</button>
+              <td class="text-right">
+                <div class="action-cell">
+                  <button class="btn-action" @click="editMember(member)">Bearbeiten</button>
+                  <button 
+                    class="btn-action btn-action-danger" 
+                    :disabled="!authStore.isAdmin" 
+                    @click="deleteMember(member.id)"
+                  >Löschen</button>
+                </div>
               </td>
             </tr>
             <tr v-if="filteredMembers.length === 0">
@@ -471,7 +473,7 @@ onMounted(() => memberStore.getMembers())
 .member-code { background: #f8fafc; padding: 0.2rem 0.4rem; border-radius: 4px; border: 1px solid var(--border); font-size: 0.85rem; }
 
 .action-cell {
-  display: inline-flex;
+  display: flex;
   align-items: center;
   justify-content: flex-end;
   gap: 0.5rem;

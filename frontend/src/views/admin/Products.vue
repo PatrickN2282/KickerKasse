@@ -69,9 +69,11 @@
                   {{ product.is_unlimited_stock ? '∞' : product.stock_quantity }}
                 </span>
               </td>
-              <td class="text-right action-cell">
-                <button class="btn-action" @click="editProduct(product)">Bearbeiten</button>
-                <button class="btn-action btn-action-danger" @click="deleteProduct(product.id)">Löschen</button>
+              <td class="text-right">
+                <div class="action-cell">
+                  <button class="btn-action" @click="editProduct(product)">Bearbeiten</button>
+                  <button class="btn-action btn-action-danger" @click="deleteProduct(product.id)">Löschen</button>
+                </div>
               </td>
             </tr>
             <tr v-if="filteredProducts.length === 0">
@@ -483,7 +485,7 @@ onMounted(async () => {
 }
 
 .action-cell {
-  display: inline-flex;
+  display: flex;
   align-items: center;
   justify-content: flex-end;
   gap: 0.5rem;

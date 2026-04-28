@@ -263,14 +263,16 @@
               <td class="date">
                 {{ voucher.redeemed_at ? formatDate(voucher.redeemed_at) : '-' }}
               </td>
-              <td class="text-right action-cell">
-                <button
-                  v-if="authStore.isAdmin && voucher.status === 'CREATED'"
-                  class="btn-small btn-edit"
-                  @click="openEditVoucher(voucher)"
-                >
-                  ✏️
-                </button>
+              <td class="text-right">
+                <div class="action-cell">
+                  <button
+                    v-if="authStore.isAdmin && voucher.status === 'CREATED'"
+                    class="btn-small btn-edit"
+                    @click="openEditVoucher(voucher)"
+                  >
+                    ✏️
+                  </button>
+                </div>
               </td>
             </tr>
           </tbody>
@@ -1300,7 +1302,7 @@ onMounted(() => {
 }
 
 .action-cell {
-  display: inline-flex;
+  display: flex;
   align-items: center;
   justify-content: flex-end;
   gap: 0.35rem;
