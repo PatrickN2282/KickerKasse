@@ -365,6 +365,8 @@ class ZBonService:
         material_account_total_euros = MaterialAccountService(self.db).get_period_total_cents(period_start, period_end) / 100
 
         sales = [t for t in transactions if t.type == TransactionType.SALE]
+        product_group_breakdown = self._aggregate_by_warengruppe(transactions)
+        material_account_sales_count = self._count_internal_material_sales(sales)
         member_recharges = [
             t for t in transactions
             if t.type == TransactionType.RECHARGE
@@ -494,6 +496,7 @@ class ZBonService:
                 "balance_open_total": open_balance_total,
                 "club_account_total": club_account_total,
                 "material_account_total": material_account_total_euros,
+                "material_account_sales_count": material_account_sales_count,
                 "withdrawals": [
                     {
                         "receipt_number": entry.receipt_number,
@@ -516,6 +519,10 @@ class ZBonService:
                 ],
             },
             "cash_count": include_cash_count,
+        }
+
+        payload["breakdowns"] = {
+            "product_groups": product_group_breakdown,
         }
 
         payload["report_content"] = self._render_current_zbon_html(payload)
@@ -593,6 +600,7 @@ class ZBonService:
         coins = cash_count.get("coins") or {}
         notes = cash_count.get("notes") or {}
         withdrawals = summary.get("withdrawals") or []
+        product_groups_breakdown = (payload.get("breakdowns") or {}).get("product_groups") or {}
 
         template = Template(ZBON_HTML_TEMPLATE)
         return template.render(
@@ -624,7 +632,7 @@ class ZBonService:
             prepaid_voucher_redeemed_total=f"{summary.get('prepaid_voucher_redeemed_total', 0):.2f}",
             prepaid_voucher_open_count=summary.get("prepaid_voucher_open_count", 0),
             prepaid_voucher_open_total=f"{summary.get('prepaid_voucher_open_total', 0):.2f}",
-            material_account_total=f"{summary.get('material_account_total', 0):.2f}",
+            material_account_sales_count=summary.get("material_account_sales_count", 0),
             member_balance_open_count=summary.get("member_balance_open_count", 0),
             balance_open_total=f"{summary.get('balance_open_total', 0):.2f}",
             club_account_total=f"{summary.get('club_account_total', 0):.2f}",
@@ -663,6 +671,7 @@ class ZBonService:
             },
             coins_total=f"{sum(float(denomination) * count for denomination, count in coins.items()):.2f}",
             notes_total=f"{sum(float(denomination) * count for denomination, count in notes.items()):.2f}",
+            product_groups_breakdown=product_groups_breakdown,
             categories_breakdown={},
             customer_groups={},
             customers={},
@@ -729,6 +738,7 @@ class ZBonService:
             "has_cash_count": include_cash_count is not None,
             "breakdowns": {
                 "products": product_breakdown,
+                "product_groups": self._aggregate_by_warengruppe(transactions),
                 "categories": category_breakdown,
                 "customers": customer_breakdown,
                 "customer_groups": customer_group_breakdown,
@@ -870,6 +880,40 @@ class ZBonService:
                 aggregation[category_name]["gross_total"] += gross * quantity
         
         return dict(aggregation)
+
+    def _aggregate_by_warengruppe(self, transactions: list) -> dict:
+        """Aggregate sales by product group."""
+        aggregation = defaultdict(lambda: {"gross_total": 0})
+
+        for trans in transactions:
+            if trans.type != TransactionType.SALE:
+                continue
+
+            for item in trans.items:
+                product = item.product
+                raw_group_name = getattr(product, "warengruppe", None) or ""
+                group_name = raw_group_name.strip() or "Ohne Warengruppe"
+                aggregation[group_name]["gross_total"] += item.total_price_cents / 100
+
+        return dict(aggregation)
+
+    @staticmethod
+    def _is_internal_material_item(item) -> bool:
+        product = getattr(item, "product", None)
+        return bool(
+            product
+            and MaterialAccountService.is_internal_material_product(product)
+            and getattr(item, "is_internal_material", False)
+        )
+
+    def _count_internal_material_sales(self, transactions: list) -> int:
+        """Count sale transactions that contain at least one internal-material item."""
+        return sum(
+            1
+            for trans in transactions
+            if trans.type == TransactionType.SALE
+            and any(self._is_internal_material_item(item) for item in trans.items)
+        )
 
     def _aggregate_by_customer(self, transactions: list) -> dict:
         """Aggregate sales by customer (member or guest)"""

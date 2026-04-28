@@ -548,6 +548,21 @@ class DatabaseMigrator:
                             conn.rollback()
                         except:
                             pass
+
+                if 'warengruppe' not in products_columns:
+                    logger.info("Adding warengruppe column to products table...")
+                    try:
+                        conn.execute(text(
+                            "ALTER TABLE products ADD COLUMN warengruppe VARCHAR(120)"
+                        ))
+                        conn.commit()
+                        logger.info("✓ Added warengruppe column to products")
+                    except Exception as e:
+                        logger.warning(f"Could not add warengruppe column: {str(e)}")
+                        try:
+                            conn.rollback()
+                        except:
+                            pass
             
             # Display order column
             if 'categories' in inspector.get_table_names():

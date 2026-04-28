@@ -30,6 +30,7 @@
             <tr>
               <th>Bild</th>
               <th>Name</th>
+              <th>Warengruppe</th>
               <th>Preis</th>
               <th>Mitgliedspreis</th>
               <th>Lager</th>
@@ -58,6 +59,7 @@
                   </div>
                 </div>
               </td>
+              <td>{{ product.warengruppe || '—' }}</td>
               <td>{{ formatPrice(product.price_cents) }}</td>
               <td>
                 <span :class="['badge', hasMemberPrice(product) ? 'badge-success' : 'badge-light']">
@@ -77,7 +79,7 @@
               </td>
             </tr>
             <tr v-if="filteredProducts.length === 0">
-              <td colspan="6" class="empty-state-cell">Keine Produkte gefunden</td>
+              <td colspan="7" class="empty-state-cell">Keine Produkte gefunden</td>
             </tr>
           </tbody>
         </table>
@@ -135,6 +137,25 @@
                   <input id="name" v-model="formData.name" type="text" required>
                 </div>
                 <div class="form-group">
+                  <label for="warengruppe">Warengruppe</label>
+                  <input
+                    id="warengruppe"
+                    v-model.trim="formData.warengruppe"
+                    type="text"
+                    list="warengruppe-options"
+                    placeholder="Neue oder bestehende Warengruppe"
+                  >
+                  <datalist id="warengruppe-options">
+                    <option
+                      v-for="group in warengruppeOptions"
+                      :key="group"
+                      :value="group"
+                    />
+                  </datalist>
+                </div>
+              </div>
+              <div class="form-row">
+                <div class="form-group">
                   <label for="stock">Lagerbestand*</label>
                   <input id="stock" v-model.number="formData.stock" type="number" min="0" :disabled="formData.isUnlimitedStock" required>
                 </div>
@@ -185,6 +206,7 @@ const lastFiniteStock = ref(0)
 const productSearch = ref('')
 const formData = reactive({
   name: '',
+  warengruppe: '',
   price: 0,
   memberPrice: null,
   stock: 0,
@@ -195,6 +217,7 @@ const hasMemberPrice = (product) => product.member_price_cents !== null && produ
 
 const getProductSearchText = (product) => [
   product?.name,
+  product?.warengruppe,
   product?.description,
   product?.stock_quantity,
   product?.price_cents,
@@ -213,6 +236,14 @@ const filteredProducts = computed(() => {
 
   return productStore.products.filter(product => getProductSearchText(product).includes(search))
 })
+
+const warengruppeOptions = computed(() => (
+  [...new Set(
+    productStore.products
+      .map(product => product?.warengruppe?.trim())
+      .filter(Boolean),
+  )].sort((left, right) => left.localeCompare(right, 'de'))
+))
 
 const toMemberPriceCents = () => (
   formData.memberPrice === null || formData.memberPrice === ''
@@ -251,6 +282,7 @@ const handleSaveProduct = async () => {
 
     const result = await productStore.updateProduct(editingId.value, {
       name: formData.name,
+      warengruppe: formData.warengruppe || null,
       price_cents: Math.round(formData.price * 100),
       member_price_cents: toMemberPriceCents(),
       stock_quantity: formData.isUnlimitedStock ? 0 : formData.stock,
@@ -266,6 +298,7 @@ const handleSaveProduct = async () => {
   } else {
     const result = await productStore.createProduct({
       name: formData.name,
+      warengruppe: formData.warengruppe || null,
       price_cents: Math.round(formData.price * 100),
       member_price_cents: toMemberPriceCents(),
       stock_quantity: formData.isUnlimitedStock ? 0 : formData.stock,
@@ -319,6 +352,7 @@ const uploadImageToProduct = async (productId) => {
 
 const resetForm = () => {
   formData.name = ''
+  formData.warengruppe = ''
   formData.price = 0
   formData.memberPrice = null
   formData.stock = 0
@@ -333,6 +367,7 @@ const resetForm = () => {
 const editProduct = (product) => {
   editingId.value = product.id
   formData.name = product.name
+  formData.warengruppe = product.warengruppe || ''
   formData.price = product.price_cents / 100
   formData.memberPrice = hasMemberPrice(product) ? product.member_price_cents / 100 : null
   formData.stock = product.stock_quantity

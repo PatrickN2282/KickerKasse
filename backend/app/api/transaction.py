@@ -739,10 +739,12 @@ async def get_zbon_html(
         stats = zbon_service._calculate_stats(transactions)
         meta = zbon_service._collect_meta(target_date, transactions)
         product_breakdown = zbon_service._aggregate_by_product(transactions)
+        product_group_breakdown = zbon_service._aggregate_by_warengruppe(transactions)
         category_breakdown = zbon_service._aggregate_by_category(transactions)
         customer_breakdown = zbon_service._aggregate_by_customer(transactions)
         customer_group_breakdown = zbon_service._aggregate_by_customer_group(transactions)
         storno_details = zbon_service._get_storno_details(transactions)
+        material_account_sales_count = zbon_service._count_internal_material_sales(transactions)
         
         # Get last Z-Bon number
         last_zbon = db.query(ZBonHistory).filter(
@@ -793,10 +795,12 @@ async def get_zbon_html(
             guthaben_net=stats.get('balance_sales_total', 0),
             guthaben_gross=stats.get('balance_sales_total', 0),
             total_revenue=stats.get('gross_revenue_cash', 0) + stats.get('gross_revenue_balance', 0),
+            product_groups_breakdown=product_group_breakdown or {},
             categories_breakdown=category_breakdown or {},
             customer_groups=customer_group_breakdown or {},
             customers=customer_breakdown or {},
             stornos=storno_details or [],
+            material_account_sales_count=material_account_sales_count,
         )
         
         logger.info(f"Z-Bon HTML generated successfully ({len(html)} bytes)")
@@ -842,10 +846,12 @@ async def get_zbon_pdf(
         stats = zbon_service._calculate_stats(transactions)
         meta = zbon_service._collect_meta(target_date, transactions)
         product_breakdown = zbon_service._aggregate_by_product(transactions)
+        product_group_breakdown = zbon_service._aggregate_by_warengruppe(transactions)
         category_breakdown = zbon_service._aggregate_by_category(transactions)
         customer_breakdown = zbon_service._aggregate_by_customer(transactions)
         customer_group_breakdown = zbon_service._aggregate_by_customer_group(transactions)
         storno_details = zbon_service._get_storno_details(transactions)
+        material_account_sales_count = zbon_service._count_internal_material_sales(transactions)
         
         # Get last Z-Bon number
         last_zbon = db.query(ZBonHistory).filter(
@@ -896,10 +902,12 @@ async def get_zbon_pdf(
             guthaben_net=stats.get('balance_sales_total', 0),
             guthaben_gross=stats.get('balance_sales_total', 0),
             total_revenue=stats.get('gross_revenue_cash', 0) + stats.get('gross_revenue_balance', 0),
+            product_groups_breakdown=product_group_breakdown or {},
             categories_breakdown=category_breakdown or {},
             customer_groups=customer_group_breakdown or {},
             customers=customer_breakdown or {},
             stornos=storno_details or [],
+            material_account_sales_count=material_account_sales_count,
         )
         
         logger.info(f"Z-Bon HTML generated successfully ({len(html)} bytes) for PDF export")
@@ -982,10 +990,12 @@ async def send_zbon_email(
         stats = zbon_service._calculate_stats(transactions)
         meta = zbon_service._collect_meta(target_date, transactions)
         product_breakdown = zbon_service._aggregate_by_product(transactions)
+        product_group_breakdown = zbon_service._aggregate_by_warengruppe(transactions)
         category_breakdown = zbon_service._aggregate_by_category(transactions)
         customer_breakdown = zbon_service._aggregate_by_customer(transactions)
         customer_group_breakdown = zbon_service._aggregate_by_customer_group(transactions)
         storno_details = zbon_service._get_storno_details(transactions)
+        material_account_sales_count = zbon_service._count_internal_material_sales(transactions)
         
         # Get last Z-Bon number
         last_zbon = db.query(ZBonHistory).filter(
@@ -1020,10 +1030,12 @@ async def send_zbon_email(
             guthaben_net=stats['balance_sales_total'],
             guthaben_gross=stats['balance_sales_total'],
             total_revenue=stats['gross_revenue_cash'] + stats['gross_revenue_balance'],
+            product_groups_breakdown=product_group_breakdown,
             categories_breakdown=category_breakdown,
             customer_groups=customer_group_breakdown,
             customers=customer_breakdown,
             stornos=storno_details,
+            material_account_sales_count=material_account_sales_count,
         )
         
         # Optional: Generate PDF if requested

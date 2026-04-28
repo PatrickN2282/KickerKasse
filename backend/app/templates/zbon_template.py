@@ -420,18 +420,38 @@ ZBON_HTML_TEMPLATE = """
             </tbody>
         </table>
 
+        {% if product_groups_breakdown %}
+        <div class="section-title">📦 Umsatz nach Warengruppe</div>
+        <table>
+            <thead>
+                <tr>
+                    <th>Warengruppe</th>
+                    <th class="amount">Gesamtumsatz</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for group_name, data in product_groups_breakdown.items() %}
+                <tr>
+                    <td>{{ group_name }}</td>
+                    <td class="amount">{{ "%.2f"|format(data.gross_total) }}</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+        {% endif %}
+
         <div class="section-title">🧰 Interne Materialverkäufe</div>
         <table>
             <thead>
                 <tr>
                     <th>Beschreibung</th>
-                    <th class="amount">Betrag</th>
+                    <th class="amount">Anzahl Verkäufe</th>
                 </tr>
             </thead>
             <tbody>
                 <tr>
                     <td>Verbrauchsmaterial - Intern</td>
-                    <td class="amount"><strong>{{ material_account_total|default("0.00") }}</strong></td>
+                    <td class="amount"><strong>{{ material_account_sales_count|default(0) }}</strong></td>
                 </tr>
             </tbody>
         </table>

@@ -9,6 +9,15 @@ class ProductRepository:
         self.db = db
 
     @staticmethod
+    def _normalize_warengruppe(values: dict) -> dict:
+        normalized_values = dict(values)
+        warengruppe = normalized_values.get("warengruppe")
+        if isinstance(warengruppe, str):
+            warengruppe = warengruppe.strip()
+            normalized_values["warengruppe"] = warengruppe or None
+        return normalized_values
+
+    @staticmethod
     def _normalize_stock_fields(values: dict) -> dict:
         normalized_values = dict(values)
         if normalized_values.get("is_unlimited_stock"):
@@ -24,17 +33,21 @@ class ProductRepository:
         is_discountable: bool = True,
         stock_quantity: int = 0,
         is_unlimited_stock: bool = False,
+        warengruppe: str = None,
     ) -> Product:
         """Create a new product"""
-        product_data = self._normalize_stock_fields({
+        product_data = {
             "name": name,
             "description": description,
+            "warengruppe": warengruppe,
             "price_cents": price_cents,
             "member_price_cents": member_price_cents,
             "is_discountable": is_discountable,
             "stock_quantity": stock_quantity,
             "is_unlimited_stock": is_unlimited_stock,
-        })
+        }
+        product_data = self._normalize_stock_fields(product_data)
+        product_data = self._normalize_warengruppe(product_data)
         product = Product(**product_data)
         self.db.add(product)
         self.db.commit()
@@ -58,7 +71,7 @@ class ProductRepository:
         if not product:
             return None
 
-        normalized_kwargs = self._normalize_stock_fields(kwargs)
+        normalized_kwargs = self._normalize_warengruppe(self._normalize_stock_fields(kwargs))
         for key, value in normalized_kwargs.items():
             if hasattr(product, key) and key != "id":
                 setattr(product, key, value)

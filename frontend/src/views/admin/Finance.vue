@@ -127,14 +127,6 @@
             </div>
             <div class="summary-card neutral">
               <div class="card-label">
-                Interne Materialverkäufe
-              </div>
-              <div class="card-value">
-                {{ formatEuroValue(dailyStats.material_account_total) }}
-              </div>
-            </div>
-            <div class="summary-card neutral">
-              <div class="card-label">
                 Gutscheinkonto
               </div>
               <div class="card-value">

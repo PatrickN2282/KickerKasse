@@ -6,6 +6,7 @@ from typing import Optional, List
 class ProductBase(BaseModel):
     name: str = Field(..., min_length=1, max_length=120)
     description: Optional[str] = None
+    warengruppe: Optional[str] = Field(default=None, max_length=120)
     price_cents: int = Field(..., ge=0)
     member_price_cents: Optional[int] = Field(None, ge=0)
     is_discountable: bool = True
@@ -20,6 +21,7 @@ class ProductCreate(ProductBase):
 class ProductUpdate(BaseModel):
     name: Optional[str] = None
     description: Optional[str] = None
+    warengruppe: Optional[str] = Field(default=None, max_length=120)
     price_cents: Optional[int] = None
     member_price_cents: Optional[int] = None
     is_discountable: Optional[bool] = None

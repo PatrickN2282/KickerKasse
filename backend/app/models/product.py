@@ -9,6 +9,7 @@ class Product(BaseModel):
 
     name = Column(String(120), nullable=False)
     description = Column(String(255), nullable=True)
+    warengruppe = Column(String(120), nullable=True)
     price_cents = Column(Integer, nullable=False)  # Normaler Preis in Cent
     member_price_cents = Column(Integer, nullable=True)  # Mitgliedspreis in Cent
     is_discountable = Column(Boolean, default=True, nullable=False)  # Rabattfähig
