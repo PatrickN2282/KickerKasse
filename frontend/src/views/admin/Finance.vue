@@ -533,7 +533,7 @@
               Guthaben
             </option>
             <option value="VOUCHER_GIFT">
-              Geschenk-Gutschein
+              Gutschein
             </option>
             <option value="VOUCHER_PREPAID">
               Verzehrkarte
@@ -1741,6 +1741,10 @@ const getTransactionMemberLabel = (transaction) => {
     return 'Gutscheinkonto'
   }
 
+  if (transaction.booking_type === 'GIFT_VOUCHER_CREATE' || transaction.booking_type === 'PREPAID_VOUCHER_CREATE') {
+    return 'Gutscheinsystem'
+  }
+
   const member = transaction.member || (transaction.member_name ? { name: transaction.member_name } : null)
   return formatMemberLabel(member) || transaction.member_name || 'Gast'
 }
@@ -1758,6 +1762,14 @@ const getTransactionTypeLabel = (transaction) => {
 
   if (transaction.booking_type === 'MEMBER_BALANCE_RECHARGE') {
     return 'Mitgliedsguthaben'
+  }
+
+  if (transaction.booking_type === 'GIFT_VOUCHER_CREATE') {
+    return 'Gutschein erstellt'
+  }
+
+  if (transaction.booking_type === 'PREPAID_VOUCHER_CREATE') {
+    return 'Verzehrkarte erstellt'
   }
 
   if (transaction.type === 'STORNO') {
@@ -1805,7 +1817,7 @@ const getSelectedVerifierName = (memberId, fallback = '-') => {
 
 const getVoucherTypeLabel = (voucherType) => {
   if (voucherType === 'GIFT') {
-    return 'Geschenk-Gutschein'
+    return 'Gutschein'
   }
 
   if (voucherType === 'PREPAID') {
@@ -2000,9 +2012,9 @@ const getPaymentBadgeParts = (transaction) => {
   const parts = []
 
   if (transaction.voucher_applied_cents > 0 && transaction.voucher_type) {
-    parts.push(transaction.voucher_type === 'GIFT' ? '🎁 Geschenk-Gutschein' : '🎫 Verzehrkarte')
+    parts.push(transaction.voucher_type === 'GIFT' ? '🎁 Gutschein' : '🎫 Verzehrkarte')
   } else if (transaction.payment_method === 'VOUCHER_GIFT') {
-    parts.push('🎁 Geschenk-Gutschein')
+    parts.push('🎁 Gutschein')
   } else if (transaction.payment_method === 'VOUCHER_PREPAID') {
     parts.push('🎫 Verzehrkarte')
   }
@@ -2029,6 +2041,14 @@ const getPaymentBadgeLabel = (transaction) => {
 
   if (transaction.booking_type === 'MEMBER_BALANCE_RECHARGE') {
     return '⬆️ Guthaben aufladen'
+  }
+
+  if (transaction.booking_type === 'GIFT_VOUCHER_CREATE') {
+    return '🎁 Gutschein erstellt'
+  }
+
+  if (transaction.booking_type === 'PREPAID_VOUCHER_CREATE') {
+    return '💳 Verzehrkarte erstellt'
   }
 
   if (transaction.type === 'VOUCHER_SALE' && transaction.voucher_type === 'PREPAID') {

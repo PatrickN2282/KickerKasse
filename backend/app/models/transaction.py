@@ -9,6 +9,7 @@ class TransactionType(str, enum.Enum):
     SALE = "SALE"                      # Verkauf
     STORNO = "STORNO"                  # Storno (Rückgängigmachung)
     RECHARGE = "RECHARGE"              # Guthaben aufladen
+    VOUCHER_CREATE = "VOUCHER_CREATE"  # Gutschein/Verzehrkarte erstellt
     VOUCHER_SALE = "VOUCHER_SALE"      # Voucher-Verkauf (Prepaid)
     VOUCHER_REDEMPTION = "VOUCHER_REDEMPTION"  # Voucher-Einlösung
 
@@ -16,7 +17,7 @@ class TransactionType(str, enum.Enum):
 class PaymentMethod(str, enum.Enum):
     CASH = "CASH"                           # Bar
     BALANCE = "BALANCE"                     # Guthaben (Mitglieder)
-    VOUCHER_GIFT = "VOUCHER_GIFT"           # Geschenk-Voucher (Einlösung)
+    VOUCHER_GIFT = "VOUCHER_GIFT"           # Gutschein (Einlösung)
     VOUCHER_PREPAID = "VOUCHER_PREPAID"     # Prepaid-Voucher (Einlösung)
 
 
