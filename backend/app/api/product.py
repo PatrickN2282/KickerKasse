@@ -33,6 +33,7 @@ async def create_product(
             product_data.is_discountable,
             product_data.stock_quantity,
             product_data.is_unlimited_stock,
+            product_data.warengruppe,
         )
         return product
     except IntegrityError as e:
