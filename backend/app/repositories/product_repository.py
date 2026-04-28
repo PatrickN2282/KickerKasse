@@ -9,7 +9,7 @@ class ProductRepository:
         self.db = db
 
     @staticmethod
-    def _normalize_metadata_fields(values: dict) -> dict:
+    def _normalize_warengruppe(values: dict) -> dict:
         normalized_values = dict(values)
         warengruppe = normalized_values.get("warengruppe")
         if isinstance(warengruppe, str):
@@ -47,7 +47,7 @@ class ProductRepository:
             "is_unlimited_stock": is_unlimited_stock,
         }
         product_data = self._normalize_stock_fields(product_data)
-        product_data = self._normalize_metadata_fields(product_data)
+        product_data = self._normalize_warengruppe(product_data)
         product = Product(**product_data)
         self.db.add(product)
         self.db.commit()
@@ -71,7 +71,7 @@ class ProductRepository:
         if not product:
             return None
 
-        normalized_kwargs = self._normalize_metadata_fields(self._normalize_stock_fields(kwargs))
+        normalized_kwargs = self._normalize_warengruppe(self._normalize_stock_fields(kwargs))
         for key, value in normalized_kwargs.items():
             if hasattr(product, key) and key != "id":
                 setattr(product, key, value)

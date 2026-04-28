@@ -898,7 +898,7 @@ class ZBonService:
         return dict(aggregation)
 
     @staticmethod
-    def _is_internal_material_sale_item(item) -> bool:
+    def _is_internal_material_item(item) -> bool:
         product = getattr(item, "product", None)
         return bool(
             product
@@ -907,12 +907,12 @@ class ZBonService:
         )
 
     def _count_internal_material_sales(self, transactions: list) -> int:
-        """Count sale transactions containing internal material items."""
+        """Count sale transactions that contain at least one internal-material item."""
         return sum(
             1
             for trans in transactions
             if trans.type == TransactionType.SALE
-            and any(self._is_internal_material_sale_item(item) for item in trans.items)
+            and any(self._is_internal_material_item(item) for item in trans.items)
         )
 
     def _aggregate_by_customer(self, transactions: list) -> dict:
