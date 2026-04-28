@@ -173,6 +173,11 @@ class TransactionService:
                 return "CLUB_ACCOUNT_TOP_UP"
             if transaction.member_id:
                 return "MEMBER_BALANCE_RECHARGE"
+        if transaction.type == TransactionType.VOUCHER_CREATE:
+            if transaction.voucher_type == "GIFT":
+                return "GIFT_VOUCHER_CREATE"
+            if transaction.voucher_type == "PREPAID":
+                return "PREPAID_VOUCHER_CREATE"
         return transaction.type.value
 
     def _serialize_transaction(self, transaction: Transaction, club_account_transaction_ids: set[int]) -> dict:
@@ -182,6 +187,18 @@ class TransactionService:
             reason = "Gutscheinkonto aufgeladen"
         elif booking_type == "MEMBER_BALANCE_RECHARGE":
             reason = "Mitgliedsguthaben aufgeladen"
+        elif booking_type == "GIFT_VOUCHER_CREATE":
+            reason = (
+                f"Gutschein {transaction.voucher_code} erstellt"
+                if transaction.voucher_code
+                else "Gutschein erstellt"
+            )
+        elif booking_type == "PREPAID_VOUCHER_CREATE":
+            reason = (
+                f"Verzehrkarten {transaction.voucher_code} erstellt"
+                if transaction.voucher_code
+                else "Verzehrkarten erstellt"
+            )
 
         return {
             "id": transaction.id,
@@ -279,6 +296,7 @@ class TransactionService:
             Transaction.type.in_([
                 TransactionType.SALE,
                 TransactionType.RECHARGE,
+                TransactionType.VOUCHER_CREATE,
                 TransactionType.VOUCHER_REDEMPTION,
                 TransactionType.VOUCHER_SALE,
             ])
@@ -377,6 +395,7 @@ class TransactionService:
             Transaction.type.in_([
                 TransactionType.SALE,
                 TransactionType.RECHARGE,
+                TransactionType.VOUCHER_CREATE,
                 TransactionType.VOUCHER_REDEMPTION,
                 TransactionType.VOUCHER_SALE,
             ])

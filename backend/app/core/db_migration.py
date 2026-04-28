@@ -66,7 +66,7 @@ class DatabaseMigrator:
                 self._sync_enum_type(
                     conn=conn,
                     enum_name="transactiontype",
-                    expected_values=["SALE", "STORNO", "RECHARGE", "VOUCHER_SALE", "VOUCHER_REDEMPTION"],
+                    expected_values=["SALE", "STORNO", "RECHARGE", "VOUCHER_CREATE", "VOUCHER_SALE", "VOUCHER_REDEMPTION"],
                     column_specs=[("transactions", "type")],
                 )
                 self._sync_enum_type(

@@ -445,7 +445,7 @@
               </tr>
               <tr>
                 <td>Typ:</td>
-                <td>{{ voucherValidation.voucher_type === 'GIFT' ? '🎁 Geschenk' : '💳 Verzehrkarte' }}</td>
+                <td>{{ voucherValidation.voucher_type === 'GIFT' ? '🎁 Gutschein' : '💳 Verzehrkarte' }}</td>
               </tr>
               <tr>
                 <td>Wert:</td>
@@ -502,7 +502,7 @@
               </tr>
               <tr>
                 <td>Typ:</td>
-                <td>{{ voucherRedeemed.voucher_type === 'GIFT' ? '🎁 Geschenk' : '💳 Verzehrkarte' }}</td>
+                <td>{{ voucherRedeemed.voucher_type === 'GIFT' ? '🎁 Gutschein' : '💳 Verzehrkarte' }}</td>
               </tr>
               <tr>
                 <td>Wert:</td>

@@ -15,63 +15,76 @@
       <p>Daten werden geladen...</p>
     </div>
 
-    <div v-else class="members-table-wrapper">
-      <table class="members-table">
-        <thead>
-          <tr>
-            <th>Foto</th>
-            <th>Nr.</th>
-            <th>Mitgliedsnummer</th>
-            <th>Name</th>
-            <th>Rabatt</th>
-            <th v-if="authStore.isTopAdmin">Rolle</th>
-            <th v-if="authStore.isTopAdmin">Kontakt</th>
-            <th>Guthaben</th>
-            <th class="text-right">Aktionen</th>
-          </tr>
-        </thead>
-        <tbody>
-          <tr v-for="member in memberStore.members" :key="member.id">
-            <td class="photo-cell">
-              <div class="member-thumb-frame">
-                <img
-                  v-if="member.photo_path"
-                  :src="`/api/members/${member.id}/photo`"
-                  :alt="getMemberFullName(member)"
-                  class="member-thumb"
-                >
-                <span v-else class="member-thumb-placeholder">
-                  {{ member.first_name[0] }}{{ member.last_name[0] }}
+    <div v-else>
+      <div class="table-toolbar">
+        <input
+          v-model="memberSearch"
+          type="text"
+          placeholder="Nach Name oder Nummer suchen..."
+          class="search-input"
+        >
+      </div>
+      <div class="members-table-wrapper">
+        <table class="members-table">
+          <thead>
+            <tr>
+              <th>Foto</th>
+              <th>Nr.</th>
+              <th>Mitgliedsnummer</th>
+              <th>Name</th>
+              <th>Rabatt</th>
+              <th v-if="authStore.isTopAdmin">Rolle</th>
+              <th v-if="authStore.isTopAdmin">Kontakt</th>
+              <th>Guthaben</th>
+              <th class="text-right">Aktionen</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr v-for="member in filteredMembers" :key="member.id">
+              <td class="photo-cell">
+                <div class="member-thumb-frame">
+                  <img
+                    v-if="member.photo_path"
+                    :src="`/api/members/${member.id}/photo`"
+                    :alt="getMemberFullName(member)"
+                    class="member-thumb"
+                  >
+                  <span v-else class="member-thumb-placeholder">
+                    {{ member.first_name[0] }}{{ member.last_name[0] }}
+                  </span>
+                </div>
+              </td>
+              <td>{{ member.member_number }}</td>
+              <td><code class="member-code">{{ member.membership_number || '-' }}</code></td>
+              <td class="font-bold">{{ getMemberFullName(member) }}</td>
+              <td>
+                <span :class="['badge', member.has_discount ? 'badge-success' : 'badge-light']">
+                  {{ member.has_discount ? 'Berechtigt' : 'Kein Rabatt' }}
                 </span>
-              </div>
-            </td>
-            <td>{{ member.member_number }}</td>
-            <td><code class="member-code">{{ member.membership_number || '-' }}</code></td>
-            <td class="font-bold">{{ getMemberFullName(member) }}</td>
-            <td>
-              <span :class="['badge', member.has_discount ? 'badge-success' : 'badge-light']">
-                {{ member.has_discount ? 'Berechtigt' : 'Kein Rabatt' }}
-              </span>
-            </td>
-            <td v-if="authStore.isTopAdmin">
-              <span class="role-tag">{{ getRoleLabel(member.role) }}</span>
-            </td>
-            <td v-if="authStore.isTopAdmin" class="contact-cell">
-              <div class="small-text">{{ member.email || '-' }}</div>
-              <div class="small-text text-muted">{{ member.phone || '' }}</div>
-            </td>
-            <td class="balance-cell font-bold">{{ formatBalance(member.balance_cents) }}</td>
-            <td class="text-right action-cell">
-              <button class="btn-action" @click="editMember(member)">Bearbeiten</button>
-              <button 
-                class="btn-action btn-action-danger" 
-                :disabled="!authStore.isAdmin" 
-                @click="deleteMember(member.id)"
-              >Löschen</button>
-            </td>
-          </tr>
-        </tbody>
-      </table>
+              </td>
+              <td v-if="authStore.isTopAdmin">
+                <span class="role-tag">{{ getRoleLabel(member.role) }}</span>
+              </td>
+              <td v-if="authStore.isTopAdmin" class="contact-cell">
+                <div class="small-text">{{ member.email || '-' }}</div>
+                <div class="small-text text-muted">{{ member.phone || '' }}</div>
+              </td>
+              <td class="balance-cell font-bold">{{ formatBalance(member.balance_cents) }}</td>
+              <td class="text-right action-cell">
+                <button class="btn-action" @click="editMember(member)">Bearbeiten</button>
+                <button 
+                  class="btn-action btn-action-danger" 
+                  :disabled="!authStore.isAdmin" 
+                  @click="deleteMember(member.id)"
+                >Löschen</button>
+              </td>
+            </tr>
+            <tr v-if="filteredMembers.length === 0">
+              <td :colspan="authStore.isTopAdmin ? 9 : 7" class="empty-state-cell">Keine Mitglieder gefunden</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
     </div>
 
     <div v-if="showMemberModal" class="modal-overlay" @click.self="closeMemberModal">
@@ -203,7 +216,7 @@ import { useAuthStore } from '@/stores/auth'
 import { useMemberStore } from '@/stores/member'
 import { useNotificationStore } from '@/stores/notification'
 import { formatBalance } from '@/services/utils'
-import { getMemberFullName, getRoleLabel } from '@/services/member'
+import { getMemberFullName, getMemberSearchText, getRoleLabel } from '@/services/member'
 import PasswordConfirmModal from '@/components/PasswordConfirmModal.vue'
 import apiService from '@/services/api'
 
@@ -219,6 +232,7 @@ const rechargeAmount = ref(null)
 const currentMemberBalance = ref(null)
 const showRechargeModal = ref(false)
 const hasExistingUserAccount = ref(false)
+const memberSearch = ref('')
 
 const formData = reactive({
   first_name: '',
@@ -236,6 +250,16 @@ const rechargeModalMessage = computed(() => {
   const amountCents = Math.round(Number(rechargeAmount.value || 0) * 100)
   const current = Number(currentMemberBalance.value || 0)
   return `Möchtest du ${formatBalance(amountCents)} aufladen?\nNeuer Kontostand: ${formatBalance(current + amountCents)}`
+})
+
+const filteredMembers = computed(() => {
+  const search = memberSearch.value.trim().toLowerCase()
+
+  if (!search) {
+    return memberStore.members
+  }
+
+  return memberStore.members.filter(member => getMemberSearchText(member).includes(search))
 })
 
 const openCreateModal = () => {
@@ -378,6 +402,25 @@ onMounted(() => memberStore.getMembers())
 
 .page-subtitle, .modal-subtitle { color: #64748b; margin-top: 0.25rem; }
 
+.table-toolbar {
+  margin-bottom: 1rem;
+}
+
+.search-input {
+  width: 100%;
+  padding: 0.85rem 1rem;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  font-size: 0.95rem;
+  transition: border-color 0.2s ease, box-shadow 0.2s ease;
+
+  &:focus {
+    outline: none;
+    border-color: var(--primary);
+    box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.12);
+  }
+}
+
 /* Tabelle */
 .members-table-wrapper {
   background: white;
@@ -428,6 +471,7 @@ onMounted(() => memberStore.getMembers())
 .member-code { background: #f8fafc; padding: 0.2rem 0.4rem; border-radius: 4px; border: 1px solid var(--border); font-size: 0.85rem; }
 
 .action-cell { display: flex; justify-content: flex-end; gap: 0.5rem; }
+.empty-state-cell { text-align: center; color: #64748b; }
 
 /* Modal Basis */
 .modal-overlay {

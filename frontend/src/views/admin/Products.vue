@@ -15,58 +15,71 @@
       <p>Daten werden geladen...</p>
     </div>
 
-    <div v-else class="products-table-wrapper">
-      <table class="products-table">
-        <thead>
-          <tr>
-            <th>Bild</th>
-            <th>Name</th>
-            <th>Preis</th>
-            <th>Mitgliedspreis</th>
-            <th>Lager</th>
-            <th class="text-right">Aktionen</th>
-          </tr>
-        </thead>
-        <tbody>
-          <tr v-for="product in productStore.products" :key="product.id">
-            <td class="product-image-cell">
-              <div class="product-thumb-frame">
-                <img
-                  v-if="product.image_path"
-                  :src="`/api/products/${product.id}/image`"
-                  :alt="product.name"
-                  class="product-thumb"
-                >
-                <span v-else class="product-thumb-placeholder">Bild</span>
-              </div>
-            </td>
-            <td>
-              <div class="product-name-cell">
-                <span class="font-bold">{{ product.name }}</span>
-                <div class="product-badges">
-                  <span v-if="hasMemberPrice(product)" class="badge badge-info">Rabatt</span>
-                  <span v-if="product.is_unlimited_stock" class="badge badge-dark">∞</span>
+    <div v-else>
+      <div class="table-toolbar">
+        <input
+          v-model="productSearch"
+          type="text"
+          placeholder="Nach Produktname suchen..."
+          class="search-input"
+        >
+      </div>
+      <div class="products-table-wrapper">
+        <table class="products-table">
+          <thead>
+            <tr>
+              <th>Bild</th>
+              <th>Name</th>
+              <th>Preis</th>
+              <th>Mitgliedspreis</th>
+              <th>Lager</th>
+              <th class="text-right">Aktionen</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr v-for="product in filteredProducts" :key="product.id">
+              <td class="product-image-cell">
+                <div class="product-thumb-frame">
+                  <img
+                    v-if="product.image_path"
+                    :src="`/api/products/${product.id}/image`"
+                    :alt="product.name"
+                    class="product-thumb"
+                  >
+                  <span v-else class="product-thumb-placeholder">Bild</span>
                 </div>
-              </div>
-            </td>
-            <td>{{ formatPrice(product.price_cents) }}</td>
-            <td>
-              <span :class="['badge', hasMemberPrice(product) ? 'badge-success' : 'badge-light']">
-                {{ hasMemberPrice(product) ? formatPrice(product.member_price_cents) : 'Kein Sonderpreis' }}
-              </span>
-            </td>
-            <td>
-              <span :class="['badge', product.is_unlimited_stock ? 'badge-dark' : (product.stock_quantity > 0 ? 'badge-success' : 'badge-danger')]">
-                {{ product.is_unlimited_stock ? '∞' : product.stock_quantity }}
-              </span>
-            </td>
-            <td class="text-right action-cell">
-              <button class="btn-action" @click="editProduct(product)">Bearbeiten</button>
-              <button class="btn-action btn-action-danger" @click="deleteProduct(product.id)">Löschen</button>
-            </td>
-          </tr>
-        </tbody>
-      </table>
+              </td>
+              <td>
+                <div class="product-name-cell">
+                  <span class="font-bold">{{ product.name }}</span>
+                  <div class="product-badges">
+                    <span v-if="hasMemberPrice(product)" class="badge badge-info">Rabatt</span>
+                    <span v-if="product.is_unlimited_stock" class="badge badge-dark">∞</span>
+                  </div>
+                </div>
+              </td>
+              <td>{{ formatPrice(product.price_cents) }}</td>
+              <td>
+                <span :class="['badge', hasMemberPrice(product) ? 'badge-success' : 'badge-light']">
+                  {{ hasMemberPrice(product) ? formatPrice(product.member_price_cents) : 'Kein Sonderpreis' }}
+                </span>
+              </td>
+              <td>
+                <span :class="['badge', product.is_unlimited_stock ? 'badge-dark' : (product.stock_quantity > 0 ? 'badge-success' : 'badge-danger')]">
+                  {{ product.is_unlimited_stock ? '∞' : product.stock_quantity }}
+                </span>
+              </td>
+              <td class="text-right action-cell">
+                <button class="btn-action" @click="editProduct(product)">Bearbeiten</button>
+                <button class="btn-action btn-action-danger" @click="deleteProduct(product.id)">Löschen</button>
+              </td>
+            </tr>
+            <tr v-if="filteredProducts.length === 0">
+              <td colspan="6" class="empty-state-cell">Keine Produkte gefunden</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
     </div>
 
     <div v-if="showProductModal" class="modal-overlay" @click.self="closeProductModal">
@@ -154,7 +167,7 @@
 </template>
 
 <script setup>
-import { ref, reactive, onMounted } from 'vue'
+import { ref, reactive, onMounted, computed } from 'vue'
 import { useProductStore } from '@/stores/product'
 import { useNotificationStore } from '@/stores/notification'
 import { formatPrice } from '@/services/utils'
@@ -167,6 +180,7 @@ const editingId = ref(null)
 const imagePreview = ref(null)
 const imageFile = ref(null)
 const lastFiniteStock = ref(0)
+const productSearch = ref('')
 const formData = reactive({
   name: '',
   price: 0,
@@ -176,6 +190,27 @@ const formData = reactive({
 })
 
 const hasMemberPrice = (product) => product.member_price_cents !== null && product.member_price_cents !== undefined
+
+const getProductSearchText = (product) => [
+  product?.name,
+  product?.description,
+  product?.stock_quantity,
+  product?.price_cents,
+  product?.member_price_cents,
+]
+  .filter(value => value !== null && value !== undefined && value !== '')
+  .join(' ')
+  .toLowerCase()
+
+const filteredProducts = computed(() => {
+  const search = productSearch.value.trim().toLowerCase()
+
+  if (!search) {
+    return productStore.products
+  }
+
+  return productStore.products.filter(product => getProductSearchText(product).includes(search))
+})
 
 const toMemberPriceCents = () => (
   formData.memberPrice === null || formData.memberPrice === ''
@@ -390,6 +425,25 @@ onMounted(async () => {
   animation: spin 0.8s linear infinite;
 }
 
+.table-toolbar {
+  margin-bottom: 1rem;
+}
+
+.search-input {
+  width: 100%;
+  padding: 0.85rem 1rem;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  font-size: 0.95rem;
+  transition: border-color 0.2s ease, box-shadow 0.2s ease;
+
+  &:focus {
+    outline: none;
+    border-color: var(--primary);
+    box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.12);
+  }
+}
+
 .products-table-wrapper {
   background: white;
   border-radius: 12px;
@@ -421,6 +475,11 @@ onMounted(async () => {
 
 .text-right {
   text-align: right;
+}
+
+.empty-state-cell {
+  text-align: center;
+  color: #64748b;
 }
 
 .action-cell {

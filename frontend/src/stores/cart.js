@@ -40,7 +40,7 @@ export const useCartStore = defineStore('cart', () => {
     const allowedQuantity = Math.max(Number(maxQuantity ?? product.stock_quantity ?? 0), 0)
 
     if (existingItem) {
-      if (existingItem.quantity >= allowedQuantity) {
+      if (allowedQuantity <= 0) {
         return { success: false, quantity: existingItem.quantity }
       }
       existingItem.quantity++

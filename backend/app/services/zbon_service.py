@@ -1045,7 +1045,7 @@ class ZBonService:
         lines.append("")
         lines.append("Gutscheineinlösungen")
         lines.append(
-            f"{stats['gift_voucher_count']}x Geschenk-Gutschein {stats['gift_voucher_total']:>8.2f}"
+            f"{stats['gift_voucher_count']}x Gutschein {stats['gift_voucher_total']:>8.2f}"
         )
         lines.append(
             f"{stats['prepaid_voucher_count']}x Verzehrkarte {stats['prepaid_voucher_total']:>8.2f}"
@@ -1101,7 +1101,7 @@ class ZBonService:
         lines.append(f"BAR {stats['cash_sales_total']:>8.2f}")
         lines.append(f"{stats['balance_sales_count']}x Guthaben {stats['balance_sales_total']:>8.2f}")
         if stats['gift_voucher_count'] > 0:
-            lines.append(f"{stats['gift_voucher_count']}x Gutschein (Geschenk) {stats['gift_voucher_total']:>8.2f}")
+            lines.append(f"{stats['gift_voucher_count']}x Gutschein {stats['gift_voucher_total']:>8.2f}")
         if stats['prepaid_voucher_count'] > 0:
             lines.append(f"{stats['prepaid_voucher_count']}x Gutschein (Guthaben) {stats['prepaid_voucher_total']:>8.2f}")
         lines.append(" _____________")

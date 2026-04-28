@@ -33,7 +33,7 @@
       <div class="form-grid">
         <!-- GIFT Voucher Form -->
         <div class="form-card">
-          <h3>🎁 Geschenk-Gutschein</h3>
+          <h3>🎁 Gutschein</h3>
           <p class="form-description">
             Kostenlos erstellt, wird bei Einlösung als Verlust verbucht
           </p>
@@ -171,7 +171,7 @@
               Alle
             </option>
             <option value="GIFT">
-              🎁 Geschenk
+              🎁 Gutschein
             </option>
             <option value="PREPAID">
               💳 Verzehrkarte
@@ -241,7 +241,7 @@
               </td>
               <td>
                 <span :class="['type-badge', voucher.voucher_type.toLowerCase()]">
-                  {{ voucher.voucher_type === 'GIFT' ? '🎁 Geschenk' : '💳 Verzehrkarte' }}
+                  {{ voucher.voucher_type === 'GIFT' ? '🎁 Gutschein' : '💳 Verzehrkarte' }}
                 </span>
               </td>
               <td class="currency">
@@ -622,7 +622,7 @@ const createdVoucherModalData = computed(() => {
 
 // Methods
 const passwordModalTitle = computed(() => pendingVoucherAction.value === 'gift'
-  ? 'Geschenk-Gutschein erstellen'
+  ? 'Gutschein erstellen'
   : pendingVoucherAction.value === 'account'
     ? 'Gutscheinkonto aufladen'
     : 'Verzehrkarte erstellen')

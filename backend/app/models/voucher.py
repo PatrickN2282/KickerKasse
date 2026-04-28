@@ -7,7 +7,7 @@ from .base import BaseModel
 
 class VoucherType(str, enum.Enum):
     """Voucher Types"""
-    GIFT = "GIFT"          # Geschenk-Voucher (ohne Zahlung)
+    GIFT = "GIFT"          # Gutschein (ohne Zahlung)
     PREPAID = "PREPAID"    # Prepaid-Voucher (mit Zahlung gekauft)
 
 
@@ -19,7 +19,7 @@ class VoucherStatus(str, enum.Enum):
 
 
 class VoucherReason(str, enum.Enum):
-    """Reason for GIFT vouchers (Grund für Geschenk-Gutschein)"""
+    """Reason for GIFT vouchers (Grund für Gutschein)"""
     DYP_SIEGER = "DYP_SIEGER"
     PROMOTION = "PROMOTION"
 

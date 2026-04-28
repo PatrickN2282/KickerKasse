@@ -97,6 +97,47 @@ class VoucherService:
             or 0
         )
 
+    @staticmethod
+    def _format_voucher_reference(vouchers: list[Voucher]) -> str | None:
+        if not vouchers:
+            return None
+
+        voucher_codes = [voucher.voucher_code for voucher in vouchers if voucher.voucher_code]
+        if not voucher_codes:
+            return None
+        if len(voucher_codes) == 1:
+            return voucher_codes[0]
+
+        first_code = voucher_codes[0]
+        last_code = voucher_codes[-1]
+        last_suffix = last_code.rsplit("-", 1)[-1]
+        return f"{len(voucher_codes)}x {first_code}-{last_suffix}"
+
+    def _create_voucher_creation_transaction(
+        self,
+        *,
+        vouchers: list[Voucher],
+        voucher_type: VoucherType,
+        created_by_user_id: int,
+    ) -> Transaction:
+        transaction_repo = TransactionRepository(self.db)
+        transaction = Transaction(
+            receipt_number=transaction_repo.get_next_receipt_number(),
+            type=TransactionType.VOUCHER_CREATE,
+            payment_method=(
+                PaymentMethod.VOUCHER_GIFT
+                if voucher_type == VoucherType.GIFT
+                else PaymentMethod.VOUCHER_PREPAID
+            ),
+            total_amount_cents=0,
+            user_id=created_by_user_id,
+            voucher_type=voucher_type.value,
+            voucher_code=self._format_voucher_reference(vouchers),
+        )
+        self.db.add(transaction)
+        self.db.flush()
+        return transaction
+
     def create_gift_voucher(self, value_cents: int, reason: str, created_by_user_id: int, description: str = None) -> Voucher:
         try:
             reason_enum = VoucherReason(reason)
@@ -111,9 +152,15 @@ class VoucherService:
             description=description,
         )
 
+        self._create_voucher_creation_transaction(
+            vouchers=[voucher],
+            voucher_type=VoucherType.GIFT,
+            created_by_user_id=created_by_user_id,
+        )
+
         self.db.add(ClubAccountEntry(
             amount_cents=-value_cents,
-            reason=f"Geschenk-Gutschein {self._format_voucher_identifier(voucher)} erstellt",
+            reason=f"Gutschein {self._format_voucher_identifier(voucher)} erstellt",
             user_id=created_by_user_id,
             voucher_id=voucher.id,
         ))
@@ -145,6 +192,11 @@ class VoucherService:
             ))
 
         prepaid_product.stock_quantity += quantity
+        self._create_voucher_creation_transaction(
+            vouchers=created_vouchers,
+            voucher_type=VoucherType.PREPAID,
+            created_by_user_id=created_by_user_id,
+        )
         self.db.commit()
         self.db.refresh(prepaid_product)
         for voucher in created_vouchers:
@@ -338,7 +390,7 @@ class VoucherService:
         if voucher.status != VoucherStatus.CREATED or (voucher.redeemed_amount_cents or 0) > 0:
             raise ValueError("Bereits genutzte Gutscheine können nicht mehr bearbeitet werden")
         if voucher.voucher_type == VoucherType.GIFT and not reason:
-            raise ValueError("Gift-Gutscheine benötigen einen Grund")
+            raise ValueError("Gutscheine benötigen einen Grund")
 
         if voucher.voucher_type == VoucherType.PREPAID:
             reason = None
