@@ -883,7 +883,7 @@ class ZBonService:
 
     def _aggregate_by_warengruppe(self, transactions: list) -> dict:
         """Aggregate sales by product group."""
-        aggregation = defaultdict(lambda: {"count": 0, "gross_total": 0})
+        aggregation = defaultdict(lambda: {"gross_total": 0})
 
         for trans in transactions:
             if trans.type != TransactionType.SALE:
@@ -892,19 +892,26 @@ class ZBonService:
             for item in trans.items:
                 product = item.product
                 group_name = ((getattr(product, "warengruppe", None) or "").strip() or "Ohne Warengruppe")
-                aggregation[group_name]["count"] += item.quantity
                 aggregation[group_name]["gross_total"] += item.total_price_cents / 100
 
         return dict(aggregation)
 
+    @staticmethod
+    def _is_internal_material_sale_item(item) -> bool:
+        product = getattr(item, "product", None)
+        return bool(
+            product
+            and MaterialAccountService.is_internal_material_product(product)
+            and getattr(item, "is_internal_material", False)
+        )
+
     def _count_internal_material_sales(self, transactions: list) -> int:
         """Count sale transactions containing internal material items."""
-        material_account_service = MaterialAccountService(self.db)
         return sum(
             1
             for trans in transactions
             if trans.type == TransactionType.SALE
-            and any(material_account_service.is_internal_material_sale_item(item) for item in trans.items)
+            and any(self._is_internal_material_sale_item(item) for item in trans.items)
         )
 
     def _aggregate_by_customer(self, transactions: list) -> dict:
