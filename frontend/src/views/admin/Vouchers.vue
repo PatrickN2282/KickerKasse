@@ -228,7 +228,7 @@
               <th>Erstellt von</th>
               <th>Erstellt</th>
               <th>Eingelöst</th>
-              <th>Aktionen</th>
+              <th class="text-right">Aktionen</th>
             </tr>
           </thead>
           <tbody>
@@ -263,14 +263,16 @@
               <td class="date">
                 {{ voucher.redeemed_at ? formatDate(voucher.redeemed_at) : '-' }}
               </td>
-              <td class="actions">
-                <button
-                  v-if="authStore.isAdmin && voucher.status === 'CREATED'"
-                  class="btn-small btn-edit"
-                  @click="openEditVoucher(voucher)"
-                >
-                  ✏️
-                </button>
+              <td class="text-right">
+                <div class="action-cell">
+                  <button
+                    v-if="authStore.isAdmin && voucher.status === 'CREATED'"
+                    class="btn-small btn-edit"
+                    @click="openEditVoucher(voucher)"
+                  >
+                    ✏️
+                  </button>
+                </div>
               </td>
             </tr>
           </tbody>
@@ -1223,9 +1225,10 @@ onMounted(() => {
     font-size: 0.9rem;
   }
 
-  .actions {
-    white-space: nowrap;
-  }
+}
+
+.text-right {
+  text-align: right;
 }
 
 .no-data {
@@ -1298,9 +1301,13 @@ onMounted(() => {
   background: #ff6b35;
 }
 
-.actions {
+.action-cell {
   display: flex;
+  align-items: center;
+  justify-content: flex-end;
   gap: 0.35rem;
+  flex-wrap: wrap;
+  width: 100%;
 }
 
 .modal-overlay {
@@ -1324,6 +1331,16 @@ onMounted(() => {
 .button-row {
   display: flex;
   gap: 0.75rem;
+}
+
+@media (max-width: 768px) {
+  .action-cell {
+    flex-direction: column;
+  }
+
+  .btn-small {
+    width: 100%;
+  }
 }
 
 .created-voucher-modal {

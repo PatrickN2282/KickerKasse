@@ -69,23 +69,25 @@
                 <div v-else class="small-muted">Noch kein Artikel zugeordnet</div>
               </div>
             </td>
-            <td class="text-right action-cell">
-              <button
-                class="btn-action"
-                :disabled="category.is_fixed"
-                :title="category.is_fixed ? 'Feste Kategorie kann nicht bearbeitet werden' : ''"
-                @click="editCategory(category)"
-              >
-                Bearbeiten
-              </button>
-              <button
-                class="btn-action btn-action-danger"
-                :disabled="category.is_fixed"
-                :title="category.is_fixed ? 'Feste Kategorie kann nicht gelöscht werden' : ''"
-                @click="deleteCategory(category.id)"
-              >
-                Löschen
-              </button>
+            <td class="text-right">
+              <div class="action-cell">
+                <button
+                  class="btn-action"
+                  :disabled="category.is_fixed"
+                  :title="category.is_fixed ? 'Feste Kategorie kann nicht bearbeitet werden' : ''"
+                  @click="editCategory(category)"
+                >
+                  Bearbeiten
+                </button>
+                <button
+                  class="btn-action btn-action-danger"
+                  :disabled="category.is_fixed"
+                  :title="category.is_fixed ? 'Feste Kategorie kann nicht gelöscht werden' : ''"
+                  @click="deleteCategory(category.id)"
+                >
+                  Löschen
+                </button>
+              </div>
             </td>
           </tr>
         </tbody>
@@ -371,9 +373,12 @@ onMounted(() => {
 
 .action-cell {
   display: flex;
+  align-items: center;
   justify-content: flex-end;
   gap: 0.5rem;
+  flex-wrap: wrap;
   white-space: nowrap;
+  width: 100%;
 }
 
 .assignment-cell {
@@ -669,12 +674,14 @@ onMounted(() => {
   }
 
   .assignment-controls,
-  .modal-footer {
+  .modal-footer,
+  .action-cell {
     flex-direction: column;
   }
 
   .btn,
-  .btn-compact {
+  .btn-compact,
+  .btn-action {
     width: 100%;
   }
 }
