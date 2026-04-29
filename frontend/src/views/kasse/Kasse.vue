@@ -939,7 +939,7 @@ const isProductOutOfStock = (product) => !product.is_unlimited_stock && getAvail
 const getStockLabel = (product) => (
   product.is_unlimited_stock
     ? 'Unbegrenzt verfügbar'
-    : `Lager: ${getAvailableStock(product)}`
+    : `Verfügbar: ${getAvailableStock(product)}`
 )
 
 const selectProduct = (product, categoryId = null) => {
@@ -1700,12 +1700,13 @@ onBeforeUnmount(() => {
   flex-direction: column;
   position: relative;
   overflow: hidden;
-  width: 100%; /* Oder feste Breite nach Bedarf */
 
   &:hover:not(:disabled) {
     border-color: var(--app-highlight-color);
     box-shadow: 0 4px 16px color-mix(in srgb, var(--app-highlight-color) 18%, transparent);
     transform: translateY(-2px);
+
+
   }
 
   &:disabled {
@@ -1723,34 +1724,67 @@ onBeforeUnmount(() => {
     img {
       width: 100%;
       height: 100%;
+      /* "contain" sorgt dafür, dass das Bild komplett angezeigt wird */
       object-fit: contain;
       display: block;
+      transition: none;
+    }
+  }
+
+  .card-img-ph {
+    width: 100%;
+    height: 100%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 26px;
+  }
+
+  .card-badge {
+    position: absolute;
+    top: 5px;
+    left: 5px;
+    z-index: 1;
+    font-size: 10px;
+    font-weight: 800;
+    padding: 2px 5px;
+    border-radius: 4px;
+    letter-spacing: 0.04em;
+    line-height: 1.4;
+
+    &.discount-badge {
+      background: #fffbeb;
+      color: #d97706;
     }
   }
 
   .card-body {
-    padding: 10px 8px;
+    padding: 7px 8px 8px;
     flex: 1;
     display: flex;
     flex-direction: column;
-    align-items: center; /* Zentriert die Inhalte horizontal */
-    justify-content: center;
     gap: 4px;
   }
 
   .card-name {
-    font-size: .85rem;
-    font-weight: 500;
+    font-size: .8rem;
+    font-weight: 700;
     line-height: 1.2;
     color: #111827;
-    margin-bottom: 2px;
+  }
+
+  .card-bottom {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-top: auto;
   }
 
   .card-price {
-    font-size: 1rem;
-    font-weight: 900; /* Extra Fett */
+    font-size: .9rem;
+    font-weight: 800;
     color: var(--app-highlight-color);
-    letter-spacing: -0.01em;
+    letter-spacing: -0.02em;
   }
 
   .card-stock {
@@ -1758,8 +1792,9 @@ onBeforeUnmount(() => {
     color: #64748b;
     font-weight: 500;
 
+    /* Fügt den Text "Verfügbar: " vor den Inhalt der Klasse ein */
     &::before {
-      content: "Bestand: "; /* "Bestand" oder "Lager" passend zum Wunsch */
+      content: "Verfügbar: ";
     }
   }
 }
