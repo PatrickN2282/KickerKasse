@@ -40,9 +40,8 @@
                   </div>
                   <div class="card-body">
                     <div class="card-name">{{ product.name }}</div>
-                    <div class="card-bottom">
-                      <span class="card-price">{{ formatPrice(getDisplayedProductPriceCents(product, category.id)) }}</span>
-                      <span class="card-stock">{{ product.is_unlimited_stock ? '∞' : getAvailableStock(product) }}</span>
+                    <div class="card-price">{{ formatPrice(getDisplayedProductPriceCents(product, category.id)) }}</div>
+                    <div class="card-stock">{{ product.is_unlimited_stock ? '∞' : getAvailableStock(product) }}</div>
                     </div>
                   </div>
                 </button>
@@ -1794,7 +1793,7 @@ onBeforeUnmount(() => {
 
     /* Fügt den Text "Verfügbar: " vor den Inhalt der Klasse ein */
     &::before {
-      content: "Verfügbar: ";
+      content: "Lager: ";
     }
   }
 }
