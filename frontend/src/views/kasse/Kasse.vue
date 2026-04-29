@@ -84,7 +84,7 @@
                     <div class="card-bottom">
                     <div class="card-price">{{ formatPrice(product.price_cents) }}</div>
                     <div class="card-stock">{{ product.is_unlimited_stock ? '∞' : getAvailableStock(product) }}</div>
-                    <!-- /div-->
+                    </div>
                   </div>
                 </button>
               </div>
