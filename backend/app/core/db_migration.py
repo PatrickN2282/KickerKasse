@@ -253,6 +253,23 @@ class DatabaseMigrator:
             # OTHER COLUMNS
             # ============================================================================
 
+            if 'categories' in inspector.get_table_names():
+                categories_columns = {col['name'] for col in inspector.get_columns('categories')}
+                if 'color' not in categories_columns:
+                    logger.info("Adding color column to categories table...")
+                    try:
+                        conn.execute(text(
+                            "ALTER TABLE categories ADD COLUMN color VARCHAR(20)"
+                        ))
+                        conn.commit()
+                        logger.info("✓ Added color column to categories")
+                    except Exception as e:
+                        logger.warning(f"Could not add categories.color column: {str(e)}")
+                        try:
+                            conn.rollback()
+                        except:
+                            pass
+
             if 'app_settings' in inspector.get_table_names():
                 app_settings_columns = {col['name'] for col in inspector.get_columns('app_settings')}
 

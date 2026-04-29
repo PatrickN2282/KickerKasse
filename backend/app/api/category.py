@@ -90,6 +90,7 @@ async def create_category(
         category = repo.create(
             name=category_data.name,
             description=category_data.description,
+            color=category_data.color,
             is_active_in_kasse=category_data.is_active_in_kasse,
             display_order=category_data.display_order,
         )
@@ -125,6 +126,7 @@ async def update_category(
             category_id,
             name=category_data.name,
             description=category_data.description,
+            color=category_data.color,
             is_active_in_kasse=category_data.is_active_in_kasse,
             display_order=category_data.display_order,
         )

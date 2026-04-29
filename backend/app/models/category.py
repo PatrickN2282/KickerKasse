@@ -1,4 +1,4 @@
-from sqlalchemy import Column, String, Integer, DateTime, Boolean, Table, ForeignKey
+from sqlalchemy import Column, String, Integer, DateTime, Boolean, Table, ForeignKey, Text
 from sqlalchemy.sql import func
 from sqlalchemy.orm import relationship
 from app.constants import INTERNAL_MATERIAL_CATEGORY_NAME
@@ -19,6 +19,7 @@ class Category(BaseModel):
 
     name = Column(String(120), nullable=False, unique=True)
     description = Column(String(255), nullable=True)
+    color = Column(String(20), nullable=True)  # Optional hex color, e.g. "#FFB3B3"
     is_active_in_kasse = Column(Boolean, default=True, nullable=False)  # Sichtbar in Kassenansicht
     display_order = Column(Integer, default=0, nullable=False)  # Sortierreihenfolge
     created_at = Column(DateTime, default=func.now(), nullable=False)

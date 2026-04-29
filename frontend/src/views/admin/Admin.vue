@@ -38,6 +38,7 @@ const tabs = [
   { path: '/admin/finance', label: '💰 Finanzen', roles: ['TOP_ADMIN', 'ADMIN', 'MANAGER'] },
   { path: '/admin/settings', label: '🎨 Design', roles: ['TOP_ADMIN', 'ADMIN'] },
   { path: '/admin/data-maintenance', label: '🧹 Datenpflege', roles: ['TOP_ADMIN', 'ADMIN'] },
+  { path: '/admin/ext-settings', label: '⚙️ Ext. Settings', roles: ['TOP_ADMIN'] },
 ]
 
 const visibleTabs = computed(() => tabs.filter(tab => tab.roles.includes(authStore.role)))
