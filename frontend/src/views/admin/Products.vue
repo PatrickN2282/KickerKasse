@@ -104,6 +104,7 @@
                 <p class="image-editor-label">Bildausschnitt</p>
                 <p class="image-editor-hint">Verschieben und zoomen</p>
                 <div
+                  ref="cropFrameEl"
                   class="crop-frame"
                   :style="{ cursor: cropIsDragging ? 'grabbing' : 'grab' }"
                   @mousedown.prevent="onCropDragStart"
@@ -285,15 +286,18 @@ const formData = reactive({
 })
 
 // ── Image crop editor ─────────────────────────────────────────────────────────
-// Crop frame dimensions (pixels in the editor DOM)
+// Crop frame dimensions (pixels in the editor DOM); 3:2 aspect ratio
+const CROP_ASPECT = 3 / 2
 const CROP_W = 212
-const CROP_H = 141   // ≈ 3:2 ratio
-// Output image size written to the server
+const CROP_H = Math.round(CROP_W / CROP_ASPECT)   // 141 px
+// Output image size written to the server (same 3:2 aspect)
 const OUTPUT_W = 600
-const OUTPUT_H = 400
+const OUTPUT_H = Math.round(OUTPUT_W / CROP_ASPECT) // 400 px
+// JPEG encode quality (0–1); 0.92 balances file size and visual quality
+const JPEG_QUALITY = 0.92
 // Card preview image-area dimensions
 const PREVIEW_W = 180
-const PREVIEW_H = Math.round(CROP_H * PREVIEW_W / CROP_W)  // ≈ 120 px
+const PREVIEW_H = Math.round(PREVIEW_W / CROP_ASPECT)  // ≈ 120 px
 const PREVIEW_SCALE = PREVIEW_W / CROP_W
 
 const cropImageSrc = ref(null)     // always a data-URL (or null)
@@ -308,6 +312,7 @@ const cropDragLastX = ref(0)
 const cropDragLastY = ref(0)
 const cropLastPinchDist = ref(0)
 const cropModified = ref(false)
+const cropFrameEl = ref(null)   // template ref for the crop-frame div
 
 const cropImgStyle = computed(() => ({
   position: 'absolute',
@@ -527,6 +532,7 @@ const editProduct = async (product) => {
   if (product.image_path) {
     try {
       const resp = await fetch(`/api/products/${product.id}/image`, { credentials: 'include' })
+      if (!resp.ok) throw new Error(`Image load failed: ${resp.status}`)
       const blob = await resp.blob()
       const dataUrl = await new Promise((resolve) => {
         const reader = new FileReader()
@@ -659,8 +665,10 @@ const onCropTouchMove = (event) => {
     const dist = Math.hypot(dx, dy)
     const factor = dist / cropLastPinchDist.value
     const newScale = Math.max(cropMinScale.value, Math.min(cropMinScale.value * 5, cropScale.value * factor))
-    const midX = (event.touches[0].clientX + event.touches[1].clientX) / 2
-    const midY = (event.touches[0].clientY + event.touches[1].clientY) / 2
+    // Convert screen midpoint to frame-relative coordinates
+    const frameRect = cropFrameEl.value ? cropFrameEl.value.getBoundingClientRect() : { left: 0, top: 0 }
+    const midX = (event.touches[0].clientX + event.touches[1].clientX) / 2 - frameRect.left
+    const midY = (event.touches[0].clientY + event.touches[1].clientY) / 2 - frameRect.top
     const f = newScale / cropScale.value
     cropPanX.value = midX - (midX - cropPanX.value) * f
     cropPanY.value = midY - (midY - cropPanY.value) * f
@@ -683,18 +691,17 @@ const getCroppedBlob = () => new Promise((resolve, reject) => {
   const ctx = canvas.getContext('2d')
   const img = new Image()
   img.onload = () => {
-    const outputScale = OUTPUT_W / CROP_W
-    ctx.drawImage(
-      img,
-      cropPanX.value * outputScale,
-      cropPanY.value * outputScale,
-      img.naturalWidth * cropScale.value * outputScale,
-      img.naturalHeight * cropScale.value * outputScale,
-    )
+    // Compute the source rect in original image pixels that corresponds to the crop frame.
+    // panX/panY is the position of the scaled image's top-left corner inside the crop frame.
+    const sx = -cropPanX.value / cropScale.value
+    const sy = -cropPanY.value / cropScale.value
+    const sw = CROP_W / cropScale.value
+    const sh = CROP_H / cropScale.value
+    ctx.drawImage(img, sx, sy, sw, sh, 0, 0, OUTPUT_W, OUTPUT_H)
     canvas.toBlob((blob) => {
       if (blob) resolve(blob)
       else reject(new Error('Canvas toBlob failed'))
-    }, 'image/jpeg', 0.92)
+    }, 'image/jpeg', JPEG_QUALITY)
   }
   img.onerror = reject
   img.src = cropImageSrc.value
