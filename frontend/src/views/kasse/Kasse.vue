@@ -4,94 +4,80 @@
       <div v-if="productStore.isLoading" class="loading">Läuft...</div>
       <div v-else class="products-section">
 
-        <!-- One row per category: narrow toggle button + product grid side by side -->
-        <template
-          v-for="(category, index) in activeCategories"
-          :key="category.id"
-        >
-          <hr v-if="index > 0" class="category-separator" />
-          <div class="category-row">
-            <button
-              class="cat-btn"
-              :class="{ active: expandedCategories.includes(category.id) }"
-              @click="toggleCategory(category.id)"
-            >
-              <span class="cat-name">{{ category.name }}</span>
-              <span class="cat-count">{{ getProductsByCategory(category.id).length }}</span>
-            </button>
-            <div
-              v-if="expandedCategories.includes(category.id)"
-              class="category-products"
-            >
-              <div class="products-grid">
-                <button
-                  v-for="product in getProductsByCategory(category.id)"
-                  :key="product.id"
-                  :disabled="isProductOutOfStock(product)"
-                  class="product-btn"
-                  @click="selectProduct(product, category.id)"
-                >
-                  <div class="card-img">
-                    <span v-if="hasMemberPrice(product)" class="card-badge discount-badge">Rabatt</span>
-                    <img v-if="product.image_path && !imageErrorMap[product.id]" :src="`/api/products/${product.id}/image`" :alt="product.name" @error="onImageError(product.id)" />
-                    <div v-else class="card-img-ph">🛒</div>
-                  </div>
-                  <div class="card-body">
-                    <div class="card-name">{{ product.name }}</div>
-                    <div class="card-bottom">
-                      <span class="card-price">{{ formatPrice(getDisplayedProductPriceCents(product, category.id)) }}</span>
-                      <span class="card-stock">{{ product.is_unlimited_stock ? '∞' : getAvailableStock(product) }}</span>
-                    </div>
-                  </div>
-                </button>
-              </div>
-            </div>
-          </div>
-        </template>
+        <!-- Flat bubble/chip category filter bar -->
+        <div class="category-chips">
+          <button
+            v-for="category in activeCategories"
+            :key="category.id"
+            class="chip"
+            :class="{ active: expandedCategories.includes(category.id) }"
+            @click="toggleCategory(category.id)"
+          >
+            {{ category.name }}
+            <span class="chip-count">{{ getProductsByCategory(category.id).length }}</span>
+          </button>
+          <button
+            v-if="productsWithoutCategory.length > 0"
+            class="chip"
+            :class="{ active: expandedCategories.includes(0) }"
+            @click="toggleCategory(0)"
+          >
+            Ohne Kategorie
+            <span class="chip-count">{{ productsWithoutCategory.length }}</span>
+          </button>
+        </div>
 
-        <!-- Products without category -->
-        <template v-if="productsWithoutCategory.length > 0">
-          <hr v-if="activeCategories.length > 0" class="category-separator" />
-          <div class="category-row">
+        <!-- Unified product grid for all active categories -->
+        <div v-if="hasExpandedCategory" class="products-grid">
+          <template v-for="category in activeCategories" :key="category.id">
+            <template v-if="expandedCategories.includes(category.id)">
+              <button
+                v-for="product in getProductsByCategory(category.id)"
+                :key="`${category.id}-${product.id}`"
+                :disabled="isProductOutOfStock(product)"
+                class="product-btn"
+                @click="selectProduct(product, category.id)"
+              >
+                <div class="card-img">
+                  <span v-if="hasMemberPrice(product)" class="card-badge discount-badge">Rabatt</span>
+                  <img v-if="product.image_path && !imageErrorMap[product.id]" :src="`/api/products/${product.id}/image`" :alt="product.name" @error="onImageError(product.id)" />
+                  <div v-else class="card-img-ph">🛒</div>
+                </div>
+                <div class="card-body">
+                  <div class="card-name">{{ product.name }}</div>
+                  <div class="card-bottom">
+                    <span class="card-price">{{ formatPrice(getDisplayedProductPriceCents(product, category.id)) }}</span>
+                    <span class="card-stock">{{ product.is_unlimited_stock ? '∞' : getAvailableStock(product) }}</span>
+                  </div>
+                </div>
+              </button>
+            </template>
+          </template>
+          <template v-if="expandedCategories.includes(0)">
             <button
-              class="cat-btn"
-              :class="{ active: expandedCategories.includes(0) }"
-              @click="toggleCategory(0)"
+              v-for="product in productsWithoutCategory"
+              :key="`ohne-${product.id}`"
+              :disabled="isProductOutOfStock(product)"
+              class="product-btn"
+              @click="selectProduct(product)"
             >
-              <span class="cat-name">Ohne Kategorie</span>
-              <span class="cat-count">{{ productsWithoutCategory.length }}</span>
-            </button>
-            <div
-              v-if="expandedCategories.includes(0)"
-              class="category-products"
-            >
-              <div class="products-grid">
-                <button
-                  v-for="product in productsWithoutCategory"
-                  :key="product.id"
-                  :disabled="isProductOutOfStock(product)"
-                  class="product-btn"
-                  @click="selectProduct(product)"
-                >
-                  <div class="card-img">
-                    <span v-if="hasMemberPrice(product)" class="card-badge discount-badge">Rabatt</span>
-                    <img v-if="product.image_path && !imageErrorMap[product.id]" :src="`/api/products/${product.id}/image`" :alt="product.name" @error="onImageError(product.id)" />
-                    <div v-else class="card-img-ph">🛒</div>
-                  </div>
-                  <div class="card-body">
-                    <div class="card-name">{{ product.name }}</div>
-                    <div class="card-bottom">
-                      <span class="card-price">{{ formatPrice(product.price_cents) }}</span>
-                      <span class="card-stock">{{ product.is_unlimited_stock ? '∞' : getAvailableStock(product) }}</span>
-                    </div>
-                  </div>
-                </button>
+              <div class="card-img">
+                <span v-if="hasMemberPrice(product)" class="card-badge discount-badge">Rabatt</span>
+                <img v-if="product.image_path && !imageErrorMap[product.id]" :src="`/api/products/${product.id}/image`" :alt="product.name" @error="onImageError(product.id)" />
+                <div v-else class="card-img-ph">🛒</div>
               </div>
-            </div>
-          </div>
-        </template>
+              <div class="card-body">
+                <div class="card-name">{{ product.name }}</div>
+                <div class="card-bottom">
+                  <span class="card-price">{{ formatPrice(product.price_cents) }}</span>
+                  <span class="card-stock">{{ product.is_unlimited_stock ? '∞' : getAvailableStock(product) }}</span>
+                </div>
+              </div>
+            </button>
+          </template>
+        </div>
 
-        <!-- Hint shown when no category is expanded -->
+        <!-- Hint shown when no category is selected -->
         <div v-if="!hasExpandedCategory" class="empty-products">
           Kategorie auswählen
         </div>
@@ -1485,10 +1471,12 @@ onBeforeUnmount(() => {
   min-width: 0;
   background: var(--app-surface-color);
   border-radius: 12px;
-  padding: 1rem;
+  padding: .75rem;
   box-shadow: 0 8px 20px rgba(24, 28, 34, 0.1);
-  overflow-y: auto;
+  overflow: hidden;
   border: 1px solid var(--app-banner-color);
+  display: flex;
+  flex-direction: column;
 }
 
 .kasse-resizer {
@@ -1542,75 +1530,59 @@ onBeforeUnmount(() => {
 .products-section {
   display: flex;
   flex-direction: column;
-  gap: .5rem;
+  gap: .4rem;
+  height: 100%;
+  min-height: 0;
 }
 
-/* ── Category separator ───────────────────────────────── */
-.category-separator {
-  border: none;
-  border-top: 1px solid color-mix(in srgb, var(--app-banner-color) 25%, transparent);
-  margin: .15rem 0;
-}
-
-/* ── Category row: narrow toggle + products side by side ─ */
-.category-row {
+/* ── Category bubble / chip filter bar ───────────────── */
+.category-chips {
   display: flex;
-  flex-direction: row;
-  align-items: flex-start;
-  gap: .75rem;
-}
-
-/* ── Category toggle button (always compact/narrow) ────── */
-.cat-btn {
+  flex-wrap: wrap;
+  gap: .3rem;
+  padding-bottom: .45rem;
+  border-bottom: 1px solid color-mix(in srgb, var(--app-banner-color) 18%, transparent);
   flex-shrink: 0;
-  width: 52px;
-  display: flex;
-  flex-direction: column;
+}
+
+.chip {
+  display: inline-flex;
   align-items: center;
-  padding: .45rem .25rem;
-  background: var(--app-banner-color);
-  color: var(--app-banner-contrast);
-  border: none;
-  border-radius: 12px;
-  cursor: pointer;
+  gap: .28rem;
+  padding: .25rem .6rem;
+  border-radius: 999px;
+  border: 1.5px solid color-mix(in srgb, var(--app-banner-color) 38%, transparent);
+  background: transparent;
+  color: var(--app-banner-color);
+  font-size: .73rem;
   font-weight: 600;
-  text-align: center;
-  transition: all .18s;
-  gap: 3px;
-  align-self: stretch;
+  cursor: pointer;
+  transition: all .14s;
+  white-space: nowrap;
+  line-height: 1.4;
 
   &:hover {
-    opacity: .88;
+    background: color-mix(in srgb, var(--app-banner-color) 10%, transparent);
   }
 
   &.active {
     background: var(--app-highlight-color);
+    border-color: var(--app-highlight-color);
     color: var(--app-highlight-contrast);
+
+    .chip-count {
+      background: rgba(255,255,255,.22);
+    }
   }
 
-  .cat-name {
-    writing-mode: vertical-lr;
-    text-orientation: mixed;
-    font-size: .72rem;
-    line-height: 1;
-    letter-spacing: 0.04em;
-    max-height: 110px;
-    overflow: hidden;
-  }
-
-  .cat-count {
-    font-size: .65rem;
-    opacity: .72;
+  .chip-count {
+    font-size: .64rem;
+    opacity: .85;
     font-weight: 500;
-    flex-shrink: 0;
-    writing-mode: horizontal-tb;
+    background: rgba(0,0,0,.08);
+    padding: .05rem .28rem;
+    border-radius: 999px;
   }
-}
-
-.category-products {
-  flex: 1;
-  min-width: 0;
-  margin-bottom: .75rem;
 }
 
 .empty-products {
@@ -1622,23 +1594,26 @@ onBeforeUnmount(() => {
 
 .products-grid {
   display: grid;
-  grid-template-columns: repeat(5, 1fr);
-  gap: .65rem;
+  grid-template-columns: repeat(6, 1fr);
+  gap: .45rem;
+  overflow-y: auto;
+  flex: 1;
+  align-content: start;
 
-  @media (max-width: 1400px) {
+  @media (max-width: 1500px) {
+    grid-template-columns: repeat(5, 1fr);
+  }
+
+  @media (max-width: 1200px) {
     grid-template-columns: repeat(4, 1fr);
   }
 
-  @media (max-width: 1100px) {
+  @media (max-width: 900px) {
     grid-template-columns: repeat(3, 1fr);
   }
 
-  @media (max-width: 800px) {
+  @media (max-width: 640px) {
     grid-template-columns: repeat(2, 1fr);
-  }
-
-  @media (max-width: 600px) {
-    grid-template-columns: 1fr;
   }
 }
 
@@ -1646,11 +1621,11 @@ onBeforeUnmount(() => {
 .product-btn {
   background: #fff;
   border: 1.5px solid color-mix(in srgb, var(--app-banner-color) 22%, white 78%);
-  border-radius: 12px;
+  border-radius: 10px;
   padding: 0;
   cursor: pointer;
-  transition: all .18s;
-  text-align: center;
+  transition: all .15s;
+  text-align: left;
   font-family: inherit;
   display: flex;
   flex-direction: column;
@@ -1659,11 +1634,11 @@ onBeforeUnmount(() => {
 
   &:hover:not(:disabled) {
     border-color: var(--app-highlight-color);
-    box-shadow: 0 4px 16px color-mix(in srgb, var(--app-highlight-color) 18%, transparent);
-    transform: translateY(-2px);
+    box-shadow: 0 3px 12px color-mix(in srgb, var(--app-highlight-color) 18%, transparent);
+    transform: translateY(-1px);
 
     .card-img img {
-      transform: scale(2.50);
+      transform: scale(1.08);
     }
   }
 
@@ -1673,7 +1648,7 @@ onBeforeUnmount(() => {
   }
 
   .card-img {
-    height: 80px;
+    height: 62px;
     overflow: hidden;
     background: #eef1f7;
     flex-shrink: 0;
@@ -1682,10 +1657,9 @@ onBeforeUnmount(() => {
     img {
       width: 100%;
       height: 100%;
-      /* "contain" sorgt dafür, dass das Bild komplett angezeigt wird */
-      object-fit: contain; 
+      object-fit: contain;
       display: block;
-      transition: transform 0.3s;
+      transition: transform 0.25s;
     }
   }
 
@@ -1695,18 +1669,18 @@ onBeforeUnmount(() => {
     display: flex;
     align-items: center;
     justify-content: center;
-    font-size: 26px;
+    font-size: 22px;
   }
 
   .card-badge {
     position: absolute;
-    top: 5px;
-    left: 5px;
+    top: 3px;
+    left: 3px;
     z-index: 1;
-    font-size: 10px;
+    font-size: 9px;
     font-weight: 800;
-    padding: 2px 5px;
-    border-radius: 4px;
+    padding: 2px 4px;
+    border-radius: 3px;
     letter-spacing: 0.04em;
     line-height: 1.4;
 
@@ -1717,15 +1691,15 @@ onBeforeUnmount(() => {
   }
 
   .card-body {
-    padding: 7px 8px 8px;
+    padding: 5px 6px 6px;
     flex: 1;
     display: flex;
     flex-direction: column;
-    gap: 4px;
+    gap: 3px;
   }
 
   .card-name {
-    font-size: .8rem;
+    font-size: .72rem;
     font-weight: 700;
     line-height: 1.2;
     color: #111827;
@@ -1739,21 +1713,16 @@ onBeforeUnmount(() => {
   }
 
   .card-price {
-    font-size: .9rem;
+    font-size: .82rem;
     font-weight: 800;
     color: var(--app-highlight-color);
     letter-spacing: -0.02em;
   }
 
   .card-stock {
-    font-size: .72rem;
+    font-size: .64rem;
     color: #64748b;
     font-weight: 500;
-
-    /* Fügt den Text "Verfügbar: " vor den Inhalt der Klasse ein */
-    &::before {
-      content: "Verfügbar: ";
-    }
   }
 }
 
