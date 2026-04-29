@@ -82,9 +82,9 @@
                   <div class="card-body">
                     <div class="card-name">{{ product.name }}</div>
                     <div class="card-bottom">
-                      <span class="card-price">{{ formatPrice(product.price_cents) }}</span>
-                      <span class="card-stock">{{ product.is_unlimited_stock ? '∞' : getAvailableStock(product) }}</span>
-                    </div>
+                    <div class="card-price">{{ formatPrice(product.price_cents) }}</div>
+                    <div class="card-stock">{{ product.is_unlimited_stock ? '∞' : getAvailableStock(product) }}</div>
+                    <!-- /div-->
                   </div>
                 </button>
               </div>
@@ -1766,7 +1766,7 @@ onBeforeUnmount(() => {
   }
 
   .card-name {
-    font-size: .8rem;
+    font-size: 1.0rem;
     font-weight: 700;
     line-height: 1.2;
     color: #111827;
