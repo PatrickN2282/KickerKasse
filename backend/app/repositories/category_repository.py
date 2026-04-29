@@ -1,7 +1,7 @@
 from sqlalchemy.orm import Session
 from app.models import Category
 
-_UNSET = object()
+UNSET_SENTINEL = object()
 
 
 class CategoryRepository:
@@ -47,7 +47,7 @@ class CategoryRepository:
         category_id: int,
         name: str = None,
         description: str = None,
-        color=_UNSET,
+        color=UNSET_SENTINEL,
         is_active_in_kasse: bool = None,
         display_order: int = None,
     ) -> Category | None:
@@ -61,7 +61,7 @@ class CategoryRepository:
         if description is not None:
             category.description = description
         # color uses sentinel so None can explicitly clear the field
-        if color is not _UNSET:
+        if color is not UNSET_SENTINEL:
             category.color = color
         if is_active_in_kasse is not None:
             category.is_active_in_kasse = is_active_in_kasse

@@ -742,22 +742,39 @@ const loadCategories = async () => {
 
 const getCategoryChipStyle = (category, isActive) => {
   if (!category.color) return {}
+  const textColor = getContrastTextColor(category.color)
   if (isActive) {
     return {
       background: category.color,
       borderColor: category.color,
-      color: '#1e293b',
+      color: textColor,
     }
   }
   return {
     borderColor: category.color,
-    color: '#1e293b',
+    color: textColor,
   }
 }
 
 const getCategoryCardStyle = (category) => {
   if (!category || !category.color) return {}
   return { borderColor: category.color }
+}
+
+/**
+ * Returns '#1e293b' (dark) or '#ffffff' (light) depending on the
+ * perceived luminance of the hex background color.
+ */
+const getContrastTextColor = (hex) => {
+  if (!hex) return '#1e293b'
+  const clean = hex.replace('#', '')
+  if (clean.length < 6) return '#1e293b'
+  const r = parseInt(clean.slice(0, 2), 16)
+  const g = parseInt(clean.slice(2, 4), 16)
+  const b = parseInt(clean.slice(4, 6), 16)
+  // Relative luminance (WCAG formula)
+  const luminance = (0.299 * r + 0.587 * g + 0.114 * b) / 255
+  return luminance > 0.5 ? '#1e293b' : '#ffffff'
 }
 
 const toggleCategory = (categoryId) => {
