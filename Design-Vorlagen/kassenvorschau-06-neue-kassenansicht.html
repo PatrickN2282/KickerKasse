@@ -1,0 +1,596 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Kassenbereich Vorschau 06 – Neue Kassenansicht (Rail + Modern Cards)</title>
+  <style>
+    :root {
+      --bg: #eff3f8;
+      --surface: #ffffff;
+      --line: #dde4ee;
+      --banner: #1e293b;
+      --banner-contrast: #f8fafc;
+      --highlight: #0f766e;
+      --highlight-contrast: #ffffff;
+      --muted: #64748b;
+      --text: #0f172a;
+      font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, sans-serif;
+    }
+    * { box-sizing: border-box; }
+    body { margin: 0; background: var(--bg); color: var(--text); display: flex; flex-direction: column; height: 100vh; }
+
+    /* ── Compact navbar ──────────────────────────────────────── */
+    .navbar {
+      background: var(--banner);
+      color: var(--banner-contrast);
+      padding: .4rem .9rem;
+      border-bottom: 2px solid var(--highlight);
+      box-shadow: 0 2px 8px rgba(0,0,0,.18);
+      flex-shrink: 0;
+    }
+    .navbar-inner {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: .75rem;
+      max-width: 1500px;
+      margin: 0 auto;
+    }
+    .navbar-brand {
+      display: flex;
+      align-items: center;
+      gap: .5rem;
+    }
+    .brand-logo {
+      height: 30px;
+      width: 150px;
+      background: rgba(255,255,255,.12);
+      border-radius: 6px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-weight: 800;
+      font-size: .82rem;
+      letter-spacing: .08em;
+      color: var(--banner-contrast);
+    }
+    .brand-title {
+      font-size: 1.1rem;
+      font-weight: 700;
+      color: var(--banner-contrast);
+    }
+    .navbar-right {
+      display: flex;
+      flex-direction: column;
+      gap: .2rem;
+      align-items: flex-end;
+    }
+    .navbar-actions {
+      display: flex;
+      gap: .45rem;
+      align-items: center;
+    }
+    .nav-link {
+      padding: .3rem .7rem;
+      border-radius: 999px;
+      font-size: .82rem;
+      font-weight: 600;
+      color: var(--banner-contrast);
+      text-decoration: none;
+      background: rgba(255,255,255,.1);
+    }
+    .nav-link.active { background: var(--highlight); color: var(--highlight-contrast); }
+    .btn-sm {
+      padding: .3rem .75rem;
+      border-radius: 999px;
+      border: none;
+      font-size: .8rem;
+      font-weight: 600;
+      cursor: pointer;
+    }
+    .btn-danger-sm { background: #dc2626; color: #fff; }
+    .nav-user { font-size: .76rem; font-weight: 600; opacity: .82; color: var(--banner-contrast); }
+
+    /* ── Main layout ─────────────────────────────────────────── */
+    .kasse-wrap {
+      flex: 1;
+      display: flex;
+      gap: .85rem;
+      padding: .85rem;
+      min-height: 0;
+      overflow: hidden;
+    }
+
+    /* ── Product panel ───────────────────────────────────────── */
+    .kasse-products {
+      flex: 1;
+      min-width: 0;
+      background: var(--surface);
+      border-radius: 12px;
+      padding: 1rem;
+      border: 1px solid var(--banner);
+      box-shadow: 0 6px 18px rgba(15,23,42,.1);
+      overflow-y: auto;
+    }
+
+    /* Rail mode: two-column (categories rail + products) */
+    .products-section {
+      display: flex;
+      flex-direction: row;
+      gap: .75rem;
+      height: 100%;
+    }
+
+    /* ── Category rail ───────────────────────────────────────── */
+    .categories-nav {
+      flex: 0 0 112px;
+      display: flex;
+      flex-direction: column;
+      gap: 5px;
+    }
+    .cat-btn {
+      width: 100%;
+      padding: .55rem .4rem;
+      background: var(--banner);
+      color: var(--banner-contrast);
+      border: none;
+      border-radius: 12px;
+      cursor: pointer;
+      font-weight: 600;
+      font-size: .72rem;
+      text-align: center;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 3px;
+      transition: all .15s;
+    }
+    .cat-btn:hover { opacity: .88; }
+    .cat-btn.active { background: var(--highlight); color: var(--highlight-contrast); }
+    .cat-name { word-break: break-word; line-height: 1.25; }
+    .cat-count { font-size: .68rem; opacity: .72; font-weight: 500; }
+
+    /* ── Products display ────────────────────────────────────── */
+    .products-display {
+      flex: 1;
+      min-width: 0;
+      overflow-y: auto;
+    }
+    .category-products { margin-bottom: .75rem; }
+
+    .products-grid {
+      display: grid;
+      grid-template-columns: repeat(5, minmax(0, 1fr));
+      gap: .65rem;
+    }
+
+    /* ── Product card ────────────────────────────────────────── */
+    .product-btn {
+      background: #fff;
+      border: 1.5px solid #dde4ee;
+      border-radius: 18px;
+      padding: 11px 12px;
+      cursor: pointer;
+      text-align: left;
+      display: flex;
+      flex-direction: column;
+      gap: .35rem;
+      min-height: 106px;
+      justify-content: space-between;
+      transition: all .15s;
+    }
+    .product-btn:hover {
+      background: #f0fdf9;
+      border-color: var(--highlight);
+      box-shadow: 0 3px 14px rgba(15,118,110,.15);
+      transform: translateY(-2px);
+    }
+    .product-btn:disabled { opacity: .45; cursor: not-allowed; }
+
+    .product-top {
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-start;
+      gap: 5px;
+    }
+    .product-name {
+      font-weight: 700;
+      font-size: .82rem;
+      line-height: 1.25;
+      color: #111827;
+    }
+    .product-badges { display: flex; gap: 3px; flex-shrink: 0; }
+    .badge {
+      display: inline-flex;
+      align-items: center;
+      padding: 2px 6px;
+      border-radius: 999px;
+      font-size: .65rem;
+      font-weight: 700;
+    }
+    .badge-discount { background: #dbeafe; color: #1d4ed8; }
+    .badge-unlimited { background: #e2e8f0; color: #0f172a; }
+    .badge-new { background: #dcfce7; color: #15803d; }
+
+    .product-price {
+      font-size: 1.2rem;
+      font-weight: 800;
+      letter-spacing: -.03em;
+      color: var(--highlight);
+    }
+    .product-stock { font-size: .7rem; color: var(--muted); }
+
+    /* ── Resizer ─────────────────────────────────────────────── */
+    .resizer {
+      width: 10px;
+      border-radius: 999px;
+      background: var(--highlight);
+      flex: 0 0 10px;
+      align-self: stretch;
+      opacity: .55;
+      cursor: col-resize;
+    }
+
+    /* ── Bon panel ───────────────────────────────────────────── */
+    .kasse-bon {
+      width: 360px;
+      flex: 0 0 360px;
+      background: var(--surface);
+      border-radius: 12px;
+      padding: 1rem;
+      border: 1px solid var(--banner);
+      border-left: 4px solid var(--highlight);
+      box-shadow: 0 6px 18px rgba(15,23,42,.1);
+      overflow-y: auto;
+      display: flex;
+      flex-direction: column;
+      gap: .85rem;
+    }
+
+    .receipt-banner {
+      padding: .55rem .8rem;
+      background: color-mix(in srgb, var(--banner) 10%, white 90%);
+      border-radius: 8px;
+      color: var(--banner);
+      font-weight: 600;
+      font-size: .85rem;
+      text-align: center;
+    }
+
+    .bon-items {
+      border: 1px solid #e2e8f0;
+      border-radius: 8px;
+      background: #f8fafc;
+      padding: .45rem;
+      display: flex;
+      flex-direction: column;
+      gap: .35rem;
+    }
+    .bon-item {
+      display: flex;
+      gap: .5rem;
+      align-items: center;
+      background: white;
+      border-radius: 6px;
+      padding: .55rem .65rem;
+    }
+    .bon-item-name { flex: 1; font-weight: 600; font-size: .88rem; }
+    .bon-item-note { font-size: .72rem; color: var(--muted); }
+    .qty-ctrl { display: flex; gap: 3px; align-items: center; }
+    .qty-ctrl button {
+      width: 24px; height: 24px;
+      border: 1px solid #ddd; background: white;
+      border-radius: 4px; cursor: pointer; font-size: .85rem;
+    }
+    .qty-input {
+      width: 36px; text-align: center; border: 1px solid #ddd;
+      border-radius: 4px; padding: .2rem; font-size: .82rem;
+    }
+    .bon-item-price { font-weight: 700; font-size: .88rem; color: var(--highlight); min-width: 60px; text-align: right; }
+    .btn-remove-item {
+      background: #ffebee; color: #c62828;
+      border: none; border-radius: 4px;
+      width: 24px; height: 24px; cursor: pointer; font-size: .82rem; font-weight: 700;
+    }
+
+    .bon-totals {
+      display: flex;
+      flex-direction: column;
+      gap: .4rem;
+      padding: .65rem .8rem;
+      background: color-mix(in srgb, var(--bg) 65%, white 35%);
+      border-radius: 8px;
+    }
+    .total-row { display: flex; justify-content: space-between; gap: .75rem; font-size: .88rem; }
+    .total-row.grand {
+      padding-top: .5rem;
+      border-top: 1px solid #dde4ee;
+      font-size: 1.1rem;
+      font-weight: 700;
+      color: var(--banner);
+    }
+
+    .member-card {
+      background: #f1f5f9;
+      border: 2px solid var(--banner);
+      border-radius: 10px;
+      padding: .7rem .85rem;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: .5rem;
+    }
+    .member-info strong { display: block; font-size: .88rem; margin-bottom: 2px; }
+    .member-info span { font-size: .78rem; color: var(--muted); }
+    .btn-change {
+      padding: .3rem .6rem; border: 1px solid var(--banner);
+      background: white; border-radius: 6px; font-size: .78rem;
+      font-weight: 600; cursor: pointer; color: var(--banner);
+    }
+
+    .payment-btns { display: flex; gap: .55rem; }
+    .pay-btn {
+      flex: 1;
+      padding: .75rem .5rem;
+      border: none; border-radius: 10px;
+      font-size: .88rem; font-weight: 700;
+      cursor: pointer; transition: all .15s;
+    }
+    .pay-btn:hover { transform: translateY(-1px); box-shadow: 0 4px 10px rgba(0,0,0,.15); }
+    .pay-cash { background: var(--highlight); color: var(--highlight-contrast); }
+    .pay-balance { background: var(--banner); color: var(--banner-contrast); }
+    .pay-voucher { background: #fef3c7; color: #92400e; }
+
+    .deckel-btn {
+      width: 100%;
+      padding: .75rem;
+      border: 1px solid #b8c6d8;
+      background: linear-gradient(135deg, #e7edf5, #d6e0eb);
+      border-radius: 12px;
+      cursor: pointer;
+      font-weight: 700;
+      font-size: .9rem;
+      color: #334155;
+      transition: all .15s;
+    }
+    .deckel-btn:hover { background: linear-gradient(135deg, #dde7f1, #cad7e5); }
+
+    .btn-cancel {
+      width: 100%;
+      padding: .65rem;
+      background: linear-gradient(135deg, #f87171, #dc2626);
+      color: white;
+      border: 2px solid #b91c1c;
+      border-radius: 10px;
+      font-weight: 700;
+      cursor: pointer;
+      font-size: .88rem;
+    }
+
+    @media (max-width: 1200px) {
+      .products-grid { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+    }
+    @media (max-width: 960px) {
+      .products-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+    }
+  </style>
+</head>
+<body>
+
+  <!-- Compact navbar (≈ half the original height) -->
+  <nav class="navbar">
+    <div class="navbar-inner">
+      <div class="navbar-brand">
+        <div class="brand-logo">KGB</div>
+        <span class="brand-title">KickerKasse</span>
+      </div>
+      <div class="navbar-right">
+        <div class="navbar-actions">
+          <a href="#" class="nav-link active">Kasse</a>
+          <a href="#" class="nav-link">Admin</a>
+          <button class="btn-sm btn-danger-sm">Logout</button>
+        </div>
+        <span class="nav-user">Angemeldet: kassierer</span>
+      </div>
+    </div>
+  </nav>
+
+  <!-- Main kasse area -->
+  <div class="kasse-wrap">
+
+    <!-- Product panel with vertical category rail -->
+    <div class="kasse-products">
+      <div class="products-section">
+
+        <!-- Narrow vertical category rail (left) -->
+        <div class="categories-nav">
+          <button class="cat-btn active">
+            <span class="cat-name">Getränke</span>
+            <span class="cat-count">14</span>
+          </button>
+          <button class="cat-btn active">
+            <span class="cat-name">Snacks</span>
+            <span class="cat-count">8</span>
+          </button>
+          <button class="cat-btn">
+            <span class="cat-name">Specials</span>
+            <span class="cat-count">4</span>
+          </button>
+          <button class="cat-btn">
+            <span class="cat-name">Ohne Kategorie</span>
+            <span class="cat-count">2</span>
+          </button>
+        </div>
+
+        <!-- Product grids for expanded categories -->
+        <div class="products-display">
+
+          <!-- Getränke (expanded) -->
+          <div class="category-products">
+            <div class="products-grid">
+              <button class="product-btn">
+                <div class="product-top">
+                  <strong class="product-name">Pils</strong>
+                  <div class="product-badges"><span class="badge badge-discount">Rabatt</span></div>
+                </div>
+                <div class="product-price">2,50 €</div>
+                <div class="product-stock">Verfügbar: 19</div>
+              </button>
+              <button class="product-btn">
+                <div class="product-top">
+                  <strong class="product-name">Cola</strong>
+                  <div class="product-badges"><span class="badge badge-unlimited">∞</span></div>
+                </div>
+                <div class="product-price">2,20 €</div>
+                <div class="product-stock">Unbegrenzt verfügbar</div>
+              </button>
+              <button class="product-btn">
+                <div class="product-top">
+                  <strong class="product-name">Club Mate</strong>
+                  <div class="product-badges"><span class="badge badge-discount">Rabatt</span></div>
+                </div>
+                <div class="product-price">2,80 €</div>
+                <div class="product-stock">Verfügbar: 11</div>
+              </button>
+              <button class="product-btn">
+                <div class="product-top">
+                  <strong class="product-name">Wasser still</strong>
+                  <div class="product-badges"><span class="badge badge-unlimited">∞</span></div>
+                </div>
+                <div class="product-price">1,50 €</div>
+                <div class="product-stock">Unbegrenzt verfügbar</div>
+              </button>
+              <button class="product-btn">
+                <div class="product-top">
+                  <strong class="product-name">Apfelschorle</strong>
+                  <div class="product-badges"><span class="badge badge-discount">Rabatt</span></div>
+                </div>
+                <div class="product-price">2,30 €</div>
+                <div class="product-stock">Verfügbar: 7</div>
+              </button>
+              <button class="product-btn">
+                <div class="product-top">
+                  <strong class="product-name">Espresso</strong>
+                  <div class="product-badges"><span class="badge badge-new">Neu</span></div>
+                </div>
+                <div class="product-price">1,90 €</div>
+                <div class="product-stock">Verfügbar: 12</div>
+              </button>
+            </div>
+          </div>
+
+          <!-- Snacks (expanded) -->
+          <div class="category-products">
+            <div class="products-grid">
+              <button class="product-btn">
+                <div class="product-top">
+                  <strong class="product-name">Brezel</strong>
+                  <div class="product-badges"></div>
+                </div>
+                <div class="product-price">2,00 €</div>
+                <div class="product-stock">Verfügbar: 8</div>
+              </button>
+              <button class="product-btn">
+                <div class="product-top">
+                  <strong class="product-name">Toast</strong>
+                </div>
+                <div class="product-price">3,20 €</div>
+                <div class="product-stock">Verfügbar: 4</div>
+              </button>
+              <button class="product-btn">
+                <div class="product-top">
+                  <strong class="product-name">Pommes</strong>
+                </div>
+                <div class="product-price">3,80 €</div>
+                <div class="product-stock">Verfügbar: 3</div>
+              </button>
+              <button class="product-btn" disabled>
+                <div class="product-top">
+                  <strong class="product-name">Protein Bar</strong>
+                </div>
+                <div class="product-price">2,90 €</div>
+                <div class="product-stock">Verfügbar: 0</div>
+              </button>
+            </div>
+          </div>
+
+        </div><!-- products-display -->
+      </div><!-- products-section -->
+    </div><!-- kasse-products -->
+
+    <!-- Resizer handle -->
+    <div class="resizer"></div>
+
+    <!-- Bon sidebar -->
+    <div class="kasse-bon">
+      <div class="receipt-banner">Beleg: <strong>#0002451</strong></div>
+
+      <div class="bon-items">
+        <div class="bon-item">
+          <div style="flex:1">
+            <div class="bon-item-name">Pils</div>
+          </div>
+          <div class="qty-ctrl">
+            <button>−</button>
+            <input class="qty-input" type="number" value="2" min="1" />
+            <button>+</button>
+          </div>
+          <div class="bon-item-price">5,00 €</div>
+          <button class="btn-remove-item">✕</button>
+        </div>
+        <div class="bon-item">
+          <div style="flex:1">
+            <div class="bon-item-name">Club Mate</div>
+          </div>
+          <div class="qty-ctrl">
+            <button>−</button>
+            <input class="qty-input" type="number" value="1" min="1" />
+            <button>+</button>
+          </div>
+          <div class="bon-item-price">2,80 €</div>
+          <button class="btn-remove-item">✕</button>
+        </div>
+        <div class="bon-item">
+          <div style="flex:1">
+            <div class="bon-item-name">Brezel</div>
+          </div>
+          <div class="qty-ctrl">
+            <button>−</button>
+            <input class="qty-input" type="number" value="1" min="1" />
+            <button>+</button>
+          </div>
+          <div class="bon-item-price">2,00 €</div>
+          <button class="btn-remove-item">✕</button>
+        </div>
+      </div>
+
+      <div class="member-card">
+        <div class="member-info">
+          <strong>Max Mustermann</strong>
+          <span>Guthaben 14,50 € · Rabatt aktiv · #M-102</span>
+        </div>
+        <button class="btn-change">Wechseln</button>
+      </div>
+
+      <div class="bon-totals">
+        <div class="total-row"><span>Zwischensumme</span><strong>9,80 €</strong></div>
+        <div class="total-row" style="color:#0f766e"><span>Gutschein V-2026-014</span><strong>-2,00 €</strong></div>
+        <div class="total-row" style="color:#0f766e"><span>Mitgliedsguthaben</span><strong>-3,00 €</strong></div>
+        <div class="total-row grand"><span>Zu zahlen</span><strong>4,80 €</strong></div>
+      </div>
+
+      <div class="payment-btns">
+        <button class="pay-btn pay-cash">💰 BAR</button>
+        <button class="pay-btn pay-balance">💳 Guthaben</button>
+        <button class="pay-btn pay-voucher">🎫 Gutschein</button>
+      </div>
+
+      <button class="deckel-btn">📒 Deckel – Gastteam / Ligaspiel</button>
+      <button class="btn-cancel">Bon abbrechen</button>
+    </div>
+
+  </div><!-- kasse-wrap -->
+
+</body>
+</html>

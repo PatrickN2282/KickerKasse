@@ -1,89 +1,103 @@
 <template>
   <div class="kasse-container">
     <div class="kasse-products">
-      <h2>Produkte</h2>
       <div v-if="productStore.isLoading" class="loading">Läuft...</div>
-      <div v-else class="products-section">
-        <!-- Active Categories with Expandable Sections -->
-        <div
-          v-for="category in activeCategories"
-          :key="category.id"
-          class="category-section"
-        >
+      <div v-else class="products-section" :class="{ 'rail-mode': hasExpandedCategory }">
+
+        <!-- Category navigation – full-width buttons when collapsed, narrow rail when expanded -->
+        <div class="categories-nav">
           <button
+            v-for="category in activeCategories"
+            :key="category.id"
+            class="cat-btn"
+            :class="{ active: expandedCategories.includes(category.id) }"
             @click="toggleCategory(category.id)"
-            class="category-header"
-            :class="{ expanded: expandedCategories.includes(category.id) }"
           >
-            <span class="category-toggle">{{ expandedCategories.includes(category.id) ? '▼' : '▶' }}</span>
-            <span class="category-name">{{ category.name }}</span>
-            <span class="category-count">({{ getProductsByCategory(category.id).length }})</span>
+            <span class="cat-name">{{ category.name }}</span>
+            <span class="cat-count">{{ getProductsByCategory(category.id).length }}</span>
           </button>
-          
-          <div
-            v-if="expandedCategories.includes(category.id)"
-            class="products-grid"
+          <button
+            v-if="productsWithoutCategory.length > 0"
+            class="cat-btn"
+            :class="{ active: expandedCategories.includes(0) }"
+            @click="toggleCategory(0)"
           >
-            <button
-              v-for="product in getProductsByCategory(category.id)"
-              :key="product.id"
-                :disabled="isProductOutOfStock(product)"
-                class="product-btn"
-                @click="selectProduct(product, category.id)"
-            >
-              <div v-if="showProductBadge(product)" class="product-badges">
-                <span v-if="hasMemberPrice(product)" class="product-badge discount-badge">Rabatt</span>
-                <span v-if="product.is_unlimited_stock" class="product-badge unlimited-badge">∞</span>
-              </div>
-              <div v-if="product.image_path" class="product-image">
-                <img :src="`/api/products/${product.id}/image`" :alt="product.name" />
-              </div>
-              <div class="product-name">{{ product.name }}</div>
-              <div class="product-price">{{ formatPrice(getDisplayedProductPriceCents(product, category.id)) }}</div>
-              <div class="product-stock">
-                {{ getStockLabel(product) }}
-              </div>
-            </button>
-          </div>
+            <span class="cat-name">Ohne Kategorie</span>
+            <span class="cat-count">{{ productsWithoutCategory.length }}</span>
+          </button>
         </div>
 
-        <!-- Products without Categories -->
-        <div v-if="productsWithoutCategory.length > 0" class="category-section">
-          <button
-            @click="toggleCategory(0)"
-            class="category-header"
-            :class="{ expanded: expandedCategories.includes(0) }"
+        <!-- Product display area (only visible in rail-mode or shows hint) -->
+        <div class="products-display">
+
+          <!-- Products for each expanded category -->
+          <template
+            v-for="category in activeCategories"
+            :key="category.id"
           >
-            <span class="category-toggle">{{ expandedCategories.includes(0) ? '▼' : '▶' }}</span>
-            <span class="category-name">Ohne Kategorie</span>
-            <span class="category-count">({{ productsWithoutCategory.length }})</span>
-          </button>
-          
+            <div
+              v-if="expandedCategories.includes(category.id)"
+              class="category-products"
+            >
+              <div class="products-grid">
+                <button
+                  v-for="product in getProductsByCategory(category.id)"
+                  :key="product.id"
+                  :disabled="isProductOutOfStock(product)"
+                  class="product-btn"
+                  @click="selectProduct(product, category.id)"
+                >
+                  <div class="product-top">
+                    <strong class="product-name">{{ product.name }}</strong>
+                    <div v-if="showProductBadge(product)" class="product-badges">
+                      <span v-if="hasMemberPrice(product)" class="product-badge discount-badge">Rabatt</span>
+                      <span v-if="product.is_unlimited_stock" class="product-badge unlimited-badge">∞</span>
+                    </div>
+                  </div>
+                  <div v-if="product.image_path" class="product-image">
+                    <img :src="`/api/products/${product.id}/image`" :alt="product.name" />
+                  </div>
+                  <div class="product-price">{{ formatPrice(getDisplayedProductPriceCents(product, category.id)) }}</div>
+                  <div class="product-stock">{{ getStockLabel(product) }}</div>
+                </button>
+              </div>
+            </div>
+          </template>
+
+          <!-- Products without category (if expanded) -->
           <div
-            v-if="expandedCategories.includes(0)"
-            class="products-grid"
+            v-if="expandedCategories.includes(0) && productsWithoutCategory.length > 0"
+            class="category-products"
           >
-            <button
-              v-for="product in productsWithoutCategory"
-              :key="product.id"
+            <div class="products-grid">
+              <button
+                v-for="product in productsWithoutCategory"
+                :key="product.id"
                 :disabled="isProductOutOfStock(product)"
                 class="product-btn"
                 @click="selectProduct(product)"
-            >
-              <div v-if="showProductBadge(product)" class="product-badges">
-                <span v-if="hasMemberPrice(product)" class="product-badge discount-badge">Rabatt</span>
-                <span v-if="product.is_unlimited_stock" class="product-badge unlimited-badge">∞</span>
-              </div>
-              <div v-if="product.image_path" class="product-image">
-                <img :src="`/api/products/${product.id}/image`" :alt="product.name" />
-              </div>
-              <div class="product-name">{{ product.name }}</div>
-              <div class="product-price">{{ formatPrice(product.price_cents) }}</div>
-              <div class="product-stock">
-                {{ getStockLabel(product) }}
-              </div>
-            </button>
+              >
+                <div class="product-top">
+                  <strong class="product-name">{{ product.name }}</strong>
+                  <div v-if="showProductBadge(product)" class="product-badges">
+                    <span v-if="hasMemberPrice(product)" class="product-badge discount-badge">Rabatt</span>
+                    <span v-if="product.is_unlimited_stock" class="product-badge unlimited-badge">∞</span>
+                  </div>
+                </div>
+                <div v-if="product.image_path" class="product-image">
+                  <img :src="`/api/products/${product.id}/image`" :alt="product.name" />
+                </div>
+                <div class="product-price">{{ formatPrice(product.price_cents) }}</div>
+                <div class="product-stock">{{ getStockLabel(product) }}</div>
+              </button>
+            </div>
           </div>
+
+          <!-- Hint shown when no category is expanded (non-rail mode) -->
+          <div v-if="!hasExpandedCategory" class="empty-products">
+            Kategorie auswählen
+          </div>
+
         </div>
       </div>
     </div>
@@ -785,6 +799,8 @@ const selectedMember = computed(() => {
   return memberStore.members.find(m => m.id === cartStore.selectedMemberId) || null
 })
 
+const hasExpandedCategory = computed(() => expandedCategories.value.length > 0)
+
 const cartSubtotal = computed(() => cartStore.getSubtotalAmount())
 const voucherAppliedAmount = computed(() => cartStore.getVoucherAppliedAmount())
 const balanceAppliedAmount = computed(() => cartStore.getBalanceAppliedAmount())
@@ -1466,17 +1482,11 @@ onBeforeUnmount(() => {
   flex: 1 1 auto;
   min-width: 0;
   background: var(--app-surface-color);
-  border-radius: 8px;
-  padding: 1.5rem;
-  box-shadow: 0 10px 24px rgba(24, 28, 34, 0.14);
+  border-radius: 12px;
+  padding: 1rem;
+  box-shadow: 0 8px 20px rgba(24, 28, 34, 0.1);
   overflow-y: auto;
   border: 1px solid var(--app-banner-color);
-
-  h2 {
-    margin: 0 0 1rem 0;
-    color: var(--app-banner-color);
-    font-size: 1.3rem;
-  }
 }
 
 .kasse-resizer {
@@ -1530,62 +1540,106 @@ onBeforeUnmount(() => {
 .products-section {
   display: flex;
   flex-direction: column;
-  gap: 0.5rem;
+  gap: .5rem;
+  height: 100%;
+
+  &.rail-mode {
+    flex-direction: row;
+    align-items: flex-start;
+    gap: .75rem;
+    height: 100%;
+  }
 }
 
-.category-section {
-  border: 1px solid var(--app-banner-color);
-  border-radius: 6px;
-  overflow: hidden;
+/* ── Category navigation ──────────────────────────────── */
+.categories-nav {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  flex-shrink: 0;
+
+  .rail-mode & {
+    width: 112px;
+  }
 }
 
-.category-header {
+.cat-btn {
   width: 100%;
-  padding: 0.75rem 1rem;
-  background: var(--app-banner-color);
-  border: none;
-  text-align: left;
-  cursor: pointer;
   display: flex;
   align-items: center;
-  gap: 0.7rem;
-  font-weight: 600;
+  gap: .5rem;
+  padding: .6rem .9rem;
+  background: var(--app-banner-color);
   color: var(--app-banner-contrast);
-  transition: all 0.2s;
+  border: none;
+  border-radius: 10px;
+  cursor: pointer;
+  font-weight: 600;
+  font-size: .88rem;
+  text-align: left;
+  transition: all .18s;
 
   &:hover {
-    opacity: 0.92;
+    opacity: .88;
   }
 
-  &.expanded {
+  &.active {
     background: var(--app-highlight-color);
     color: var(--app-highlight-contrast);
-    border-left: 4px solid var(--app-highlight-color);
   }
 
-  .category-toggle {
-    display: inline-block;
-    font-size: 0.9rem;
-    transition: transform 0.2s;
+  .cat-count {
+    margin-left: auto;
+    font-size: .78rem;
+    opacity: .72;
+    font-weight: 500;
+    flex-shrink: 0;
   }
 
-  .category-name {
-    flex: 1;
-  }
+  /* Compact vertical style in rail mode */
+  .rail-mode & {
+    flex-direction: column;
+    align-items: center;
+    padding: .55rem .4rem;
+    font-size: .72rem;
+    text-align: center;
+    border-radius: 12px;
+    gap: 3px;
 
-  .category-count {
-    font-size: 0.85rem;
-    color: #999;
-    font-weight: normal;
+    .cat-name {
+      word-break: break-word;
+      line-height: 1.25;
+    }
+
+    .cat-count {
+      margin-left: 0;
+      font-size: .68rem;
+    }
   }
+}
+
+/* ── Products display area ────────────────────────────── */
+.products-display {
+  flex: 1;
+  min-width: 0;
+  overflow-y: auto;
+}
+
+.category-products {
+  margin-bottom: .75rem;
+}
+
+.empty-products {
+  text-align: center;
+  color: #aaa;
+  padding: 3rem 1rem;
+  font-size: .95rem;
 }
 
 .products-grid {
   display: grid;
   grid-template-columns: repeat(5, 1fr);
-  gap: 0.75rem;
-  padding: 0.75rem;
-  background: var(--app-background-color);
+  gap: .65rem;
 
   @media (max-width: 1400px) {
     grid-template-columns: repeat(4, 1fr);
@@ -1604,36 +1658,54 @@ onBeforeUnmount(() => {
   }
 }
 
+/* ── Product card ─────────────────────────────────────── */
 .product-btn {
   background: #fff;
-  border: 2px solid color-mix(in srgb, var(--app-banner-color) 30%, white 70%);
-  border-radius: 8px;
-  padding: 1rem;
+  border: 1.5px solid color-mix(in srgb, var(--app-banner-color) 22%, white 78%);
+  border-radius: 18px;
+  padding: 11px 12px;
   cursor: pointer;
-  transition: all 0.2s;
-  text-align: center;
-  font-size: 0.9rem;
+  transition: all .18s;
+  text-align: left;
+  font-size: .9rem;
   display: flex;
   flex-direction: column;
-  gap: 0.5rem;
+  gap: .35rem;
   position: relative;
+  min-height: 106px;
+  justify-content: space-between;
 
   &:hover:not(:disabled) {
-    background: color-mix(in srgb, var(--app-highlight-color) 10%, white 90%);
+    background: color-mix(in srgb, var(--app-highlight-color) 7%, white 93%);
     border-color: var(--app-highlight-color);
-    box-shadow: 0 2px 8px color-mix(in srgb, var(--app-highlight-color) 25%, transparent);
+    box-shadow: 0 3px 14px color-mix(in srgb, var(--app-highlight-color) 18%, transparent);
+    transform: translateY(-2px);
   }
 
   &:disabled {
-    opacity: 0.5;
+    opacity: 0.45;
     cursor: not-allowed;
+  }
+
+  .product-top {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    gap: 5px;
+  }
+
+  .product-name {
+    font-weight: 700;
+    font-size: .82rem;
+    line-height: 1.25;
+    color: #111827;
   }
 
   .product-image {
     width: 100%;
-    height: 80px;
+    height: 60px;
     overflow: hidden;
-    border-radius: 4px;
+    border-radius: 8px;
     background: #f6f7f9;
     display: flex;
     align-items: center;
@@ -1646,26 +1718,30 @@ onBeforeUnmount(() => {
     }
   }
 
-  .product-name {
-    font-weight: 600;
+  .product-price {
+    font-size: 1.2rem;
+    font-weight: 800;
+    letter-spacing: -.03em;
+    color: var(--app-highlight-color);
+  }
+
+  .product-stock {
+    font-size: .7rem;
+    color: #6b7280;
   }
 
   .product-badges {
-    position: absolute;
-    top: 0.55rem;
-    right: 0.55rem;
     display: flex;
-    gap: 0.35rem;
+    gap: 3px;
+    flex-shrink: 0;
   }
 
   .product-badge {
     display: inline-flex;
     align-items: center;
-    justify-content: center;
-    min-width: 1.6rem;
-    padding: 0.15rem 0.45rem;
+    padding: 2px 6px;
     border-radius: 999px;
-    font-size: 0.7rem;
+    font-size: .65rem;
     font-weight: 700;
     line-height: 1.2;
   }
@@ -1678,17 +1754,6 @@ onBeforeUnmount(() => {
   .unlimited-badge {
     background: #e2e8f0;
     color: #0f172a;
-  }
-
-  .product-price {
-    color: var(--app-highlight-color);
-    font-size: 1.1rem;
-    font-weight: bold;
-  }
-
-  .product-stock {
-    font-size: 0.85rem;
-    color: #666;
   }
 }
 

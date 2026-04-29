@@ -243,16 +243,16 @@ onBeforeUnmount(() => {
   background:var(--app-banner-color);
   color:white;
 
-  padding:.85rem 1rem;
+  padding:.4rem .85rem;
 
-  box-shadow:0 4px 12px rgba(0,0,0,.2);
-  border-bottom:3px solid var(--app-highlight-color);
+  box-shadow:0 2px 8px rgba(0,0,0,.18);
+  border-bottom:2px solid var(--app-highlight-color);
 
   .navbar-content{
     display:flex;
     justify-content:space-between;
     align-items:center;
-    gap:1rem;
+    gap:.75rem;
 
     max-width:1200px;
     margin:0 auto;
@@ -261,31 +261,31 @@ onBeforeUnmount(() => {
   .navbar-brand{
     display:flex;
     align-items:center;
-    gap:.85rem;
+    gap:.5rem;
   }
 
   .navbar-title{
     color:var(--app-banner-contrast);
-    font-size:clamp(1.1rem,1.8vw,1.6rem);
+    font-size:clamp(.85rem,1.2vw,1.15rem);
     font-weight:700;
   }
 
   .navbar-logo{
-    width:min(300px,62vw);
-    height:58px;
+    width:min(150px,32vw);
+    height:30px;
     object-fit:contain;
   }
 
   .navbar-menu{
     display:flex;
     flex-direction:column;
-    gap:.45rem;
+    gap:.2rem;
     align-items:flex-end;
   }
 
   .navbar-actions{
     display:flex;
-    gap:.75rem;
+    gap:.5rem;
     align-items:center;
     flex-wrap:wrap;
     justify-content:flex-end;
@@ -294,8 +294,9 @@ onBeforeUnmount(() => {
   .nav-link{
     color:var(--app-banner-contrast);
     text-decoration:none;
-    padding:.5rem .9rem;
+    padding:.3rem .7rem;
     border-radius:999px;
+    font-size:.85rem;
 
     transition:all .2s;
 
@@ -310,23 +311,26 @@ onBeforeUnmount(() => {
     background:#d32f2f;
     color:#fff;
     border:none;
-    padding:.5rem 1rem;
+    padding:.3rem .75rem;
     border-radius:999px;
     cursor:pointer;
+    font-size:.82rem;
   }
 
   .btn-login{
     background:var(--app-highlight-color);
     color:var(--app-highlight-contrast);
     border:none;
-    padding:.5rem 1rem;
+    padding:.3rem .75rem;
     border-radius:999px;
     cursor:pointer;
+    font-size:.82rem;
   }
 
   .current-user{
     font-weight:600;
-    font-size:.95rem;
+    font-size:.78rem;
+    opacity:.85;
   }
 }
 
