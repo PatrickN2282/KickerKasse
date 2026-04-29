@@ -1676,7 +1676,7 @@ onBeforeUnmount(() => {
   padding: 0;
   cursor: pointer;
   transition: all .18s;
-  text-align: left;
+  text-align: center;
   font-family: inherit;
   display: flex;
   flex-direction: column;
@@ -1689,7 +1689,7 @@ onBeforeUnmount(() => {
     transform: translateY(-2px);
 
     .card-img img {
-      transform: scale(1.06);
+      transform: scale(2.50);
     }
   }
 
@@ -1708,7 +1708,8 @@ onBeforeUnmount(() => {
     img {
       width: 100%;
       height: 100%;
-      object-fit: cover;
+      /* "contain" sorgt dafür, dass das Bild komplett angezeigt wird */
+      object-fit: contain; 
       display: block;
       transition: transform 0.3s;
     }
@@ -1774,6 +1775,11 @@ onBeforeUnmount(() => {
     font-size: .72rem;
     color: #64748b;
     font-weight: 500;
+
+    /* Fügt den Text "Verfügbar: " vor den Inhalt der Klasse ein */
+    &::before {
+      content: "Verfügbar: ";
+    }
   }
 }
 
