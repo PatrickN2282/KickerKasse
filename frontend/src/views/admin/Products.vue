@@ -99,52 +99,9 @@
         <form class="modal-body-layout" @submit.prevent="handleSaveProduct">
           <aside class="modal-sidebar">
             <div class="product-image-panel">
-              <!-- Crop editor: shown when an image is loaded -->
+              <!-- Image loaded: show card preview + action buttons -->
               <template v-if="cropImageSrc">
-                <p class="image-editor-label">Bildausschnitt</p>
-                <p class="image-editor-hint">Verschieben und zoomen</p>
-                <div
-                  ref="cropFrameEl"
-                  class="crop-frame"
-                  :style="{ cursor: cropIsDragging ? 'grabbing' : 'grab' }"
-                  @mousedown.prevent="onCropDragStart"
-                  @mousemove.prevent="onCropDragMove"
-                  @mouseup="onCropDragEnd"
-                  @mouseleave="onCropDragEnd"
-                  @wheel.prevent="onCropWheel"
-                  @touchstart.prevent="onCropTouchStart"
-                  @touchmove.prevent="onCropTouchMove"
-                  @touchend="onCropTouchEnd"
-                >
-                  <img
-                    :src="cropImageSrc"
-                    class="crop-source-img"
-                    :style="cropImgStyle"
-                    draggable="false"
-                    alt=""
-                    @load="onCropImageLoad"
-                  >
-                </div>
-
-                <!-- Zoom slider -->
-                <div class="crop-zoom-row">
-                  <span class="zoom-icon">−</span>
-                  <input
-                    v-model.number="cropScale"
-                    type="range"
-                    :min="cropMinScale"
-                    :max="cropMinScale * 5"
-                    :step="0.005"
-                    class="zoom-slider"
-                    @input="onZoomSliderInput"
-                  >
-                  <span class="zoom-icon">+</span>
-                  <span class="zoom-pct">{{ cropMinScale > 0 ? Math.round(cropScale / cropMinScale * 100) : 100 }}%</span>
-                </div>
-                <button type="button" class="btn-crop-reset" @click="resetCrop">↺ Zurücksetzen</button>
-
-                <!-- Kasse card preview -->
-                <p class="image-editor-label preview-label">Vorschau: Kassenkarte</p>
+                <p class="image-editor-label">Vorschau: Kassenkarte</p>
                 <div class="kasse-card-preview">
                   <div class="preview-card-img-area">
                     <img
@@ -162,7 +119,8 @@
                   </div>
                 </div>
 
-                <div class="crop-file-actions">
+                <div class="crop-sidebar-actions">
+                  <button type="button" class="btn-crop-open" @click="showCropModal = true">✂ Bildausschnitt anpassen</button>
                   <label class="upload-button">
                     Anderes Bild
                     <input type="file" accept="image/*" hidden @change="handleImageUpload">
@@ -259,10 +217,64 @@
       </div>
     </div>
   </div>
+
+  <!-- Crop Sub-Modal -->
+  <div v-if="showCropModal" class="modal-overlay crop-modal-overlay" @click.self="showCropModal = false">
+    <div class="crop-modal-card">
+      <header class="modal-header">
+        <div>
+          <h3>Bildausschnitt anpassen</h3>
+          <p class="modal-subtitle">Verschieben und zoomen – Änderungen werden beim Speichern des Produkts übernommen.</p>
+        </div>
+        <button class="modal-close" @click="showCropModal = false">×</button>
+      </header>
+
+      <div class="crop-modal-body">
+        <div
+          ref="cropFrameEl"
+          class="crop-frame"
+          :style="{ cursor: cropIsDragging ? 'grabbing' : 'grab' }"
+          @mousedown.prevent="onCropDragStart"
+          @wheel.prevent="onCropWheel"
+          @touchstart.prevent="onCropTouchStart"
+          @touchmove.prevent="onCropTouchMove"
+          @touchend="onCropTouchEnd"
+        >
+          <img
+            :src="cropImageSrc"
+            class="crop-source-img"
+            :style="cropImgStyle"
+            draggable="false"
+            alt=""
+          >
+        </div>
+
+        <div class="crop-zoom-row">
+          <span class="zoom-icon">−</span>
+          <input
+            :value="cropScale"
+            type="range"
+            :min="cropMinScale"
+            :max="cropMinScale * 5"
+            :step="0.005"
+            class="zoom-slider"
+            @input="onZoomSliderInput"
+          >
+          <span class="zoom-icon">+</span>
+          <span class="zoom-pct">{{ cropMinScale > 0 ? Math.round(cropScale / cropMinScale * 100) : 100 }}%</span>
+        </div>
+        <button type="button" class="btn-crop-reset" @click="resetCrop">↺ Zurücksetzen</button>
+      </div>
+
+      <footer class="crop-modal-footer">
+        <button type="button" class="btn btn-success" @click="showCropModal = false">Fertig</button>
+      </footer>
+    </div>
+  </div>
 </template>
 
 <script setup>
-import { ref, reactive, onMounted, computed } from 'vue'
+import { ref, reactive, onMounted, onUnmounted, computed } from 'vue'
 import { useProductStore } from '@/stores/product'
 import { useNotificationStore } from '@/stores/notification'
 import { formatPrice } from '@/services/utils'
@@ -271,6 +283,7 @@ const productStore = useProductStore()
 const notificationStore = useNotificationStore()
 
 const showProductModal = ref(false)
+const showCropModal = ref(false)
 const editingId = ref(null)
 const imagePreview = ref(null)
 const imageFile = ref(null)
@@ -288,8 +301,8 @@ const formData = reactive({
 // ── Image crop editor ─────────────────────────────────────────────────────────
 // Crop frame dimensions (pixels in the editor DOM); 3:2 aspect ratio
 const CROP_ASPECT = 3 / 2
-const CROP_W = 212
-const CROP_H = Math.round(CROP_W / CROP_ASPECT)   // 141 px
+const CROP_W = 320
+const CROP_H = Math.round(CROP_W / CROP_ASPECT)   // 213 px
 // Output image size written to the server (same 3:2 aspect)
 const OUTPUT_W = 600
 const OUTPUT_H = Math.round(OUTPUT_W / CROP_ASPECT) // 400 px
@@ -503,6 +516,7 @@ const resetForm = () => {
   imagePreview.value = null
   editingId.value = null
   showProductModal.value = false
+  showCropModal.value = false
   // Reset crop state
   cropImageSrc.value = null
   cropNaturalW.value = 0
@@ -540,8 +554,10 @@ const editProduct = async (product) => {
         reader.readAsDataURL(blob)
       })
       cropImageSrc.value = dataUrl
+      await loadCropImageDimensions(dataUrl)
     } catch {
       cropImageSrc.value = null
+      notificationStore.warning('Produktbild konnte nicht geladen werden')
     }
   } else {
     cropImageSrc.value = null
@@ -554,6 +570,7 @@ const handleImageUpload = (event) => {
   const reader = new FileReader()
   reader.onload = (e) => {
     cropImageSrc.value = e.target.result
+    loadCropImageDimensions(e.target.result)
     cropModified.value = true
   }
   reader.readAsDataURL(file)
@@ -562,6 +579,24 @@ const handleImageUpload = (event) => {
 }
 
 // ── Crop helper functions ─────────────────────────────────────────────────────
+const loadCropImageDimensions = (dataUrl) => new Promise((resolve) => {
+  const img = new Image()
+  img.onload = () => {
+    cropNaturalW.value = img.naturalWidth
+    cropNaturalH.value = img.naturalHeight
+    const scaleToFitW = CROP_W / img.naturalWidth
+    const scaleToFitH = CROP_H / img.naturalHeight
+    cropMinScale.value = Math.max(scaleToFitW, scaleToFitH)
+    cropScale.value = cropMinScale.value
+    centerCrop()
+    resolve()
+  }
+  img.onerror = () => {
+    notificationStore.error('Bild konnte nicht geladen werden')
+    resolve()
+  }
+  img.src = dataUrl
+})
 const clampPan = () => {
   const scaledW = cropNaturalW.value * cropScale.value
   const scaledH = cropNaturalH.value * cropScale.value
@@ -576,18 +611,6 @@ const centerCrop = () => {
   cropPanY.value = (CROP_H - scaledH) / 2
 }
 
-const onCropImageLoad = (event) => {
-  const img = event.target
-  cropNaturalW.value = img.naturalWidth
-  cropNaturalH.value = img.naturalHeight
-  // cover scale: image must fill the crop frame (no empty corners)
-  const scaleToFitW = CROP_W / img.naturalWidth
-  const scaleToFitH = CROP_H / img.naturalHeight
-  cropMinScale.value = Math.max(scaleToFitW, scaleToFitH)
-  cropScale.value = cropMinScale.value
-  centerCrop()
-}
-
 const resetCrop = () => {
   cropScale.value = cropMinScale.value
   centerCrop()
@@ -598,9 +621,11 @@ const onCropDragStart = (event) => {
   cropIsDragging.value = true
   cropDragLastX.value = event.clientX
   cropDragLastY.value = event.clientY
+  document.addEventListener('mousemove', onDocCropMouseMove)
+  document.addEventListener('mouseup', onDocCropMouseUp)
 }
 
-const onCropDragMove = (event) => {
+const onDocCropMouseMove = (event) => {
   if (!cropIsDragging.value) return
   const dx = event.clientX - cropDragLastX.value
   const dy = event.clientY - cropDragLastY.value
@@ -612,8 +637,10 @@ const onCropDragMove = (event) => {
   cropModified.value = true
 }
 
-const onCropDragEnd = () => {
+const onDocCropMouseUp = () => {
   cropIsDragging.value = false
+  document.removeEventListener('mousemove', onDocCropMouseMove)
+  document.removeEventListener('mouseup', onDocCropMouseUp)
 }
 
 const onCropWheel = (event) => {
@@ -630,7 +657,17 @@ const onCropWheel = (event) => {
   cropModified.value = true
 }
 
-const onZoomSliderInput = () => {
+const onZoomSliderInput = (event) => {
+  const newScale = parseFloat(event.target.value)
+  const oldScale = cropScale.value
+  if (oldScale > 0) {
+    const factor = newScale / oldScale
+    const zoomCenterX = CROP_W / 2
+    const zoomCenterY = CROP_H / 2
+    cropPanX.value = zoomCenterX - (zoomCenterX - cropPanX.value) * factor
+    cropPanY.value = zoomCenterY - (zoomCenterY - cropPanY.value) * factor
+  }
+  cropScale.value = newScale
   clampPan()
   cropModified.value = true
 }
@@ -724,6 +761,11 @@ const deleteProduct = async (productId) => {
 
 onMounted(async () => {
   await productStore.getProducts()
+})
+
+onUnmounted(() => {
+  document.removeEventListener('mousemove', onDocCropMouseMove)
+  document.removeEventListener('mouseup', onDocCropMouseUp)
 })
 </script>
 
@@ -1237,8 +1279,8 @@ onMounted(async () => {
 
 // The crop frame: fixed size, clips the image
 .crop-frame {
-  width: 212px;
-  height: 141px;
+  width: 320px;
+  height: 213px;
   position: relative;
   overflow: hidden;
   border-radius: 8px;
@@ -1357,5 +1399,59 @@ onMounted(async () => {
   display: flex;
   gap: 0.5rem;
   flex-wrap: wrap;
+}
+
+.crop-sidebar-actions {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.btn-crop-open {
+  display: inline-flex;
+  justify-content: center;
+  align-items: center;
+  padding: 0.65rem 1rem;
+  border-radius: 8px;
+  background: var(--primary);
+  border: none;
+  cursor: pointer;
+  font-weight: 600;
+  color: white;
+  font-size: 0.9rem;
+
+  &:hover {
+    background: #2563eb;
+  }
+}
+
+// Crop sub-modal
+.crop-modal-overlay {
+  z-index: 1001;
+}
+
+.crop-modal-card {
+  background: white;
+  width: 100%;
+  max-width: 480px;
+  border-radius: 16px;
+  display: flex;
+  flex-direction: column;
+  box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.35);
+}
+
+.crop-modal-body {
+  padding: 1.5rem;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 1rem;
+}
+
+.crop-modal-footer {
+  padding: 1rem 1.5rem;
+  border-top: 1px solid var(--border);
+  display: flex;
+  justify-content: flex-end;
 }
 </style>
