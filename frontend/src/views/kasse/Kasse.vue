@@ -1723,8 +1723,7 @@ onBeforeUnmount(() => {
     img {
       width: 100%;
       height: 100%;
-      /* "contain" sorgt dafür, dass das Bild komplett angezeigt wird */
-      object-fit: contain;
+      object-fit: cover;
       display: block;
       transition: none;
     }
