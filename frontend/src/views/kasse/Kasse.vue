@@ -47,18 +47,18 @@
                   class="product-btn"
                   @click="selectProduct(product, category.id)"
                 >
-                  <div class="product-top">
-                    <strong class="product-name">{{ product.name }}</strong>
-                    <div v-if="showProductBadge(product)" class="product-badges">
-                      <span v-if="hasMemberPrice(product)" class="product-badge discount-badge">Rabatt</span>
-                      <span v-if="product.is_unlimited_stock" class="product-badge unlimited-badge">∞</span>
+                  <div class="card-img">
+                    <span v-if="hasMemberPrice(product)" class="card-badge discount-badge">Rabatt</span>
+                    <img v-if="product.image_path && !imageErrorMap[product.id]" :src="`/api/products/${product.id}/image`" :alt="product.name" @error="onImageError(product.id)" />
+                    <div v-else class="card-img-ph">🛒</div>
+                  </div>
+                  <div class="card-body">
+                    <div class="card-name">{{ product.name }}</div>
+                    <div class="card-bottom">
+                      <span class="card-price">{{ formatPrice(getDisplayedProductPriceCents(product, category.id)) }}</span>
+                      <span class="card-stock">{{ product.is_unlimited_stock ? '∞' : getAvailableStock(product) }}</span>
                     </div>
                   </div>
-                  <div v-if="product.image_path" class="product-image">
-                    <img :src="`/api/products/${product.id}/image`" :alt="product.name" />
-                  </div>
-                  <div class="product-price">{{ formatPrice(getDisplayedProductPriceCents(product, category.id)) }}</div>
-                  <div class="product-stock">{{ getStockLabel(product) }}</div>
                 </button>
               </div>
             </div>
@@ -77,18 +77,18 @@
                 class="product-btn"
                 @click="selectProduct(product)"
               >
-                <div class="product-top">
-                  <strong class="product-name">{{ product.name }}</strong>
-                  <div v-if="showProductBadge(product)" class="product-badges">
-                    <span v-if="hasMemberPrice(product)" class="product-badge discount-badge">Rabatt</span>
-                    <span v-if="product.is_unlimited_stock" class="product-badge unlimited-badge">∞</span>
+                <div class="card-img">
+                  <span v-if="hasMemberPrice(product)" class="card-badge discount-badge">Rabatt</span>
+                  <img v-if="product.image_path && !imageErrorMap[product.id]" :src="`/api/products/${product.id}/image`" :alt="product.name" @error="onImageError(product.id)" />
+                  <div v-else class="card-img-ph">🛒</div>
+                </div>
+                <div class="card-body">
+                  <div class="card-name">{{ product.name }}</div>
+                  <div class="card-bottom">
+                    <span class="card-price">{{ formatPrice(product.price_cents) }}</span>
+                    <span class="card-stock">{{ product.is_unlimited_stock ? '∞' : getAvailableStock(product) }}</span>
                   </div>
                 </div>
-                <div v-if="product.image_path" class="product-image">
-                  <img :src="`/api/products/${product.id}/image`" :alt="product.name" />
-                </div>
-                <div class="product-price">{{ formatPrice(product.price_cents) }}</div>
-                <div class="product-stock">{{ getStockLabel(product) }}</div>
               </button>
             </div>
           </div>
@@ -685,6 +685,11 @@ const bonWidth = ref(420)
 const nextReceiptNumber = ref(null)
 const cashGiven = ref('')
 const cashGivenInput = ref(null)
+const imageErrorMap = ref({})
+
+const onImageError = (productId) => {
+  imageErrorMap.value[productId] = true
+}
 
 // Voucher redemption
 const showVoucherModal = ref(false)
@@ -1559,7 +1564,7 @@ onBeforeUnmount(() => {
   flex-shrink: 0;
 
   .rail-mode & {
-    width: 112px;
+    width: 52px;
   }
 }
 
@@ -1600,20 +1605,25 @@ onBeforeUnmount(() => {
   .rail-mode & {
     flex-direction: column;
     align-items: center;
-    padding: .55rem .4rem;
-    font-size: .72rem;
+    padding: .45rem .25rem;
     text-align: center;
     border-radius: 12px;
     gap: 3px;
 
     .cat-name {
-      word-break: break-word;
-      line-height: 1.25;
+      writing-mode: vertical-lr;
+      text-orientation: mixed;
+      font-size: .72rem;
+      line-height: 1;
+      letter-spacing: 0.04em;
+      max-height: 110px;
+      overflow: hidden;
     }
 
     .cat-count {
       margin-left: 0;
-      font-size: .68rem;
+      font-size: .65rem;
+      writing-mode: horizontal-tb;
     }
   }
 }
@@ -1662,98 +1672,108 @@ onBeforeUnmount(() => {
 .product-btn {
   background: #fff;
   border: 1.5px solid color-mix(in srgb, var(--app-banner-color) 22%, white 78%);
-  border-radius: 18px;
-  padding: 11px 12px;
+  border-radius: 12px;
+  padding: 0;
   cursor: pointer;
   transition: all .18s;
   text-align: left;
-  font-size: .9rem;
+  font-family: inherit;
   display: flex;
   flex-direction: column;
-  gap: .35rem;
   position: relative;
-  min-height: 106px;
-  justify-content: space-between;
+  overflow: hidden;
 
   &:hover:not(:disabled) {
-    background: color-mix(in srgb, var(--app-highlight-color) 7%, white 93%);
     border-color: var(--app-highlight-color);
-    box-shadow: 0 3px 14px color-mix(in srgb, var(--app-highlight-color) 18%, transparent);
+    box-shadow: 0 4px 16px color-mix(in srgb, var(--app-highlight-color) 18%, transparent);
     transform: translateY(-2px);
-  }
 
-  &:disabled {
-    opacity: 0.45;
-    cursor: not-allowed;
-  }
-
-  .product-top {
-    display: flex;
-    justify-content: space-between;
-    align-items: flex-start;
-    gap: 5px;
-  }
-
-  .product-name {
-    font-weight: 700;
-    font-size: .82rem;
-    line-height: 1.25;
-    color: #111827;
-  }
-
-  .product-image {
-    width: 100%;
-    height: 60px;
-    overflow: hidden;
-    border-radius: 8px;
-    background: #f6f7f9;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-
-    img {
-      max-width: 100%;
-      max-height: 100%;
-      object-fit: cover;
+    .card-img img {
+      transform: scale(1.06);
     }
   }
 
-  .product-price {
-    font-size: 1.2rem;
-    font-weight: 800;
-    letter-spacing: -.03em;
-    color: var(--app-highlight-color);
+  &:disabled {
+    opacity: 0.4;
+    cursor: not-allowed;
   }
 
-  .product-stock {
-    font-size: .7rem;
-    color: #6b7280;
-  }
-
-  .product-badges {
-    display: flex;
-    gap: 3px;
+  .card-img {
+    height: 80px;
+    overflow: hidden;
+    background: #eef1f7;
     flex-shrink: 0;
+    position: relative;
+
+    img {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+      display: block;
+      transition: transform 0.3s;
+    }
   }
 
-  .product-badge {
-    display: inline-flex;
+  .card-img-ph {
+    width: 100%;
+    height: 100%;
+    display: flex;
     align-items: center;
-    padding: 2px 6px;
-    border-radius: 999px;
-    font-size: .65rem;
+    justify-content: center;
+    font-size: 26px;
+  }
+
+  .card-badge {
+    position: absolute;
+    top: 5px;
+    left: 5px;
+    z-index: 1;
+    font-size: 10px;
+    font-weight: 800;
+    padding: 2px 5px;
+    border-radius: 4px;
+    letter-spacing: 0.04em;
+    line-height: 1.4;
+
+    &.discount-badge {
+      background: #fffbeb;
+      color: #d97706;
+    }
+  }
+
+  .card-body {
+    padding: 7px 8px 8px;
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+  }
+
+  .card-name {
+    font-size: .8rem;
     font-weight: 700;
     line-height: 1.2;
+    color: #111827;
   }
 
-  .discount-badge {
-    background: #dbeafe;
-    color: #1d4ed8;
+  .card-bottom {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-top: auto;
   }
 
-  .unlimited-badge {
-    background: #e2e8f0;
-    color: #0f172a;
+  .card-price {
+    font-size: .9rem;
+    font-weight: 800;
+    color: var(--app-highlight-color);
+    letter-spacing: -0.02em;
+  }
+
+  .card-stock {
+    font-size: .72rem;
+    color: #64748b;
+    font-weight: 500;
   }
 }
 
