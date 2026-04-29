@@ -1,0 +1,398 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>POS Variante 03 – Terminal Dark</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;700;800&family=Space+Mono:wght@400;700&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --bg: #020905;
+      --panel: #060f08;
+      --green: #00ff6a;
+      --green-dim: rgba(0,255,106,0.55);
+      --green-soft: rgba(0,255,106,0.08);
+      --green-mid: rgba(0,255,106,0.18);
+      --line: rgba(0,255,106,0.16);
+      --text: #d8ffe6;
+      --muted: rgba(216,255,230,0.45);
+      --amber: #ffb800;
+      --red: #ff3c3c;
+      font-family: 'JetBrains Mono', monospace;
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      background: var(--bg);
+      color: var(--text);
+      min-height: 100vh;
+    }
+    /* CRT scan-line overlay */
+    body::before {
+      content: '';
+      position: fixed;
+      inset: 0;
+      pointer-events: none;
+      z-index: 999;
+      background: repeating-linear-gradient(
+        0deg,
+        transparent,
+        transparent 2px,
+        rgba(0,0,0,0.06) 2px,
+        rgba(0,0,0,0.06) 4px
+      );
+    }
+
+    .app {
+      display: grid;
+      grid-template-columns: 1fr 340px;
+      min-height: 100vh;
+    }
+
+    /* ── TOPBAR ── */
+    .topbar {
+      grid-column: 1 / -1;
+      display: flex;
+      align-items: center;
+      gap: 24px;
+      padding: 10px 20px;
+      border-bottom: 1px solid var(--line);
+      background: var(--panel);
+    }
+    .sys-id {
+      font-family: 'Space Mono', monospace;
+      font-size: 13px;
+      font-weight: 700;
+      color: var(--green);
+      letter-spacing: 0.08em;
+    }
+    .sys-id span { color: var(--muted); font-weight: 400; }
+    .blink { animation: blink 1.2s step-end infinite; }
+    @keyframes blink { 50% { opacity: 0; } }
+    .cats { display: flex; gap: 2px; margin-left: 12px; }
+    .cat {
+      padding: 7px 14px;
+      font-size: 11px;
+      font-weight: 700;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      border: 1px solid var(--line);
+      cursor: pointer;
+      background: transparent;
+      color: var(--muted);
+      transition: all 0.1s;
+      font-family: 'JetBrains Mono', monospace;
+    }
+    .cat.active { background: var(--green); color: #020905; border-color: var(--green); }
+    .cat:hover:not(.active) { background: var(--green-soft); color: var(--green); border-color: var(--green-dim); }
+    .sys-time { margin-left: auto; font-size: 11px; color: var(--muted); letter-spacing: 0.04em; }
+
+    /* ── PRODUCTS ── */
+    .main { padding: 16px; overflow-y: auto; }
+    .grid-label {
+      font-size: 10px;
+      letter-spacing: 0.14em;
+      color: var(--green-dim);
+      text-transform: uppercase;
+      margin-bottom: 12px;
+    }
+    .grid-label::before { content: '> '; color: var(--green); }
+
+    .product-grid {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 8px;
+    }
+
+    .product-card {
+      position: relative;
+      border: 1px solid var(--line);
+      background: var(--panel);
+      cursor: pointer;
+      overflow: hidden;
+      transition: border-color 0.15s, box-shadow 0.15s;
+    }
+    .product-card::after {
+      content: '';
+      position: absolute;
+      inset: 0;
+      background: linear-gradient(180deg, transparent 45%, rgba(2,9,5,0.95) 100%);
+      pointer-events: none;
+    }
+    .product-card:hover {
+      border-color: var(--green);
+      box-shadow: 0 0 20px rgba(0,255,106,0.12), inset 0 0 20px rgba(0,255,106,0.04);
+    }
+    .product-card.out { opacity: 0.35; cursor: not-allowed; }
+
+    .card-img {
+      height: 140px;
+      overflow: hidden;
+      background: #0a1a0d;
+    }
+    .card-img img {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+      display: block;
+      filter: saturate(0.4) brightness(0.7);
+      transition: filter 0.3s, transform 0.3s;
+    }
+    .product-card:hover .card-img img { filter: saturate(0.7) brightness(0.85); transform: scale(1.04); }
+    .card-img-placeholder {
+      width: 100%;
+      height: 100%;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 40px;
+      filter: grayscale(1);
+      background: #0a1a0d;
+    }
+
+    .card-body {
+      position: relative;
+      z-index: 2;
+      padding: 10px 12px 12px;
+    }
+    .card-name {
+      font-size: 13px;
+      font-weight: 700;
+      color: var(--green);
+      letter-spacing: 0.02em;
+      line-height: 1.2;
+    }
+    .card-sub { font-size: 10px; color: var(--muted); margin-top: 3px; }
+    .card-bottom { display: flex; justify-content: space-between; align-items: center; margin-top: 8px; }
+    .card-price { font-size: 18px; font-weight: 800; color: var(--text); }
+    .card-badge {
+      font-size: 9px;
+      font-weight: 700;
+      padding: 3px 6px;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+    }
+    .badge-discount { background: rgba(255,184,0,0.15); color: var(--amber); border: 1px solid rgba(255,184,0,0.3); }
+    .badge-unlimited { background: var(--green-mid); color: var(--green); border: 1px solid var(--green-dim); }
+    .badge-hot { background: rgba(255,60,60,0.12); color: var(--red); border: 1px solid rgba(255,60,60,0.3); }
+
+    /* floating badge top-right */
+    .card-corner-badge {
+      position: absolute;
+      top: 8px; right: 8px;
+      z-index: 3;
+    }
+
+    /* ── BON ── */
+    .bon {
+      background: var(--panel);
+      border-left: 1px solid var(--line);
+      display: flex;
+      flex-direction: column;
+    }
+    .bon-top {
+      padding: 14px 16px;
+      border-bottom: 1px solid var(--line);
+    }
+    .bon-prefix { font-size: 10px; color: var(--muted); letter-spacing: 0.12em; text-transform: uppercase; }
+    .bon-prefix::before { content: '// '; color: var(--green-dim); }
+    .bon-title { font-size: 16px; font-weight: 800; color: var(--green); margin-top: 4px; letter-spacing: 0.04em; }
+    .bon-receipt { font-size: 10px; color: var(--muted); margin-top: 3px; }
+
+    .bon-items { flex: 1; padding: 12px 16px; overflow-y: auto; }
+    .bon-line {
+      display: flex;
+      justify-content: space-between;
+      gap: 10px;
+      padding: 9px 0;
+      border-bottom: 1px solid var(--line);
+      align-items: flex-start;
+    }
+    .bon-line:last-child { border-bottom: none; }
+    .bl-name { font-size: 13px; font-weight: 500; }
+    .bl-qty { font-size: 10px; color: var(--muted); margin-top: 2px; }
+    .bl-price { font-size: 14px; font-weight: 700; color: var(--green); white-space: nowrap; }
+
+    .bon-member {
+      margin: 0 16px;
+      padding: 10px;
+      border: 1px solid var(--line);
+      background: var(--green-soft);
+      display: flex;
+      gap: 10px;
+      align-items: center;
+    }
+    .m-avatar { width: 32px; height: 32px; border: 1px solid var(--green-dim); display: flex; align-items: center; justify-content: center; font-size: 14px; overflow: hidden; flex-shrink: 0; }
+    .m-avatar img { width: 100%; height: 100%; object-fit: cover; }
+    .m-name { font-size: 12px; font-weight: 700; color: var(--green); }
+    .m-balance { font-size: 10px; color: var(--muted); margin-top: 2px; }
+
+    .bon-totals {
+      padding: 12px 16px;
+      border-top: 1px solid var(--line);
+      font-size: 12px;
+    }
+    .t-row { display: flex; justify-content: space-between; gap: 8px; padding: 4px 0; color: var(--muted); }
+    .t-row.credit { color: #6fd4a0; }
+    .t-row.grand {
+      font-size: 11px;
+      font-weight: 700;
+      color: var(--text);
+      border-top: 1px solid var(--green-dim);
+      padding-top: 10px;
+      margin-top: 6px;
+    }
+    .t-row.grand .amount { font-size: 22px; color: var(--green); }
+
+    .bon-actions { padding: 12px 16px 16px; display: flex; flex-direction: column; gap: 6px; }
+    .a-btn {
+      padding: 12px 14px;
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 12px;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.06em;
+      cursor: pointer;
+      border: none;
+      text-align: left;
+      transition: opacity 0.1s;
+    }
+    .a-btn::before { content: '> '; opacity: 0.5; }
+    .a-btn:hover { opacity: 0.8; }
+    .a-btn.cash { background: var(--green); color: #020905; }
+    .a-btn.balance { background: transparent; color: var(--text); border: 1px solid var(--line); }
+    .a-btn.balance:hover { border-color: var(--green-dim); color: var(--green); }
+    .a-btn.voucher { background: transparent; color: var(--muted); border: 1px solid var(--line); }
+    .a-btn.cancel { background: transparent; color: rgba(255,60,60,0.5); border: 1px solid rgba(255,60,60,0.2); }
+
+    @media (max-width: 1300px) { .product-grid { grid-template-columns: repeat(3, 1fr); } }
+    @media (max-width: 960px) { .app { grid-template-columns: 1fr; } .product-grid { grid-template-columns: repeat(2, 1fr); } }
+  </style>
+</head>
+<body>
+<div class="app">
+  <div class="topbar">
+    <div class="sys-id">KGB-POS <span>v2.4.1</span> <span class="blink">█</span></div>
+    <div class="cats">
+      <button class="cat active">Getränke</button>
+      <button class="cat">Snacks</button>
+      <button class="cat">Specials</button>
+      <button class="cat">Andere</button>
+    </div>
+    <div class="sys-time">BELEG #0002451 · KASSE 01</div>
+  </div>
+
+  <main class="main">
+    <div class="grid-label">Kategorie: GETRÄNKE // 6 Einträge geladen</div>
+    <div class="product-grid">
+
+      <div class="product-card">
+        <div class="card-corner-badge"><span class="card-badge badge-discount">Rabatt</span></div>
+        <div class="card-img">
+          <img src="https://images.unsplash.com/photo-1608270586620-248524c67de9?w=300&q=70" alt="Pils" onerror="this.parentNode.innerHTML='<div class=card-img-placeholder>🍺</div>'">
+        </div>
+        <div class="card-body">
+          <div class="card-name">Pils</div>
+          <div class="card-sub">19 vorhanden · 0,33 l</div>
+          <div class="card-bottom"><span class="card-price">2,50 €</span></div>
+        </div>
+      </div>
+
+      <div class="product-card">
+        <div class="card-corner-badge"><span class="card-badge badge-unlimited">∞</span></div>
+        <div class="card-img">
+          <img src="https://images.unsplash.com/photo-1554866585-cd94860890b7?w=300&q=70" alt="Cola" onerror="this.parentNode.innerHTML='<div class=card-img-placeholder>🥤</div>'">
+        </div>
+        <div class="card-body">
+          <div class="card-name">Cola</div>
+          <div class="card-sub">unbegrenzt · Flasche</div>
+          <div class="card-bottom"><span class="card-price">2,20 €</span></div>
+        </div>
+      </div>
+
+      <div class="product-card">
+        <div class="card-corner-badge"><span class="card-badge badge-discount">Rabatt</span></div>
+        <div class="card-img">
+          <img src="https://images.unsplash.com/photo-1585565804112-f201f68c48b4?w=300&q=70" alt="Club Mate" onerror="this.parentNode.innerHTML='<div class=card-img-placeholder>🍵</div>'">
+        </div>
+        <div class="card-body">
+          <div class="card-name">Club Mate</div>
+          <div class="card-sub">11 vorhanden · 0,5 l</div>
+          <div class="card-bottom"><span class="card-price">2,80 €</span></div>
+        </div>
+      </div>
+
+      <div class="product-card">
+        <div class="card-corner-badge"><span class="card-badge badge-unlimited">∞</span></div>
+        <div class="card-img">
+          <img src="https://images.unsplash.com/photo-1559839734-2b71ea197ec2?w=300&q=70" alt="Wasser" onerror="this.parentNode.innerHTML='<div class=card-img-placeholder>💧</div>'">
+        </div>
+        <div class="card-body">
+          <div class="card-name">Wasser</div>
+          <div class="card-sub">still · Basis</div>
+          <div class="card-bottom"><span class="card-price">1,50 €</span></div>
+        </div>
+      </div>
+
+      <div class="product-card">
+        <div class="card-corner-badge"><span class="card-badge badge-hot">Hot</span></div>
+        <div class="card-img">
+          <img src="https://images.unsplash.com/photo-1510591509098-f4fdc6d0ff04?w=300&q=70" alt="Espresso" onerror="this.parentNode.innerHTML='<div class=card-img-placeholder>☕</div>'">
+        </div>
+        <div class="card-body">
+          <div class="card-name">Espresso</div>
+          <div class="card-sub">12 vorhanden · kurz</div>
+          <div class="card-bottom"><span class="card-price">1,90 €</span></div>
+        </div>
+      </div>
+
+      <div class="product-card">
+        <div class="card-img">
+          <img src="https://images.unsplash.com/photo-1635321593217-40450d88c2c7?w=300&q=70" alt="Schorle" onerror="this.parentNode.innerHTML='<div class=card-img-placeholder>🍎</div>'">
+        </div>
+        <div class="card-body">
+          <div class="card-name">Apfelschorle</div>
+          <div class="card-sub">7 vorhanden · gekühlt</div>
+          <div class="card-bottom"><span class="card-price">2,30 €</span></div>
+        </div>
+      </div>
+
+    </div>
+  </main>
+
+  <aside class="bon">
+    <div class="bon-top">
+      <div class="bon-prefix">aktiver bon</div>
+      <div class="bon-title">WARENKORB</div>
+      <div class="bon-receipt">Demo-Beleg KGB-01 · #0002451 (Beispiel)</div>
+    </div>
+
+    <div class="bon-items">
+      <div class="bon-line"><div><div class="bl-name">Pils</div><div class="bl-qty">2× Mitgliedspreis</div></div><div class="bl-price">5,00 €</div></div>
+      <div class="bon-line"><div><div class="bl-name">Wasser</div><div class="bl-qty">1× Standard</div></div><div class="bl-price">1,50 €</div></div>
+      <div class="bon-line"><div><div class="bl-name">Brezel</div><div class="bl-qty">1× Snack</div></div><div class="bl-price">2,00 €</div></div>
+    </div>
+
+    <div class="bon-member">
+      <div class="m-avatar">👤</div>
+      <div>
+        <div class="m-name">Max Mustermann</div>
+        <div class="m-balance">14,50 € Guthaben · Rabatt aktiv</div>
+      </div>
+    </div>
+
+    <div class="bon-totals">
+      <div class="t-row"><span>Zwischensumme</span><span>8,50 €</span></div>
+      <div class="t-row credit"><span>🎫 Gutschein</span><span>-2,00 €</span></div>
+      <div class="t-row credit"><span>💳 Guthaben</span><span>-1,50 €</span></div>
+      <div class="t-row grand"><span>ZU ZAHLEN</span><span class="amount">5,00 €</span></div>
+    </div>
+
+    <div class="bon-actions">
+      <button class="a-btn cash">Zahlen – BAR</button>
+      <button class="a-btn balance">Guthaben nutzen</button>
+      <button class="a-btn voucher">Gutschein</button>
+      <button class="a-btn cancel">Bon abbrechen</button>
+    </div>
+  </aside>
+</div>
+</body>
+</html>

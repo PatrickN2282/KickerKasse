@@ -1,0 +1,397 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>POS Variante 07 – Dense Grid Accordion</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --bg: #f1f4f8;
+      --surface: #ffffff;
+      --line: #dde3ec;
+      --ink: #0f1724;
+      --muted: #64748b;
+      --accent: #2563eb;
+      --accent-soft: #eff4ff;
+      --green: #16a34a;
+      --green-soft: #f0fdf4;
+      --amber: #d97706;
+      --amber-soft: #fffbeb;
+      --cat-bg: #f8fafd;
+      --bon: #0f1724;
+      --bon-text: #e8eef8;
+      font-family: 'Geist', system-ui, sans-serif;
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body { background: var(--bg); color: var(--ink); min-height: 100vh; }
+
+    .app { display: grid; grid-template-columns: 1fr 340px; min-height: 100vh; }
+
+    /* ── TOPBAR ── */
+    .topbar {
+      grid-column: 1 / -1;
+      background: var(--surface);
+      border-bottom: 1px solid var(--line);
+      padding: 10px 18px;
+      display: flex;
+      align-items: center;
+      gap: 16px;
+    }
+    .brand { font-size: 17px; font-weight: 800; letter-spacing: -0.03em; }
+    .brand small { font-size: 11px; font-weight: 500; color: var(--muted); margin-left: 8px; letter-spacing: 0; }
+    .topbar-right { margin-left: auto; display: flex; align-items: center; gap: 10px; }
+    .status-chip {
+      padding: 5px 10px;
+      border-radius: 6px;
+      font-size: 11px;
+      font-weight: 600;
+      background: var(--accent-soft);
+      color: var(--accent);
+    }
+
+    /* ── MAIN ── */
+    .main { padding: 14px; overflow-y: auto; display: flex; flex-direction: column; gap: 8px; }
+
+    /* Category accordion block */
+    .category-block {
+      background: var(--surface);
+      border: 1px solid var(--line);
+      border-radius: 12px;
+      overflow: hidden;
+    }
+
+    .cat-header {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      padding: 11px 14px;
+      cursor: pointer;
+      background: var(--cat-bg);
+      border-bottom: 1px solid transparent;
+      transition: background 0.12s;
+      user-select: none;
+    }
+    .cat-header:hover { background: #f0f3f9; }
+    .cat-header.open { border-bottom-color: var(--line); background: var(--surface); }
+
+    .cat-chevron {
+      width: 20px; height: 20px;
+      display: flex; align-items: center; justify-content: center;
+      border-radius: 5px;
+      background: var(--line);
+      font-size: 10px;
+      flex-shrink: 0;
+      transition: transform 0.2s, background 0.15s;
+    }
+    .cat-header.open .cat-chevron { transform: rotate(90deg); background: var(--accent-soft); color: var(--accent); }
+
+    .cat-name { font-size: 14px; font-weight: 700; flex: 1; }
+    .cat-count {
+      font-size: 11px;
+      font-weight: 600;
+      color: var(--muted);
+      background: var(--bg);
+      padding: 3px 8px;
+      border-radius: 999px;
+      border: 1px solid var(--line);
+    }
+
+    /* Product grid inside accordion */
+    .cat-body {
+      display: none;
+      padding: 12px;
+      grid-template-columns: repeat(6, minmax(0, 1fr));
+      gap: 8px;
+    }
+    .cat-body.open { display: grid; }
+
+    .product-card {
+      border: 1px solid var(--line);
+      border-radius: 10px;
+      overflow: hidden;
+      cursor: pointer;
+      position: relative;
+      background: var(--surface);
+      transition: border-color 0.15s, box-shadow 0.15s, transform 0.1s;
+      display: flex;
+      flex-direction: column;
+    }
+    .product-card:hover {
+      border-color: var(--accent);
+      box-shadow: 0 4px 16px rgba(37,99,235,0.12);
+      transform: translateY(-1px);
+    }
+    .product-card.out { opacity: 0.4; cursor: not-allowed; }
+    .product-card.out:hover { transform: none; box-shadow: none; border-color: var(--line); }
+
+    .card-img {
+      height: 80px;
+      overflow: hidden;
+      background: #eef1f7;
+      flex-shrink: 0;
+    }
+    .card-img img {
+      width: 100%; height: 100%; object-fit: cover;
+      display: block;
+      transition: transform 0.3s;
+    }
+    .product-card:hover .card-img img { transform: scale(1.08); }
+    .card-img-ph {
+      width: 100%; height: 100%;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 26px;
+    }
+
+    .card-body { padding: 8px 9px 9px; flex: 1; display: flex; flex-direction: column; gap: 4px; }
+    .card-name { font-size: 12px; font-weight: 700; line-height: 1.2; }
+    .card-sub { font-size: 10px; color: var(--muted); line-height: 1.3; }
+    .card-bottom { display: flex; justify-content: space-between; align-items: center; margin-top: auto; }
+    .card-price { font-size: 14px; font-weight: 800; color: var(--ink); }
+
+    .card-badges { position: absolute; top: 5px; left: 5px; display: flex; gap: 3px; }
+    .badge {
+      font-size: 9px; font-weight: 800;
+      padding: 2px 5px;
+      border-radius: 4px;
+      letter-spacing: 0.04em;
+    }
+    .b-discount { background: var(--amber-soft); color: var(--amber); }
+    .b-unlimited { background: var(--green-soft); color: var(--green); }
+    .b-hot { background: #fee2e2; color: #b91c1c; }
+
+    /* ── BON ── */
+    .bon {
+      background: var(--bon);
+      color: var(--bon-text);
+      display: flex;
+      flex-direction: column;
+      border-left: 1px solid rgba(255,255,255,0.06);
+    }
+    .bon-head {
+      padding: 14px 16px;
+      border-bottom: 1px solid rgba(255,255,255,0.08);
+    }
+    .bon-sub { font-size: 10px; color: rgba(232,238,248,0.4); letter-spacing: 0.1em; text-transform: uppercase; }
+    .bon-title { font-size: 19px; font-weight: 800; letter-spacing: -0.02em; margin-top: 3px; }
+    .bon-no { font-size: 10px; color: rgba(232,238,248,0.3); margin-top: 2px; }
+    .bon-items { flex: 1; padding: 12px 16px; overflow-y: auto; }
+    .bon-item { display: flex; justify-content: space-between; gap: 10px; padding: 9px 0; border-bottom: 1px solid rgba(255,255,255,0.07); font-size: 13px; }
+    .bon-item:last-child { border-bottom: none; }
+    .bi-name { font-weight: 600; }
+    .bi-qty { font-size: 11px; color: rgba(232,238,248,0.4); margin-top: 2px; }
+    .bi-price { font-weight: 700; white-space: nowrap; }
+    .bon-empty { text-align: center; padding: 28px 0; font-size: 12px; color: rgba(232,238,248,0.25); }
+    .bon-member {
+      margin: 0 16px;
+      padding: 10px 12px;
+      background: rgba(37,99,235,0.12);
+      border: 1px solid rgba(37,99,235,0.25);
+      border-radius: 8px;
+      display: flex; align-items: center; gap: 10px;
+    }
+    .m-av { width: 32px; height: 32px; border-radius: 50%; background: rgba(255,255,255,0.1); display: flex; align-items: center; justify-content: center; font-size: 14px; overflow: hidden; flex-shrink: 0; }
+    .m-av img { width: 100%; height: 100%; object-fit: cover; }
+    .m-name { font-size: 13px; font-weight: 600; }
+    .m-bal { font-size: 11px; color: #86efac; margin-top: 2px; }
+    .bon-totals { padding: 12px 16px; border-top: 1px solid rgba(255,255,255,0.08); }
+    .t-row { display: flex; justify-content: space-between; gap: 8px; font-size: 12px; padding: 4px 0; color: rgba(232,238,248,0.55); }
+    .t-row.credit { color: #86efac; }
+    .t-row.grand { border-top: 1px solid rgba(255,255,255,0.1); margin-top: 8px; padding-top: 10px; color: var(--bon-text); font-weight: 700; }
+    .t-row.grand .amount { font-size: 26px; font-weight: 800; }
+    .bon-actions { padding: 12px 16px 16px; display: flex; flex-direction: column; gap: 7px; }
+    .pay-btn { padding: 13px 14px; border-radius: 8px; font-size: 13px; font-weight: 700; border: none; cursor: pointer; text-align: left; font-family: inherit; transition: opacity 0.12s; }
+    .pay-btn:hover { opacity: 0.85; }
+    .pay-btn.cash { background: #2563eb; color: white; }
+    .pay-btn.balance { background: rgba(255,255,255,0.07); color: var(--bon-text); border: 1px solid rgba(255,255,255,0.1); }
+    .pay-btn.voucher { background: rgba(255,255,255,0.04); color: rgba(232,238,248,0.6); border: 1px solid rgba(255,255,255,0.07); }
+    .pay-btn.cancel { background: none; color: rgba(232,238,248,0.28); font-size: 11px; text-align: center; }
+
+    @media (max-width: 1400px) { .cat-body { grid-template-columns: repeat(5, 1fr); } }
+    @media (max-width: 1100px) { .cat-body { grid-template-columns: repeat(4, 1fr); } }
+    @media (max-width: 900px) { .app { grid-template-columns: 1fr; } .cat-body { grid-template-columns: repeat(3, 1fr); } }
+  </style>
+</head>
+<body>
+<div class="app">
+  <div class="topbar">
+    <div class="brand">Kassenbereich <small>KGB-01 · #0002451 (Beispiel)</small></div>
+    <div class="topbar-right">
+      <span class="status-chip">Mitglied gewählt</span>
+      <span class="status-chip">3 Artikel</span>
+    </div>
+  </div>
+
+  <main class="main">
+
+    <!-- GETRÄNKE -->
+    <div class="category-block">
+      <div class="cat-header open" onclick="toggleCat(this)">
+        <span class="cat-chevron">▶</span>
+        <span class="cat-name">Getränke</span>
+        <span class="cat-count">8 Produkte</span>
+      </div>
+      <div class="cat-body open">
+        <div class="product-card">
+          <div class="card-badges"><span class="badge b-discount">Rabatt</span></div>
+          <div class="card-img"><img src="https://images.unsplash.com/photo-1608270586620-248524c67de9?w=200&q=70" alt="Pils" onerror="this.parentNode.innerHTML='<div class=card-img-ph>🍺</div>'"></div>
+          <div class="card-body"><div class="card-name">Pils</div><div class="card-sub">19 vorrätig · 0,33 l</div><div class="card-bottom"><span class="card-price">2,50 €</span></div></div>
+        </div>
+        <div class="product-card">
+          <div class="card-badges"><span class="badge b-unlimited">∞</span></div>
+          <div class="card-img"><img src="https://images.unsplash.com/photo-1554866585-cd94860890b7?w=200&q=70" alt="Cola" onerror="this.parentNode.innerHTML='<div class=card-img-ph>🥤</div>'"></div>
+          <div class="card-body"><div class="card-name">Cola</div><div class="card-sub">unbegrenzt · Flasche</div><div class="card-bottom"><span class="card-price">2,20 €</span></div></div>
+        </div>
+        <div class="product-card">
+          <div class="card-badges"><span class="badge b-discount">Rabatt</span></div>
+          <div class="card-img"><img src="https://images.unsplash.com/photo-1585565804112-f201f68c48b4?w=200&q=70" alt="Club Mate" onerror="this.parentNode.innerHTML='<div class=card-img-ph>🍵</div>'"></div>
+          <div class="card-body"><div class="card-name">Club Mate</div><div class="card-sub">11 vorrätig · 0,5 l</div><div class="card-bottom"><span class="card-price">2,80 €</span></div></div>
+        </div>
+        <div class="product-card">
+          <div class="card-badges"><span class="badge b-unlimited">∞</span></div>
+          <div class="card-img"><img src="https://images.unsplash.com/photo-1559839734-2b71ea197ec2?w=200&q=70" alt="Wasser" onerror="this.parentNode.innerHTML='<div class=card-img-ph>💧</div>'"></div>
+          <div class="card-body"><div class="card-name">Wasser</div><div class="card-sub">still · Basis</div><div class="card-bottom"><span class="card-price">1,50 €</span></div></div>
+        </div>
+        <div class="product-card">
+          <div class="card-badges"><span class="badge b-hot">Hot</span></div>
+          <div class="card-img"><img src="https://images.unsplash.com/photo-1510591509098-f4fdc6d0ff04?w=200&q=70" alt="Espresso" onerror="this.parentNode.innerHTML='<div class=card-img-ph>☕</div>'"></div>
+          <div class="card-body"><div class="card-name">Espresso</div><div class="card-sub">12 vorrätig · kurz</div><div class="card-bottom"><span class="card-price">1,90 €</span></div></div>
+        </div>
+        <div class="product-card">
+          <div class="card-img"><img src="https://images.unsplash.com/photo-1635321593217-40450d88c2c7?w=200&q=70" alt="Schorle" onerror="this.parentNode.innerHTML='<div class=card-img-ph>🍎</div>'"></div>
+          <div class="card-body"><div class="card-name">Apfelschorle</div><div class="card-sub">7 vorrätig · gekühlt</div><div class="card-bottom"><span class="card-price">2,30 €</span></div></div>
+        </div>
+        <div class="product-card">
+          <div class="card-badges"><span class="badge b-hot">Hot</span></div>
+          <div class="card-img"><img src="https://images.unsplash.com/photo-1534778101976-62847782c213?w=200&q=70" alt="Latte" onerror="this.parentNode.innerHTML='<div class=card-img-ph>☕</div>'"></div>
+          <div class="card-body"><div class="card-name">Latte Macchiato</div><div class="card-sub">6 vorrätig</div><div class="card-bottom"><span class="card-price">3,40 €</span></div></div>
+        </div>
+        <div class="product-card">
+          <div class="card-badges"><span class="badge b-discount">Rabatt</span></div>
+          <div class="card-img"><img src="https://images.unsplash.com/photo-1600271886742-f049cd451bba?w=200&q=70" alt="Bier" onerror="this.parentNode.innerHTML='<div class=card-img-ph>🍻</div>'"></div>
+          <div class="card-body"><div class="card-name">Weizen</div><div class="card-sub">14 vorrätig · 0,5 l</div><div class="card-bottom"><span class="card-price">3,00 €</span></div></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- SNACKS -->
+    <div class="category-block">
+      <div class="cat-header open" onclick="toggleCat(this)">
+        <span class="cat-chevron">▶</span>
+        <span class="cat-name">Snacks</span>
+        <span class="cat-count">6 Produkte</span>
+      </div>
+      <div class="cat-body open">
+        <div class="product-card">
+          <div class="card-img"><img src="https://images.unsplash.com/photo-1587314168485-3236d6710814?w=200&q=70" alt="Brezel" onerror="this.parentNode.innerHTML='<div class=card-img-ph>🥨</div>'"></div>
+          <div class="card-body"><div class="card-name">Brezel</div><div class="card-sub">8 vorrätig · frisch</div><div class="card-bottom"><span class="card-price">2,00 €</span></div></div>
+        </div>
+        <div class="product-card">
+          <div class="card-badges"><span class="badge b-hot">Warm</span></div>
+          <div class="card-img"><img src="https://images.unsplash.com/photo-1528736235302-52922df5c122?w=200&q=70" alt="Toast" onerror="this.parentNode.innerHTML='<div class=card-img-ph>🍞</div>'"></div>
+          <div class="card-body"><div class="card-name">Toast</div><div class="card-sub">4 vorrätig</div><div class="card-bottom"><span class="card-price">3,20 €</span></div></div>
+        </div>
+        <div class="product-card">
+          <div class="card-badges"><span class="badge b-hot">Warm</span></div>
+          <div class="card-img"><img src="https://images.unsplash.com/photo-1573080496219-bb080dd4f877?w=200&q=70" alt="Pommes" onerror="this.parentNode.innerHTML='<div class=card-img-ph>🍟</div>'"></div>
+          <div class="card-body"><div class="card-name">Pommes</div><div class="card-sub">3 vorrätig</div><div class="card-bottom"><span class="card-price">3,80 €</span></div></div>
+        </div>
+        <div class="product-card">
+          <div class="card-img"><img src="https://images.unsplash.com/photo-1599490659213-e2b9527bd087?w=200&q=70" alt="Nüsse" onerror="this.parentNode.innerHTML='<div class=card-img-ph>🥜</div>'"></div>
+          <div class="card-body"><div class="card-name">Nüsse</div><div class="card-sub">10 vorrätig · Bar</div><div class="card-bottom"><span class="card-price">1,70 €</span></div></div>
+        </div>
+        <div class="product-card">
+          <div class="card-img"><img src="https://images.unsplash.com/photo-1621939514649-280e2ee25f60?w=200&q=70" alt="Riegel" onerror="this.parentNode.innerHTML='<div class=card-img-ph>🍫</div>'"></div>
+          <div class="card-body"><div class="card-name">Riegel</div><div class="card-sub">5 vorrätig · to go</div><div class="card-bottom"><span class="card-price">2,90 €</span></div></div>
+        </div>
+        <div class="product-card out">
+          <div class="card-img"><div class="card-img-ph">🧀</div></div>
+          <div class="card-body"><div class="card-name">Käsebrot</div><div class="card-sub">ausverkauft</div><div class="card-bottom"><span class="card-price">2,50 €</span></div></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- SPECIALS -->
+    <div class="category-block">
+      <div class="cat-header" onclick="toggleCat(this)">
+        <span class="cat-chevron">▶</span>
+        <span class="cat-name">Specials & Aktionsware</span>
+        <span class="cat-count">3 Produkte</span>
+      </div>
+      <div class="cat-body">
+        <div class="product-card">
+          <div class="card-badges"><span class="badge b-discount">Aktion</span></div>
+          <div class="card-img"><div class="card-img-ph">⭐</div></div>
+          <div class="card-body"><div class="card-name">Tagesdeal</div><div class="card-sub">2 vorrätig</div><div class="card-bottom"><span class="card-price">4,50 €</span></div></div>
+        </div>
+        <div class="product-card">
+          <div class="card-img"><div class="card-img-ph">🎉</div></div>
+          <div class="card-body"><div class="card-name">Eventpaket</div><div class="card-sub">5 vorrätig</div><div class="card-bottom"><span class="card-price">8,00 €</span></div></div>
+        </div>
+        <div class="product-card">
+          <div class="card-img"><div class="card-img-ph">🎫</div></div>
+          <div class="card-body"><div class="card-name">Verzehrkarte 10 €</div><div class="card-sub">unbegrenzt</div><div class="card-bottom"><span class="card-price">10,00 €</span></div></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- OHNE KATEGORIE -->
+    <div class="category-block">
+      <div class="cat-header" onclick="toggleCat(this)">
+        <span class="cat-chevron">▶</span>
+        <span class="cat-name">Ohne Kategorie</span>
+        <span class="cat-count">2 Produkte</span>
+      </div>
+      <div class="cat-body">
+        <div class="product-card">
+          <div class="card-img"><div class="card-img-ph">📦</div></div>
+          <div class="card-body"><div class="card-name">Diverses</div><div class="card-sub">3 vorrätig</div><div class="card-bottom"><span class="card-price">1,00 €</span></div></div>
+        </div>
+        <div class="product-card">
+          <div class="card-img"><div class="card-img-ph">🪙</div></div>
+          <div class="card-body"><div class="card-name">Pfand</div><div class="card-sub">unbegrenzt</div><div class="card-bottom"><span class="card-price">0,25 €</span></div></div>
+        </div>
+      </div>
+    </div>
+
+  </main>
+
+  <!-- BON -->
+  <aside class="bon">
+    <div class="bon-head">
+      <div class="bon-sub">Aktiver Bon</div>
+      <div class="bon-title">Warenkorb</div>
+      <div class="bon-no">Demo-Beleg KGB-01 · #0002451 (Beispiel)</div>
+    </div>
+    <div class="bon-items">
+      <div class="bon-item"><div><div class="bi-name">Pils</div><div class="bi-qty">2× · Mitgliedspreis</div></div><div class="bi-price">5,00 €</div></div>
+      <div class="bon-item"><div><div class="bi-name">Wasser</div><div class="bi-qty">1×</div></div><div class="bi-price">1,50 €</div></div>
+      <div class="bon-item"><div><div class="bi-name">Brezel</div><div class="bi-qty">1×</div></div><div class="bi-price">2,00 €</div></div>
+    </div>
+    <div class="bon-member">
+      <div class="m-av">👤</div>
+      <div><div class="m-name">Max Mustermann</div><div class="m-bal">14,50 € Guthaben · Rabatt aktiv</div></div>
+    </div>
+    <div class="bon-totals">
+      <div class="t-row"><span>Zwischensumme</span><span>8,50 €</span></div>
+      <div class="t-row credit"><span>🎫 Gutschein</span><span>-2,00 €</span></div>
+      <div class="t-row credit"><span>💳 Guthaben</span><span>-1,50 €</span></div>
+      <div class="t-row grand"><span>Zu zahlen</span><span class="amount">5,00 €</span></div>
+    </div>
+    <div class="bon-actions">
+      <button class="pay-btn cash">💰 Zahlen – BAR</button>
+      <button class="pay-btn balance">💳 Guthaben nutzen</button>
+      <button class="pay-btn voucher">🎫 Gutschein</button>
+      <button class="pay-btn cancel">Bon abbrechen</button>
+    </div>
+  </aside>
+</div>
+<script>
+  function toggleCat(header) {
+    header.classList.toggle('open');
+    header.nextElementSibling.classList.toggle('open');
+  }
+</script>
+</body>
+</html>

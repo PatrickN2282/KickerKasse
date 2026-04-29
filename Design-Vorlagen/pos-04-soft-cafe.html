@@ -1,0 +1,397 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>POS Variante 04 – Soft Café</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;600;700;800;900&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --bg: #f8f5ff;
+      --surface: #ffffff;
+      --line: #ede8f5;
+      --text: #2d2440;
+      --muted: #8577a8;
+      --purple: #7c3aed;
+      --purple-soft: #f3e8ff;
+      --pink: #f472b6;
+      --green: #10b981;
+      --amber: #f59e0b;
+      --sidebar-bg: #faf8ff;
+      font-family: 'Nunito', sans-serif;
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      background: var(--bg);
+      color: var(--text);
+      min-height: 100vh;
+    }
+    .app {
+      display: grid;
+      grid-template-columns: 1fr 370px;
+      min-height: 100vh;
+      gap: 0;
+    }
+
+    /* ── LEFT ── */
+    .left {
+      display: flex;
+      flex-direction: column;
+      padding: 24px;
+      gap: 20px;
+    }
+
+    .topbar {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 16px;
+    }
+    .brand h1 {
+      font-size: 26px;
+      font-weight: 900;
+      letter-spacing: -0.03em;
+      color: var(--purple);
+    }
+    .brand p { font-size: 12px; color: var(--muted); margin-top: 2px; }
+
+    .cats { display: flex; gap: 8px; flex-wrap: wrap; }
+    .cat {
+      padding: 10px 18px;
+      border-radius: 999px;
+      font-size: 13px;
+      font-weight: 800;
+      border: 2px solid var(--line);
+      background: var(--surface);
+      color: var(--muted);
+      cursor: pointer;
+      transition: all 0.15s;
+    }
+    .cat.active { background: var(--purple); color: white; border-color: var(--purple); }
+    .cat:hover:not(.active) { border-color: var(--purple); color: var(--purple); }
+
+    .section-head {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+    .section-head h2 { font-size: 20px; font-weight: 900; }
+    .section-head span { font-size: 12px; color: var(--muted); font-weight: 600; }
+
+    .products-grid {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 14px;
+    }
+
+    .product-card {
+      background: var(--surface);
+      border-radius: 20px;
+      border: 2px solid var(--line);
+      padding: 16px;
+      cursor: pointer;
+      transition: all 0.2s;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      text-align: center;
+      gap: 10px;
+      position: relative;
+    }
+    .product-card:hover {
+      border-color: var(--purple);
+      box-shadow: 0 8px 24px rgba(124,58,237,0.1);
+      transform: translateY(-3px);
+    }
+    .product-card.out { opacity: 0.45; cursor: not-allowed; }
+
+    .card-img-circle {
+      width: 88px;
+      height: 88px;
+      border-radius: 50%;
+      overflow: hidden;
+      background: var(--purple-soft);
+      flex-shrink: 0;
+      position: relative;
+    }
+    .card-img-circle img {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+      display: block;
+      transition: transform 0.3s;
+    }
+    .product-card:hover .card-img-circle img { transform: scale(1.1); }
+    .card-img-placeholder {
+      width: 100%;
+      height: 100%;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 36px;
+    }
+
+    .badge {
+      position: absolute;
+      top: 4px; right: 4px;
+      width: 22px; height: 22px;
+      border-radius: 50%;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 9px;
+      font-weight: 900;
+    }
+    .badge-discount { background: #fde68a; color: #92400e; }
+    .badge-unlimited { background: #d1fae5; color: #065f46; }
+    .badge-hot { background: #fee2e2; color: #991b1b; }
+
+    .card-name { font-size: 15px; font-weight: 800; line-height: 1.2; }
+    .card-sub { font-size: 11px; color: var(--muted); font-weight: 600; }
+    .card-price {
+      font-size: 20px;
+      font-weight: 900;
+      color: var(--purple);
+    }
+    .card-stock { font-size: 10px; color: var(--muted); font-weight: 600; }
+    .add-btn {
+      width: 100%;
+      padding: 9px;
+      border-radius: 12px;
+      background: var(--purple-soft);
+      color: var(--purple);
+      font-size: 13px;
+      font-weight: 800;
+      border: none;
+      cursor: pointer;
+      transition: background 0.15s;
+    }
+    .add-btn:hover { background: var(--purple); color: white; }
+
+    /* ── RIGHT: BON ── */
+    .bon {
+      background: var(--sidebar-bg);
+      border-left: 2px solid var(--line);
+      display: flex;
+      flex-direction: column;
+      padding: 22px;
+      gap: 16px;
+    }
+
+    .bon-header {}
+    .bon-eyebrow { font-size: 11px; font-weight: 800; color: var(--purple); letter-spacing: 0.08em; text-transform: uppercase; }
+    .bon-title { font-size: 22px; font-weight: 900; margin-top: 3px; }
+    .bon-no { font-size: 11px; color: var(--muted); margin-top: 2px; }
+
+    .bon-card {
+      background: var(--surface);
+      border-radius: 16px;
+      border: 2px solid var(--line);
+      padding: 14px;
+    }
+
+    .bon-item {
+      display: flex;
+      justify-content: space-between;
+      gap: 12px;
+      align-items: center;
+      padding: 9px 0;
+      border-bottom: 1px solid var(--line);
+    }
+    .bon-item:last-child { border-bottom: none; }
+    .bi-name { font-size: 14px; font-weight: 700; }
+    .bi-qty { font-size: 11px; color: var(--muted); margin-top: 2px; }
+    .bi-price { font-size: 15px; font-weight: 800; color: var(--purple); white-space: nowrap; }
+
+    .member-banner {
+      background: linear-gradient(135deg, var(--purple) 0%, #9333ea 100%);
+      border-radius: 16px;
+      padding: 14px;
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      color: white;
+    }
+    .m-avatar {
+      width: 42px; height: 42px;
+      border-radius: 50%;
+      background: rgba(255,255,255,0.2);
+      display: flex; align-items: center; justify-content: center;
+      font-size: 20px;
+      overflow: hidden; flex-shrink: 0;
+    }
+    .m-avatar img { width: 100%; height: 100%; object-fit: cover; }
+    .m-name { font-size: 15px; font-weight: 800; }
+    .m-balance { font-size: 12px; opacity: 0.75; margin-top: 2px; }
+
+    .totals-card {
+      background: var(--surface);
+      border-radius: 16px;
+      border: 2px solid var(--line);
+      padding: 14px;
+    }
+    .t-row { display: flex; justify-content: space-between; gap: 10px; padding: 5px 0; font-size: 13px; font-weight: 600; }
+    .t-row.credit { color: var(--green); }
+    .t-row.grand {
+      border-top: 2px solid var(--line);
+      margin-top: 8px;
+      padding-top: 12px;
+    }
+    .t-row.grand span:first-child { font-size: 14px; font-weight: 900; }
+    .t-row.grand .amount { font-size: 26px; font-weight: 900; color: var(--purple); }
+
+    .pay-btns { display: flex; flex-direction: column; gap: 8px; }
+    .pay-btn {
+      padding: 14px 16px;
+      border-radius: 14px;
+      font-size: 14px;
+      font-weight: 800;
+      border: 2px solid transparent;
+      cursor: pointer;
+      transition: all 0.15s;
+      font-family: 'Nunito', sans-serif;
+      text-align: left;
+    }
+    .pay-btn:hover { transform: translateY(-1px); }
+    .pay-btn.cash { background: var(--purple); color: white; }
+    .pay-btn.balance { background: var(--surface); color: var(--purple); border-color: var(--purple); }
+    .pay-btn.voucher { background: var(--surface); color: var(--text); border-color: var(--line); }
+    .pay-btn.cancel { background: none; color: var(--muted); font-size: 12px; text-align: center; }
+
+    @media (max-width: 1300px) { .products-grid { grid-template-columns: repeat(3, 1fr); } }
+    @media (max-width: 1000px) { .app { grid-template-columns: 1fr; } .products-grid { grid-template-columns: repeat(3, 1fr); } }
+    @media (max-width: 640px) { .products-grid { grid-template-columns: repeat(2, 1fr); } }
+  </style>
+</head>
+<body>
+<div class="app">
+  <div class="left">
+    <div class="topbar">
+      <div class="brand">
+        <h1>Kassenbereich</h1>
+        <p>Demo-Beleg KGB-01 · #0002451 (Beispiel)</p>
+      </div>
+      <div class="cats">
+        <button class="cat active">🍺 Getränke</button>
+        <button class="cat">🥨 Snacks</button>
+        <button class="cat">⭐ Specials</button>
+        <button class="cat">📦 Andere</button>
+      </div>
+    </div>
+
+    <div class="section-head">
+      <h2>Getränke</h2>
+      <span>6 Produkte</span>
+    </div>
+
+    <div class="products-grid">
+
+      <div class="product-card">
+        <div class="card-img-circle">
+          <img src="https://images.unsplash.com/photo-1608270586620-248524c67de9?w=200&q=75" alt="Pils" onerror="this.parentNode.innerHTML='<div class=card-img-placeholder>🍺</div>'">
+          <div class="badge badge-discount">%</div>
+        </div>
+        <div class="card-name">Pils</div>
+        <div class="card-sub">0,33 l</div>
+        <div class="card-price">2,50 €</div>
+        <div class="card-stock">19 vorrätig</div>
+        <button class="add-btn">+ Hinzufügen</button>
+      </div>
+
+      <div class="product-card">
+        <div class="card-img-circle">
+          <img src="https://images.unsplash.com/photo-1554866585-cd94860890b7?w=200&q=75" alt="Cola" onerror="this.parentNode.innerHTML='<div class=card-img-placeholder>🥤</div>'">
+          <div class="badge badge-unlimited">∞</div>
+        </div>
+        <div class="card-name">Cola</div>
+        <div class="card-sub">Flasche</div>
+        <div class="card-price">2,20 €</div>
+        <div class="card-stock">unbegrenzt</div>
+        <button class="add-btn">+ Hinzufügen</button>
+      </div>
+
+      <div class="product-card">
+        <div class="card-img-circle">
+          <img src="https://images.unsplash.com/photo-1585565804112-f201f68c48b4?w=200&q=75" alt="Club Mate" onerror="this.parentNode.innerHTML='<div class=card-img-placeholder>🍵</div>'">
+          <div class="badge badge-discount">%</div>
+        </div>
+        <div class="card-name">Club Mate</div>
+        <div class="card-sub">0,5 l</div>
+        <div class="card-price">2,80 €</div>
+        <div class="card-stock">11 vorrätig</div>
+        <button class="add-btn">+ Hinzufügen</button>
+      </div>
+
+      <div class="product-card">
+        <div class="card-img-circle">
+          <img src="https://images.unsplash.com/photo-1559839734-2b71ea197ec2?w=200&q=75" alt="Wasser" onerror="this.parentNode.innerHTML='<div class=card-img-placeholder>💧</div>'">
+          <div class="badge badge-unlimited">∞</div>
+        </div>
+        <div class="card-name">Wasser</div>
+        <div class="card-sub">still</div>
+        <div class="card-price">1,50 €</div>
+        <div class="card-stock">unbegrenzt</div>
+        <button class="add-btn">+ Hinzufügen</button>
+      </div>
+
+      <div class="product-card">
+        <div class="card-img-circle">
+          <img src="https://images.unsplash.com/photo-1510591509098-f4fdc6d0ff04?w=200&q=75" alt="Espresso" onerror="this.parentNode.innerHTML='<div class=card-img-placeholder>☕</div>'">
+          <div class="badge badge-hot">🌶</div>
+        </div>
+        <div class="card-name">Espresso</div>
+        <div class="card-sub">heiß</div>
+        <div class="card-price">1,90 €</div>
+        <div class="card-stock">12 vorrätig</div>
+        <button class="add-btn">+ Hinzufügen</button>
+      </div>
+
+      <div class="product-card">
+        <div class="card-img-circle">
+          <img src="https://images.unsplash.com/photo-1635321593217-40450d88c2c7?w=200&q=75" alt="Schorle" onerror="this.parentNode.innerHTML='<div class=card-img-placeholder>🍎</div>'">
+        </div>
+        <div class="card-name">Apfelschorle</div>
+        <div class="card-sub">gekühlt</div>
+        <div class="card-price">2,30 €</div>
+        <div class="card-stock">7 vorrätig</div>
+        <button class="add-btn">+ Hinzufügen</button>
+      </div>
+
+    </div>
+  </div>
+
+  <aside class="bon">
+    <div class="bon-header">
+      <div class="bon-eyebrow">Aktiver Bon</div>
+      <div class="bon-title">Warenkorb 🛒</div>
+      <div class="bon-no">Demo-Beleg KGB-01 · #0002451 (Beispiel)</div>
+    </div>
+
+    <div class="bon-card">
+      <div class="bon-item"><div><div class="bi-name">Pils</div><div class="bi-qty">2× Mitgliedspreis</div></div><div class="bi-price">5,00 €</div></div>
+      <div class="bon-item"><div><div class="bi-name">Wasser</div><div class="bi-qty">1×</div></div><div class="bi-price">1,50 €</div></div>
+      <div class="bon-item"><div><div class="bi-name">Brezel</div><div class="bi-qty">1× Snack</div></div><div class="bi-price">2,00 €</div></div>
+    </div>
+
+    <div class="member-banner">
+      <div class="m-avatar">👤</div>
+      <div>
+        <div class="m-name">Max Mustermann</div>
+        <div class="m-balance">💳 14,50 € Guthaben · Rabatt aktiv</div>
+      </div>
+    </div>
+
+    <div class="totals-card">
+      <div class="t-row"><span>Zwischensumme</span><span>8,50 €</span></div>
+      <div class="t-row credit"><span>🎫 Gutschein</span><span>-2,00 €</span></div>
+      <div class="t-row credit"><span>💳 Guthaben</span><span>-1,50 €</span></div>
+      <div class="t-row grand"><span>Zu zahlen</span><span class="amount">5,00 €</span></div>
+    </div>
+
+    <div class="pay-btns">
+      <button class="pay-btn cash">💰 Zahlen – BAR</button>
+      <button class="pay-btn balance">💳 Guthaben nutzen</button>
+      <button class="pay-btn voucher">🎫 Gutschein anwenden</button>
+      <button class="pay-btn cancel">Bon abbrechen</button>
+    </div>
+  </aside>
+</div>
+</body>
+</html>
