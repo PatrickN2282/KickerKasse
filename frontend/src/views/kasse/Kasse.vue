@@ -42,7 +42,7 @@
                     <div class="card-name">{{ product.name }}</div>
                     <div class="card-price">{{ formatPrice(getDisplayedProductPriceCents(product, category.id)) }}</div>
                     <div class="card-stock">{{ product.is_unlimited_stock ? '∞' : getAvailableStock(product) }}</div>
-                    </div>
+                    <!-- /div -->
                   </div>
                 </button>
               </div>
