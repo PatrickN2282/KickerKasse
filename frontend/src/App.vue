@@ -272,7 +272,7 @@ onBeforeUnmount(() => {
 
   .navbar-logo{
     width:min(150px,32vw);
-    height:30px;
+    height:50px;
     object-fit:contain;
   }
 
