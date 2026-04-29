@@ -11,6 +11,7 @@
             :key="category.id"
             class="chip"
             :class="{ active: expandedCategories.includes(category.id) }"
+            :style="getCategoryChipStyle(category, expandedCategories.includes(category.id))"
             @click="toggleCategory(category.id)"
           >
             {{ category.name }}
@@ -36,6 +37,7 @@
                 :key="`${category.id}-${product.id}`"
                 :disabled="isProductOutOfStock(product)"
                 class="product-btn"
+                :style="getCategoryCardStyle(category)"
                 @click="selectProduct(product, category.id)"
               >
                 <div class="card-img">
@@ -736,6 +738,26 @@ const loadCategories = async () => {
   } catch (err) {
     console.error('[Kasse] Failed to load categories:', err)
   }
+}
+
+const getCategoryChipStyle = (category, isActive) => {
+  if (!category.color) return {}
+  if (isActive) {
+    return {
+      background: category.color,
+      borderColor: category.color,
+      color: '#1e293b',
+    }
+  }
+  return {
+    borderColor: category.color,
+    color: '#1e293b',
+  }
+}
+
+const getCategoryCardStyle = (category) => {
+  if (!category || !category.color) return {}
+  return { borderColor: category.color }
 }
 
 const toggleCategory = (categoryId) => {

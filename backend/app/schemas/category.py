@@ -6,6 +6,7 @@ from typing import Optional
 class CategoryBase(BaseModel):
     name: str = Field(..., min_length=1, max_length=120)
     description: Optional[str] = None
+    color: Optional[str] = Field(None, max_length=20)
     is_active_in_kasse: bool = True
     display_order: int = 0
 
@@ -17,6 +18,7 @@ class CategoryCreate(CategoryBase):
 class CategoryUpdate(BaseModel):
     name: Optional[str] = None
     description: Optional[str] = None
+    color: Optional[str] = Field(None, max_length=20)
     is_active_in_kasse: Optional[bool] = None
     display_order: Optional[int] = None
 

@@ -16,6 +16,7 @@
           <tr>
             <th>Name</th>
             <th>Beschreibung</th>
+            <th>Farbe</th>
             <th>Reihenfolge</th>
             <th>In Kasse aktiv</th>
             <th>Artikel zuordnen</th>
@@ -31,6 +32,15 @@
               </div>
             </td>
             <td>{{ category.description || '-' }}</td>
+            <td>
+              <div
+                v-if="category.color"
+                class="color-swatch-display"
+                :style="{ background: category.color }"
+                :title="category.color"
+              ></div>
+              <span v-else class="small-muted">–</span>
+            </td>
             <td>{{ category.display_order }}</td>
             <td>
               <span v-if="category.is_active_in_kasse" class="badge badge-success">✓ Ja</span>
@@ -127,6 +137,59 @@
             </div>
           </section>
 
+          <section class="form-section">
+            <h4>Farbe</h4>
+            <div class="color-picker-section">
+              <p class="color-picker-hint">Wähle eine Farbe für diese Kategorie – sie erscheint am Chip und am Produktrahmen in der Kasse.</p>
+
+              <div class="color-options">
+                <!-- No color option -->
+                <button
+                  type="button"
+                  class="color-option color-option-none"
+                  :class="{ selected: !formData.color }"
+                  title="Keine Farbe"
+                  @click="formData.color = null"
+                >
+                  <span class="no-color-icon">✕</span>
+                </button>
+
+                <!-- Pastel color swatches -->
+                <button
+                  v-for="pastel in pastelColors"
+                  :key="pastel.value"
+                  type="button"
+                  class="color-option"
+                  :class="{ selected: formData.color === pastel.value }"
+                  :style="{ background: pastel.value }"
+                  :title="pastel.label"
+                  @click="formData.color = pastel.value"
+                ></button>
+
+                <!-- Custom color picker -->
+                <label class="color-option color-option-custom" :class="{ selected: isCustomColor }" title="Eigene Farbe wählen">
+                  <span v-if="isCustomColor" class="custom-color-preview" :style="{ background: formData.color }"></span>
+                  <span v-else class="custom-color-icon">🎨</span>
+                  <input
+                    type="color"
+                    :value="formData.color || '#ffffff'"
+                    @input="setCustomColor($event.target.value)"
+                  >
+                </label>
+              </div>
+
+              <div v-if="formData.color" class="color-preview-row">
+                <span class="color-preview-chip" :style="{ borderColor: formData.color, background: formData.color + '33' }">
+                  Vorschau Chip
+                </span>
+                <span class="color-preview-card" :style="{ borderColor: formData.color }">
+                  Vorschau Karte
+                </span>
+                <button type="button" class="btn-clear-color" @click="formData.color = null">Farbe entfernen</button>
+              </div>
+            </div>
+          </section>
+
           <section class="form-section highlight">
             <h4>Darstellung</h4>
             <label class="checkbox-card">
@@ -151,7 +214,7 @@
 </template>
 
 <script setup>
-import { ref, onMounted } from 'vue'
+import { ref, computed, onMounted } from 'vue'
 import { useNotificationStore } from '@/stores/notification'
 import apiService from '@/services/api'
 
@@ -165,14 +228,39 @@ const selectedProductByCategory = ref({})
 const formData = ref({
   name: '',
   description: '',
+  color: null,
   display_order: 0,
   is_active_in_kasse: true,
 })
+
+const pastelColors = [
+  { value: '#FFB3B3', label: 'Rosé' },
+  { value: '#FFCBA4', label: 'Pfirsich' },
+  { value: '#FFF2A8', label: 'Gelb' },
+  { value: '#B5EAD7', label: 'Mint' },
+  { value: '#B5D5FF', label: 'Hellblau' },
+  { value: '#C3B1E1', label: 'Lavendel' },
+  { value: '#FFD1DC', label: 'Pink' },
+  { value: '#D7E8BA', label: 'Limette' },
+  { value: '#FFF8E1', label: 'Creme' },
+  { value: '#E0F2F1', label: 'Türkis' },
+  { value: '#FFE4C4', label: 'Bisque' },
+  { value: '#F0E6FF', label: 'Flieder' },
+]
+
+const isCustomColor = computed(() => {
+  return !!formData.value.color && !pastelColors.some(p => p.value === formData.value.color)
+})
+
+const setCustomColor = (hex) => {
+  formData.value.color = hex
+}
 
 const resetForm = () => {
   formData.value = {
     name: '',
     description: '',
+    color: null,
     display_order: 0,
     is_active_in_kasse: true,
   }
@@ -273,6 +361,7 @@ const editCategory = (category) => {
   formData.value = {
     name: category.name,
     description: category.description,
+    color: category.color || null,
     display_order: category.display_order,
     is_active_in_kasse: category.is_active_in_kasse,
   }
@@ -342,7 +431,7 @@ onMounted(() => {
 
 .categories-table {
   width: 100%;
-  min-width: 980px;
+  min-width: 1080px;
   border-collapse: collapse;
 
   th {
@@ -359,6 +448,14 @@ onMounted(() => {
     border-bottom: 1px solid var(--border);
     vertical-align: top;
   }
+}
+
+.color-swatch-display {
+  width: 24px;
+  height: 24px;
+  border-radius: 6px;
+  border: 1px solid rgba(0, 0, 0, 0.1);
+  display: inline-block;
 }
 
 .category-name-cell {
@@ -475,6 +572,145 @@ onMounted(() => {
   color: #64748b;
 }
 
+/* ── Color picker ─────────────────────────────────── */
+.color-picker-section {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.color-picker-hint {
+  font-size: 0.82rem;
+  color: #64748b;
+  margin: 0;
+}
+
+.color-options {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.45rem;
+  align-items: center;
+}
+
+.color-option {
+  width: 32px;
+  height: 32px;
+  border-radius: 8px;
+  border: 2px solid transparent;
+  cursor: pointer;
+  transition: transform 0.12s, border-color 0.12s;
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+
+  &:hover {
+    transform: scale(1.12);
+  }
+
+  &.selected {
+    border-color: #1e293b;
+    box-shadow: 0 0 0 2px white inset;
+  }
+}
+
+.color-option-none {
+  background: #f1f5f9;
+  border: 2px dashed #cbd5e1;
+  color: #94a3b8;
+
+  &.selected {
+    border-color: #1e293b;
+    border-style: solid;
+  }
+}
+
+.no-color-icon {
+  font-size: 0.7rem;
+  font-weight: 700;
+}
+
+.color-option-custom {
+  background: #f8fafc;
+  border: 2px dashed #94a3b8;
+  cursor: pointer;
+  overflow: visible;
+
+  &.selected {
+    border-style: solid;
+    border-color: #1e293b;
+  }
+
+  input[type="color"] {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    opacity: 0;
+    cursor: pointer;
+    padding: 0;
+    border: none;
+  }
+}
+
+.custom-color-preview {
+  width: 100%;
+  height: 100%;
+  display: block;
+  border-radius: 6px;
+  position: absolute;
+  inset: 0;
+}
+
+.custom-color-icon {
+  font-size: 1rem;
+  pointer-events: none;
+}
+
+.color-preview-row {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  flex-wrap: wrap;
+  margin-top: 0.25rem;
+}
+
+.color-preview-chip {
+  display: inline-flex;
+  align-items: center;
+  padding: 0.2rem 0.7rem;
+  border-radius: 999px;
+  border: 2px solid;
+  font-size: 0.8rem;
+  font-weight: 600;
+}
+
+.color-preview-card {
+  display: inline-flex;
+  align-items: center;
+  padding: 0.2rem 0.7rem;
+  border-radius: 8px;
+  border: 2px solid;
+  font-size: 0.8rem;
+  background: white;
+}
+
+.btn-clear-color {
+  background: none;
+  border: none;
+  cursor: pointer;
+  font-size: 0.8rem;
+  color: #64748b;
+  text-decoration: underline;
+  padding: 0;
+
+  &:hover {
+    color: #b91c1c;
+  }
+}
+
+/* ── Modal ────────────────────────────────────────── */
 .modal-overlay {
   position: fixed;
   inset: 0;

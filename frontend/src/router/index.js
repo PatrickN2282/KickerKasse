@@ -2,6 +2,23 @@ import { createRouter, createWebHistory } from 'vue-router'
 import { useAuthStore } from '@/stores/auth'
 import { SESSION_RELOAD_FLAG_KEY } from '@/constants'
 
+const LAYOUT_STORAGE_KEY = 'kasseLayout'
+
+function getKasseComponent() {
+  const layout = localStorage.getItem(LAYOUT_STORAGE_KEY) || 'Kasse'
+  if (layout === 'Kasse') {
+    return () => import('@/views/kasse/Kasse.vue')
+  }
+  // Dynamically load alternate layouts (e.g. Kasse2.vue, Kasse3.vue)
+  const allLayouts = import.meta.glob('@/views/kasse/Kasse*.vue')
+  const key = `/src/views/kasse/${layout}.vue`
+  if (allLayouts[key]) {
+    return allLayouts[key]
+  }
+  // Fallback to default
+  return () => import('@/views/kasse/Kasse.vue')
+}
+
 const routes = [
   {
     path: '/login',
@@ -11,7 +28,7 @@ const routes = [
   {
     path: '/',
     name: 'Kasse',
-    component: () => import('@/views/kasse/Kasse.vue'),
+    component: getKasseComponent(),
     meta: { requiresAuth: true },
   },
   {
@@ -68,6 +85,12 @@ const routes = [
         name: 'AdminDataMaintenance',
         component: () => import('@/views/admin/DataMaintenance.vue'),
         meta: { requiresAuth: true, allowedRoles: ['TOP_ADMIN', 'ADMIN'] },
+      },
+      {
+        path: 'ext-settings',
+        name: 'AdminExtSettings',
+        component: () => import('@/views/admin/ExtSettings.vue'),
+        meta: { requiresAuth: true, allowedRoles: ['TOP_ADMIN'] },
       },
     ],
   },

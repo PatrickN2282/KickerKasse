@@ -1,6 +1,8 @@
 from sqlalchemy.orm import Session
 from app.models import Category
 
+_UNSET = object()
+
 
 class CategoryRepository:
     """Repository for Category model"""
@@ -12,6 +14,7 @@ class CategoryRepository:
         self,
         name: str,
         description: str = None,
+        color: str = None,
         is_active_in_kasse: bool = True,
         display_order: int = 0,
     ) -> Category:
@@ -19,6 +22,7 @@ class CategoryRepository:
         category = Category(
             name=name,
             description=description,
+            color=color,
             is_active_in_kasse=is_active_in_kasse,
             display_order=display_order,
         )
@@ -43,6 +47,7 @@ class CategoryRepository:
         category_id: int,
         name: str = None,
         description: str = None,
+        color=_UNSET,
         is_active_in_kasse: bool = None,
         display_order: int = None,
     ) -> Category | None:
@@ -55,6 +60,9 @@ class CategoryRepository:
             category.name = name
         if description is not None:
             category.description = description
+        # color uses sentinel so None can explicitly clear the field
+        if color is not _UNSET:
+            category.color = color
         if is_active_in_kasse is not None:
             category.is_active_in_kasse = is_active_in_kasse
         if display_order is not None:
