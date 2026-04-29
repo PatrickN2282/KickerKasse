@@ -1,0 +1,231 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Kassenbereich Vorschau 01 – Apple-like Compact</title>
+  <style>
+    :root {
+      color-scheme: light;
+      --bg: #f3f4f6;
+      --surface: rgba(255,255,255,0.9);
+      --surface-strong: #ffffff;
+      --line: #e5e7eb;
+      --text: #111827;
+      --muted: #6b7280;
+      --accent: #111827;
+      --accent-soft: #eef2ff;
+      --success: #0f766e;
+      --danger: #dc2626;
+      --shadow: 0 20px 60px rgba(17, 24, 39, 0.08);
+      font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, sans-serif;
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      min-height: 100vh;
+      background: radial-gradient(circle at top left, #ffffff 0%, #eef2f7 45%, #e5e7eb 100%);
+      color: var(--text);
+      padding: 24px;
+    }
+    .app {
+      max-width: 1500px;
+      margin: 0 auto;
+      display: grid;
+      grid-template-columns: 1fr 360px;
+      gap: 20px;
+    }
+    .panel {
+      background: var(--surface);
+      backdrop-filter: blur(18px);
+      border: 1px solid rgba(255,255,255,0.6);
+      border-radius: 28px;
+      box-shadow: var(--shadow);
+    }
+    .main { padding: 20px; }
+    .sidebar { padding: 18px; display: flex; flex-direction: column; gap: 16px; }
+    .toolbar, .summary {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      margin-bottom: 18px;
+    }
+    .brand { font-size: 24px; font-weight: 700; letter-spacing: -0.04em; }
+    .muted { color: var(--muted); }
+    .chips, .quick-info { display: flex; gap: 8px; flex-wrap: wrap; }
+    .chip {
+      padding: 10px 14px;
+      border-radius: 999px;
+      background: #fff;
+      border: 1px solid var(--line);
+      font-size: 13px;
+      font-weight: 600;
+      color: var(--muted);
+    }
+    .chip.active { background: var(--text); color: #fff; border-color: var(--text); }
+    .section-title {
+      display: flex;
+      justify-content: space-between;
+      align-items: baseline;
+      margin: 18px 0 10px;
+    }
+    .section-title h2 { margin: 0; font-size: 18px; }
+    .dense-grid {
+      display: grid;
+      grid-template-columns: repeat(6, minmax(0, 1fr));
+      gap: 10px;
+    }
+    .product {
+      background: var(--surface-strong);
+      border: 1px solid var(--line);
+      border-radius: 20px;
+      padding: 12px;
+      min-height: 118px;
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+      gap: 8px;
+    }
+    .product small { color: var(--muted); font-size: 11px; }
+    .product .topline {
+      display: flex;
+      justify-content: space-between;
+      gap: 8px;
+      align-items: flex-start;
+    }
+    .badge {
+      display: inline-flex;
+      align-items: center;
+      padding: 4px 8px;
+      border-radius: 999px;
+      background: var(--accent-soft);
+      color: #3730a3;
+      font-size: 11px;
+      font-weight: 700;
+    }
+    .price { font-size: 22px; font-weight: 700; letter-spacing: -0.04em; }
+    .meta { display: flex; justify-content: space-between; gap: 8px; color: var(--muted); font-size: 12px; }
+    .list-card {
+      background: #fff;
+      border: 1px solid var(--line);
+      border-radius: 22px;
+      padding: 16px;
+    }
+    .receipt-number {
+      background: #f9fafb;
+      border-radius: 14px;
+      padding: 12px 14px;
+      font-size: 14px;
+      font-weight: 700;
+      text-align: center;
+    }
+    .line-item, .total-row {
+      display: grid;
+      grid-template-columns: 1fr auto auto;
+      gap: 10px;
+      align-items: center;
+      padding: 10px 0;
+      border-bottom: 1px solid var(--line);
+    }
+    .line-item:last-child, .total-row:last-child { border-bottom: none; }
+    .qty { color: var(--muted); font-weight: 600; }
+    .amount { font-weight: 700; }
+    .member, .payment-actions { padding: 16px; border-radius: 20px; background: #fff; border: 1px solid var(--line); }
+    .member strong { display: block; margin-bottom: 4px; }
+    .payments { display: grid; gap: 10px; }
+    .pay {
+      border: none;
+      border-radius: 16px;
+      padding: 14px;
+      font-size: 15px;
+      font-weight: 700;
+      text-align: left;
+    }
+    .pay.cash { background: #111827; color: white; }
+    .pay.balance { background: #ecfeff; color: #155e75; }
+    .pay.voucher { background: #fef3c7; color: #92400e; }
+    .note {
+      margin-top: 12px;
+      padding: 14px 16px;
+      border-radius: 18px;
+      background: linear-gradient(135deg, #fff, #f3f4f6);
+      border: 1px dashed #d1d5db;
+      color: var(--muted);
+      font-size: 13px;
+    }
+    @media (max-width: 1200px) { .dense-grid { grid-template-columns: repeat(4, minmax(0, 1fr)); } }
+    @media (max-width: 960px) { .app { grid-template-columns: 1fr; } .dense-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); } }
+    @media (max-width: 640px) { .dense-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+  </style>
+</head>
+<body>
+  <div class="app">
+    <main class="panel main">
+      <div class="toolbar">
+        <div>
+          <div class="brand">Kasse · Apple-like Compact</div>
+          <div class="muted">Schlanke Karten, mehr Produkte pro Zeile, ruhige Hierarchie.</div>
+        </div>
+        <div class="quick-info">
+          <span class="chip">Mitglied aktiv</span>
+          <span class="chip">Rabatte sichtbar</span>
+          <span class="chip active">Beleg #2451</span>
+        </div>
+      </div>
+
+      <div class="chips">
+        <span class="chip active">Getränke 14</span>
+        <span class="chip">Snacks 8</span>
+        <span class="chip">Specials 4</span>
+        <span class="chip">Ohne Kategorie 2</span>
+      </div>
+
+      <div class="section-title">
+        <h2>Produkte</h2>
+        <span class="muted">6 schmale Spalten · fokus auf Preis + Verfügbarkeit</span>
+      </div>
+      <section class="dense-grid">
+        <article class="product"><div class="topline"><strong>Pils</strong><span class="badge">Rabatt</span></div><div class="price">2,50 €</div><div class="meta"><span>Bestand 19</span><span>0,33 l</span></div></article>
+        <article class="product"><div class="topline"><strong>Cola</strong><span class="badge">∞</span></div><div class="price">2,20 €</div><div class="meta"><span>unbegrenzt</span><span>0,33 l</span></div></article>
+        <article class="product"><div class="topline"><strong>Club Mate</strong><span class="badge">Rabatt</span></div><div class="price">2,80 €</div><div class="meta"><span>Bestand 11</span><span>0,5 l</span></div></article>
+        <article class="product"><div class="topline"><strong>Wasser</strong><span class="badge">∞</span></div><div class="price">1,50 €</div><div class="meta"><span>unbegrenzt</span><span>still</span></div></article>
+        <article class="product"><div class="topline"><strong>Apfelschorle</strong><span class="badge">Rabatt</span></div><div class="price">2,30 €</div><div class="meta"><span>Bestand 7</span><span>0,4 l</span></div></article>
+        <article class="product"><div class="topline"><strong>Latte</strong><span class="badge">Neu</span></div><div class="price">3,40 €</div><div class="meta"><span>Bestand 6</span><span>heiß</span></div></article>
+        <article class="product"><div class="topline"><strong>Brezel</strong><small>Snack</small></div><div class="price">2,00 €</div><div class="meta"><span>Bestand 8</span><span>frisch</span></div></article>
+        <article class="product"><div class="topline"><strong>Toast</strong><small>Snack</small></div><div class="price">3,20 €</div><div class="meta"><span>Bestand 4</span><span>warm</span></div></article>
+        <article class="product"><div class="topline"><strong>Protein Bar</strong><small>Snack</small></div><div class="price">2,90 €</div><div class="meta"><span>Bestand 5</span><span>to go</span></div></article>
+        <article class="product"><div class="topline"><strong>Pommes</strong><small>Küche</small></div><div class="price">3,80 €</div><div class="meta"><span>Bestand 3</span><span>hot</span></div></article>
+        <article class="product"><div class="topline"><strong>Eis</strong><small>Dessert</small></div><div class="price">1,80 €</div><div class="meta"><span>Bestand 9</span><span>cold</span></div></article>
+        <article class="product"><div class="topline"><strong>Tagesdeal</strong><span class="badge">Aktion</span></div><div class="price">4,50 €</div><div class="meta"><span>Bestand 2</span><span>limitiert</span></div></article>
+      </section>
+
+      <div class="note">Geeignet für einen ruhigen, modernen POS-Stil: die Produktkarten sind flach, dicht und schnell scannbar. Kategorien bleiben sichtbar, der Bon rechts konstant.</div>
+    </main>
+
+    <aside class="panel sidebar">
+      <div class="receipt-number">Aktiver Bon · #2451</div>
+      <div class="list-card">
+        <div class="line-item"><div><strong>2× Pils</strong><div class="muted">Mitgliedspreis aktiv</div></div><span class="qty">2</span><span class="amount">5,00 €</span></div>
+        <div class="line-item"><div><strong>1× Club Mate</strong><div class="muted">Standardpreis</div></div><span class="qty">1</span><span class="amount">2,80 €</span></div>
+        <div class="line-item"><div><strong>1× Brezel</strong><div class="muted">Snack</div></div><span class="qty">1</span><span class="amount">2,00 €</span></div>
+      </div>
+      <div class="member">
+        <strong>Mitglied ausgewählt · Max Mustermann</strong>
+        <div class="muted">Guthaben 14,50 € · Rabatt aktiv · Karte #M-102</div>
+      </div>
+      <div class="list-card">
+        <div class="total-row"><span>Zwischensumme</span><strong>9,80 €</strong></div>
+        <div class="total-row"><span>Gutschein V-2026-014</span><strong>-2,00 €</strong></div>
+        <div class="total-row"><span>Mitgliedsguthaben</span><strong>-3,00 €</strong></div>
+        <div class="total-row"><span><strong>Zu zahlen</strong></span><strong>4,80 €</strong></div>
+      </div>
+      <div class="payment-actions payments">
+        <button class="pay cash">💰 Zahlen – BAR</button>
+        <button class="pay balance">💳 Guthaben nutzen</button>
+        <button class="pay voucher">🎫 Gutschein anwenden</button>
+      </div>
+    </aside>
+  </div>
+</body>
+</html>

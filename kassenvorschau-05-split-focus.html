@@ -1,0 +1,216 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Kassenbereich Vorschau 05 – Split Focus</title>
+  <style>
+    :root {
+      --bg: #f6f8fb;
+      --surface: #ffffff;
+      --surface-soft: #f8fafc;
+      --line: #dde5ef;
+      --text: #0f172a;
+      --muted: #64748b;
+      --accent: #7c3aed;
+      --accent-soft: #f3e8ff;
+      --green-soft: #ecfdf5;
+      --green: #047857;
+      font-family: Inter, ui-sans-serif, system-ui, sans-serif;
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      background:
+        linear-gradient(180deg, #ffffff 0%, #f6f8fb 28%, #eef2f7 100%);
+      color: var(--text);
+      padding: 22px;
+    }
+    .wrap {
+      max-width: 1540px;
+      margin: 0 auto;
+      display: grid;
+      grid-template-columns: minmax(0, 1.15fr) minmax(320px, 0.85fr);
+      gap: 18px;
+    }
+    .panel { background: var(--surface); border: 1px solid var(--line); border-radius: 26px; }
+    .left { padding: 18px; }
+    .right { padding: 18px; display: flex; flex-direction: column; gap: 14px; }
+    .hero {
+      display: grid;
+      grid-template-columns: 1.4fr .8fr;
+      gap: 14px;
+      margin-bottom: 14px;
+    }
+    .hero-card {
+      background: var(--surface-soft);
+      border: 1px solid var(--line);
+      border-radius: 22px;
+      padding: 16px;
+    }
+    h1, h2, h3, p { margin: 0; }
+    h1 { font-size: 30px; letter-spacing: -0.05em; }
+    .muted { color: var(--muted); }
+    .summary-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; margin-top: 14px; }
+    .summary-cell { padding: 12px; border-radius: 16px; background: white; border: 1px solid var(--line); }
+    .summary-cell strong { display: block; font-size: 20px; margin-top: 4px; }
+    .control-bar {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 12px;
+      margin-bottom: 12px;
+    }
+    .segmented { display: flex; gap: 8px; flex-wrap: wrap; }
+    .segment {
+      padding: 10px 14px;
+      border-radius: 999px;
+      border: 1px solid var(--line);
+      background: white;
+      color: var(--muted);
+      font-weight: 700;
+      font-size: 13px;
+    }
+    .segment.active { background: var(--accent); color: white; border-color: var(--accent); }
+    .products {
+      display: grid;
+      grid-template-columns: repeat(4, minmax(0, 1fr));
+      gap: 12px;
+    }
+    .product {
+      border: 1px solid var(--line);
+      border-radius: 20px;
+      background: white;
+      padding: 14px;
+      min-height: 132px;
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+      gap: 8px;
+    }
+    .product-top { display: flex; justify-content: space-between; gap: 8px; }
+    .product-title strong { display: block; }
+    .product-title small { color: var(--muted); }
+    .tag {
+      display: inline-flex;
+      align-items: center;
+      padding: 4px 8px;
+      border-radius: 999px;
+      background: var(--accent-soft);
+      color: var(--accent);
+      font-size: 11px;
+      font-weight: 800;
+    }
+    .product-bottom { display: flex; justify-content: space-between; align-items: end; gap: 8px; }
+    .price { font-size: 22px; font-weight: 800; }
+    .stock { color: var(--muted); font-size: 12px; text-align: right; }
+    .stack-card { border: 1px solid var(--line); border-radius: 20px; padding: 14px; background: var(--surface-soft); }
+    .receipt-label { color: var(--accent); font-size: 13px; font-weight: 900; text-transform: uppercase; letter-spacing: 0.08em; }
+    .line, .total { display: flex; justify-content: space-between; gap: 10px; padding: 10px 0; border-bottom: 1px solid var(--line); }
+    .line:last-child, .total:last-child { border-bottom: none; }
+    .member {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 12px;
+      padding: 14px;
+      border-radius: 20px;
+      background: var(--green-soft);
+      border: 1px solid #cce9da;
+    }
+    .member strong { display: block; }
+    .member .amount { color: var(--green); font-size: 18px; font-weight: 800; }
+    .actions { display: grid; grid-template-columns: repeat(2, 1fr); gap: 10px; }
+    .btn {
+      border: none;
+      border-radius: 18px;
+      padding: 15px;
+      text-align: left;
+      font-weight: 800;
+      font-size: 15px;
+    }
+    .btn.primary { background: var(--text); color: white; }
+    .btn.secondary { background: white; color: var(--accent); border: 1px solid var(--line); }
+    .footnote { font-size: 13px; color: var(--muted); line-height: 1.5; }
+    @media (max-width: 1200px) { .wrap { grid-template-columns: 1fr; } .products { grid-template-columns: repeat(3, minmax(0, 1fr)); } }
+    @media (max-width: 760px) { .hero { grid-template-columns: 1fr; } .summary-grid { grid-template-columns: 1fr; } .products { grid-template-columns: repeat(2, minmax(0, 1fr)); } .actions { grid-template-columns: 1fr; } }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <section class="panel left">
+      <div class="hero">
+        <div class="hero-card">
+          <h1>Split Focus</h1>
+          <p class="muted">Mehr Struktur im Kopfbereich, schlanke Produktkarten im unteren Raster, Bon bleibt eigenständig rechts.</p>
+          <div class="summary-grid">
+            <div class="summary-cell"><span class="muted">Aktive Kategorie</span><strong>Getränke</strong></div>
+            <div class="summary-cell"><span class="muted">Produkte sichtbar</span><strong>12</strong></div>
+            <div class="summary-cell"><span class="muted">Beleg</span><strong>#2451</strong></div>
+          </div>
+        </div>
+        <div class="hero-card">
+          <h3>Designziel</h3>
+          <p class="muted">Gute Balance aus modernem Dashboard und pragmatischer Kassenlogik. Kategorien, Bon, Mitglied, Gutscheine und Zahlarten bleiben gleichzeitig sichtbar.</p>
+        </div>
+      </div>
+
+      <div class="control-bar">
+        <h2>Produkte</h2>
+        <div class="segmented">
+          <span class="segment active">Getränke</span>
+          <span class="segment">Snacks</span>
+          <span class="segment">Specials</span>
+          <span class="segment">Ohne Kategorie</span>
+        </div>
+      </div>
+
+      <div class="products">
+        <article class="product"><div class="product-top"><div class="product-title"><strong>Pils</strong><small>Mitgliedspreis vorhanden</small></div><span class="tag">Rabatt</span></div><div class="product-bottom"><div class="price">2,50 €</div><div class="stock">19 verfügbar</div></div></article>
+        <article class="product"><div class="product-top"><div class="product-title"><strong>Cola</strong><small>Standard</small></div><span class="tag">∞</span></div><div class="product-bottom"><div class="price">2,20 €</div><div class="stock">unbegrenzt</div></div></article>
+        <article class="product"><div class="product-top"><div class="product-title"><strong>Club Mate</strong><small>0,5 l</small></div><span class="tag">Rabatt</span></div><div class="product-bottom"><div class="price">2,80 €</div><div class="stock">11 verfügbar</div></div></article>
+        <article class="product"><div class="product-top"><div class="product-title"><strong>Wasser</strong><small>still</small></div><span class="tag">∞</span></div><div class="product-bottom"><div class="price">1,50 €</div><div class="stock">Basis</div></div></article>
+        <article class="product"><div class="product-top"><div class="product-title"><strong>Apfelschorle</strong><small>gekühlt</small></div><span class="tag">Kalt</span></div><div class="product-bottom"><div class="price">2,30 €</div><div class="stock">7 verfügbar</div></div></article>
+        <article class="product"><div class="product-top"><div class="product-title"><strong>Espresso</strong><small>heiß</small></div><span class="tag">Hot</span></div><div class="product-bottom"><div class="price">1,90 €</div><div class="stock">12 verfügbar</div></div></article>
+        <article class="product"><div class="product-top"><div class="product-title"><strong>Brezel</strong><small>Snack</small></div><span class="tag">Frisch</span></div><div class="product-bottom"><div class="price">2,00 €</div><div class="stock">8 verfügbar</div></div></article>
+        <article class="product"><div class="product-top"><div class="product-title"><strong>Toast</strong><small>warm</small></div><span class="tag">Küche</span></div><div class="product-bottom"><div class="price">3,20 €</div><div class="stock">4 verfügbar</div></div></article>
+      </div>
+    </section>
+
+    <aside class="panel right">
+      <div class="stack-card">
+        <div class="receipt-label">Beleg #2451</div>
+        <h3>Aktiver Bon</h3>
+        <div class="line"><span>2× Pils</span><strong>5,00 €</strong></div>
+        <div class="line"><span>1× Club Mate</span><strong>2,80 €</strong></div>
+        <div class="line"><span>1× Brezel</span><strong>2,00 €</strong></div>
+      </div>
+
+      <div class="member">
+        <div>
+          <strong>Max Mustermann</strong>
+          <div class="muted">Mitglied gewählt · Rabatt aktiv</div>
+        </div>
+        <div class="amount">14,50 €</div>
+      </div>
+
+      <div class="stack-card">
+        <h3>Zahlungsübersicht</h3>
+        <div class="total"><span>Zwischensumme</span><strong>9,80 €</strong></div>
+        <div class="total"><span>Gutschein V-2026-014</span><strong>-2,00 €</strong></div>
+        <div class="total"><span>Mitgliedsguthaben</span><strong>-3,00 €</strong></div>
+        <div class="total"><span><strong>Zu zahlen</strong></span><strong>4,80 €</strong></div>
+      </div>
+
+      <div class="actions">
+        <button class="btn primary">💰 Zahlen – BAR</button>
+        <button class="btn secondary">💳 Guthaben nutzen</button>
+        <button class="btn secondary">🎫 Gutschein</button>
+        <button class="btn secondary">📒 Deckel</button>
+      </div>
+
+      <div class="stack-card footnote">Geeignet als alltagstauglicher Mittelweg: moderner als das aktuelle Layout, aber ohne starke visuelle Effekte. Die Produktfläche bleibt bewusst kompakt und klar scanbar.</div>
+    </aside>
+  </div>
+</body>
+</html>

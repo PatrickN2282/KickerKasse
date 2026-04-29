@@ -1,0 +1,224 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Kassenbereich Vorschau 02 – Glassmorphism Floating</title>
+  <style>
+    :root {
+      --bg1: #09111f;
+      --bg2: #123456;
+      --glass: rgba(255,255,255,0.14);
+      --glass-strong: rgba(255,255,255,0.2);
+      --line: rgba(255,255,255,0.18);
+      --text: #f8fafc;
+      --muted: rgba(248,250,252,0.72);
+      --cyan: #67e8f9;
+      --violet: #c4b5fd;
+      --green: #86efac;
+      font-family: Inter, ui-sans-serif, system-ui, sans-serif;
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      min-height: 100vh;
+      color: var(--text);
+      background:
+        radial-gradient(circle at top left, rgba(103,232,249,0.26), transparent 28%),
+        radial-gradient(circle at top right, rgba(196,181,253,0.22), transparent 32%),
+        linear-gradient(135deg, var(--bg1), #132238 55%, var(--bg2));
+      padding: 26px;
+    }
+    .shell {
+      max-width: 1520px;
+      margin: 0 auto;
+      display: grid;
+      grid-template-columns: 1fr 350px;
+      gap: 20px;
+    }
+    .glass {
+      background: var(--glass);
+      border: 1px solid var(--line);
+      box-shadow: 0 28px 70px rgba(3, 7, 18, 0.35);
+      backdrop-filter: blur(22px);
+      border-radius: 28px;
+    }
+    .main { padding: 22px; }
+    .side { padding: 18px; display: flex; flex-direction: column; gap: 16px; }
+    .hero {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 16px;
+      margin-bottom: 18px;
+    }
+    h1, h2, h3, p { margin: 0; }
+    h1 { font-size: 28px; letter-spacing: -0.04em; }
+    .muted { color: var(--muted); }
+    .tokens, .filters { display: flex; gap: 10px; flex-wrap: wrap; }
+    .token {
+      padding: 10px 14px;
+      border-radius: 999px;
+      background: rgba(255,255,255,0.1);
+      border: 1px solid rgba(255,255,255,0.12);
+      font-size: 12px;
+      font-weight: 700;
+    }
+    .token.active { background: rgba(103,232,249,0.18); border-color: rgba(103,232,249,0.45); color: var(--cyan); }
+    .product-zone {
+      display: grid;
+      gap: 14px;
+      margin-top: 18px;
+    }
+    .category {
+      padding: 16px;
+      border-radius: 24px;
+      background: rgba(255,255,255,0.08);
+      border: 1px solid rgba(255,255,255,0.08);
+    }
+    .category-head {
+      display: flex;
+      justify-content: space-between;
+      margin-bottom: 12px;
+      align-items: center;
+    }
+    .grid {
+      display: grid;
+      grid-template-columns: repeat(5, minmax(0, 1fr));
+      gap: 10px;
+    }
+    .card {
+      min-height: 106px;
+      padding: 12px;
+      border-radius: 18px;
+      background: rgba(10, 17, 31, 0.38);
+      border: 1px solid rgba(255,255,255,0.08);
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+    }
+    .card strong { font-size: 14px; }
+    .top { display: flex; justify-content: space-between; gap: 8px; }
+    .price { font-size: 20px; font-weight: 800; color: var(--cyan); }
+    .sub { font-size: 12px; color: var(--muted); }
+    .pill {
+      display: inline-flex;
+      align-items: center;
+      padding: 3px 7px;
+      border-radius: 999px;
+      font-size: 10px;
+      font-weight: 800;
+      background: rgba(134,239,172,0.14);
+      color: var(--green);
+    }
+    .rail-card {
+      padding: 16px;
+      border-radius: 22px;
+      background: rgba(255,255,255,0.08);
+      border: 1px solid rgba(255,255,255,0.08);
+    }
+    .receipt-no {
+      text-align: center;
+      font-weight: 800;
+      letter-spacing: 0.06em;
+      text-transform: uppercase;
+      color: var(--violet);
+    }
+    .item, .total {
+      display: grid;
+      grid-template-columns: 1fr auto;
+      gap: 10px;
+      padding: 10px 0;
+      border-bottom: 1px solid rgba(255,255,255,0.08);
+    }
+    .item:last-child, .total:last-child { border-bottom: none; }
+    .actions { display: grid; gap: 10px; }
+    .button {
+      border: 1px solid transparent;
+      border-radius: 18px;
+      padding: 14px 16px;
+      font-weight: 800;
+      color: white;
+      background: linear-gradient(135deg, rgba(103,232,249,0.2), rgba(196,181,253,0.28));
+    }
+    .button.alt { background: rgba(255,255,255,0.08); border-color: rgba(255,255,255,0.12); color: var(--cyan); }
+    .hint { font-size: 13px; color: var(--muted); line-height: 1.5; }
+    @media (max-width: 1200px) { .grid { grid-template-columns: repeat(4, minmax(0, 1fr)); } }
+    @media (max-width: 980px) { .shell { grid-template-columns: 1fr; } .grid { grid-template-columns: repeat(3, minmax(0, 1fr)); } }
+    @media (max-width: 640px) { .grid { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+  </style>
+</head>
+<body>
+  <div class="shell">
+    <section class="glass main">
+      <div class="hero">
+        <div>
+          <h1>Glassmorphism / Floating POS</h1>
+          <p class="muted">Schwebende Panels, kompakte Produktblöcke, moderner Event-/Bar-Charakter.</p>
+        </div>
+        <div class="tokens">
+          <span class="token active">Produktfokus</span>
+          <span class="token">Mitglied + Guthaben</span>
+          <span class="token">Voucher sichtbar</span>
+        </div>
+      </div>
+      <div class="filters">
+        <span class="token active">Getränke</span>
+        <span class="token">Snacks</span>
+        <span class="token">Aktionsware</span>
+        <span class="token">Ohne Kategorie</span>
+      </div>
+
+      <div class="product-zone">
+        <div class="category">
+          <div class="category-head"><h2>Getränke</h2><span class="muted">schmale floating cards</span></div>
+          <div class="grid">
+            <div class="card"><div class="top"><strong>Pils</strong><span class="pill">Rabatt</span></div><div class="price">2,50 €</div><div class="sub">Bestand 19 · 0,33 l</div></div>
+            <div class="card"><div class="top"><strong>Cola</strong><span class="pill">∞</span></div><div class="price">2,20 €</div><div class="sub">unbegrenzt · Flasche</div></div>
+            <div class="card"><div class="top"><strong>Club Mate</strong><span class="pill">Rabatt</span></div><div class="price">2,80 €</div><div class="sub">Bestand 11 · 0,5 l</div></div>
+            <div class="card"><div class="top"><strong>Wasser</strong><span class="pill">∞</span></div><div class="price">1,50 €</div><div class="sub">still · schnell</div></div>
+            <div class="card"><div class="top"><strong>Espresso</strong><span class="pill">Hot</span></div><div class="price">1,90 €</div><div class="sub">Bestand 12 · kurz</div></div>
+          </div>
+        </div>
+        <div class="category">
+          <div class="category-head"><h2>Snacks</h2><span class="muted">kompakt statt hoher Kacheln</span></div>
+          <div class="grid">
+            <div class="card"><div class="top"><strong>Brezel</strong><span class="pill">Frisch</span></div><div class="price">2,00 €</div><div class="sub">Bestand 8</div></div>
+            <div class="card"><div class="top"><strong>Toast</strong><span class="pill">Warm</span></div><div class="price">3,20 €</div><div class="sub">Bestand 4</div></div>
+            <div class="card"><div class="top"><strong>Pommes</strong><span class="pill">Hot</span></div><div class="price">3,80 €</div><div class="sub">Bestand 3</div></div>
+            <div class="card"><div class="top"><strong>Nüsse</strong><span class="pill">Bar</span></div><div class="price">1,70 €</div><div class="sub">Bestand 10</div></div>
+            <div class="card"><div class="top"><strong>Riegel</strong><span class="pill">To go</span></div><div class="price">2,90 €</div><div class="sub">Bestand 5</div></div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <aside class="glass side">
+      <div class="rail-card receipt-no">Beleg #2451</div>
+      <div class="rail-card">
+        <h3>Bon</h3>
+        <div class="item"><div><strong>2× Pils</strong><div class="sub">Mitgliedspreis</div></div><strong>5,00 €</strong></div>
+        <div class="item"><div><strong>1× Wasser</strong><div class="sub">Standardpreis</div></div><strong>1,50 €</strong></div>
+        <div class="item"><div><strong>1× Brezel</strong><div class="sub">Snack</div></div><strong>2,00 €</strong></div>
+      </div>
+      <div class="rail-card">
+        <h3>Mitglied</h3>
+        <p>Max Mustermann</p>
+        <p class="muted">Guthaben 14,50 € · Rabatt aktiv</p>
+      </div>
+      <div class="rail-card">
+        <div class="total"><span>Zwischensumme</span><strong>8,50 €</strong></div>
+        <div class="total"><span>Gutschein</span><strong>-2,00 €</strong></div>
+        <div class="total"><span>Guthaben</span><strong>-1,50 €</strong></div>
+        <div class="total"><span><strong>Zu zahlen</strong></span><strong>5,00 €</strong></div>
+      </div>
+      <div class="actions">
+        <button class="button">💰 Zahlen – BAR</button>
+        <button class="button alt">💳 Guthaben nutzen</button>
+        <button class="button alt">🎫 Gutschein anwenden</button>
+      </div>
+      <div class="rail-card hint">Geeignet, wenn die Kasse hochwertig und „eventiger“ wirken soll. Trotz Effekt bleibt der Bon separat und die Produktfläche dicht.</div>
+    </aside>
+  </div>
+</body>
+</html>
