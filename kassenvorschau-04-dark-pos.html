@@ -1,0 +1,174 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Kassenbereich Vorschau 04 – Dark POS</title>
+  <style>
+    :root {
+      --bg: #050816;
+      --panel: #0f172a;
+      --panel-2: #111c34;
+      --line: #24324d;
+      --text: #f8fafc;
+      --muted: #94a3b8;
+      --accent: #22c55e;
+      --accent-2: #38bdf8;
+      --warning: #f59e0b;
+      --danger: #ef4444;
+      font-family: Inter, ui-sans-serif, system-ui, sans-serif;
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      min-height: 100vh;
+      padding: 20px;
+      background: linear-gradient(180deg, #020617, #07101f 35%, #0b1220 100%);
+      color: var(--text);
+    }
+    .app {
+      max-width: 1540px;
+      margin: 0 auto;
+      display: grid;
+      grid-template-columns: 1fr 360px;
+      gap: 18px;
+    }
+    .panel {
+      background: linear-gradient(180deg, rgba(17,28,52,0.98), rgba(9,16,31,0.98));
+      border: 1px solid var(--line);
+      border-radius: 24px;
+      box-shadow: 0 24px 80px rgba(0,0,0,0.35);
+    }
+    .main { padding: 18px; }
+    .side { padding: 16px; display: flex; flex-direction: column; gap: 14px; }
+    .header {
+      display: flex;
+      justify-content: space-between;
+      gap: 12px;
+      align-items: center;
+      margin-bottom: 14px;
+    }
+    h1, h2, h3, p { margin: 0; }
+    h1 { font-size: 28px; letter-spacing: -0.05em; }
+    .muted { color: var(--muted); }
+    .stats { display: flex; gap: 10px; flex-wrap: wrap; }
+    .stat { padding: 10px 12px; border-radius: 16px; background: #0b1324; border: 1px solid var(--line); font-size: 12px; font-weight: 800; }
+    .tabs { display: flex; gap: 10px; flex-wrap: wrap; margin-bottom: 14px; }
+    .tab { padding: 11px 14px; border-radius: 16px; background: #0b1324; border: 1px solid var(--line); color: var(--muted); font-weight: 800; }
+    .tab.active { background: linear-gradient(135deg, #1d4ed8, #0ea5e9); color: white; border-color: transparent; }
+    .matrix {
+      display: grid;
+      grid-template-columns: repeat(7, minmax(0, 1fr));
+      gap: 10px;
+    }
+    .tile {
+      min-height: 98px;
+      border-radius: 18px;
+      padding: 10px;
+      background: linear-gradient(180deg, #121b31, #0a1222);
+      border: 1px solid var(--line);
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+    }
+    .tile strong { font-size: 13px; }
+    .row { display: flex; justify-content: space-between; gap: 6px; align-items: flex-start; }
+    .hint {
+      display: inline-flex;
+      align-items: center;
+      padding: 4px 7px;
+      border-radius: 999px;
+      font-size: 10px;
+      font-weight: 800;
+      background: rgba(34,197,94,0.12);
+      color: #86efac;
+    }
+    .price { font-size: 19px; font-weight: 800; color: var(--accent-2); }
+    .stock { font-size: 11px; color: var(--muted); }
+    .card { padding: 14px; border-radius: 18px; background: #0b1324; border: 1px solid var(--line); }
+    .receipt { text-align: center; color: var(--warning); font-size: 12px; font-weight: 900; text-transform: uppercase; letter-spacing: 0.1em; }
+    .item, .total { display: flex; justify-content: space-between; gap: 10px; padding: 10px 0; border-bottom: 1px solid var(--line); }
+    .item:last-child, .total:last-child { border-bottom: none; }
+    .actions { display: grid; gap: 10px; }
+    .btn {
+      border: none;
+      border-radius: 16px;
+      padding: 14px;
+      font-weight: 900;
+      text-align: left;
+      color: white;
+    }
+    .btn.cash { background: linear-gradient(135deg, #16a34a, #22c55e); }
+    .btn.balance { background: linear-gradient(135deg, #0369a1, #0ea5e9); }
+    .btn.voucher { background: linear-gradient(135deg, #b45309, #f59e0b); }
+    .btn.cancel { background: linear-gradient(135deg, #b91c1c, #ef4444); }
+    @media (max-width: 1300px) { .matrix { grid-template-columns: repeat(5, minmax(0, 1fr)); } }
+    @media (max-width: 980px) { .app { grid-template-columns: 1fr; } .matrix { grid-template-columns: repeat(4, minmax(0, 1fr)); } }
+    @media (max-width: 640px) { .matrix { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+  </style>
+</head>
+<body>
+  <div class="app">
+    <section class="panel main">
+      <div class="header">
+        <div>
+          <h1>Dark POS Grid</h1>
+          <p class="muted">Hoher Kontrast, sehr kompakte Kachelmatrix, geeignet für schnelle Abend-/Eventkasse.</p>
+        </div>
+        <div class="stats">
+          <span class="stat">Warenkorb aktiv</span>
+          <span class="stat">Mitglied gewählt</span>
+          <span class="stat">Deckel sichtbar</span>
+        </div>
+      </div>
+      <div class="tabs">
+        <span class="tab active">Getränke</span>
+        <span class="tab">Snacks</span>
+        <span class="tab">Warm</span>
+        <span class="tab">Specials</span>
+      </div>
+      <div class="matrix">
+        <div class="tile"><div class="row"><strong>Pils</strong><span class="hint">Rabatt</span></div><div class="price">2,50 €</div><div class="stock">19 verfügbar</div></div>
+        <div class="tile"><div class="row"><strong>Cola</strong><span class="hint">∞</span></div><div class="price">2,20 €</div><div class="stock">unbegrenzt</div></div>
+        <div class="tile"><div class="row"><strong>Club Mate</strong><span class="hint">Rabatt</span></div><div class="price">2,80 €</div><div class="stock">11 verfügbar</div></div>
+        <div class="tile"><div class="row"><strong>Wasser</strong><span class="hint">∞</span></div><div class="price">1,50 €</div><div class="stock">Basis</div></div>
+        <div class="tile"><div class="row"><strong>Apfelschorle</strong><span class="hint">Kalt</span></div><div class="price">2,30 €</div><div class="stock">7 verfügbar</div></div>
+        <div class="tile"><div class="row"><strong>Espresso</strong><span class="hint">Hot</span></div><div class="price">1,90 €</div><div class="stock">12 verfügbar</div></div>
+        <div class="tile"><div class="row"><strong>Latte</strong><span class="hint">Hot</span></div><div class="price">3,40 €</div><div class="stock">6 verfügbar</div></div>
+        <div class="tile"><div class="row"><strong>Brezel</strong><span class="hint">Snack</span></div><div class="price">2,00 €</div><div class="stock">8 verfügbar</div></div>
+        <div class="tile"><div class="row"><strong>Toast</strong><span class="hint">Warm</span></div><div class="price">3,20 €</div><div class="stock">4 verfügbar</div></div>
+        <div class="tile"><div class="row"><strong>Pommes</strong><span class="hint">Warm</span></div><div class="price">3,80 €</div><div class="stock">3 verfügbar</div></div>
+        <div class="tile"><div class="row"><strong>Eis</strong><span class="hint">Cold</span></div><div class="price">1,80 €</div><div class="stock">9 verfügbar</div></div>
+        <div class="tile"><div class="row"><strong>Nüsse</strong><span class="hint">Bar</span></div><div class="price">1,70 €</div><div class="stock">10 verfügbar</div></div>
+        <div class="tile"><div class="row"><strong>Riegel</strong><span class="hint">To go</span></div><div class="price">2,90 €</div><div class="stock">5 verfügbar</div></div>
+        <div class="tile"><div class="row"><strong>Tagesdeal</strong><span class="hint">Aktion</span></div><div class="price">4,50 €</div><div class="stock">2 verfügbar</div></div>
+      </div>
+    </section>
+    <aside class="panel side">
+      <div class="card receipt">Demo-Beleg KGB-01 · #0002451 (Beispiel)</div>
+      <div class="card">
+        <h3>Bon</h3>
+        <div class="item"><span>2× Pils</span><strong>5,00 €</strong></div>
+        <div class="item"><span>1× Club Mate</span><strong>2,80 €</strong></div>
+        <div class="item"><span>1× Brezel</span><strong>2,00 €</strong></div>
+      </div>
+      <div class="card">
+        <h3>Mitglied & Zahlung</h3>
+        <div class="item"><span>Max Mustermann</span><strong>14,50 € Guthaben</strong></div>
+        <div class="item"><span>Gutschein V-2026-014</span><strong>-2,00 €</strong></div>
+      </div>
+      <div class="card">
+        <div class="total"><span>Zwischensumme</span><strong>9,80 €</strong></div>
+        <div class="total"><span>Guthaben</span><strong>-3,00 €</strong></div>
+        <div class="total"><span><strong>Zu zahlen</strong></span><strong>4,80 €</strong></div>
+      </div>
+      <div class="actions">
+        <button class="btn cash">💰 Zahlen – BAR</button>
+        <button class="btn balance">💳 Guthaben nutzen</button>
+        <button class="btn voucher">🎫 Gutschein</button>
+        <button class="btn cancel">Bon abbrechen</button>
+      </div>
+    </aside>
+  </div>
+</body>
+</html>

@@ -1,0 +1,216 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Kassenbereich Vorschau 03 – Compact Rail</title>
+  <style>
+    :root {
+      --bg: #eff3f8;
+      --surface: #ffffff;
+      --line: #dbe2ea;
+      --rail: #0f172a;
+      --rail-muted: #94a3b8;
+      --text: #0f172a;
+      --muted: #64748b;
+      --accent: #0284c7;
+      --accent-soft: #e0f2fe;
+      font-family: Inter, ui-sans-serif, system-ui, sans-serif;
+    }
+    * { box-sizing: border-box; }
+    body { margin: 0; background: var(--bg); color: var(--text); }
+    .layout {
+      min-height: 100vh;
+      display: grid;
+      grid-template-columns: 106px 1fr 340px;
+      gap: 14px;
+      padding: 14px;
+    }
+    .panel { background: var(--surface); border-radius: 24px; border: 1px solid var(--line); }
+    .rail {
+      background: var(--rail);
+      color: white;
+      padding: 14px 10px;
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+    }
+    .logo { padding: 12px 10px 18px; font-weight: 800; letter-spacing: 0.05em; text-align: center; }
+    .nav {
+      padding: 12px 10px;
+      border-radius: 18px;
+      background: rgba(255,255,255,0.05);
+      color: var(--rail-muted);
+      text-align: center;
+      font-size: 12px;
+      font-weight: 700;
+    }
+    .nav.active { background: white; color: var(--rail); }
+    .main { padding: 18px; }
+    .topline {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 12px;
+      margin-bottom: 16px;
+    }
+    .title h1 { margin: 0; font-size: 28px; letter-spacing: -0.04em; }
+    .title p { margin: 4px 0 0; color: var(--muted); }
+    .micro-chips { display: flex; gap: 8px; flex-wrap: wrap; }
+    .micro {
+      padding: 8px 10px;
+      border-radius: 999px;
+      font-size: 12px;
+      font-weight: 700;
+      color: var(--muted);
+      background: #f8fafc;
+      border: 1px solid var(--line);
+    }
+    .micro.active { color: var(--accent); background: var(--accent-soft); border-color: #bae6fd; }
+    .categories {
+      display: grid;
+      grid-template-columns: repeat(4, minmax(0, 1fr));
+      gap: 10px;
+      margin-bottom: 12px;
+    }
+    .category {
+      background: #f8fafc;
+      border: 1px solid var(--line);
+      border-radius: 18px;
+      padding: 12px 14px;
+      font-weight: 700;
+      display: flex;
+      justify-content: space-between;
+      color: var(--muted);
+    }
+    .category.active { background: #0f172a; color: white; }
+    .catalog {
+      border: 1px solid var(--line);
+      border-radius: 22px;
+      overflow: hidden;
+    }
+    .catalog-head, .row {
+      display: grid;
+      grid-template-columns: 2.1fr .9fr .8fr .8fr .9fr;
+      gap: 12px;
+      padding: 12px 16px;
+      align-items: center;
+    }
+    .catalog-head {
+      background: #f8fafc;
+      color: var(--muted);
+      font-size: 12px;
+      font-weight: 800;
+      text-transform: uppercase;
+      letter-spacing: 0.06em;
+    }
+    .row { background: white; border-top: 1px solid var(--line); }
+    .row:nth-child(even) { background: #fcfdff; }
+    .product-name { display: flex; flex-direction: column; gap: 3px; }
+    .product-name small { color: var(--muted); }
+    .status {
+      display: inline-flex;
+      padding: 5px 8px;
+      border-radius: 999px;
+      background: var(--accent-soft);
+      color: var(--accent);
+      font-size: 11px;
+      font-weight: 800;
+      width: fit-content;
+    }
+    .cta {
+      padding: 10px 12px;
+      border: none;
+      border-radius: 14px;
+      font-weight: 800;
+      background: #0f172a;
+      color: white;
+    }
+    .side { padding: 16px; display: flex; flex-direction: column; gap: 14px; }
+    .card { border: 1px solid var(--line); border-radius: 18px; padding: 14px; }
+    .receipt { font-size: 13px; color: var(--muted); text-transform: uppercase; letter-spacing: 0.08em; }
+    .item, .total { display: flex; justify-content: space-between; gap: 10px; padding: 10px 0; border-bottom: 1px solid var(--line); }
+    .item:last-child, .total:last-child { border-bottom: none; }
+    .actions { display: grid; gap: 10px; }
+    .pay { border: none; border-radius: 16px; padding: 14px; font-weight: 800; text-align: left; }
+    .pay.primary { background: #0f172a; color: white; }
+    .pay.soft { background: #f8fafc; color: var(--accent); border: 1px solid var(--line); }
+    .hint { color: var(--muted); font-size: 13px; line-height: 1.5; }
+    @media (max-width: 1200px) { .layout { grid-template-columns: 88px 1fr; } .side { grid-column: span 2; } }
+    @media (max-width: 840px) { .categories { grid-template-columns: repeat(2, minmax(0, 1fr)); } .catalog-head, .row { grid-template-columns: 1.6fr .8fr .8fr .8fr; } .catalog-head div:last-child, .row div:last-child { display: none; } }
+  </style>
+</head>
+<body>
+  <div class="layout">
+    <aside class="panel rail">
+      <div class="logo">KGB</div>
+      <div class="nav active">Kasse</div>
+      <div class="nav">Getränke</div>
+      <div class="nav">Snacks</div>
+      <div class="nav">Deals</div>
+      <div class="nav">Mitglied</div>
+      <div class="nav">Deckel</div>
+    </aside>
+
+    <main class="panel main">
+      <div class="topline">
+        <div class="title">
+          <h1>Compact Rail Layout</h1>
+          <p>Sehr platzsparend: Kategorien kompakt oben, Produkte als schnelle Tabellen-/Listenansicht.</p>
+        </div>
+        <div class="micro-chips">
+          <span class="micro active">hohe Produktdichte</span>
+          <span class="micro">schnelle Tastaturpfade</span>
+          <span class="micro">klarer Bon</span>
+        </div>
+      </div>
+
+      <div class="categories">
+        <div class="category active"><span>Getränke</span><span>14</span></div>
+        <div class="category"><span>Snacks</span><span>8</span></div>
+        <div class="category"><span>Specials</span><span>4</span></div>
+        <div class="category"><span>Ohne Kategorie</span><span>2</span></div>
+      </div>
+
+      <div class="catalog">
+        <div class="catalog-head"><div>Produkt</div><div>Preis</div><div>Bestand</div><div>Status</div><div>Aktion</div></div>
+        <div class="row"><div class="product-name"><strong>Pils</strong><small>Mitgliedspreis verfügbar</small></div><div><strong>2,50 €</strong></div><div>19</div><div><span class="status">Rabatt</span></div><div><button class="cta">+ Hinzufügen</button></div></div>
+        <div class="row"><div class="product-name"><strong>Cola</strong><small>unbegrenzt verfügbar</small></div><div><strong>2,20 €</strong></div><div>∞</div><div><span class="status">immer da</span></div><div><button class="cta">+ Hinzufügen</button></div></div>
+        <div class="row"><div class="product-name"><strong>Club Mate</strong><small>0,5 l Flasche</small></div><div><strong>2,80 €</strong></div><div>11</div><div><span class="status">Rabatt</span></div><div><button class="cta">+ Hinzufügen</button></div></div>
+        <div class="row"><div class="product-name"><strong>Wasser</strong><small>still / schnell</small></div><div><strong>1,50 €</strong></div><div>∞</div><div><span class="status">Basis</span></div><div><button class="cta">+ Hinzufügen</button></div></div>
+        <div class="row"><div class="product-name"><strong>Apfelschorle</strong><small>gekühlt</small></div><div><strong>2,30 €</strong></div><div>7</div><div><span class="status">Standard</span></div><div><button class="cta">+ Hinzufügen</button></div></div>
+        <div class="row"><div class="product-name"><strong>Espresso</strong><small>heiß / kurz</small></div><div><strong>1,90 €</strong></div><div>12</div><div><span class="status">Hot</span></div><div><button class="cta">+ Hinzufügen</button></div></div>
+        <div class="row"><div class="product-name"><strong>Brezel</strong><small>Snack / frisch</small></div><div><strong>2,00 €</strong></div><div>8</div><div><span class="status">Snack</span></div><div><button class="cta">+ Hinzufügen</button></div></div>
+        <div class="row"><div class="product-name"><strong>Toast</strong><small>warm / Küche</small></div><div><strong>3,20 €</strong></div><div>4</div><div><span class="status">Warm</span></div><div><button class="cta">+ Hinzufügen</button></div></div>
+      </div>
+    </main>
+
+    <aside class="panel side">
+      <div class="card">
+        <div class="receipt">Demo-Beleg KGB-01 · #0002451 (Beispiel)</div>
+        <h2>Bon</h2>
+        <div class="item"><span>2× Pils</span><strong>5,00 €</strong></div>
+        <div class="item"><span>1× Wasser</span><strong>1,50 €</strong></div>
+        <div class="item"><span>1× Brezel</span><strong>2,00 €</strong></div>
+      </div>
+      <div class="card">
+        <h3>Mitglied</h3>
+        <strong>Max Mustermann</strong>
+        <div class="hint">Guthaben 14,50 € · Rabatt aktiv · Zahlung per Guthaben möglich</div>
+      </div>
+      <div class="card">
+        <div class="total"><span>Zwischensumme</span><strong>8,50 €</strong></div>
+        <div class="total"><span>Gutschein</span><strong>-2,00 €</strong></div>
+        <div class="total"><span>Guthaben</span><strong>-1,50 €</strong></div>
+        <div class="total"><span><strong>Zu zahlen</strong></span><strong>5,00 €</strong></div>
+      </div>
+      <div class="actions">
+        <button class="pay primary">💰 Zahlen – BAR</button>
+        <button class="pay soft">💳 Guthaben nutzen</button>
+        <button class="pay soft">🎫 Gutschein</button>
+      </div>
+      <div class="card hint">Passt gut, wenn maximale Produktanzahl pro Bildschirm wichtiger ist als große Kacheln. Sehr effizient für Stammkräfte.</div>
+    </aside>
+  </div>
+</body>
+</html>
