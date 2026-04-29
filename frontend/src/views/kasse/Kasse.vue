@@ -4,82 +4,96 @@
       <div v-if="productStore.isLoading" class="loading">Läuft...</div>
       <div v-else class="products-section">
 
-        <!-- Flat bubble/chip category filter bar -->
-        <div class="category-chips">
-          <button
-            v-for="category in activeCategories"
-            :key="category.id"
-            class="chip"
-            :class="{ active: expandedCategories.includes(category.id) }"
-            :style="getCategoryChipStyle(category, expandedCategories.includes(category.id))"
-            @click="toggleCategory(category.id)"
-          >
-            {{ category.name }}
-            <span class="chip-count">{{ getProductsByCategory(category.id).length }}</span>
-          </button>
-          <button
-            v-if="productsWithoutCategory.length > 0"
-            class="chip"
-            :class="{ active: expandedCategories.includes(0) }"
-            @click="toggleCategory(0)"
-          >
-            Ohne Kategorie
-            <span class="chip-count">{{ productsWithoutCategory.length }}</span>
-          </button>
-        </div>
-
-        <!-- Unified product grid for all active categories -->
-        <div v-if="hasExpandedCategory" class="products-grid">
-          <template v-for="category in activeCategories" :key="category.id">
-            <template v-if="expandedCategories.includes(category.id)">
-              <button
-                v-for="product in getProductsByCategory(category.id)"
-                :key="`${category.id}-${product.id}`"
-                :disabled="isProductOutOfStock(product)"
-                class="product-btn"
-                :style="getCategoryCardStyle(category)"
-                @click="selectProduct(product, category.id)"
-              >
-                <div class="card-img">
-                  <span v-if="hasMemberPrice(product)" class="card-badge discount-badge">Rabatt</span>
-                  <img v-if="product.image_path && !imageErrorMap[product.id]" :src="`/api/products/${product.id}/image`" :alt="product.name" @error="onImageError(product.id)" />
-                  <div v-else class="card-img-ph">🛒</div>
-                </div>
-                <div class="card-body">
-                  <div class="card-name">{{ product.name }}</div>
-                  <div class="card-bottom">
-                    <span class="card-price">{{ formatPrice(getDisplayedProductPriceCents(product, category.id)) }}</span>
-                    <span class="card-stock">{{ product.is_unlimited_stock ? '∞' : getAvailableStock(product) }}</span>
-                  </div>
-                </div>
-              </button>
-            </template>
-          </template>
-          <template v-if="expandedCategories.includes(0)">
+        <!-- One row per category: narrow toggle button + product grid side by side -->
+        <template
+          v-for="(category, index) in activeCategories"
+          :key="category.id"
+        >
+          <hr v-if="index > 0" class="category-separator" />
+          <div class="category-row">
             <button
-              v-for="product in productsWithoutCategory"
-              :key="`ohne-${product.id}`"
-              :disabled="isProductOutOfStock(product)"
-              class="product-btn"
-              @click="selectProduct(product)"
+              class="cat-btn"
+              :class="{ active: expandedCategories.includes(category.id) }"
+              :style="getCategoryChipStyle(category, expandedCategories.includes(category.id))"
+              @click="toggleCategory(category.id)"
             >
-              <div class="card-img">
-                <span v-if="hasMemberPrice(product)" class="card-badge discount-badge">Rabatt</span>
-                <img v-if="product.image_path && !imageErrorMap[product.id]" :src="`/api/products/${product.id}/image`" :alt="product.name" @error="onImageError(product.id)" />
-                <div v-else class="card-img-ph">🛒</div>
-              </div>
-              <div class="card-body">
-                <div class="card-name">{{ product.name }}</div>
-                <div class="card-bottom">
-                  <span class="card-price">{{ formatPrice(product.price_cents) }}</span>
-                  <span class="card-stock">{{ product.is_unlimited_stock ? '∞' : getAvailableStock(product) }}</span>
-                </div>
-              </div>
+              <span class="cat-name">{{ category.name }}</span>
+              <span class="cat-count">{{ getProductsByCategory(category.id).length }}</span>
             </button>
-          </template>
-        </div>
+            <div
+              v-if="expandedCategories.includes(category.id)"
+              class="category-products"
+            >
+              <div class="products-grid">
+                <button
+                  v-for="product in getProductsByCategory(category.id)"
+                  :key="product.id"
+                  :disabled="isProductOutOfStock(product)"
+                  class="product-btn"
+                  :style="getCategoryCardStyle(category)"
+                  @click="selectProduct(product, category.id)"
+                >
+                  <div class="card-img">
+                    <span v-if="hasMemberPrice(product)" class="card-badge discount-badge">Rabatt</span>
+                    <img v-if="product.image_path && !imageErrorMap[product.id]" :src="`/api/products/${product.id}/image`" :alt="product.name" @error="onImageError(product.id)" />
+                    <div v-else class="card-img-ph">🛒</div>
+                  </div>
+                  <div class="card-body">
+                    <div class="card-name">{{ product.name }}</div>
+                    <div class="card-bottom">
+                      <span class="card-price">{{ formatPrice(getDisplayedProductPriceCents(product, category.id)) }}</span>
+                      <span class="card-stock">{{ product.is_unlimited_stock ? '∞' : getAvailableStock(product) }}</span>
+                    </div>
+                  </div>
+                </button>
+              </div>
+            </div>
+          </div>
+        </template>
 
-        <!-- Hint shown when no category is selected -->
+        <!-- Products without category -->
+        <template v-if="productsWithoutCategory.length > 0">
+          <hr v-if="activeCategories.length > 0" class="category-separator" />
+          <div class="category-row">
+            <button
+              class="cat-btn"
+              :class="{ active: expandedCategories.includes(0) }"
+              @click="toggleCategory(0)"
+            >
+              <span class="cat-name">Ohne Kategorie</span>
+              <span class="cat-count">{{ productsWithoutCategory.length }}</span>
+            </button>
+            <div
+              v-if="expandedCategories.includes(0)"
+              class="category-products"
+            >
+              <div class="products-grid">
+                <button
+                  v-for="product in productsWithoutCategory"
+                  :key="product.id"
+                  :disabled="isProductOutOfStock(product)"
+                  class="product-btn"
+                  @click="selectProduct(product)"
+                >
+                  <div class="card-img">
+                    <span v-if="hasMemberPrice(product)" class="card-badge discount-badge">Rabatt</span>
+                    <img v-if="product.image_path && !imageErrorMap[product.id]" :src="`/api/products/${product.id}/image`" :alt="product.name" @error="onImageError(product.id)" />
+                    <div v-else class="card-img-ph">🛒</div>
+                  </div>
+                  <div class="card-body">
+                    <div class="card-name">{{ product.name }}</div>
+                    <div class="card-bottom">
+                      <span class="card-price">{{ formatPrice(product.price_cents) }}</span>
+                      <span class="card-stock">{{ product.is_unlimited_stock ? '∞' : getAvailableStock(product) }}</span>
+                    </div>
+                  </div>
+                </button>
+              </div>
+            </div>
+          </div>
+        </template>
+
+        <!-- Hint shown when no category is expanded -->
         <div v-if="!hasExpandedCategory" class="empty-products">
           Kategorie auswählen
         </div>
@@ -206,13 +220,13 @@
                 </div>
               </div>
             </div>
-            <button 
-               @click="() => { 
-                 cartStore.selectedMemberId = null; 
+            <button
+               @click="() => {
+                 cartStore.selectedMemberId = null;
                  cartStore.selectedMemberHasDiscount = false;
                  cartStore.removeBalanceDiscount();
-                 cartStore.recalculatePrices(); 
-               }" 
+                 cartStore.recalculatePrices();
+               }"
               class="btn-change"
             >
               Wechseln
@@ -740,26 +754,6 @@ const loadCategories = async () => {
   }
 }
 
-const getCategoryChipStyle = (category, isActive) => {
-  if (!category.color) return {}
-  const textColor = getContrastTextColor(category.color)
-  if (isActive) {
-    return {
-      background: category.color,
-      borderColor: category.color,
-      color: textColor,
-    }
-  }
-  return {
-    borderColor: category.color,
-    color: textColor,
-  }
-}
-
-const getCategoryCardStyle = (category) => {
-  if (!category || !category.color) return {}
-  return { borderColor: category.color }
-}
 
 /**
  * Returns '#1e293b' (dark) or '#ffffff' (light) depending on the
@@ -772,9 +766,29 @@ const getContrastTextColor = (hex) => {
   const r = parseInt(clean.slice(0, 2), 16)
   const g = parseInt(clean.slice(2, 4), 16)
   const b = parseInt(clean.slice(4, 6), 16)
-  // Relative luminance (WCAG formula)
   const luminance = (0.299 * r + 0.587 * g + 0.114 * b) / 255
   return luminance > 0.5 ? '#1e293b' : '#ffffff'
+}
+
+const getCategoryChipStyle = (category, isActive) => {
+  if (!category.color) return {}
+  const textColor = getContrastTextColor(category.color)
+  if (isActive) {
+    return {
+      background: category.color,
+      borderColor: category.color,
+      color: textColor,
+    }
+  }
+  return {
+    borderColor: category.color,
+    color: category.color,
+  }
+}
+
+const getCategoryCardStyle = (category) => {
+  if (!category || !category.color) return {}
+  return { borderColor: category.color }
 }
 
 const toggleCategory = (categoryId) => {
@@ -992,12 +1006,12 @@ const validatePaymentMethod = (method) => {
       notificationStore.error('Bitte wählen Sie ein Mitglied aus')
       return false
     }
-    
+
     if (selectedMemberBalance.value <= 0) {
       notificationStore.error('Das Mitglied hat kein Guthaben')
       return false
     }
-    
+
   }
 
   return true
@@ -1119,11 +1133,11 @@ const validateVoucher = async () => {
   if (!normalizedVoucher || normalizedVoucher === normalizedVoucherPrefix) return
 
   voucherNumber.value = normalizedVoucher
-  
+
   validatingVoucher.value = true
   voucherError.value = null
   voucherValidation.value = null
-  
+
   try {
     const response = await apiService.post('/transactions/voucher/validate', {
       voucher_number: voucherNumber.value,
@@ -1144,10 +1158,10 @@ const validateVoucher = async () => {
 
 const redeemVoucher = async () => {
   if (!voucherValidation.value || !voucherValidation.value.valid) return
-  
+
   redeemingVoucher.value = true
   voucherError.value = null
-  
+
   try {
     const appliedVoucher = {
       voucher_number: voucherValidation.value.voucher_number,
@@ -1432,9 +1446,9 @@ const getPaymentButtonStyle = (method) => {
   const balance = selectedMemberBalance.value
   const total = cartStore.getTotalAmount()
   const hasMember = !!cartStore.selectedMemberId
-  
+
   console.log(`[Kasse] Button style for ${method}: hasMember=${hasMember}, balance=${balance}, total=${total}`)
-  
+
   // No member selected - only BAR button is green
   if (!hasMember) {
     if (method === 'CASH') {
@@ -1447,7 +1461,7 @@ const getPaymentButtonStyle = (method) => {
   // Member selected - check balance
   const hasEnoughBalance = balance >= total
   console.log(`[Kasse] HasEnoughBalance: ${hasEnoughBalance} (${balance} >= ${total})`)
-  
+
   if (method === 'CASH') {
     return { background: 'var(--app-highlight-color)', color: 'var(--app-highlight-contrast)' }
   } else {
@@ -1510,12 +1524,10 @@ onBeforeUnmount(() => {
   min-width: 0;
   background: var(--app-surface-color);
   border-radius: 12px;
-  padding: .75rem;
+  padding: 1rem;
   box-shadow: 0 8px 20px rgba(24, 28, 34, 0.1);
-  overflow: hidden;
+  overflow-y: auto;
   border: 1px solid var(--app-banner-color);
-  display: flex;
-  flex-direction: column;
 }
 
 .kasse-resizer {
@@ -1569,59 +1581,80 @@ onBeforeUnmount(() => {
 .products-section {
   display: flex;
   flex-direction: column;
-  gap: .4rem;
-  height: 100%;
-  min-height: 0;
+  gap: .5rem;
 }
 
-/* ── Category bubble / chip filter bar ───────────────── */
-.category-chips {
+/* ── Category separator ───────────────────────────────── */
+.category-separator {
+  border: none;
+  border-top: 1px solid color-mix(in srgb, var(--app-banner-color) 25%, transparent);
+  margin: .15rem 0;
+}
+
+/* ── Category row: narrow toggle + products side by side ─ */
+.category-row {
   display: flex;
-  flex-wrap: wrap;
-  gap: .3rem;
-  padding-bottom: .45rem;
-  border-bottom: 1px solid color-mix(in srgb, var(--app-banner-color) 18%, transparent);
-  flex-shrink: 0;
+  flex-direction: row;
+  align-items: flex-start;
+  gap: .75rem;
 }
 
-.chip {
-  display: inline-flex;
+/* ── Category toggle button (always compact/narrow) ────── */
+.cat-btn {
+  flex-shrink: 0;
+  /* So schmal wie möglich – nur Padding + Schrift */
+  width: 26px;
+  display: flex;
+  flex-direction: column;
   align-items: center;
-  gap: .28rem;
-  padding: .25rem .6rem;
-  border-radius: 999px;
-  border: 1.5px solid color-mix(in srgb, var(--app-banner-color) 38%, transparent);
-  background: transparent;
-  color: var(--app-banner-color);
-  font-size: .73rem;
-  font-weight: 600;
+  justify-content: flex-end;   /* Text startet unten */
+  padding: .5rem .2rem;
+  background: var(--app-banner-color);
+  color: var(--app-banner-contrast);
+  border: 2px solid transparent;
+  border-radius: 8px;
   cursor: pointer;
-  transition: all .14s;
-  white-space: nowrap;
-  line-height: 1.4;
+  font-weight: 600;
+  text-align: center;
+  transition: opacity .18s, background .18s, border-color .18s;
+  gap: 4px;
+  align-self: stretch;
 
   &:hover {
-    background: color-mix(in srgb, var(--app-banner-color) 10%, transparent);
+    opacity: .82;
   }
 
   &.active {
     background: var(--app-highlight-color);
-    border-color: var(--app-highlight-color);
     color: var(--app-highlight-contrast);
-
-    .chip-count {
-      background: rgba(255,255,255,.22);
-    }
   }
 
-  .chip-count {
-    font-size: .64rem;
-    opacity: .85;
+  .cat-name {
+    /* vertical-rl + rotate(180deg) = Text läuft von UNTEN nach OBEN */
+    writing-mode: vertical-rl;
+    transform: rotate(180deg);
+    text-orientation: mixed;
+    font-size: .68rem;
+    line-height: 1;
+    letter-spacing: 0.05em;
+    overflow: hidden;
+    /* Kein max-height – wächst mit dem Inhalt */
+  }
+
+  .cat-count {
+    font-size: .6rem;
+    opacity: .75;
     font-weight: 500;
-    background: rgba(0,0,0,.08);
-    padding: .05rem .28rem;
-    border-radius: 999px;
+    flex-shrink: 0;
+    writing-mode: horizontal-tb;
+    transform: none;
   }
+}
+
+.category-products {
+  flex: 1;
+  min-width: 0;
+  margin-bottom: .75rem;
 }
 
 .empty-products {
@@ -1633,26 +1666,23 @@ onBeforeUnmount(() => {
 
 .products-grid {
   display: grid;
-  grid-template-columns: repeat(6, 1fr);
-  gap: .45rem;
-  overflow-y: auto;
-  flex: 1;
-  align-content: start;
+  grid-template-columns: repeat(5, 1fr);
+  gap: .65rem;
 
-  @media (max-width: 1500px) {
-    grid-template-columns: repeat(5, 1fr);
-  }
-
-  @media (max-width: 1200px) {
+  @media (max-width: 1400px) {
     grid-template-columns: repeat(4, 1fr);
   }
 
-  @media (max-width: 900px) {
+  @media (max-width: 1100px) {
     grid-template-columns: repeat(3, 1fr);
   }
 
-  @media (max-width: 640px) {
+  @media (max-width: 800px) {
     grid-template-columns: repeat(2, 1fr);
+  }
+
+  @media (max-width: 600px) {
+    grid-template-columns: 1fr;
   }
 }
 
@@ -1660,11 +1690,11 @@ onBeforeUnmount(() => {
 .product-btn {
   background: #fff;
   border: 1.5px solid color-mix(in srgb, var(--app-banner-color) 22%, white 78%);
-  border-radius: 10px;
+  border-radius: 12px;
   padding: 0;
   cursor: pointer;
-  transition: all .15s;
-  text-align: left;
+  transition: all .18s;
+  text-align: center;
   font-family: inherit;
   display: flex;
   flex-direction: column;
@@ -1673,12 +1703,10 @@ onBeforeUnmount(() => {
 
   &:hover:not(:disabled) {
     border-color: var(--app-highlight-color);
-    box-shadow: 0 3px 12px color-mix(in srgb, var(--app-highlight-color) 18%, transparent);
-    transform: translateY(-1px);
+    box-shadow: 0 4px 16px color-mix(in srgb, var(--app-highlight-color) 18%, transparent);
+    transform: translateY(-2px);
 
-    .card-img img {
-      transform: scale(1.08);
-    }
+
   }
 
   &:disabled {
@@ -1687,7 +1715,7 @@ onBeforeUnmount(() => {
   }
 
   .card-img {
-    height: 62px;
+    height: 80px;
     overflow: hidden;
     background: #eef1f7;
     flex-shrink: 0;
@@ -1696,9 +1724,10 @@ onBeforeUnmount(() => {
     img {
       width: 100%;
       height: 100%;
+      /* "contain" sorgt dafür, dass das Bild komplett angezeigt wird */
       object-fit: contain;
       display: block;
-      transition: transform 0.25s;
+      transition: none;
     }
   }
 
@@ -1708,18 +1737,18 @@ onBeforeUnmount(() => {
     display: flex;
     align-items: center;
     justify-content: center;
-    font-size: 22px;
+    font-size: 26px;
   }
 
   .card-badge {
     position: absolute;
-    top: 3px;
-    left: 3px;
+    top: 5px;
+    left: 5px;
     z-index: 1;
-    font-size: 9px;
+    font-size: 10px;
     font-weight: 800;
-    padding: 2px 4px;
-    border-radius: 3px;
+    padding: 2px 5px;
+    border-radius: 4px;
     letter-spacing: 0.04em;
     line-height: 1.4;
 
@@ -1730,15 +1759,15 @@ onBeforeUnmount(() => {
   }
 
   .card-body {
-    padding: 5px 6px 6px;
+    padding: 7px 8px 8px;
     flex: 1;
     display: flex;
     flex-direction: column;
-    gap: 3px;
+    gap: 4px;
   }
 
   .card-name {
-    font-size: .72rem;
+    font-size: .8rem;
     font-weight: 700;
     line-height: 1.2;
     color: #111827;
@@ -1752,16 +1781,21 @@ onBeforeUnmount(() => {
   }
 
   .card-price {
-    font-size: .82rem;
+    font-size: .9rem;
     font-weight: 800;
     color: var(--app-highlight-color);
     letter-spacing: -0.02em;
   }
 
   .card-stock {
-    font-size: .64rem;
+    font-size: .72rem;
     color: #64748b;
     font-weight: 500;
+
+    /* Fügt den Text "Verfügbar: " vor den Inhalt der Klasse ein */
+    &::before {
+      content: "Verfügbar: ";
+    }
   }
 }
 
@@ -1808,7 +1842,7 @@ onBeforeUnmount(() => {
 .payment-section {
   flex-shrink: 0;
   margin-top: 1.5rem;
-  
+
   .payment-buttons {
     display: flex;
     flex-direction: row;
@@ -2041,10 +2075,10 @@ onBeforeUnmount(() => {
 
 .member-selection-bottom {
   flex-shrink: 0;
-  
+
   .member-selector {
     width: 100%;
-    
+
     .full-width {
       width: 100%;
     }
@@ -2134,7 +2168,7 @@ onBeforeUnmount(() => {
 
   .payment-section {
     width: 100%;
-    
+
     .payment-buttons {
       display: flex;
       flex-direction: row;
