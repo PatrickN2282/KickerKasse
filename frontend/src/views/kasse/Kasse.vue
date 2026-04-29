@@ -2,39 +2,23 @@
   <div class="kasse-container">
     <div class="kasse-products">
       <div v-if="productStore.isLoading" class="loading">Läuft...</div>
-      <div v-else class="products-section" :class="{ 'rail-mode': hasExpandedCategory }">
+      <div v-else class="products-section">
 
-        <!-- Category navigation – full-width buttons when collapsed, narrow rail when expanded -->
-        <div class="categories-nav">
-          <button
-            v-for="category in activeCategories"
-            :key="category.id"
-            class="cat-btn"
-            :class="{ active: expandedCategories.includes(category.id) }"
-            @click="toggleCategory(category.id)"
-          >
-            <span class="cat-name">{{ category.name }}</span>
-            <span class="cat-count">{{ getProductsByCategory(category.id).length }}</span>
-          </button>
-          <button
-            v-if="productsWithoutCategory.length > 0"
-            class="cat-btn"
-            :class="{ active: expandedCategories.includes(0) }"
-            @click="toggleCategory(0)"
-          >
-            <span class="cat-name">Ohne Kategorie</span>
-            <span class="cat-count">{{ productsWithoutCategory.length }}</span>
-          </button>
-        </div>
-
-        <!-- Product display area (only visible in rail-mode or shows hint) -->
-        <div class="products-display">
-
-          <!-- Products for each expanded category -->
-          <template
-            v-for="category in activeCategories"
-            :key="category.id"
-          >
+        <!-- One row per category: narrow toggle button + product grid side by side -->
+        <template
+          v-for="(category, index) in activeCategories"
+          :key="category.id"
+        >
+          <hr v-if="index > 0" class="category-separator" />
+          <div class="category-row">
+            <button
+              class="cat-btn"
+              :class="{ active: expandedCategories.includes(category.id) }"
+              @click="toggleCategory(category.id)"
+            >
+              <span class="cat-name">{{ category.name }}</span>
+              <span class="cat-count">{{ getProductsByCategory(category.id).length }}</span>
+            </button>
             <div
               v-if="expandedCategories.includes(category.id)"
               class="category-products"
@@ -62,43 +46,56 @@
                 </button>
               </div>
             </div>
-          </template>
+          </div>
+        </template>
 
-          <!-- Products without category (if expanded) -->
-          <div
-            v-if="expandedCategories.includes(0) && productsWithoutCategory.length > 0"
-            class="category-products"
-          >
-            <div class="products-grid">
-              <button
-                v-for="product in productsWithoutCategory"
-                :key="product.id"
-                :disabled="isProductOutOfStock(product)"
-                class="product-btn"
-                @click="selectProduct(product)"
-              >
-                <div class="card-img">
-                  <span v-if="hasMemberPrice(product)" class="card-badge discount-badge">Rabatt</span>
-                  <img v-if="product.image_path && !imageErrorMap[product.id]" :src="`/api/products/${product.id}/image`" :alt="product.name" @error="onImageError(product.id)" />
-                  <div v-else class="card-img-ph">🛒</div>
-                </div>
-                <div class="card-body">
-                  <div class="card-name">{{ product.name }}</div>
-                  <div class="card-bottom">
-                    <span class="card-price">{{ formatPrice(product.price_cents) }}</span>
-                    <span class="card-stock">{{ product.is_unlimited_stock ? '∞' : getAvailableStock(product) }}</span>
+        <!-- Products without category -->
+        <template v-if="productsWithoutCategory.length > 0">
+          <hr v-if="activeCategories.length > 0" class="category-separator" />
+          <div class="category-row">
+            <button
+              class="cat-btn"
+              :class="{ active: expandedCategories.includes(0) }"
+              @click="toggleCategory(0)"
+            >
+              <span class="cat-name">Ohne Kategorie</span>
+              <span class="cat-count">{{ productsWithoutCategory.length }}</span>
+            </button>
+            <div
+              v-if="expandedCategories.includes(0)"
+              class="category-products"
+            >
+              <div class="products-grid">
+                <button
+                  v-for="product in productsWithoutCategory"
+                  :key="product.id"
+                  :disabled="isProductOutOfStock(product)"
+                  class="product-btn"
+                  @click="selectProduct(product)"
+                >
+                  <div class="card-img">
+                    <span v-if="hasMemberPrice(product)" class="card-badge discount-badge">Rabatt</span>
+                    <img v-if="product.image_path && !imageErrorMap[product.id]" :src="`/api/products/${product.id}/image`" :alt="product.name" @error="onImageError(product.id)" />
+                    <div v-else class="card-img-ph">🛒</div>
                   </div>
-                </div>
-              </button>
+                  <div class="card-body">
+                    <div class="card-name">{{ product.name }}</div>
+                    <div class="card-bottom">
+                      <span class="card-price">{{ formatPrice(product.price_cents) }}</span>
+                      <span class="card-stock">{{ product.is_unlimited_stock ? '∞' : getAvailableStock(product) }}</span>
+                    </div>
+                  </div>
+                </button>
+              </div>
             </div>
           </div>
+        </template>
 
-          <!-- Hint shown when no category is expanded (non-rail mode) -->
-          <div v-if="!hasExpandedCategory" class="empty-products">
-            Kategorie auswählen
-          </div>
-
+        <!-- Hint shown when no category is expanded -->
+        <div v-if="!hasExpandedCategory" class="empty-products">
+          Kategorie auswählen
         </div>
+
       </div>
     </div>
 
@@ -1546,43 +1543,41 @@ onBeforeUnmount(() => {
   display: flex;
   flex-direction: column;
   gap: .5rem;
-  height: 100%;
-
-  &.rail-mode {
-    flex-direction: row;
-    align-items: flex-start;
-    gap: .75rem;
-    height: 100%;
-  }
 }
 
-/* ── Category navigation ──────────────────────────────── */
-.categories-nav {
+/* ── Category separator ───────────────────────────────── */
+.category-separator {
+  border: none;
+  border-top: 1px solid color-mix(in srgb, var(--app-banner-color) 25%, transparent);
+  margin: .15rem 0;
+}
+
+/* ── Category row: narrow toggle + products side by side ─ */
+.category-row {
+  display: flex;
+  flex-direction: row;
+  align-items: flex-start;
+  gap: .75rem;
+}
+
+/* ── Category toggle button (always compact/narrow) ────── */
+.cat-btn {
+  flex-shrink: 0;
+  width: 52px;
   display: flex;
   flex-direction: column;
-  gap: 5px;
-  flex-shrink: 0;
-
-  .rail-mode & {
-    width: 52px;
-  }
-}
-
-.cat-btn {
-  width: 100%;
-  display: flex;
   align-items: center;
-  gap: .5rem;
-  padding: .6rem .9rem;
+  padding: .45rem .25rem;
   background: var(--app-banner-color);
   color: var(--app-banner-contrast);
   border: none;
-  border-radius: 10px;
+  border-radius: 12px;
   cursor: pointer;
   font-weight: 600;
-  font-size: .88rem;
-  text-align: left;
+  text-align: center;
   transition: all .18s;
+  gap: 3px;
+  align-self: stretch;
 
   &:hover {
     opacity: .88;
@@ -1593,49 +1588,28 @@ onBeforeUnmount(() => {
     color: var(--app-highlight-contrast);
   }
 
+  .cat-name {
+    writing-mode: vertical-lr;
+    text-orientation: mixed;
+    font-size: .72rem;
+    line-height: 1;
+    letter-spacing: 0.04em;
+    max-height: 110px;
+    overflow: hidden;
+  }
+
   .cat-count {
-    margin-left: auto;
-    font-size: .78rem;
+    font-size: .65rem;
     opacity: .72;
     font-weight: 500;
     flex-shrink: 0;
+    writing-mode: horizontal-tb;
   }
-
-  /* Compact vertical style in rail mode */
-  .rail-mode & {
-    flex-direction: column;
-    align-items: center;
-    padding: .45rem .25rem;
-    text-align: center;
-    border-radius: 12px;
-    gap: 3px;
-
-    .cat-name {
-      writing-mode: vertical-lr;
-      text-orientation: mixed;
-      font-size: .72rem;
-      line-height: 1;
-      letter-spacing: 0.04em;
-      max-height: 110px;
-      overflow: hidden;
-    }
-
-    .cat-count {
-      margin-left: 0;
-      font-size: .65rem;
-      writing-mode: horizontal-tb;
-    }
-  }
-}
-
-/* ── Products display area ────────────────────────────── */
-.products-display {
-  flex: 1;
-  min-width: 0;
-  overflow-y: auto;
 }
 
 .category-products {
+  flex: 1;
+  min-width: 0;
   margin-bottom: .75rem;
 }
 
