@@ -49,7 +49,7 @@
                 >
                   <div class="card-img">
                     <span v-if="hasMemberPrice(product)" class="card-badge discount-badge">Rabatt</span>
-                    <img v-if="product.image_path" :src="`/api/products/${product.id}/image`" :alt="product.name" />
+                    <img v-if="product.image_path && !imageErrorMap[product.id]" :src="`/api/products/${product.id}/image`" :alt="product.name" @error="onImageError(product.id)" />
                     <div v-else class="card-img-ph">🛒</div>
                   </div>
                   <div class="card-body">
@@ -79,7 +79,7 @@
               >
                 <div class="card-img">
                   <span v-if="hasMemberPrice(product)" class="card-badge discount-badge">Rabatt</span>
-                  <img v-if="product.image_path" :src="`/api/products/${product.id}/image`" :alt="product.name" />
+                  <img v-if="product.image_path && !imageErrorMap[product.id]" :src="`/api/products/${product.id}/image`" :alt="product.name" @error="onImageError(product.id)" />
                   <div v-else class="card-img-ph">🛒</div>
                 </div>
                 <div class="card-body">
@@ -685,6 +685,11 @@ const bonWidth = ref(420)
 const nextReceiptNumber = ref(null)
 const cashGiven = ref('')
 const cashGivenInput = ref(null)
+const imageErrorMap = ref({})
+
+const onImageError = (productId) => {
+  imageErrorMap.value[productId] = true
+}
 
 // Voucher redemption
 const showVoucherModal = ref(false)
@@ -1723,7 +1728,7 @@ onBeforeUnmount(() => {
     top: 5px;
     left: 5px;
     z-index: 1;
-    font-size: 9px;
+    font-size: 10px;
     font-weight: 800;
     padding: 2px 5px;
     border-radius: 4px;
