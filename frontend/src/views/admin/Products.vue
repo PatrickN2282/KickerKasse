@@ -139,7 +139,7 @@
                     @input="onZoomSliderInput"
                   >
                   <span class="zoom-icon">+</span>
-                  <span class="zoom-pct">{{ Math.round(cropScale / cropMinScale * 100) }}%</span>
+                  <span class="zoom-pct">{{ cropMinScale > 0 ? Math.round(cropScale / cropMinScale * 100) : 100 }}%</span>
                 </div>
                 <button type="button" class="btn-crop-reset" @click="resetCrop">↺ Zurücksetzen</button>
 
@@ -691,12 +691,12 @@ const getCroppedBlob = () => new Promise((resolve, reject) => {
   const ctx = canvas.getContext('2d')
   const img = new Image()
   img.onload = () => {
-    // Compute the source rect in original image pixels that corresponds to the crop frame.
-    // panX/panY is the position of the scaled image's top-left corner inside the crop frame.
-    const sx = -cropPanX.value / cropScale.value
-    const sy = -cropPanY.value / cropScale.value
-    const sw = CROP_W / cropScale.value
-    const sh = CROP_H / cropScale.value
+    // Source rect in original image pixels corresponding to the crop frame.
+    // panX/panY is the position of the scaled image's top-left inside the crop frame.
+    const sx = Math.max(0, -cropPanX.value / cropScale.value)
+    const sy = Math.max(0, -cropPanY.value / cropScale.value)
+    const sw = Math.min(CROP_W / cropScale.value, img.naturalWidth - sx)
+    const sh = Math.min(CROP_H / cropScale.value, img.naturalHeight - sy)
     ctx.drawImage(img, sx, sy, sw, sh, 0, 0, OUTPUT_W, OUTPUT_H)
     canvas.toBlob((blob) => {
       if (blob) resolve(blob)
