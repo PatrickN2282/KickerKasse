@@ -1293,6 +1293,8 @@ onUnmounted(() => {
 
 .crop-source-img {
   display: block;
+  max-width: none;
+  max-height: none;
 }
 
 .crop-zoom-row {
@@ -1362,6 +1364,8 @@ onUnmounted(() => {
 
 .preview-crop-img {
   display: block;
+  max-width: none;
+  max-height: none;
 }
 
 .preview-card-body {
