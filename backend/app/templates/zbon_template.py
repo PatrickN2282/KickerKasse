@@ -351,6 +351,10 @@ ZBON_HTML_TEMPLATE = """
                 <span class="meta-value">{{ created_by_name|default('-') }}</span>
             </div>
             <div class="meta-row">
+                <span class="meta-label">Abschöpfung:</span>
+                <span class="meta-value">{{ skimmed_by_name|default('-') }}</span>
+            </div>
+            <div class="meta-row">
                 <span class="meta-label">Sichtkontrolle:</span>
                 <span class="meta-value">{{ cash_counted_by_name|default('-') }}</span>
             </div>

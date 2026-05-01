@@ -165,7 +165,7 @@ class ZBonService:
             "balance_applied_cents": 0,
             "voucher_type": None,
             "member_name": None,
-            "performed_by": None,
+            "performed_by": entry.get("performed_by"),
             "reason": entry.get("reason"),
             "items": [],
         }
@@ -447,6 +447,19 @@ class ZBonService:
         ]
         transaction_rows.sort(key=self._get_transaction_row_sort_key)
 
+        if not skimmed_by_name:
+            performers = []
+            for entry in cash_summary["entries"]:
+                if entry.entry_type == CashEntryType.WITHDRAWAL and entry.user:
+                    performers.append(entry.user.username)
+            for entry in cash_summary.get("pending_withdrawals") or []:
+                performer = entry.get("performed_by")
+                if performer:
+                    performers.append(performer)
+            unique_performers = list(dict.fromkeys(performers))
+            if unique_performers:
+                skimmed_by_name = ", ".join(unique_performers)
+
         payload = {
             "sequence_number": (last_zbon.sequence_number + 1) if last_zbon else 1,
             "generated_at": period_end.isoformat(),
@@ -619,6 +632,7 @@ class ZBonService:
             receipt_max=summary.get("receipt_number_max") or "-",
             transaction_count_total=summary.get("transaction_count", 0),
             created_by_name=payload.get("created_by_name") or "-",
+            skimmed_by_name=payload.get("skimmed_by_name") or "-",
             cash_counted_by_name=payload.get("cash_counted_by_name") or "-",
             cash_sales_count=summary.get("cash_sales_count", 0),
             article_cash_sales_net=f"{summary.get('article_cash_sales_total', 0):.2f}",

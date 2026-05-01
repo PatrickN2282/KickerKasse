@@ -2285,6 +2285,7 @@ const submitWithdrawal = async () => {
       pendingWithdrawals.value.push({
         amount_cents: Math.round(amount * 100),
         reason,
+        performed_by: userName,
       })
       notificationStore.success('Abschöpfung für den Z-Bon vorgemerkt')
     } else {
