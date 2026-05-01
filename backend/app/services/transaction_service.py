@@ -37,6 +37,7 @@ class TransactionService:
         voucher_type: str = None,
         voucher_applied_cents: int = 0,
         balance_applied_cents: int = 0,
+        tip_cents: int = 0,
     ) -> Transaction:
         """Create a sale transaction"""
         payment_enum = PaymentMethod[payment_method]
@@ -52,6 +53,7 @@ class TransactionService:
             voucher_type=voucher_type,
             voucher_applied_cents=voucher_applied_cents,
             balance_applied_cents=balance_applied_cents,
+            tip_cents=tip_cents or 0,
         )
         
         return transaction

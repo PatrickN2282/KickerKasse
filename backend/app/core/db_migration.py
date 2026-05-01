@@ -580,6 +580,21 @@ class DatabaseMigrator:
                             conn.rollback()
                         except:
                             pass
+
+                if 'is_variable_price' not in products_columns:
+                    logger.info("Adding is_variable_price column to products table...")
+                    try:
+                        conn.execute(text(
+                            "ALTER TABLE products ADD COLUMN is_variable_price BOOLEAN DEFAULT FALSE NOT NULL"
+                        ))
+                        conn.commit()
+                        logger.info("✓ Added is_variable_price column to products")
+                    except Exception as e:
+                        logger.warning(f"Could not add is_variable_price column: {str(e)}")
+                        try:
+                            conn.rollback()
+                        except:
+                            pass
             
             # Display order column
             if 'categories' in inspector.get_table_names():
@@ -635,6 +650,10 @@ class DatabaseMigrator:
                     (
                         'voucher_applied_cents',
                         "ALTER TABLE transactions ADD COLUMN voucher_applied_cents INTEGER DEFAULT 0 NOT NULL"
+                    ),
+                    (
+                        'tip_cents',
+                        "ALTER TABLE transactions ADD COLUMN tip_cents INTEGER DEFAULT 0 NOT NULL"
                     ),
                 ]
 

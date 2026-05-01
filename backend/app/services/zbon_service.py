@@ -107,6 +107,7 @@ class ZBonService:
             ),
             "voucher_applied_cents": transaction.voucher_applied_cents or 0,
             "balance_applied_cents": transaction.balance_applied_cents or 0,
+            "tip_cents": getattr(transaction, 'tip_cents', 0) or 0,
             "voucher_type": transaction.voucher_type,
             "member_name": self._format_member_name(transaction.member),
             "performed_by": transaction.user.username if transaction.user else None,
@@ -403,10 +404,13 @@ class ZBonService:
         voucher_sales_total = sum(t.voucher_applied_cents or 0 for t in sales) / 100
         voucher_sales_count = len([t for t in sales if (t.voucher_applied_cents or 0) > 0])
         storno_total = sum(t.total_amount_cents for t in stornos) / 100
+        tip_total = sum(getattr(t, 'tip_cents', 0) or 0 for t in sales) / 100
+        tip_count = len([t for t in sales if (getattr(t, 'tip_cents', 0) or 0) > 0])
         opening_balance = self._get_opening_cash_balance(last_zbon)
         cash_calculated = (
             opening_balance
             + cash_sales_total
+            + tip_total
             - cash_summary["withdrawals_total"]
         )
 
@@ -474,6 +478,8 @@ class ZBonService:
                 "club_account_recharge_total": sum(t.total_amount_cents for t in club_account_recharges) / 100,
                 "prepaid_voucher_sales_total": prepaid_voucher_sales_total,
                 "storno_total": storno_total,
+                "tip_total": tip_total,
+                "tip_count": tip_count,
                 "opening_cash_balance": opening_balance,
                 "cash_withdrawals_total": cash_summary["withdrawals_total"],
                 "cash_deposits_total": cash_summary["deposits_total"],
@@ -647,6 +653,8 @@ class ZBonService:
             voucher_open_total=f"{summary.get('voucher_open_total', 0):.2f}",
             storno_count=summary.get("storno_count", 0),
             storno_total=f"{summary.get('storno_total', 0):.2f}",
+            tip_count=summary.get("tip_count", 0),
+            tip_total=f"{summary.get('tip_total', 0):.2f}",
             cash_opening_balance=f"{summary.get('opening_cash_balance', 0):.2f}",
             article_cash_revenue=f"{summary.get('article_cash_sales_total', 0):.2f}",
             cash_withdrawals_total=f"{summary.get('cash_withdrawals_total', 0):.2f}",

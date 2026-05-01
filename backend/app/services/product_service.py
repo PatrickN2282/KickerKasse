@@ -15,11 +15,13 @@ class ProductService:
         stock_quantity: int = 0,
         is_unlimited_stock: bool = False,
         warengruppe: str = None,
+        is_variable_price: bool = False,
     ):
         """Create a new product"""
         return self.repo.create(
             name, price_cents, description, member_price_cents,
-            is_discountable, stock_quantity, is_unlimited_stock, warengruppe
+            is_discountable, stock_quantity, is_unlimited_stock, warengruppe,
+            is_variable_price,
         )
     
     def get_product(self, product_id: int):

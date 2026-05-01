@@ -6,7 +6,7 @@ from app.core import get_db
 from app.core.auth import require_roles
 from app.schemas import ProductCreate, ProductUpdate, ProductResponse
 from app.services import ProductService
-from app.services.file_service import save_product_image, get_full_path
+from app.services.file_service import save_product_image, save_product_original_image, get_full_path, get_product_original_image_path
 from app.repositories import ProductRepository, UserRepository
 from app.models import UserRole
 
@@ -34,6 +34,7 @@ async def create_product(
             product_data.stock_quantity,
             product_data.is_unlimited_stock,
             product_data.warengruppe,
+            product_data.is_variable_price,
         )
         return product
     except IntegrityError as e:
@@ -227,6 +228,58 @@ async def get_product_image(
             detail="Image file not found",
         )
     
+    return FileResponse(file_path, media_type="image/jpeg")
+
+
+@router.post("/{product_id}/original-image")
+@router.post("/{product_id}/original-image/")
+async def upload_product_original_image(
+    product_id: int,
+    file: UploadFile = File(...),
+    request: Request = None,
+    db: Session = Depends(get_db),
+):
+    """Upload original (uncropped) product image for reset purposes"""
+    require_roles(request, db, UserRole.ADMIN, UserRole.MANAGER)
+
+    product_repo = ProductRepository(db)
+    product = product_repo.get_by_id(product_id)
+    if not product:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Product not found",
+        )
+
+    image_data = await file.read()
+    if not image_data:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Empty file",
+        )
+    if len(image_data) > 10 * 1024 * 1024:
+        raise HTTPException(
+            status_code=status.HTTP_413_REQUEST_ENTITY_TOO_LARGE,
+            detail="File too large (max 10MB)",
+        )
+
+    await file.seek(0)
+    await save_product_original_image(file, product_id)
+    return {"status": "success", "product_id": product_id}
+
+
+@router.get("/{product_id}/original-image")
+@router.get("/{product_id}/original-image/")
+async def get_product_original_image(
+    product_id: int,
+    db: Session = Depends(get_db),
+):
+    """Get original (uncropped) product image"""
+    file_path = get_product_original_image_path(product_id)
+    if not file_path or not file_path.exists():
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Original image not found",
+        )
     return FileResponse(file_path, media_type="image/jpeg")
 
 

@@ -51,7 +51,36 @@ async def save_product_image(file: UploadFile, product_id: int) -> str:
     return f"products/{product_id}/image{ext}"
 
 
-async def save_member_photo(file: UploadFile, member_id: int) -> str:
+async def save_product_original_image(file: UploadFile, product_id: int) -> str:
+    ensure_upload_directories()
+
+    product_folder = PRODUCTS_DIR / str(product_id)
+    product_folder.mkdir(parents=True, exist_ok=True)
+
+    ext = get_file_extension(file.filename or "image.jpg")
+    filename = f"original{ext}"
+    filepath = product_folder / filename
+
+    content = await file.read()
+    with open(filepath, "wb") as f:
+        f.write(content)
+
+    return f"products/{product_id}/original{ext}"
+
+
+def get_product_original_image_path(product_id: int) -> Path | None:
+    """Return path to original image if it exists (any extension)."""
+    product_folder = PRODUCTS_DIR / str(product_id)
+    if not product_folder.exists():
+        return None
+    for ext in (".jpg", ".jpeg", ".png", ".webp", ".gif"):
+        candidate = product_folder / f"original{ext}"
+        if candidate.exists():
+            return candidate
+    return None
+
+
+
     ensure_upload_directories()
 
     member_folder = MEMBERS_DIR / str(member_id)

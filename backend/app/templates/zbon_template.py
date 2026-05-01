@@ -659,6 +659,28 @@ ZBON_HTML_TEMPLATE = """
             </tbody>
         </table>
 
+        {% if tip_count is defined and tip_count > 0 %}
+        <div class="section-title">💝 Trinkgeld-Spenden</div>
+        <table>
+            <thead>
+                <tr>
+                    <th>Beschreibung</th>
+                    <th class="amount">Wert</th>
+                </tr>
+            </thead>
+            <tbody>
+                <tr>
+                    <td>Anzahl Trinkgeld-Spenden</td>
+                    <td class="amount">{{ tip_count }}</td>
+                </tr>
+                <tr>
+                    <td>Gesamt Trinkgeld-Spenden</td>
+                    <td class="amount">{{ tip_total }} €</td>
+                </tr>
+            </tbody>
+        </table>
+        {% endif %}
+
         {% if cash_count %}
         <div class="page-break"></div>
         

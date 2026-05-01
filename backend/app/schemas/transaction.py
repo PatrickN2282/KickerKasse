@@ -38,6 +38,7 @@ class TransactionCreate(TransactionBase):
     items: List[TransactionItemCreate]
     voucher_redemptions: List[VoucherRedemptionData] = Field(default_factory=list)
     balance_discount_cents: int = Field(default=0, ge=0)
+    tip_cents: int = Field(default=0, ge=0)
 
 
 class TransactionResponse(BaseModel):
@@ -52,6 +53,7 @@ class TransactionResponse(BaseModel):
     voucher_type: Optional[str] = None
     voucher_applied_cents: int = 0
     balance_applied_cents: int = 0
+    tip_cents: int = 0
     items: List[TransactionItemResponse]
     issued_prepaid_voucher_numbers: List[str] = Field(default_factory=list)
     next_unissued_prepaid_voucher_number: Optional[str] = None
