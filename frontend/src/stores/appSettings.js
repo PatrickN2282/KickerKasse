@@ -13,6 +13,7 @@ const fallbackSettings = {
   apple_touch_icon_url: '/api/app-settings/apple-touch-icon.png',
   manifest_url: '/api/app-settings/manifest.webmanifest',
   asset_version: '1',
+  kasse_layout: null,
 }
 
 const setLinkTag = (id, rel, href, type = null) => {

@@ -11,6 +11,7 @@ class AppSettings(BaseModel):
     banner_color = Column(String(7), nullable=False, default="#131820")
     highlight_color = Column(String(7), nullable=False, default="#5c8f3a")
     logo_path = Column(String(255), nullable=True)
+    kasse_layout = Column(String(50), nullable=True)
     created_at = Column(DateTime, default=func.now(), nullable=False)
     updated_at = Column(DateTime, default=func.now(), onupdate=func.now(), nullable=False)
 

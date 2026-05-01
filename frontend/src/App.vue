@@ -200,8 +200,28 @@ const handleBeforeUnload = () => {
   authStore.clearClientSession()
 }
 
-onMounted(() => {
+onMounted(async () => {
   appSettingsStore.applyToDocument()
+
+  // Sync kasse layout from server on startup
+  const LAYOUT_SYNC_KEY = 'kasseLayoutSynced'
+  if (!sessionStorage.getItem(LAYOUT_SYNC_KEY)) {
+    sessionStorage.setItem(LAYOUT_SYNC_KEY, '1')
+    try {
+      const serverSettings = await appSettingsStore.loadPublicSettings()
+      const serverLayout = serverSettings?.kasse_layout
+      if (serverLayout) {
+        const localLayout = localStorage.getItem('kasseLayout')
+        if (serverLayout !== localLayout) {
+          localStorage.setItem('kasseLayout', serverLayout)
+          window.location.reload()
+          return
+        }
+      }
+    } catch (e) {
+      console.error('[App] Failed to sync layout from server:', e)
+    }
+  }
 
   window.addEventListener(
     'beforeunload',

@@ -289,6 +289,21 @@ class DatabaseMigrator:
                         except:
                             pass
 
+                if 'kasse_layout' not in app_settings_columns:
+                    logger.info("Adding kasse_layout column to app_settings table...")
+                    try:
+                        conn.execute(text(
+                            "ALTER TABLE app_settings ADD COLUMN kasse_layout VARCHAR(50)"
+                        ))
+                        conn.commit()
+                        logger.info("✓ Added kasse_layout column to app_settings")
+                    except Exception as e:
+                        logger.warning(f"Could not add kasse_layout column: {str(e)}")
+                        try:
+                            conn.rollback()
+                        except:
+                            pass
+
             if 'members' in inspector.get_table_names():
                 member_columns = {col['name'] for col in inspector.get_columns('members')}
 

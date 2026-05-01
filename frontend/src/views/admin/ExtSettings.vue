@@ -124,9 +124,12 @@
 <script setup>
 import { ref, computed, onMounted } from 'vue'
 import { useNotificationStore } from '@/stores/notification'
+import { useAppSettingsStore } from '@/stores/appSettings'
+import apiService from '@/services/api'
 import { SESSION_RELOAD_FLAG_KEY } from '@/constants'
 
 const notificationStore = useNotificationStore()
+const appSettingsStore = useAppSettingsStore()
 
 const LAYOUT_STORAGE_KEY = 'kasseLayout'
 
@@ -168,7 +171,21 @@ const initialLayout = ref(localStorage.getItem(LAYOUT_STORAGE_KEY) || 'Kasse')
 
 const layoutChanged = computed(() => selectedLayout.value !== initialLayout.value)
 
-const applyLayout = () => {
+const applyLayout = async () => {
+  try {
+    const response = await apiService.get('/app-settings')
+    const current = response.data
+    await apiService.put('/app-settings', {
+      app_name: current.app_name,
+      background_color: current.background_color,
+      banner_color: current.banner_color,
+      highlight_color: current.highlight_color,
+      kasse_layout: selectedLayout.value,
+    })
+  } catch (err) {
+    notificationStore.error('Layout konnte nicht gespeichert werden')
+    return
+  }
   localStorage.setItem(LAYOUT_STORAGE_KEY, selectedLayout.value)
   sessionStorage.setItem(SESSION_RELOAD_FLAG_KEY, '1')
   window.location.reload()
@@ -190,6 +207,13 @@ onMounted(() => {
     } catch {
       // ignore parse errors
     }
+  }
+
+  // Sync layout from server settings
+  const serverLayout = appSettingsStore.settings.kasse_layout
+  if (serverLayout) {
+    selectedLayout.value = serverLayout
+    initialLayout.value = serverLayout
   }
 })
 </script>
