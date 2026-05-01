@@ -81,6 +81,7 @@ def get_product_original_image_path(product_id: int) -> Path | None:
 
 
 
+async def save_member_photo(file: UploadFile, member_id: int) -> str:
     ensure_upload_directories()
 
     member_folder = MEMBERS_DIR / str(member_id)
