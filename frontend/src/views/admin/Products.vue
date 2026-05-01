@@ -86,298 +86,31 @@
       </div>
     </div>
 
-    <div v-if="showProductModal" class="modal-overlay" @click.self="closeProductModal">
-      <div class="modal-card">
-        <header class="modal-header">
-          <div>
-            <h3>{{ editingId ? 'Produkt bearbeiten' : 'Neues Produkt anlegen' }}</h3>
-            <p class="modal-subtitle">Pflichtangaben, Preise und Bild im angepassten Admin-Layout verwalten.</p>
-          </div>
-          <button class="modal-close" @click="closeProductModal">×</button>
-        </header>
-
-        <form class="modal-body-layout" @submit.prevent="handleSaveProduct">
-          <aside class="modal-sidebar">
-            <div class="product-image-panel">
-              <!-- Image loaded: show card preview + action buttons -->
-              <template v-if="cropImageSrc">
-                <p class="image-editor-label">Vorschau: Kassenkarte</p>
-                <div class="kasse-card-preview product-btn-preview">
-                  <div class="card-img">
-                    <span v-if="hasMemberPrice({ member_price_cents: formData.memberPrice !== null ? 1 : null })" class="card-badge discount-badge">Rabatt</span>
-                    <img
-                      :src="cropImageSrc"
-                      class="preview-crop-img"
-                      :style="cropPreviewImgStyle"
-                      draggable="false"
-                      alt=""
-                    >
-                  </div>
-                  <div class="card-body">
-                    <div class="card-name">{{ formData.name || 'Produktname' }}</div>
-                    <div class="card-bottom">
-                      <span class="card-price">{{ previewPriceText }}</span>
-                      <span class="card-stock">{{ formData.isUnlimitedStock ? '∞' : formData.stock }}</span>
-                    </div>
-                  </div>
-                </div>
-
-                <div class="crop-sidebar-actions">
-                  <button type="button" class="btn-crop-open" @click="showCropModal = true">✂ Bildausschnitt anpassen</button>
-                  <label class="upload-button">
-                    Anderes Bild
-                    <input type="file" accept="image/*" hidden @change="handleImageUpload">
-                  </label>
-                </div>
-              </template>
-
-              <!-- Default view: no image selected yet -->
-              <template v-else>
-                <div class="avatar-display">
-                  <div class="photo-placeholder">
-                    <span>Bild hochladen</span>
-                  </div>
-                </div>
-                <label class="upload-button">
-                  Bild auswählen
-                  <input id="image" type="file" accept="image/*" hidden @change="handleImageUpload">
-                </label>
-              </template>
-            </div>
-
-            <div class="sidebar-info-box">
-              <label class="checkbox-card">
-                <input id="unlimited-stock" v-model="formData.isUnlimitedStock" type="checkbox" @change="handleUnlimitedStockChange">
-                <div class="checkbox-content">
-                  <span class="label">Unendlich verfügbar</span>
-                  <span class="desc">Artikel ohne Bestand, z. B. Eintrittspreise, bleiben immer buchbar.</span>
-                </div>
-              </label>
-
-              <label class="checkbox-card">
-                <input id="variable-price" v-model="formData.isVariablePrice" type="checkbox">
-                <div class="checkbox-content">
-                  <span class="label">Variabler Endpreis</span>
-                  <span class="desc">Beim Hinzufügen zum Warenkorb wird nach dem Preis gefragt.</span>
-                </div>
-              </label>
-
-              <div class="summary-card">
-                <span class="label">Lagerbestand</span>
-                <span class="value">{{ formData.isUnlimitedStock ? '∞' : formData.stock }}</span>
-              </div>
-            </div>
-          </aside>
-
-          <main class="modal-form-content">
-            <section class="form-section">
-              <h4>Allgemeine Informationen</h4>
-              <div class="form-row">
-                <div class="form-group">
-                  <label for="name">Name*</label>
-                  <input id="name" v-model="formData.name" type="text" required>
-                </div>
-                <div class="form-group">
-                  <label for="warengruppe">Warengruppe</label>
-                  <input
-                    id="warengruppe"
-                    v-model.trim="formData.warengruppe"
-                    type="text"
-                    list="warengruppe-options"
-                    placeholder="Neue oder bestehende Warengruppe"
-                  >
-                  <datalist id="warengruppe-options">
-                    <option
-                      v-for="group in warengruppeOptions"
-                      :key="group"
-                      :value="group"
-                    />
-                  </datalist>
-                </div>
-              </div>
-              <div class="form-row">
-                <div class="form-group">
-                  <label for="stock">Lagerbestand*</label>
-                  <input id="stock" v-model.number="formData.stock" type="number" min="0" :disabled="formData.isUnlimitedStock" required>
-                </div>
-              </div>
-            </section>
-
-            <section class="form-section">
-              <h4>Preisgestaltung</h4>
-              <div class="form-row">
-                <div class="form-group">
-                  <label for="price">Preis (€)*</label>
-                  <input id="price" v-model.number="formData.price" type="number" step="0.01" required>
-                </div>
-                <div class="form-group">
-                  <label for="member-price">Mitgliedspreis (€)</label>
-                  <input id="member-price" v-model.number="formData.memberPrice" type="number" step="0.01">
-                </div>
-              </div>
-            </section>
-          </main>
-
-          <footer class="modal-footer">
-            <button type="button" class="btn btn-secondary" @click="closeProductModal">Abbrechen</button>
-            <button type="submit" class="btn btn-success">
-              {{ editingId ? 'Änderungen speichern' : 'Produkt anlegen' }}
-            </button>
-          </footer>
-        </form>
-      </div>
-    </div>
-  </div>
-
-  <!-- Crop Sub-Modal -->
-  <div v-if="showCropModal" class="modal-overlay crop-modal-overlay" @click.self="showCropModal = false">
-    <div class="crop-modal-card">
-      <header class="modal-header">
-        <div>
-          <h3>Bildausschnitt anpassen</h3>
-          <p class="modal-subtitle">Verschieben und zoomen – Änderungen werden beim Speichern des Produkts übernommen.</p>
-        </div>
-        <button class="modal-close" @click="showCropModal = false">×</button>
-      </header>
-
-      <div class="crop-modal-body">
-        <div
-          ref="cropFrameEl"
-          class="crop-frame"
-          :style="{ cursor: cropIsDragging ? 'grabbing' : 'grab' }"
-          @mousedown.prevent="onCropDragStart"
-          @wheel.prevent="onCropWheel"
-          @touchstart.prevent="onCropTouchStart"
-          @touchmove.prevent="onCropTouchMove"
-          @touchend="onCropTouchEnd"
-        >
-          <img
-            :src="cropImageSrc"
-            class="crop-source-img"
-            :style="cropImgStyle"
-            draggable="false"
-            alt=""
-          >
-        </div>
-
-        <div class="crop-zoom-row">
-          <span class="zoom-icon">−</span>
-          <input
-            :value="cropScale"
-            type="range"
-            :min="cropMinScale"
-            :max="cropMinScale * 5"
-            :step="0.005"
-            class="zoom-slider"
-            @input="onZoomSliderInput"
-          >
-          <span class="zoom-icon">+</span>
-          <span class="zoom-pct">{{ cropMinScale > 0 ? Math.round(cropScale / cropMinScale * 100) : 100 }}%</span>
-        </div>
-        <div class="crop-action-row">
-          <button type="button" class="btn-crop-reset" @click="resetCrop">↺ Zurücksetzen</button>
-          <button
-            v-if="cropOriginalSrc"
-            type="button"
-            class="btn-crop-reset btn-crop-restore"
-            @click="restoreOriginalImage"
-          >🔄 Originalbild</button>
-        </div>
-      </div>
-
-      <footer class="crop-modal-footer">
-        <button type="button" class="btn btn-success" @click="showCropModal = false">Fertig</button>
-      </footer>
-    </div>
+    <ProductModal
+      :show="showProductModal"
+      :editing-id="editingId"
+      :editing-product="editingProduct"
+      :warengruppe-options="warengruppeOptions"
+      @close="closeProductModal"
+      @save="onProductSave"
+    />
   </div>
 </template>
 
 <script setup>
-import { ref, reactive, onMounted, onUnmounted, computed } from 'vue'
+import { ref, onMounted, computed } from 'vue'
 import { useProductStore } from '@/stores/product'
 import { useNotificationStore } from '@/stores/notification'
 import { formatPrice } from '@/services/utils'
+import ProductModal from './modal/ProductModal.vue'
 
 const productStore = useProductStore()
 const notificationStore = useNotificationStore()
 
 const showProductModal = ref(false)
-const showCropModal = ref(false)
 const editingId = ref(null)
-const imagePreview = ref(null)
-const imageFile = ref(null)
-const lastFiniteStock = ref(0)
+const editingProduct = ref(null)
 const productSearch = ref('')
-const formData = reactive({
-  name: '',
-  warengruppe: '',
-  price: 0,
-  memberPrice: null,
-  stock: 0,
-  isUnlimitedStock: false,
-  isVariablePrice: false,
-})
-
-// ── Image crop editor ─────────────────────────────────────────────────────────
-// Crop frame dimensions (pixels in the editor DOM); 3:2 aspect ratio
-const CROP_ASPECT = 3 / 2
-const CROP_W = 320
-const CROP_H = Math.round(CROP_W / CROP_ASPECT)   // 213 px
-// Output image size written to the server (same 3:2 aspect)
-const OUTPUT_W = 600
-const OUTPUT_H = Math.round(OUTPUT_W / CROP_ASPECT) // 400 px
-// JPEG encode quality (0–1); 0.92 balances file size and visual quality
-const JPEG_QUALITY = 0.92
-// Card preview image-area dimensions
-const PREVIEW_W = 180
-const PREVIEW_H = Math.round(PREVIEW_W / CROP_ASPECT)  // ≈ 120 px
-const PREVIEW_SCALE = PREVIEW_W / CROP_W
-
-const cropImageSrc = ref(null)     // always a data-URL (or null)
-const cropOriginalSrc = ref(null)  // original (pre-crop) data-URL for reset
-const cropIsNewUpload = ref(false) // true when the user uploaded a new file this session
-const cropNaturalW = ref(0)
-const cropNaturalH = ref(0)
-const cropScale = ref(1)
-const cropMinScale = ref(0.1)
-const cropPanX = ref(0)
-const cropPanY = ref(0)
-const cropIsDragging = ref(false)
-const cropDragLastX = ref(0)
-const cropDragLastY = ref(0)
-const cropLastPinchDist = ref(0)
-const cropModified = ref(false)
-const cropFrameEl = ref(null)   // template ref for the crop-frame div
-
-const cropImgStyle = computed(() => ({
-  position: 'absolute',
-  left: `${cropPanX.value}px`,
-  top: `${cropPanY.value}px`,
-  width: `${cropNaturalW.value * cropScale.value}px`,
-  height: `${cropNaturalH.value * cropScale.value}px`,
-  userSelect: 'none',
-  pointerEvents: 'none',
-}))
-
-const cropPreviewImgStyle = computed(() => {
-  if (!cropNaturalW.value) return {}
-  return {
-    position: 'absolute',
-    left: `${cropPanX.value * PREVIEW_SCALE}px`,
-    top: `${cropPanY.value * PREVIEW_SCALE}px`,
-    width: `${cropNaturalW.value * cropScale.value * PREVIEW_SCALE}px`,
-    height: `${cropNaturalH.value * cropScale.value * PREVIEW_SCALE}px`,
-    userSelect: 'none',
-    pointerEvents: 'none',
-  }
-})
-
-const previewPriceText = computed(() => {
-  const cents = formData.price ? Math.round(formData.price * 100) : 0
-  return `${(cents / 100).toFixed(2).replace('.', ',')} €`
-})
-
-const canRestoreOriginal = computed(() => !!(cropOriginalSrc.value && cropOriginalSrc.value !== cropImageSrc.value))
 
 const hasMemberPrice = (product) => product.member_price_cents !== null && product.member_price_cents !== undefined
 
@@ -411,83 +144,74 @@ const warengruppeOptions = computed(() => (
   )].sort((left, right) => left.localeCompare(right, 'de'))
 ))
 
-const toMemberPriceCents = () => (
-  formData.memberPrice === null || formData.memberPrice === ''
-    ? null
-    : Math.round(formData.memberPrice * 100)
-)
+const deleteProduct = async (productId) => {
+  if (confirm('Wirklich löschen?')) {
+    const result = await productStore.deleteProduct(productId)
 
-const handleUnlimitedStockChange = () => {
-  if (formData.isUnlimitedStock) {
-    lastFiniteStock.value = formData.stock
-    formData.stock = 0
-    return
-  }
-
-  if (formData.stock === 0 && lastFiniteStock.value > 0) {
-    formData.stock = lastFiniteStock.value
+    if (result) {
+      if (editingId.value === productId) {
+        closeProductModal()
+      }
+      notificationStore.success('Produkt gelöscht')
+    } else {
+      notificationStore.error(productStore.error || 'Fehler beim Löschen')
+    }
   }
 }
 
 const openCreateModal = () => {
-  resetForm()
+  editingId.value = null
+  editingProduct.value = null
   showProductModal.value = true
 }
 
 const closeProductModal = () => {
   showProductModal.value = false
-  resetForm()
+  editingId.value = null
+  editingProduct.value = null
 }
 
-const handleSaveProduct = async () => {
-  // Build the cropped file blob when the image was changed/added
-  if (cropImageSrc.value && cropModified.value) {
-    try {
-      const blob = await getCroppedBlob()
-      imageFile.value = new File([blob], 'product-image.jpg', { type: 'image/jpeg' })
-    } catch (err) {
-      console.error('Crop failed:', err)
-      notificationStore.error('Fehler beim Verarbeiten des Bildes')
-      return
-    }
-  }
+const editProduct = (product) => {
+  editingId.value = product.id
+  editingProduct.value = product
+  showProductModal.value = true
+}
 
+const onProductSave = async (payload) => {
   if (editingId.value) {
-    const imageUploadSuccess = await uploadImageToProduct(editingId.value)
-    if (!imageUploadSuccess && imageFile.value) {
-      return
-    }
+    const imageUploadSuccess = await uploadImagePayload(editingId.value, payload)
+    if (!imageUploadSuccess && payload.imageFile) return
 
     const result = await productStore.updateProduct(editingId.value, {
-      name: formData.name,
-      warengruppe: formData.warengruppe || null,
-      price_cents: Math.round(formData.price * 100),
-      member_price_cents: toMemberPriceCents(),
-      stock_quantity: formData.isUnlimitedStock ? 0 : formData.stock,
-      is_unlimited_stock: formData.isUnlimitedStock,
-      is_variable_price: formData.isVariablePrice,
+      name: payload.name,
+      warengruppe: payload.warengruppe || null,
+      price_cents: payload.price_cents,
+      member_price_cents: payload.member_price_cents,
+      stock_quantity: payload.stock_quantity,
+      is_unlimited_stock: payload.is_unlimited_stock,
+      is_variable_price: payload.is_variable_price,
     })
 
     if (result) {
       notificationStore.success('Produkt aktualisiert')
-      resetForm()
+      closeProductModal()
     } else {
       notificationStore.error(productStore.error)
     }
   } else {
     const result = await productStore.createProduct({
-      name: formData.name,
-      warengruppe: formData.warengruppe || null,
-      price_cents: Math.round(formData.price * 100),
-      member_price_cents: toMemberPriceCents(),
-      stock_quantity: formData.isUnlimitedStock ? 0 : formData.stock,
-      is_unlimited_stock: formData.isUnlimitedStock,
-      is_variable_price: formData.isVariablePrice,
+      name: payload.name,
+      warengruppe: payload.warengruppe || null,
+      price_cents: payload.price_cents,
+      member_price_cents: payload.member_price_cents,
+      stock_quantity: payload.stock_quantity,
+      is_unlimited_stock: payload.is_unlimited_stock,
+      is_variable_price: payload.is_variable_price,
     })
 
     if (result) {
-      if (imageFile.value) {
-        const imageUploadSuccess = await uploadImageToProduct(result.id)
+      if (payload.imageFile) {
+        const imageUploadSuccess = await uploadImagePayload(result.id, payload)
         if (!imageUploadSuccess) {
           notificationStore.warning('Produkt erstellt, aber Bild-Upload fehlgeschlagen')
         } else {
@@ -496,22 +220,20 @@ const handleSaveProduct = async () => {
       } else {
         notificationStore.success('Produkt erstellt')
       }
-      resetForm()
+      closeProductModal()
     } else {
       notificationStore.error(productStore.error)
     }
   }
 }
 
-const uploadImageToProduct = async (productId) => {
-  if (!imageFile.value) return true
+const uploadImagePayload = async (productId, payload) => {
+  if (!payload.imageFile) return true
 
-  // If this is a new upload, first save the original (uncropped) image for future resets
-  if (cropIsNewUpload.value && cropOriginalSrc.value) {
+  if (payload.cropIsNewUpload && payload.originalImageFile) {
     try {
-      const origBlob = await dataUrlToBlob(cropOriginalSrc.value)
       const origFormData = new FormData()
-      origFormData.append('file', new File([origBlob], 'original.jpg', { type: 'image/jpeg' }))
+      origFormData.append('file', payload.originalImageFile)
       await fetch(`/api/products/${productId}/original-image`, {
         method: 'POST',
         body: origFormData,
@@ -524,22 +246,15 @@ const uploadImageToProduct = async (productId) => {
 
   try {
     const formDataUpload = new FormData()
-    formDataUpload.append('file', imageFile.value)
-
+    formDataUpload.append('file', payload.imageFile)
     const response = await fetch(`/api/products/${productId}/image`, {
       method: 'POST',
       body: formDataUpload,
       credentials: 'include',
     })
-
-    if (response.ok) {
-      imageFile.value = null
-      cropIsNewUpload.value = false
-      return true
-    } else {
-      notificationStore.error('Bild-Upload fehlgeschlagen')
-      return false
-    }
+    if (response.ok) return true
+    notificationStore.error('Bild-Upload fehlgeschlagen')
+    return false
   } catch (error) {
     console.error('Image upload error:', error)
     notificationStore.error('Fehler beim Bild-Upload')
@@ -547,316 +262,8 @@ const uploadImageToProduct = async (productId) => {
   }
 }
 
-const dataUrlToBlob = (dataUrl) => new Promise((resolve, reject) => {
-  const parts = dataUrl.split(',')
-  const mimeMatch = parts[0].match(/:(.*?);/)
-  if (!mimeMatch) { reject(new Error('Invalid data URL')); return }
-  const mime = mimeMatch[1]
-  const bStr = atob(parts[1])
-  const n = bStr.length
-  const u8arr = new Uint8Array(n)
-  for (let i = 0; i < n; i++) u8arr[i] = bStr.charCodeAt(i)
-  resolve(new Blob([u8arr], { type: mime }))
-})
-
-const resetForm = () => {
-  formData.name = ''
-  formData.warengruppe = ''
-  formData.price = 0
-  formData.memberPrice = null
-  formData.stock = 0
-  formData.isUnlimitedStock = false
-  formData.isVariablePrice = false
-  lastFiniteStock.value = 0
-  imageFile.value = null
-  imagePreview.value = null
-  editingId.value = null
-  showProductModal.value = false
-  showCropModal.value = false
-  // Reset crop state
-  cropImageSrc.value = null
-  cropOriginalSrc.value = null
-  cropIsNewUpload.value = false
-  cropNaturalW.value = 0
-  cropNaturalH.value = 0
-  cropScale.value = 1
-  cropMinScale.value = 0.1
-  cropPanX.value = 0
-  cropPanY.value = 0
-  cropIsDragging.value = false
-  cropModified.value = false
-}
-
-const editProduct = async (product) => {
-  editingId.value = product.id
-  formData.name = product.name
-  formData.warengruppe = product.warengruppe || ''
-  formData.price = product.price_cents / 100
-  formData.memberPrice = hasMemberPrice(product) ? product.member_price_cents / 100 : null
-  formData.stock = product.stock_quantity
-  formData.isUnlimitedStock = !!product.is_unlimited_stock
-  formData.isVariablePrice = !!product.is_variable_price
-  lastFiniteStock.value = product.stock_quantity
-  imageFile.value = null
-  imagePreview.value = null
-  cropModified.value = false
-  cropIsNewUpload.value = false
-  showProductModal.value = true
-
-  if (product.image_path) {
-    try {
-      const resp = await fetch(`/api/products/${product.id}/image`, { credentials: 'include' })
-      if (!resp.ok) throw new Error(`Image load failed: ${resp.status}`)
-      const blob = await resp.blob()
-      const dataUrl = await new Promise((resolve) => {
-        const reader = new FileReader()
-        reader.onload = (e) => resolve(e.target.result)
-        reader.readAsDataURL(blob)
-      })
-      cropImageSrc.value = dataUrl
-      await loadCropImageDimensions(dataUrl)
-
-      // Try to load the original (pre-crop) image for reset functionality
-      try {
-        const origResp = await fetch(`/api/products/${product.id}/original-image`, { credentials: 'include' })
-        if (origResp.ok) {
-          const origBlob = await origResp.blob()
-          cropOriginalSrc.value = await new Promise((resolve) => {
-            const reader = new FileReader()
-            reader.onload = (e) => resolve(e.target.result)
-            reader.readAsDataURL(origBlob)
-          })
-        } else {
-          cropOriginalSrc.value = null
-        }
-      } catch {
-        cropOriginalSrc.value = null
-      }
-    } catch {
-      cropImageSrc.value = null
-      cropOriginalSrc.value = null
-      notificationStore.warning('Produktbild konnte nicht geladen werden')
-    }
-  } else {
-    cropImageSrc.value = null
-    cropOriginalSrc.value = null
-  }
-}
-
-const handleImageUpload = (event) => {
-  const file = event.target.files[0]
-  if (!file) return
-  const reader = new FileReader()
-  reader.onload = (e) => {
-    cropImageSrc.value = e.target.result
-    cropOriginalSrc.value = e.target.result  // new upload is the new original
-    cropIsNewUpload.value = true
-    loadCropImageDimensions(e.target.result)
-    cropModified.value = true
-  }
-  reader.readAsDataURL(file)
-  // Reset input so the same file can be re-selected
-  event.target.value = ''
-}
-
-// ── Crop helper functions ─────────────────────────────────────────────────────
-const loadCropImageDimensions = (dataUrl) => new Promise((resolve) => {
-  const img = new Image()
-  img.onload = () => {
-    cropNaturalW.value = img.naturalWidth
-    cropNaturalH.value = img.naturalHeight
-    const scaleToFitW = CROP_W / img.naturalWidth
-    const scaleToFitH = CROP_H / img.naturalHeight
-    cropMinScale.value = Math.max(scaleToFitW, scaleToFitH)
-    cropScale.value = cropMinScale.value
-    centerCrop()
-    resolve()
-  }
-  img.onerror = () => {
-    notificationStore.error('Bild konnte nicht geladen werden')
-    resolve()
-  }
-  img.src = dataUrl
-})
-const clampPan = () => {
-  const scaledW = cropNaturalW.value * cropScale.value
-  const scaledH = cropNaturalH.value * cropScale.value
-  cropPanX.value = Math.min(0, Math.max(CROP_W - scaledW, cropPanX.value))
-  cropPanY.value = Math.min(0, Math.max(CROP_H - scaledH, cropPanY.value))
-}
-
-const centerCrop = () => {
-  const scaledW = cropNaturalW.value * cropScale.value
-  const scaledH = cropNaturalH.value * cropScale.value
-  cropPanX.value = (CROP_W - scaledW) / 2
-  cropPanY.value = (CROP_H - scaledH) / 2
-}
-
-const resetCrop = () => {
-  cropScale.value = cropMinScale.value
-  centerCrop()
-  // Only mark as modified if a new file was uploaded (otherwise reverting to min-zoom is just visual)
-  if (cropIsNewUpload.value) {
-    cropModified.value = true
-  }
-}
-
-const restoreOriginalImage = async () => {
-  if (!cropOriginalSrc.value) return
-  cropImageSrc.value = cropOriginalSrc.value
-  await loadCropImageDimensions(cropOriginalSrc.value)
-  cropModified.value = true
-}
-
-const onCropDragStart = (event) => {
-  cropIsDragging.value = true
-  cropDragLastX.value = event.clientX
-  cropDragLastY.value = event.clientY
-  document.addEventListener('mousemove', onDocCropMouseMove)
-  document.addEventListener('mouseup', onDocCropMouseUp)
-}
-
-const onDocCropMouseMove = (event) => {
-  if (!cropIsDragging.value) return
-  const dx = event.clientX - cropDragLastX.value
-  const dy = event.clientY - cropDragLastY.value
-  cropPanX.value += dx
-  cropPanY.value += dy
-  cropDragLastX.value = event.clientX
-  cropDragLastY.value = event.clientY
-  clampPan()
-  cropModified.value = true
-}
-
-const onDocCropMouseUp = () => {
-  cropIsDragging.value = false
-  document.removeEventListener('mousemove', onDocCropMouseMove)
-  document.removeEventListener('mouseup', onDocCropMouseUp)
-}
-
-const onCropWheel = (event) => {
-  const direction = event.deltaY > 0 ? -1 : 1
-  const delta = direction * 0.08 * cropScale.value
-  const newScale = Math.max(cropMinScale.value, Math.min(cropMinScale.value * 5, cropScale.value + delta))
-  const zoomCenterX = CROP_W / 2
-  const zoomCenterY = CROP_H / 2
-  const factor = newScale / cropScale.value
-  cropPanX.value = zoomCenterX - (zoomCenterX - cropPanX.value) * factor
-  cropPanY.value = zoomCenterY - (zoomCenterY - cropPanY.value) * factor
-  cropScale.value = newScale
-  clampPan()
-  cropModified.value = true
-}
-
-const onZoomSliderInput = (event) => {
-  const newScale = parseFloat(event.target.value)
-  const oldScale = cropScale.value
-  if (oldScale > 0) {
-    const factor = newScale / oldScale
-    const zoomCenterX = CROP_W / 2
-    const zoomCenterY = CROP_H / 2
-    cropPanX.value = zoomCenterX - (zoomCenterX - cropPanX.value) * factor
-    cropPanY.value = zoomCenterY - (zoomCenterY - cropPanY.value) * factor
-  }
-  cropScale.value = newScale
-  clampPan()
-  cropModified.value = true
-}
-
-const onCropTouchStart = (event) => {
-  if (event.touches.length === 1) {
-    cropIsDragging.value = true
-    cropDragLastX.value = event.touches[0].clientX
-    cropDragLastY.value = event.touches[0].clientY
-    cropLastPinchDist.value = 0
-  } else if (event.touches.length === 2) {
-    cropIsDragging.value = false
-    const dx = event.touches[0].clientX - event.touches[1].clientX
-    const dy = event.touches[0].clientY - event.touches[1].clientY
-    cropLastPinchDist.value = Math.hypot(dx, dy)
-  }
-}
-
-const onCropTouchMove = (event) => {
-  if (event.touches.length === 1 && cropIsDragging.value) {
-    const dx = event.touches[0].clientX - cropDragLastX.value
-    const dy = event.touches[0].clientY - cropDragLastY.value
-    cropPanX.value += dx
-    cropPanY.value += dy
-    cropDragLastX.value = event.touches[0].clientX
-    cropDragLastY.value = event.touches[0].clientY
-    clampPan()
-    cropModified.value = true
-  } else if (event.touches.length === 2 && cropLastPinchDist.value > 0) {
-    const dx = event.touches[0].clientX - event.touches[1].clientX
-    const dy = event.touches[0].clientY - event.touches[1].clientY
-    const dist = Math.hypot(dx, dy)
-    const factor = dist / cropLastPinchDist.value
-    const newScale = Math.max(cropMinScale.value, Math.min(cropMinScale.value * 5, cropScale.value * factor))
-    // Convert screen midpoint to frame-relative coordinates
-    const frameRect = cropFrameEl.value ? cropFrameEl.value.getBoundingClientRect() : { left: 0, top: 0 }
-    const midX = (event.touches[0].clientX + event.touches[1].clientX) / 2 - frameRect.left
-    const midY = (event.touches[0].clientY + event.touches[1].clientY) / 2 - frameRect.top
-    const f = newScale / cropScale.value
-    cropPanX.value = midX - (midX - cropPanX.value) * f
-    cropPanY.value = midY - (midY - cropPanY.value) * f
-    cropScale.value = newScale
-    clampPan()
-    cropLastPinchDist.value = dist
-    cropModified.value = true
-  }
-}
-
-const onCropTouchEnd = () => {
-  cropIsDragging.value = false
-  cropLastPinchDist.value = 0
-}
-
-const getCroppedBlob = () => new Promise((resolve, reject) => {
-  const canvas = document.createElement('canvas')
-  canvas.width = OUTPUT_W
-  canvas.height = OUTPUT_H
-  const ctx = canvas.getContext('2d')
-  const img = new Image()
-  img.onload = () => {
-    // Source rect in original image pixels corresponding to the crop frame.
-    // panX/panY is the position of the scaled image's top-left inside the crop frame.
-    const sx = Math.max(0, -cropPanX.value / cropScale.value)
-    const sy = Math.max(0, -cropPanY.value / cropScale.value)
-    const sw = Math.min(CROP_W / cropScale.value, img.naturalWidth - sx)
-    const sh = Math.min(CROP_H / cropScale.value, img.naturalHeight - sy)
-    ctx.drawImage(img, sx, sy, sw, sh, 0, 0, OUTPUT_W, OUTPUT_H)
-    canvas.toBlob((blob) => {
-      if (blob) resolve(blob)
-      else reject(new Error('Canvas toBlob failed'))
-    }, 'image/jpeg', JPEG_QUALITY)
-  }
-  img.onerror = reject
-  img.src = cropImageSrc.value
-})
-
-const deleteProduct = async (productId) => {
-  if (confirm('Wirklich löschen?')) {
-    const result = await productStore.deleteProduct(productId)
-
-    if (result) {
-      if (editingId.value === productId) {
-        resetForm()
-      }
-      notificationStore.success('Produkt gelöscht')
-    } else {
-      notificationStore.error(productStore.error || 'Fehler beim Löschen')
-    }
-  }
-}
-
 onMounted(async () => {
   await productStore.getProducts()
-})
-
-onUnmounted(() => {
-  document.removeEventListener('mousemove', onDocCropMouseMove)
-  document.removeEventListener('mouseup', onDocCropMouseUp)
 })
 </script>
 

@@ -89,116 +89,20 @@
       </div>
     </div>
 
-    <div v-if="showMemberModal" class="modal-overlay" @click.self="closeMemberModal">
-      <div class="modal-card">
-        <header class="modal-header">
-          <div>
-            <h3>{{ editingId ? 'Mitglied bearbeiten' : 'Neues Mitglied anlegen' }}</h3>
-            <p class="modal-subtitle">Stammdaten und Berechtigungen im Admin-Layout verwalten.</p>
-          </div>
-          <button class="modal-close" @click="closeMemberModal">×</button>
-        </header>
-
-        <form class="modal-body-layout" @submit.prevent="handleSaveMember">
-          <aside class="modal-sidebar">
-            <div class="photo-uploader">
-              <div class="avatar-display" @click="$refs.fileInput.click()">
-                <img v-if="photoPreview" :src="photoPreview" class="profile-img">
-                <div v-else class="photo-placeholder">
-                  <span>Bild hochladen</span>
-                </div>
-                <div class="hover-overlay">Ändern</div>
-              </div>
-              <input type="file" ref="fileInput" hidden @change="handlePhotoUpload" accept="image/*">
-            </div>
-
-            <div class="sidebar-info-box">
-              <label class="checkbox-card">
-                <input v-model="formData.has_discount" type="checkbox">
-                <div class="checkbox-content">
-                  <span class="label">Rabattberechtigt</span>
-                  <span class="desc">Darf Mitgliederpreise an der Kasse nutzen.</span>
-                </div>
-              </label>
-
-              <div v-if="editingId" class="summary-card balance-card">
-                <span class="label">Aktuelles Guthaben</span>
-                <span class="value">{{ formatBalance(currentMemberBalance || 0) }}</span>
-                <div class="recharge-trigger">
-                  <input v-model.number="rechargeAmount" type="number" step="0.01" placeholder="0,00€">
-                  <button type="button" class="btn-recharge" @click="openRechargeModal" :disabled="!rechargeAmount">Laden</button>
-                </div>
-              </div>
-            </div>
-          </aside>
-
-          <main class="modal-form-content">
-            <section class="form-section">
-              <h4>Stammdaten</h4>
-              <div class="form-row">
-                <div class="form-group">
-                  <label>Vorname*</label>
-                  <input v-model="formData.first_name" type="text" required>
-                </div>
-                <div class="form-group">
-                  <label>Nachname*</label>
-                  <input v-model="formData.last_name" type="text" required>
-                </div>
-              </div>
-              <div class="form-group">
-                <label>Mitgliedsnummer (Extern)</label>
-                <input v-model="formData.membership_number" type="text" placeholder="Optional">
-              </div>
-            </section>
-
-            <section v-if="authStore.isTopAdmin" class="form-section highlight-box">
-              <h4>System-Zugang & Berechtigungen</h4>
-              <div class="form-row">
-                <div class="form-group">
-                  <label>E-Mail Adresse</label>
-                  <input v-model="formData.email" type="email" placeholder="mail@beispiel.de">
-                </div>
-                <div class="form-group">
-                  <label>Rolle im System</label>
-                  <select v-model="formData.role">
-                    <option value="">Keine Berechtigung (Nur Mitglied)</option>
-                    <option value="VERKAUF">Verkaufspersonal</option>
-                    <option value="MANAGER">Manager</option>
-                    <option value="ADMIN">Administrator</option>
-                  </select>
-                </div>
-              </div>
-              
-              <div v-if="formData.role" class="password-box">
-                <div class="form-group">
-                  <label>{{ hasExistingUserAccount ? 'Passwort überschreiben' : 'Initial-Passwort festlegen*' }}</label>
-                  <input v-model="formData.account_password" type="password" 
-                         :required="!hasExistingUserAccount" minlength="8">
-                </div>
-                <p class="help-text">
-                  {{ hasExistingUserAccount ? 'Nur ausfüllen, wenn das Passwort neu gesetzt werden soll.' : 'Erforderlich für den ersten System-Login.' }}
-                </p>
-              </div>
-            </section>
-
-            <section class="form-section">
-              <h4>Zusatzangaben</h4>
-              <div class="form-group">
-                <label>Interne Notizen</label>
-                <textarea v-model="formData.notes" rows="3" placeholder="Interne Bemerkungen..."></textarea>
-              </div>
-            </section>
-          </main>
-
-          <footer class="modal-footer">
-            <button type="button" class="btn btn-secondary" @click="closeMemberModal">Abbrechen</button>
-            <button type="submit" class="btn btn-success">
-              {{ editingId ? 'Änderungen speichern' : 'Mitglied anlegen' }}
-            </button>
-          </footer>
-        </form>
-      </div>
-    </div>
+    <MemberModal
+      :show="showMemberModal"
+      :editing-id="editingId"
+      :initial-form-data="{ ...formData }"
+      :photo-preview="photoPreview"
+      :current-member-balance="currentMemberBalance"
+      :has-existing-user-account="hasExistingUserAccount"
+      v-model:rechargeAmount="rechargeAmount"
+      :is-top-admin="authStore.isTopAdmin"
+      @close="closeMemberModal"
+      @save="onMemberModalSave"
+      @photo-upload="handlePhotoUpload"
+      @open-recharge="openRechargeModal"
+    />
 
     <PasswordConfirmModal
       :show="showRechargeModal"
@@ -220,6 +124,7 @@ import { useNotificationStore } from '@/stores/notification'
 import { formatBalance } from '@/services/utils'
 import { getMemberFullName, getMemberSearchText, getRoleLabel } from '@/services/member'
 import PasswordConfirmModal from '@/components/PasswordConfirmModal.vue'
+import MemberModal from './modal/MemberModal.vue'
 import apiService from '@/services/api'
 
 const authStore = useAuthStore()
@@ -302,8 +207,8 @@ const uploadPhotoToMember = async (memberId) => {
   } catch (e) { return false }
 }
 
-const handleSaveMember = async () => {
-  const payload = { ...formData }
+const onMemberModalSave = async (data) => {
+  const payload = { ...data }
   if (!authStore.isTopAdmin) {
     ['email', 'phone', 'role', 'account_password'].forEach(key => delete payload[key])
   } else if (!payload.role) {

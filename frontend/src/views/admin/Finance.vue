@@ -1145,46 +1145,66 @@
       @confirm="onCashCounterConfirm"
     />
 
-    <div
-      v-if="showZbonCreateModal"
-      class="confirmation-overlay"
-    >
-      <div class="confirmation-dialog zbon-create-dialog">
-        <h3>Z-Bon erstellen</h3>
-        <div class="zbon-create-layout">
-          <div class="zbon-create-main">
-            <div class="zbon-note-box">
-              Kassenprüfer wählen → Kassenbestand zählen → ggf. Abschöpfung vornehmen → mit neuem Kassenbestand abgleichen → Z-Bon erstellen
-            </div>
-            <div class="selection-grid">
-              <div class="selection-group">
-                <label>Erstellt von</label>
-                <button
-                  class="member-select-btn"
-                  @click="openUserPicker('createdByUserId')"
-                >
-                  {{ getSelectedUserName(zbonForm.createdByUserId, 'Benutzer auswählen') }}
-                </button>
-              </div>
-              <div class="selection-group">
-                <label>Kassenprüfer</label>
-                <div class="selection-actions">
-                  <button
-                    class="member-select-btn"
-                    @click="openMemberPicker('verifiedByUserId')"
-                  >
-                    {{ getSelectedVerifierName(zbonForm.verifiedByUserId, 'Mitglied auswählen') }}
-                  </button>
-                  <button
-                    v-if="zbonForm.verifiedByUserId"
-                    class="clear-selection-btn"
-                    @click="zbonForm.verifiedByUserId = null"
-                  >
-                    Entfernen
-                  </button>
-                </div>
-              </div>
-            </div>
+    <ZbonCreateModal
+      :show="showZbonCreateModal"
+      :zbon-form="zbonForm"
+      v-model:zbonCountedCash="zbonCountedCash"
+      :daily-stats="dailyStats"
+      :current-receipt-label="currentReceiptLabel"
+      :zbon-modal-cash-calculated-display="zbonModalCashCalculatedDisplay"
+      :zbon-modal-withdrawal-total-cents="zbonModalWithdrawalTotalCents"
+      :new-withdrawals-cents="newWithdrawalsCents"
+      :zbon-new-cash-balance-display="zbonNewCashBalanceDisplay"
+      :zbon-difference-display="zbonDifferenceDisplay"
+      :zbon-final-cash-invalid="zbonFinalCashInvalid"
+      :can-create-zbon="canCreateZbon"
+      :format-price="formatPrice"
+      :format-euro-value="formatEuroValue"
+      :get-selected-user-name="getSelectedUserName"
+      :get-selected-verifier-name="getSelectedVerifierName"
+      @open-user-picker="openUserPicker"
+      @open-member-picker="openMemberPicker"
+      @clear-verifier="zbonForm.verifiedByUserId = null"
+      @open-cash-counter-modal="openCashCounterModal"
+      @open-withdrawal-modal="openWithdrawalModal"
+      @request-z-bon-create="requestZBonCreate"
+      @close="showZbonCreateModal = false"
+    />
+
+    <WithdrawalModal
+      :show="showWithdrawalModal"
+      :withdrawal-form="withdrawalForm"
+      :selected-withdrawal-user-id="selectedWithdrawalUserId"
+      :get-selected-user-name="getSelectedUserName"
+      @close="closeWithdrawalModal"
+      @submit="submitWithdrawal"
+      @open-user-picker="openUserPicker"
+    />
+
+    <MemberPickerModal
+      :show="showMemberPickerModal"
+      :picker-title="pickerTitle"
+      :picker-search-placeholder="pickerSearchPlaceholder"
+      :filtered-picker-options="filteredPickerOptions"
+      v-model:memberSearch="memberSearch"
+      :format-picker-label="formatPickerLabel"
+      @close="closeMemberPicker"
+      @select="selectPickerOption"
+    />
+
+    <ZbonPreviewModal
+      :show="showZbonPreviewModal && !!zBonHtml"
+      :z-bon-html="zBonHtml"
+      :title="zbonHtmlModalTitle"
+      @close="showZbonPreviewModal = false"
+      @download="downloadCurrentZbonHtml"
+    />
+
+    <PasswordConfirmModal
+      :show="showPasswordModal"
+      title="Z-Bon erstellen"
+      message="Bitte Zugangsdaten des aktuell angemeldeten Benutzers bestätigen."
+      :username="authStore.user?.username || ''"
             <div class="summary-grid compact-summary-grid">
               <div class="summary-card modal-summary-card">
                 <div class="card-label">

@@ -44,103 +44,19 @@
       </table>
     </div>
 
-    <div v-if="showUserModal" class="modal-overlay" @click.self="closeUserModal">
-      <div class="modal-card modal-card-form">
-        <header class="modal-header">
-          <div>
-            <h3>{{ editingUserId ? 'Benutzer bearbeiten' : 'Neuen Benutzer anlegen' }}</h3>
-            <p class="modal-subtitle">Direkte Benutzerkonten nutzen eigene Zugangsdaten und sind nicht an ein Mitglied gebunden.</p>
-          </div>
-          <button class="modal-close" @click="closeUserModal">×</button>
-        </header>
+    <UserModal
+      :show="showUserModal"
+      :editing-user-id="editingUserId"
+      :initial-form-data="formData"
+      @close="closeUserModal"
+      @save="handleSaveUser"
+    />
 
-        <form class="modal-form-content" @submit.prevent="handleSaveUser">
-          <section class="form-section">
-            <h4>Kontodaten</h4>
-            <div class="form-row">
-              <div class="form-group">
-                <label for="username">Benutzername*</label>
-                <input id="username" v-model="formData.username" type="text" required>
-              </div>
-
-              <div class="form-group">
-                <label for="email">E-Mail</label>
-                <input id="email" v-model="formData.email" type="email">
-              </div>
-            </div>
-
-            <div class="form-row">
-              <div class="form-group">
-                <label for="role">Rolle*</label>
-                <select id="role" v-model="formData.role" required>
-                  <option value="VERKAUF">Verkauf</option>
-                  <option value="MANAGER">Manager</option>
-                  <option value="ADMIN">Admin</option>
-                </select>
-              </div>
-
-              <div class="form-group">
-                <label for="password">{{ editingUserId ? 'Neues Passwort' : 'Passwort*' }}</label>
-                <input
-                  id="password"
-                  v-model="formData.password"
-                  type="password"
-                  minlength="8"
-                  :required="!editingUserId"
-                  placeholder="Mindestens 8 Zeichen"
-                >
-                <small class="help-text">
-                  {{ editingUserId
-                    ? 'Leer lassen, wenn das bestehende Passwort unverändert bleiben soll.'
-                    : 'Passwort wird für den ersten Login benötigt.' }}
-                </small>
-              </div>
-            </div>
-          </section>
-
-          <footer class="modal-footer">
-            <button type="button" class="btn btn-secondary" @click="closeUserModal">Abbrechen</button>
-            <button type="submit" class="btn btn-success">
-              {{ editingUserId ? 'Änderungen speichern' : 'Benutzer anlegen' }}
-            </button>
-          </footer>
-        </form>
-      </div>
-    </div>
-
-    <div v-if="resettingPasswordFor" class="modal-overlay" @click.self="closePasswordReset">
-      <div class="modal-card modal-card-form modal-card-compact">
-        <header class="modal-header">
-          <div>
-            <h3>Passwort neu vergeben</h3>
-            <p class="modal-subtitle">Neues Passwort für <strong>{{ resettingPasswordFor.username }}</strong> festlegen.</p>
-          </div>
-          <button class="modal-close" @click="closePasswordReset">×</button>
-        </header>
-
-        <div class="modal-form-content">
-          <section class="form-section compact-section">
-            <div class="form-group">
-              <label for="reset-password">Neues Passwort</label>
-              <input
-                id="reset-password"
-                v-model="passwordResetData.password"
-                type="password"
-                minlength="8"
-                placeholder="Mindestens 8 Zeichen"
-              >
-            </div>
-          </section>
-
-          <footer class="modal-footer">
-            <button class="btn btn-secondary" @click="closePasswordReset">Abbrechen</button>
-            <button class="btn btn-success" :disabled="passwordResetData.password.length < 8" @click="submitPasswordReset">
-              Speichern
-            </button>
-          </footer>
-        </div>
-      </div>
-    </div>
+    <UserPasswordResetModal
+      :resetting-password-for="resettingPasswordFor"
+      @close="closePasswordReset"
+      @save="submitPasswordReset"
+    />
   </div>
 </template>
 
@@ -149,6 +65,8 @@ import { ref, reactive, onMounted, computed } from 'vue'
 import { useNotificationStore } from '@/stores/notification'
 import { getMemberFullName, getRoleLabel } from '@/services/member'
 import apiService from '@/services/api'
+import UserModal from './modal/UserModal.vue'
+import UserPasswordResetModal from './modal/UserPasswordResetModal.vue'
 
 const notificationStore = useNotificationStore()
 
@@ -162,9 +80,6 @@ const formData = reactive({
   email: '',
   password: '',
   role: 'VERKAUF',
-})
-const passwordResetData = reactive({
-  password: '',
 })
 
 const roleLabel = getRoleLabel
@@ -212,15 +127,15 @@ const closeUserModal = () => {
   resetForm()
 }
 
-const handleSaveUser = async () => {
+const handleSaveUser = async (data) => {
   const payload = {
-    username: formData.username.trim(),
-    email: formData.email?.trim() || null,
-    role: formData.role,
+    username: data.username.trim(),
+    email: data.email?.trim() || null,
+    role: data.role,
   }
 
-  if (formData.password) {
-    payload.password = formData.password
+  if (data.password) {
+    payload.password = data.password
   }
 
   try {
@@ -287,23 +202,21 @@ const openPasswordReset = (user) => {
     return
   }
   resettingPasswordFor.value = user
-  passwordResetData.password = ''
 }
 
 const closePasswordReset = () => {
   resettingPasswordFor.value = null
-  passwordResetData.password = ''
 }
 
-const submitPasswordReset = async () => {
+const submitPasswordReset = async (password) => {
   try {
     if (resettingPasswordFor.value.memberId) {
       await apiService.put(`/members/${resettingPasswordFor.value.memberId}`, {
-        account_password: passwordResetData.password,
+        account_password: password,
       })
     } else {
       await apiService.put(`/users/${resettingPasswordFor.value.id}`, {
-        password: passwordResetData.password,
+        password,
       })
     }
     notificationStore.success('Passwort neu vergeben')

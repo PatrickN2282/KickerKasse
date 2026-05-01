@@ -108,115 +108,21 @@
       </div>
     </div>
 
-    <div v-if="showCategoryModal" class="modal-overlay" @click.self="closeCategoryModal">
-      <div class="modal-card modal-card-form">
-        <header class="modal-header">
-          <div>
-            <h3>{{ editingId ? 'Kategorie bearbeiten' : 'Neue Kategorie anlegen' }}</h3>
-            <p class="modal-subtitle">Kategorie mit Namen, Beschreibung und Anzeigeeinstellungen kompakt verwalten.</p>
-          </div>
-          <button class="modal-close" @click="closeCategoryModal">×</button>
-        </header>
-
-        <form class="modal-form-content" @submit.prevent="submitForm">
-          <section class="form-section">
-            <h4>Stammdaten</h4>
-            <div class="form-row">
-              <div class="form-group">
-                <label for="name">Name</label>
-                <input id="name" v-model="formData.name" type="text" required>
-              </div>
-              <div class="form-group">
-                <label for="display_order">Anzeigereihenfolge</label>
-                <input id="display_order" v-model.number="formData.display_order" type="number">
-              </div>
-            </div>
-            <div class="form-group">
-              <label for="description">Beschreibung</label>
-              <textarea id="description" v-model="formData.description" rows="3"></textarea>
-            </div>
-          </section>
-
-          <section class="form-section">
-            <h4>Farbe</h4>
-            <div class="color-picker-section">
-              <p class="color-picker-hint">Wähle eine Farbe für diese Kategorie – sie erscheint am Chip und am Produktrahmen in der Kasse.</p>
-
-              <div class="color-options">
-                <!-- No color option -->
-                <button
-                  type="button"
-                  class="color-option color-option-none"
-                  :class="{ selected: !formData.color }"
-                  title="Keine Farbe"
-                  @click="formData.color = null"
-                >
-                  <span class="no-color-icon">✕</span>
-                </button>
-
-                <!-- Pastel color swatches -->
-                <button
-                  v-for="pastel in pastelColors"
-                  :key="pastel.value"
-                  type="button"
-                  class="color-option"
-                  :class="{ selected: formData.color === pastel.value }"
-                  :style="{ background: pastel.value }"
-                  :title="pastel.label"
-                  @click="formData.color = pastel.value"
-                ></button>
-
-                <!-- Custom color picker -->
-                <label class="color-option color-option-custom" :class="{ selected: isCustomColor }" title="Eigene Farbe wählen">
-                  <span v-if="isCustomColor" class="custom-color-preview" :style="{ background: formData.color }"></span>
-                  <span v-else class="custom-color-icon">🎨</span>
-                  <input
-                    type="color"
-                    :value="formData.color || '#ffffff'"
-                    @input="setCustomColor($event.target.value)"
-                  >
-                </label>
-              </div>
-
-              <div v-if="formData.color" class="color-preview-row">
-                <span class="color-preview-chip" :style="{ borderColor: formData.color, background: formData.color + '33' }">
-                  Vorschau Chip
-                </span>
-                <span class="color-preview-card" :style="{ borderColor: formData.color }">
-                  Vorschau Karte
-                </span>
-                <button type="button" class="btn-clear-color" @click="formData.color = null">Farbe entfernen</button>
-              </div>
-            </div>
-          </section>
-
-          <section class="form-section highlight">
-            <h4>Darstellung</h4>
-            <label class="checkbox-card">
-              <input id="is_active" v-model="formData.is_active_in_kasse" type="checkbox">
-              <div class="checkbox-content">
-                <span class="label">In Kassenansicht sichtbar</span>
-                <span class="desc">Die Kategorie wird direkt in der Kasse als auswählbarer Bereich angezeigt.</span>
-              </div>
-            </label>
-          </section>
-
-          <footer class="modal-footer">
-            <button type="button" class="btn btn-secondary" @click="closeCategoryModal">Abbrechen</button>
-            <button type="submit" class="btn btn-success">
-              {{ editingId ? 'Änderungen speichern' : 'Kategorie anlegen' }}
-            </button>
-          </footer>
-        </form>
-      </div>
-    </div>
+    <CategoryModal
+      :show="showCategoryModal"
+      :editing-id="editingId"
+      :initial-form-data="formData"
+      @close="closeCategoryModal"
+      @save="onCategoryModalSave"
+    />
   </div>
 </template>
 
 <script setup>
-import { ref, computed, onMounted } from 'vue'
+import { ref, onMounted } from 'vue'
 import { useNotificationStore } from '@/stores/notification'
 import apiService from '@/services/api'
+import CategoryModal from './modal/CategoryModal.vue'
 
 const notificationStore = useNotificationStore()
 
@@ -232,29 +138,6 @@ const formData = ref({
   display_order: 0,
   is_active_in_kasse: true,
 })
-
-const pastelColors = [
-  { value: '#FFB3B3', label: 'Rosé' },
-  { value: '#FFCBA4', label: 'Pfirsich' },
-  { value: '#FFF2A8', label: 'Gelb' },
-  { value: '#B5EAD7', label: 'Mint' },
-  { value: '#B5D5FF', label: 'Hellblau' },
-  { value: '#C3B1E1', label: 'Lavendel' },
-  { value: '#FFD1DC', label: 'Pink' },
-  { value: '#D7E8BA', label: 'Limette' },
-  { value: '#FFF8E1', label: 'Creme' },
-  { value: '#E0F2F1', label: 'Türkis' },
-  { value: '#FFE4C4', label: 'Bisque' },
-  { value: '#F0E6FF', label: 'Flieder' },
-]
-
-const isCustomColor = computed(() => {
-  return !!formData.value.color && !pastelColors.some(p => p.value === formData.value.color)
-})
-
-const setCustomColor = (hex) => {
-  formData.value.color = hex
-}
 
 const resetForm = () => {
   formData.value = {
@@ -340,12 +223,12 @@ const removeProduct = async (categoryId, productId) => {
   }
 }
 
-const submitForm = async () => {
+const onCategoryModalSave = async (data) => {
   try {
     if (editingId.value) {
-      await apiService.put(`/categories/${editingId.value}`, formData.value)
+      await apiService.put(`/categories/${editingId.value}`, data)
     } else {
-      await apiService.post('/categories', formData.value)
+      await apiService.post('/categories', data)
     }
     notificationStore.success(editingId.value ? 'Kategorie aktualisiert' : 'Kategorie erstellt')
     closeCategoryModal()
