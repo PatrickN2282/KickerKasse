@@ -32,6 +32,7 @@ class Transaction(BaseModel):
     voucher_type = Column(String(20), nullable=True)
     voucher_applied_cents = Column(Integer, nullable=False, default=0)
     balance_applied_cents = Column(Integer, nullable=False, default=0)
+    tip_cents = Column(Integer, nullable=False, default=0)  # Trinkgeld-Spende
     
     # Referenzen
     user_id = Column(Integer, ForeignKey("users.id"), nullable=False)  # Kassierer/Admin

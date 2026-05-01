@@ -918,6 +918,18 @@ const selectProduct = (product, categoryId = null) => {
     showInternalMaterialNoteModal.value = true
     return
   }
+
+  if (product.is_variable_price) {
+    pendingVariablePriceProduct.value = { ...product, categoryId }
+    variablePrice.value = (product.price_cents / 100).toFixed(2)
+    showVariablePriceModal.value = true
+    nextTick(() => {
+      variablePriceInput.value?.focus()
+      variablePriceInput.value?.select?.()
+    })
+    return
+  }
+
   const result = cartStore.addItem({
     ...product,
     is_internal_material: false,
@@ -925,6 +937,32 @@ const selectProduct = (product, categoryId = null) => {
   if (!result.success) {
     notificationStore.error(`Nur ${getAvailableStock(product)} Einheiten von ${product.name} verfügbar`)
   }
+}
+
+const closeVariablePriceModal = () => {
+  showVariablePriceModal.value = false
+  pendingVariablePriceProduct.value = null
+  variablePrice.value = ''
+}
+
+const confirmVariablePriceSelection = () => {
+  if (!pendingVariablePriceProduct.value || !isVariablePriceValid.value) return
+
+  const product = pendingVariablePriceProduct.value
+  const priceCents = Math.round(parseFloat(variablePrice.value) * 100)
+  const result = cartStore.addItem({
+    ...product,
+    price_cents: priceCents,
+    member_price_cents: null,
+    is_internal_material: false,
+  }, getAvailableStock(product))
+
+  if (!result.success) {
+    notificationStore.error(`Nur ${getAvailableStock(product)} Einheiten von ${product.name} verfügbar`)
+    return
+  }
+
+  closeVariablePriceModal()
 }
 
 const closeInternalMaterialNoteModal = () => {
@@ -1032,6 +1070,7 @@ const confirmPayment = async () => {
       return
     }
   }
+  cartStore.tipCents = 0
   processingPayment.value = true
   const transaction = await handlePaymentAndCheckout(pendingPaymentMethod.value)
   processingPayment.value = false
@@ -1040,6 +1079,39 @@ const confirmPayment = async () => {
     closePaymentConfirmation()
     return
   }
+  if (transaction) {
+    if (transaction.issued_prepaid_voucher_numbers?.length) {
+      paymentResult.value = transaction
+      return
+    }
+    closePaymentConfirmation()
+  }
+}
+
+const confirmPaymentWithTip = async () => {
+  if (!pendingPaymentMethod.value || cashChangeCents.value <= 0) {
+    return
+  }
+
+  if (pendingPaymentMethod.value === 'CASH') {
+    const givenCents = Math.round(Number(cashGiven.value || 0) * 100)
+    if (givenCents < paymentTotal.value) {
+      notificationStore.error('Der gegebene Barbetrag reicht nicht aus')
+      return
+    }
+  }
+
+  cartStore.tipCents = cashChangeCents.value
+  processingPayment.value = true
+  const transaction = await handlePaymentAndCheckout(pendingPaymentMethod.value)
+  processingPayment.value = false
+
+  if (transaction?.appliedBalanceOnly) {
+    cartStore.tipCents = 0
+    closePaymentConfirmation()
+    return
+  }
+
   if (transaction) {
     if (transaction.issued_prepaid_voucher_numbers?.length) {
       paymentResult.value = transaction

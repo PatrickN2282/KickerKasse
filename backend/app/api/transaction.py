@@ -243,6 +243,7 @@ async def create_sale(
         voucher_type=_get_combined_voucher_type(vouchers),
         voucher_applied_cents=voucher_applied_cents,
         balance_applied_cents=balance_applied_cents,
+        tip_cents=transaction_data.tip_cents,
     )
     
     # Process payment

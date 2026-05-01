@@ -34,6 +34,7 @@ class ProductRepository:
         stock_quantity: int = 0,
         is_unlimited_stock: bool = False,
         warengruppe: str = None,
+        is_variable_price: bool = False,
     ) -> Product:
         """Create a new product"""
         product_data = {
@@ -45,6 +46,7 @@ class ProductRepository:
             "is_discountable": is_discountable,
             "stock_quantity": stock_quantity,
             "is_unlimited_stock": is_unlimited_stock,
+            "is_variable_price": is_variable_price,
         }
         product_data = self._normalize_stock_fields(product_data)
         product_data = self._normalize_warengruppe(product_data)

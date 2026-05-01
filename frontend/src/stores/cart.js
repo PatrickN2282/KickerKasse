@@ -9,6 +9,7 @@ export const useCartStore = defineStore('cart', () => {
   const paymentMethod = ref('CASH')
   const appliedVouchers = ref([])
   const appliedBalanceCents = ref(0)
+  const tipCents = ref(0)
 
   const normalizeItemNote = (note = '') => String(note || '').trim()
   const hashItemNote = (note = '') => [...normalizeItemNote(note)].reduce(
@@ -169,6 +170,7 @@ export const useCartStore = defineStore('cart', () => {
             voucher_number: voucher.voucher_number,
           })),
           balance_discount_cents: appliedBalanceCents.value,
+          tip_cents: tipCents.value,
           items: items.value.map(item => ({
             product_id: item.product_id,
             quantity: item.quantity,
@@ -185,6 +187,7 @@ export const useCartStore = defineStore('cart', () => {
       paymentMethod.value = 'CASH'
       appliedVouchers.value = []
       appliedBalanceCents.value = 0
+      tipCents.value = 0
 
       return response.data
     } catch (err) {
@@ -200,6 +203,7 @@ export const useCartStore = defineStore('cart', () => {
       paymentMethod.value = 'CASH'
       appliedVouchers.value = []
       appliedBalanceCents.value = 0
+      tipCents.value = 0
   }
 
   const replaceCart = (nextItems = []) => {
@@ -218,6 +222,7 @@ export const useCartStore = defineStore('cart', () => {
     paymentMethod,
     appliedVouchers,
     appliedBalanceCents,
+    tipCents,
     total,
     addItem,
     removeItem,

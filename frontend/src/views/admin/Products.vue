@@ -102,8 +102,9 @@
               <!-- Image loaded: show card preview + action buttons -->
               <template v-if="cropImageSrc">
                 <p class="image-editor-label">Vorschau: Kassenkarte</p>
-                <div class="kasse-card-preview">
-                  <div class="preview-card-img-area">
+                <div class="kasse-card-preview product-btn-preview">
+                  <div class="card-img">
+                    <span v-if="hasMemberPrice({ member_price_cents: formData.memberPrice !== null ? 1 : null })" class="card-badge discount-badge">Rabatt</span>
                     <img
                       :src="cropImageSrc"
                       class="preview-crop-img"
@@ -112,10 +113,12 @@
                       alt=""
                     >
                   </div>
-                  <div class="preview-card-body">
-                    <div class="preview-card-name">{{ formData.name || 'Produktname' }}</div>
-                    <div class="preview-card-price">{{ previewPriceText }}</div>
-                    <div class="preview-card-stock">{{ formData.isUnlimitedStock ? '∞' : formData.stock }}</div>
+                  <div class="card-body">
+                    <div class="card-name">{{ formData.name || 'Produktname' }}</div>
+                    <div class="card-bottom">
+                      <span class="card-price">{{ previewPriceText }}</span>
+                      <span class="card-stock">{{ formData.isUnlimitedStock ? '∞' : formData.stock }}</span>
+                    </div>
                   </div>
                 </div>
 
@@ -148,6 +151,14 @@
                 <div class="checkbox-content">
                   <span class="label">Unendlich verfügbar</span>
                   <span class="desc">Artikel ohne Bestand, z. B. Eintrittspreise, bleiben immer buchbar.</span>
+                </div>
+              </label>
+
+              <label class="checkbox-card">
+                <input id="variable-price" v-model="formData.isVariablePrice" type="checkbox">
+                <div class="checkbox-content">
+                  <span class="label">Variabler Endpreis</span>
+                  <span class="desc">Beim Hinzufügen zum Warenkorb wird nach dem Preis gefragt.</span>
                 </div>
               </label>
 
@@ -263,7 +274,15 @@
           <span class="zoom-icon">+</span>
           <span class="zoom-pct">{{ cropMinScale > 0 ? Math.round(cropScale / cropMinScale * 100) : 100 }}%</span>
         </div>
-        <button type="button" class="btn-crop-reset" @click="resetCrop">↺ Zurücksetzen</button>
+        <div class="crop-action-row">
+          <button type="button" class="btn-crop-reset" @click="resetCrop">↺ Zurücksetzen</button>
+          <button
+            v-if="cropOriginalSrc"
+            type="button"
+            class="btn-crop-reset btn-crop-restore"
+            @click="restoreOriginalImage"
+          >🔄 Originalbild</button>
+        </div>
       </div>
 
       <footer class="crop-modal-footer">
@@ -296,6 +315,7 @@ const formData = reactive({
   memberPrice: null,
   stock: 0,
   isUnlimitedStock: false,
+  isVariablePrice: false,
 })
 
 // ── Image crop editor ─────────────────────────────────────────────────────────
@@ -314,6 +334,8 @@ const PREVIEW_H = Math.round(PREVIEW_W / CROP_ASPECT)  // ≈ 120 px
 const PREVIEW_SCALE = PREVIEW_W / CROP_W
 
 const cropImageSrc = ref(null)     // always a data-URL (or null)
+const cropOriginalSrc = ref(null)  // original (pre-crop) data-URL for reset
+const cropIsNewUpload = ref(false) // true when the user uploaded a new file this session
 const cropNaturalW = ref(0)
 const cropNaturalH = ref(0)
 const cropScale = ref(1)
@@ -354,6 +376,8 @@ const previewPriceText = computed(() => {
   const cents = formData.price ? Math.round(formData.price * 100) : 0
   return `${(cents / 100).toFixed(2).replace('.', ',')} €`
 })
+
+const canRestoreOriginal = computed(() => !!(cropOriginalSrc.value && cropOriginalSrc.value !== cropImageSrc.value))
 
 const hasMemberPrice = (product) => product.member_price_cents !== null && product.member_price_cents !== undefined
 
@@ -441,6 +465,7 @@ const handleSaveProduct = async () => {
       member_price_cents: toMemberPriceCents(),
       stock_quantity: formData.isUnlimitedStock ? 0 : formData.stock,
       is_unlimited_stock: formData.isUnlimitedStock,
+      is_variable_price: formData.isVariablePrice,
     })
 
     if (result) {
@@ -457,6 +482,7 @@ const handleSaveProduct = async () => {
       member_price_cents: toMemberPriceCents(),
       stock_quantity: formData.isUnlimitedStock ? 0 : formData.stock,
       is_unlimited_stock: formData.isUnlimitedStock,
+      is_variable_price: formData.isVariablePrice,
     })
 
     if (result) {
@@ -480,6 +506,22 @@ const handleSaveProduct = async () => {
 const uploadImageToProduct = async (productId) => {
   if (!imageFile.value) return true
 
+  // If this is a new upload, first save the original (uncropped) image for future resets
+  if (cropIsNewUpload.value && cropOriginalSrc.value) {
+    try {
+      const origBlob = await dataUrlToBlob(cropOriginalSrc.value)
+      const origFormData = new FormData()
+      origFormData.append('file', new File([origBlob], 'original.jpg', { type: 'image/jpeg' }))
+      await fetch(`/api/products/${productId}/original-image`, {
+        method: 'POST',
+        body: origFormData,
+        credentials: 'include',
+      })
+    } catch (err) {
+      console.error('Original image upload error:', err)
+    }
+  }
+
   try {
     const formDataUpload = new FormData()
     formDataUpload.append('file', imageFile.value)
@@ -492,6 +534,7 @@ const uploadImageToProduct = async (productId) => {
 
     if (response.ok) {
       imageFile.value = null
+      cropIsNewUpload.value = false
       return true
     } else {
       notificationStore.error('Bild-Upload fehlgeschlagen')
@@ -504,6 +547,18 @@ const uploadImageToProduct = async (productId) => {
   }
 }
 
+const dataUrlToBlob = (dataUrl) => new Promise((resolve, reject) => {
+  const parts = dataUrl.split(',')
+  const mimeMatch = parts[0].match(/:(.*?);/)
+  if (!mimeMatch) { reject(new Error('Invalid data URL')); return }
+  const mime = mimeMatch[1]
+  const bStr = atob(parts[1])
+  const n = bStr.length
+  const u8arr = new Uint8Array(n)
+  for (let i = 0; i < n; i++) u8arr[i] = bStr.charCodeAt(i)
+  resolve(new Blob([u8arr], { type: mime }))
+})
+
 const resetForm = () => {
   formData.name = ''
   formData.warengruppe = ''
@@ -511,6 +566,7 @@ const resetForm = () => {
   formData.memberPrice = null
   formData.stock = 0
   formData.isUnlimitedStock = false
+  formData.isVariablePrice = false
   lastFiniteStock.value = 0
   imageFile.value = null
   imagePreview.value = null
@@ -519,6 +575,8 @@ const resetForm = () => {
   showCropModal.value = false
   // Reset crop state
   cropImageSrc.value = null
+  cropOriginalSrc.value = null
+  cropIsNewUpload.value = false
   cropNaturalW.value = 0
   cropNaturalH.value = 0
   cropScale.value = 1
@@ -537,10 +595,12 @@ const editProduct = async (product) => {
   formData.memberPrice = hasMemberPrice(product) ? product.member_price_cents / 100 : null
   formData.stock = product.stock_quantity
   formData.isUnlimitedStock = !!product.is_unlimited_stock
+  formData.isVariablePrice = !!product.is_variable_price
   lastFiniteStock.value = product.stock_quantity
   imageFile.value = null
   imagePreview.value = null
   cropModified.value = false
+  cropIsNewUpload.value = false
   showProductModal.value = true
 
   if (product.image_path) {
@@ -555,12 +615,31 @@ const editProduct = async (product) => {
       })
       cropImageSrc.value = dataUrl
       await loadCropImageDimensions(dataUrl)
+
+      // Try to load the original (pre-crop) image for reset functionality
+      try {
+        const origResp = await fetch(`/api/products/${product.id}/original-image`, { credentials: 'include' })
+        if (origResp.ok) {
+          const origBlob = await origResp.blob()
+          cropOriginalSrc.value = await new Promise((resolve) => {
+            const reader = new FileReader()
+            reader.onload = (e) => resolve(e.target.result)
+            reader.readAsDataURL(origBlob)
+          })
+        } else {
+          cropOriginalSrc.value = null
+        }
+      } catch {
+        cropOriginalSrc.value = null
+      }
     } catch {
       cropImageSrc.value = null
+      cropOriginalSrc.value = null
       notificationStore.warning('Produktbild konnte nicht geladen werden')
     }
   } else {
     cropImageSrc.value = null
+    cropOriginalSrc.value = null
   }
 }
 
@@ -570,6 +649,8 @@ const handleImageUpload = (event) => {
   const reader = new FileReader()
   reader.onload = (e) => {
     cropImageSrc.value = e.target.result
+    cropOriginalSrc.value = e.target.result  // new upload is the new original
+    cropIsNewUpload.value = true
     loadCropImageDimensions(e.target.result)
     cropModified.value = true
   }
@@ -614,6 +695,16 @@ const centerCrop = () => {
 const resetCrop = () => {
   cropScale.value = cropMinScale.value
   centerCrop()
+  // Only mark as modified if a new file was uploaded (otherwise reverting to min-zoom is just visual)
+  if (cropIsNewUpload.value) {
+    cropModified.value = true
+  }
+}
+
+const restoreOriginalImage = async () => {
+  if (!cropOriginalSrc.value) return
+  cropImageSrc.value = cropOriginalSrc.value
+  await loadCropImageDimensions(cropOriginalSrc.value)
   cropModified.value = true
 }
 
@@ -1341,61 +1432,99 @@ onUnmounted(() => {
   }
 }
 
+.btn-crop-restore {
+  border-color: #fcd34d;
+  color: #92400e;
+  background: #fffbeb;
+
+  &:hover {
+    background: #fef3c7;
+  }
+}
+
+.crop-action-row {
+  display: flex;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+  align-self: flex-start;
+}
+
 // Card preview mimics .product-btn from Kasse.vue
 .kasse-card-preview {
   width: 180px;
   border: 1.5px solid #e2e8f0;
-  border-radius: 12px;
+  border-radius: 10px;
   overflow: hidden;
   background: #fff;
   display: flex;
   flex-direction: column;
   box-shadow: 0 1px 4px rgba(0, 0, 0, 0.07);
-}
 
-.preview-card-img-area {
-  width: 180px;
-  height: 120px;
-  overflow: hidden;
-  background: #eef1f7;
-  position: relative;
-  flex-shrink: 0;
-}
+  .card-img {
+    height: 62px;
+    overflow: hidden;
+    background: #eef1f7;
+    flex-shrink: 0;
+    position: relative;
+  }
 
-.preview-crop-img {
-  display: block;
-  max-width: none;
-  max-height: none;
-}
+  .preview-crop-img {
+    display: block;
+    max-width: none;
+    max-height: none;
+  }
 
-.preview-card-body {
-  padding: 6px 8px 7px;
-  display: flex;
-  flex-direction: column;
-  gap: 3px;
-}
+  .card-badge {
+    position: absolute;
+    top: 3px;
+    left: 3px;
+    z-index: 1;
+    font-size: 9px;
+    font-weight: 800;
+    padding: 2px 4px;
+    border-radius: 3px;
+    letter-spacing: 0.04em;
+    line-height: 1.4;
 
-.preview-card-name {
-  font-size: 0.82rem;
-  font-weight: 700;
-  color: #111827;
-  line-height: 1.2;
-}
+    &.discount-badge {
+      background: #fffbeb;
+      color: #d97706;
+    }
+  }
 
-.preview-card-price {
-  font-size: 0.78rem;
-  font-weight: 800;
-  color: var(--primary);
-  letter-spacing: -0.02em;
-}
+  .card-body {
+    padding: 5px 6px 6px;
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    gap: 3px;
+  }
 
-.preview-card-stock {
-  font-size: 0.65rem;
-  color: #64748b;
-  font-weight: 500;
+  .card-name {
+    font-size: .72rem;
+    font-weight: 700;
+    line-height: 1.2;
+    color: #111827;
+  }
 
-  &::before {
-    content: 'Lager: ';
+  .card-bottom {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-top: auto;
+  }
+
+  .card-price {
+    font-size: .82rem;
+    font-weight: 800;
+    color: var(--primary);
+    letter-spacing: -0.02em;
+  }
+
+  .card-stock {
+    font-size: .64rem;
+    color: #64748b;
+    font-weight: 500;
   }
 }
 
@@ -1435,6 +1564,9 @@ onUnmounted(() => {
 }
 
 .crop-modal-card {
+  --success: #10b981;
+  --border: #e2e8f0;
+  --primary: #3b82f6;
   background: white;
   width: 100%;
   max-width: 480px;

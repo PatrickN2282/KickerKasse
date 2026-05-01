@@ -15,6 +15,7 @@ class Product(BaseModel):
     is_discountable = Column(Boolean, default=True, nullable=False)  # Rabattfähig
     stock_quantity = Column(Integer, default=0, nullable=False)  # Lagerbestand
     is_unlimited_stock = Column(Boolean, default=False, nullable=False)  # Immer verfügbar
+    is_variable_price = Column(Boolean, default=False, nullable=False)  # Preis wird beim Kauf eingegeben
     image_path = Column(String(255), nullable=True)  # Pfad zum Produktbild
     is_active = Column(Boolean, default=True, nullable=False)
     tax_rate = Column(Float, default=0.0, nullable=False)  # Steuersatz in % (z.B. 19.0, 7.0, 0.0)
