@@ -274,374 +274,104 @@
       </div>
     </div>
 
-    <div v-if="showMemberModal" class="modal">
-      <div class="modal-content member-modal">
-        <h3>Mitglied auswählen</h3>
-        <input
-          v-model="memberSearch"
-          type="text"
-          placeholder="Nach Name oder Nummer suchen..."
-          class="form-input"
-        />
-        <div v-if="filteredMembers.length > 0" class="member-grid">
-          <button
-            v-for="member in filteredMembers"
-            :key="member.id"
-            @click="selectMember(member)"
-            class="member-item"
-          >
-            <div v-if="member.photo_path" class="member-photo">
-              <img :src="`/api/members/${member.id}/photo`" :alt="getMemberFullName(member)" />
-            </div>
-            <div v-else class="member-photo member-photo-placeholder">👤</div>
-            <div class="member-info-box">
-              <div class="member-number-badge">Nr. {{ member.member_number }}</div>
-              <div class="member-name-modal">{{ getMemberShortName(member) }}</div>
-              <div class="balance">{{ formatBalance(member.balance_cents) }}</div>
-            </div>
-          </button>
-        </div>
-        <div v-else class="empty-bon">Keine Mitglieder gefunden</div>
-        <div class="modal-actions">
-          <button @click="showMemberModal = false" class="btn btn-danger">
-            Abbrechen / Zurück
-          </button>
-        </div>
-      </div>
-    </div>
-
-    <div v-if="showPaymentConfirmModal" class="modal">
-      <div class="modal-content payment-modal">
-        <template v-if="paymentResult">
-          <h3>Verkauf abgeschlossen</h3>
-          <p class="info-text">Der Verkauf wurde erfolgreich gebucht.</p>
-          <div v-if="paymentResult.issued_prepaid_voucher_numbers?.length" class="issued-voucher-panel">
-            <h4>💳 Verzehrkarten ausgegeben</h4>
-            <div class="issued-voucher-box">
-              <div v-for="voucherNumber in paymentResult.issued_prepaid_voucher_numbers" :key="voucherNumber" class="issued-voucher-number">
-                {{ voucherNumber }}
-              </div>
-            </div>
-            <div class="issued-voucher-alert">
-              <p class="issued-voucher-note">
-                Nummer auf der Verzehrkarte notieren - Einlösung ohne Nummer nicht möglich
-              </p>
-            </div>
-          </div>
-          <div class="modal-actions">
-            <button @click="closePaymentConfirmation" class="btn btn-confirm-payment" :class="{ selected: true }">
-              Fertig
-            </button>
-          </div>
-        </template>
-        <template v-else>
-          <h3>{{ paymentSource === 'deckel' ? 'Deckel abrechnen' : 'Zahlung bestätigen' }}</h3>
-          <div class="payment-method-chip">
-            {{ getPaymentMethodLabel(pendingPaymentMethod) }}
-          </div>
-          <div class="payment-summary-list">
-            <div v-for="item in paymentSummaryItems" :key="item.line_id || `${paymentSource}-${item.product_id}-${item.unit_price_cents}-${item.is_internal_material ? 'internal' : 'regular'}`" class="payment-summary-item">
-              <div class="payment-summary-copy">
-                <span>{{ item.quantity }}× {{ item.product_name }}</span>
-                <small v-if="item.note">{{ item.note }}</small>
-              </div>
-              <strong>{{ formatPrice(item.total_price_cents) }}</strong>
-            </div>
-          </div>
-          <div class="payment-summary-totals">
-            <div class="total-row">
-              <span>Zwischensumme</span>
-              <strong>{{ formatPrice(paymentSubtotal) }}</strong>
-            </div>
-            <div v-if="paymentSource === 'cart' && hasAppliedVoucher" class="total-row">
-              <span>Gutscheine</span>
-              <strong>-{{ formatPrice(voucherAppliedAmount) }}</strong>
-            </div>
-            <div v-if="paymentSource === 'cart' && hasAppliedBalance" class="total-row">
-              <span>Mitgliedsguthaben</span>
-              <strong>-{{ formatPrice(balanceAppliedAmount) }}</strong>
-            </div>
-            <div v-if="paymentSource === 'cart' && pendingPaymentMethod === 'BALANCE'" class="total-row">
-              <span>Mitglied</span>
-              <strong>{{ selectedMemberName }}</strong>
-            </div>
-            <div v-if="paymentSource === 'deckel'" class="total-row">
-              <span>Deckel</span>
-              <strong>{{ activePaymentDeckel?.name }}</strong>
-            </div>
-            <div class="total-row grand-total modal-grand-total">
-              <span>Zu zahlen</span>
-              <strong>{{ formatPrice(paymentTotal) }}</strong>
-            </div>
-          </div>
-          <div v-if="pendingPaymentMethod === 'CASH'" class="cash-payment-fields">
-            <label>
-              Bar gegeben
-              <input
-                ref="cashGivenInput"
-                v-model="cashGiven"
-                type="number"
-                min="0"
-                step="0.01"
-                class="form-input"
-                @keyup.enter="confirmPayment"
-              />
-            </label>
-            <label>
-              Rückgeld
-              <input :value="cashChangeDisplay" type="text" class="form-input" readonly />
-            </label>
-          </div>
-          <div class="modal-actions">
-            <button @click="confirmPayment" class="btn btn-confirm-payment" :class="{ selected: true }" :disabled="processingPayment">
-              {{ processingPayment ? '⏳ Wird verarbeitet...' : 'Bestätigen' }}
-            </button>
-            <button @click="closePaymentConfirmation" class="btn btn-danger" :disabled="processingPayment">
-              Abbrechen / Zurück
-            </button>
-          </div>
-        </template>
-      </div>
-    </div>
-
-    <div v-if="showVoucherModal" class="modal">
-      <div class="modal-content voucher-modal">
-        <h3>🎫 Gutschein einlösen</h3>
-        <div v-if="!voucherValidated" class="step">
-          <input
-            v-model="voucherNumber"
-            type="text"
-            :placeholder="`Gutscheinnummer eingeben (z. B. ${voucherPrefix}001)`"
-            class="form-input voucher-input"
-            @keyup.enter="validateVoucher"
-            autocomplete="off"
-          />
-
-          <div v-if="voucherError" class="error-message">
-            ❌ {{ voucherError }}
-          </div>
-
-          <div class="button-group">
-            <button
-              @click="validateVoucher"
-              :disabled="!hasValidVoucherInput || validatingVoucher"
-              class="btn btn-primary"
-            >
-              {{ validatingVoucher ? '⏳ Wird überprüft...' : '✓ Überprüfen' }}
-            </button>
-            <button @click="closeVoucherModal" class="btn btn-secondary">
-              Abbrechen / Zurück
-            </button>
-          </div>
-        </div>
-
-        <div v-else-if="voucherValidation && !voucherRedeemed" class="step">
-          <div
-            :class="['validation-result', voucherValidation.valid ? 'valid' : 'invalid']"
-          >
-            <h4>{{ voucherValidation.valid ? '✅ Gültig' : '❌ Ungültig' }}</h4>
-            <table class="voucher-details">
-              <tr>
-                <td>Nummer:</td>
-                <td><strong>{{ voucherValidation.voucher_number }}</strong></td>
-              </tr>
-              <tr>
-                <td>Typ:</td>
-                <td>{{ voucherValidation.voucher_type === 'GIFT' ? '🎁 Gutschein' : '💳 Verzehrkarte' }}</td>
-              </tr>
-              <tr>
-                <td>Wert:</td>
-                <td><strong>{{ (voucherValidation.value_cents / 100).toFixed(2) }}€</strong></td>
-              </tr>
-              <tr v-if="voucherValidation.valid && cartSubtotal > 0">
-                <td>Anrechnung:</td>
-                <td><strong>{{ (voucherValidation.applicable_amount_cents / 100).toFixed(2) }}€</strong></td>
-              </tr>
-              <tr v-if="voucherValidation.valid && voucherValidation.remaining_value_cents > 0">
-                <td>Restwert:</td>
-                <td>{{ (voucherValidation.remaining_value_cents / 100).toFixed(2) }}€</td>
-              </tr>
-              <tr v-if="getExpiredStatusLabel(voucherValidation)">
-                <td>Status:</td>
-                <td>
-                  {{ getExpiredStatusLabel(voucherValidation) }}
-                </td>
-              </tr>
-              <tr v-if="voucherValidation.reason">
-                <td>Grund:</td>
-                <td>{{ formatVoucherReason(voucherValidation.reason) }}</td>
-              </tr>
-            </table>
-            <p v-if="voucherValidation.message" class="info-text">
-              ℹ️ {{ voucherValidation.message }}
-            </p>
-          </div>
-
-          <div class="button-group">
-            <button
-              v-if="voucherValidation.valid"
-              @click="redeemVoucher"
-              :disabled="redeemingVoucher"
-              class="btn"
-              :class="voucherValidation.covers_cart_total ? 'btn-success' : 'btn-primary'"
-            >
-              {{ voucherActionLabel }}
-            </button>
-            <button @click="handleVoucherSecondaryAction" class="btn btn-secondary">
-              Abbrechen / Zurück
-            </button>
-          </div>
-        </div>
-
-        <div v-else-if="voucherRedeemed" class="step">
-          <div class="success-message">
-            <h4>✅ Gutschein eingelöst!</h4>
-            <table class="voucher-details">
-              <tr>
-                <td>Nummer:</td>
-                <td><strong>{{ voucherRedeemed.voucher_number }}</strong></td>
-              </tr>
-              <tr>
-                <td>Typ:</td>
-                <td>{{ voucherRedeemed.voucher_type === 'GIFT' ? '🎁 Gutschein' : '💳 Verzehrkarte' }}</td>
-              </tr>
-              <tr>
-                <td>Wert:</td>
-                <td><strong>{{ (voucherRedeemed.value_cents / 100).toFixed(2) }}€</strong></td>
-              </tr>
-            </table>
-            <p class="info-text">
-              {{ voucherRedeemed.message }}
-            </p>
-          </div>
-
-          <div class="button-group">
-            <button @click="closeVoucherModal" class="btn btn-primary">
-              ✓ Fertig
-            </button>
-          </div>
-        </div>
-      </div>
-    </div>
-
-    <div v-if="showDeckelCreateModal" class="modal">
-      <div class="modal-content voucher-modal">
-        <h3>📒 Neuen Deckel anlegen</h3>
-        <p class="info-text">Der aktuelle Bon wird unter einem Namen zwischengespeichert und kann später bar bezahlt werden.</p>
-        <input
-          v-model="deckelName"
-          type="text"
-          placeholder="Name des Deckels"
-          class="form-input voucher-input"
-          @keyup.enter="createDeckel"
-        />
-        <div class="button-group">
-          <button @click="createDeckel" :disabled="!deckelName.trim() || cartStore.items.length === 0" class="btn btn-primary">
-            ✓ Speichern
-          </button>
-          <button @click="closeDeckelCreateModal" class="btn btn-secondary">
-            Abbrechen / Zurück
-          </button>
-        </div>
-      </div>
-    </div>
-
-    <div v-if="showDeckelOverviewModal" class="modal">
-      <div class="modal-content voucher-modal deckel-overview-modal">
-        <h3>📒 Deckelübersicht</h3>
-        <p class="info-text">Vorhandene Deckel können eingesehen, mit dem aktuellen Bon erweitert oder direkt bar abgerechnet werden.</p>
-        <div v-if="deckelList.length === 0" class="empty-bon">Keine gespeicherten Deckel vorhanden</div>
-        <div v-else class="deckel-list">
-          <button
-            v-for="deckel in deckelList"
-            :key="deckel.id"
-            class="deckel-list-item"
-            @click="openDeckelDetails(deckel)"
-          >
-            <div>
-              <strong>{{ deckel.name }}</strong>
-              <div>{{ deckel.items.length }} Positionen · {{ formatPrice(deckel.total_amount_cents) }}</div>
-            </div>
-            <div class="deckel-actions-inline" @click.stop>
-              <button class="btn btn-primary" :disabled="cartStore.items.length === 0" @click="bookCurrentCartToDeckel(deckel)">
-                Buchen
-              </button>
-              <button class="btn btn-info" @click="openDeckelForPayment(deckel)">
-                Zahlen
-              </button>
-            </div>
-          </button>
-        </div>
-        <div class="button-group">
-          <button @click="openDeckelCreateModalFromOverview" :disabled="cartStore.items.length === 0" class="btn btn-primary">
-            + Neuen Deckel anlegen
-          </button>
-          <button @click="closeDeckelOverviewModal" class="btn btn-secondary">
-            Schließen
-          </button>
-        </div>
-      </div>
-    </div>
-
-    <div v-if="showDeckelDetailsModal && activeDeckel" class="modal">
-      <div class="modal-content payment-modal">
-        <h3>📒 Deckel: {{ activeDeckel.name }}</h3>
-        <p class="info-text">Hier sehen Sie alle bisher gebuchten Artikel und können den Deckel direkt bar abrechnen.</p>
-        <div class="payment-summary-list">
-          <div v-for="item in activeDeckel.items" :key="`deckel-${item.id || item.product_id}-${item.unit_price_cents}`" class="payment-summary-item">
-            <div class="payment-summary-copy">
-              <span>{{ item.quantity }}× {{ item.product_name }}</span>
-              <small v-if="item.note">{{ item.note }}</small>
-            </div>
-            <strong>{{ formatPrice(item.total_price_cents) }}</strong>
-          </div>
-        </div>
-        <div class="payment-summary-totals">
-          <div class="total-row grand-total">
-            <span>Gesamt</span>
-            <strong>{{ formatPrice(activeDeckel.total_amount_cents) }}</strong>
-          </div>
-        </div>
-        <div class="modal-actions">
-          <button @click="openDeckelPaymentConfirmation(activeDeckel)" class="btn btn-confirm-payment" :class="{ selected: true }">
-            💰 Zahlen - BAR
-          </button>
-          <button @click="closeDeckelDetailsModal" class="btn btn-danger">
-            Abbrechen / Zurück
-          </button>
-        </div>
-      </div>
-    </div>
-
-    <div v-if="showInternalMaterialNoteModal && pendingInternalMaterialProduct" class="modal">
-      <div class="modal-content internal-material-note-modal">
-        <h3>Notiz für internes Material</h3>
-        <p class="info-text">
-          Optional können Sie eine Notiz für
-          <strong>{{ pendingInternalMaterialProduct.name }}</strong>
-          hinterlegen.
-        </p>
-        <textarea
-          v-model.trim="internalMaterialNote"
-          class="form-input"
-          rows="4"
-          maxlength="500"
-          placeholder="z. B. Einsatzort, Zweck oder Ansprechpartner"
-        ></textarea>
-        <div class="modal-actions">
-          <button @click="confirmInternalMaterialSelection" class="btn btn-confirm-payment" :class="{ selected: true }">
-            Artikel hinzufügen
-          </button>
-          <button @click="closeInternalMaterialNoteModal" class="btn btn-danger">
-            Abbrechen / Zurück
-          </button>
-        </div>
-      </div>
-    </div>
+    <MemberModal
+      :show="showMemberModal"
+      :members="filteredMembers"
+      v-model="memberSearch"
+      @select="selectMember"
+      @close="showMemberModal = false"
+    />
+    <PaymentConfirmModal
+      :show="showPaymentConfirmModal"
+      :paymentResult="paymentResult"
+      :paymentSource="paymentSource"
+      :summaryItems="paymentSummaryItems"
+      :subtotal="paymentSubtotal"
+      :total="paymentTotal"
+      :hasAppliedVoucher="hasAppliedVoucher"
+      :voucherAppliedAmount="voucherAppliedAmount"
+      :hasAppliedBalance="hasAppliedBalance"
+      :balanceAppliedAmount="balanceAppliedAmount"
+      :selectedMemberName="selectedMemberName"
+      :activePaymentDeckel="activePaymentDeckel"
+      :pendingPaymentMethod="pendingPaymentMethod"
+      :paymentMethodLabel="getPaymentMethodLabel(pendingPaymentMethod)"
+      v-model="cashGiven"
+      :cashChangeDisplay="cashChangeDisplay"
+      :cashChangeCents="cashChangeCents"
+      :processing="processingPayment"
+      @confirm="confirmPayment"
+      @confirm-with-tip="confirmPaymentWithTip"
+      @close="closePaymentConfirmation"
+    />
+    <VoucherModal
+      :show="showVoucherModal"
+      v-model="voucherNumber"
+      :voucherPrefix="voucherPrefix"
+      :validated="voucherValidated"
+      :validation="voucherValidation"
+      :redeemed="voucherRedeemed"
+      :error="voucherError"
+      :hasValidInput="hasValidVoucherInput"
+      :validating="validatingVoucher"
+      :redeeming="redeemingVoucher"
+      :cartSubtotal="cartSubtotal"
+      :actionLabel="voucherActionLabel"
+      @validate="validateVoucher"
+      @redeem="redeemVoucher"
+      @secondary-action="handleVoucherSecondaryAction"
+      @close="closeVoucherModal"
+    />
+    <DeckelCreateModal
+      :show="showDeckelCreateModal"
+      v-model="deckelName"
+      :canCreate="deckelName.trim().length > 0 && cartStore.items.length > 0"
+      @create="createDeckel"
+      @close="closeDeckelCreateModal"
+    />
+    <DeckelOverviewModal
+      :show="showDeckelOverviewModal"
+      :deckelList="deckelList"
+      :cartHasItems="cartStore.items.length > 0"
+      @open-details="openDeckelDetails"
+      @book-to-deckel="bookCurrentCartToDeckel"
+      @pay-deckel="openDeckelForPayment"
+      @create-new="openDeckelCreateModalFromOverview"
+      @close="closeDeckelOverviewModal"
+    />
+    <DeckelDetailsModal
+      :show="showDeckelDetailsModal"
+      :activeDeckel="activeDeckel"
+      @pay="openDeckelPaymentConfirmation"
+      @close="closeDeckelDetailsModal"
+    />
+    <InternalMaterialNoteModal
+      :show="showInternalMaterialNoteModal"
+      :product="pendingInternalMaterialProduct"
+      v-model="internalMaterialNote"
+      @confirm="confirmInternalMaterialSelection"
+      @close="closeInternalMaterialNoteModal"
+    />
+    <VariablePriceModal
+      :show="showVariablePriceModal"
+      :product="pendingVariablePriceProduct"
+      v-model="variablePrice"
+      :isValid="isVariablePriceValid"
+      @confirm="confirmVariablePriceSelection"
+      @close="closeVariablePriceModal"
+    />
   </div>
 </template>
 
 <script setup>
+import MemberModal from './modal/MemberModal.vue'
+import PaymentConfirmModal from './modal/PaymentConfirmModal.vue'
+import VoucherModal from './modal/VoucherModal.vue'
+import DeckelCreateModal from './modal/DeckelCreateModal.vue'
+import DeckelOverviewModal from './modal/DeckelOverviewModal.vue'
+import DeckelDetailsModal from './modal/DeckelDetailsModal.vue'
+import InternalMaterialNoteModal from './modal/InternalMaterialNoteModal.vue'
+import VariablePriceModal from './modal/VariablePriceModal.vue'
 // [SCRIPT REMAINS UNCHANGED - IDENTICAL TO KASSE06.VUE]
 import { ref, computed, onMounted, onBeforeUnmount, watch, nextTick } from 'vue'
 import { useProductStore } from '@/stores/product'
@@ -697,6 +427,16 @@ const paymentSource = ref('cart')
 const activePaymentDeckel = ref(null)
 const pendingInternalMaterialProduct = ref(null)
 const internalMaterialNote = ref('')
+
+// Variable price modal
+const showVariablePriceModal = ref(false)
+const pendingVariablePriceProduct = ref(null)
+const variablePrice = ref('')
+const variablePriceInput = ref(null)
+const isVariablePriceValid = computed(() => {
+  const price = parseFloat(variablePrice.value)
+  return !isNaN(price) && price >= 0
+})
 
 const voucherReasonLabels = {
   DYP_SIEGER: 'DYP-Sieger',
