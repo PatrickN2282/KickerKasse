@@ -396,6 +396,16 @@
               Rückgeld
               <input :value="cashChangeDisplay" type="text" class="form-input" readonly />
             </label>
+            <div v-if="cashChangeCents > 0" class="tip-donate-row">
+              <button
+                type="button"
+                class="btn btn-tip-donate"
+                @click="confirmPaymentWithTip"
+                :disabled="processingPayment"
+              >
+                💝 Rückgeld spenden ({{ formatPrice(cashChangeCents) }})
+              </button>
+            </div>
           </div>
           <div class="modal-actions">
             <button @click="confirmPayment" class="btn btn-confirm-payment" :class="{ selected: true }" :disabled="processingPayment">
@@ -648,6 +658,44 @@
         </div>
       </div>
     </div>
+
+    <!-- Variable Price Modal -->
+    <div v-if="showVariablePriceModal && pendingVariablePriceProduct" class="modal">
+      <div class="modal-content internal-material-note-modal">
+        <h3>Preis eingeben</h3>
+        <p class="info-text">
+          Bitte geben Sie den Verkaufspreis für
+          <strong>{{ pendingVariablePriceProduct.name }}</strong>
+          ein.
+        </p>
+        <label class="form-input-label">
+          Preis (€)
+          <input
+            ref="variablePriceInput"
+            v-model="variablePrice"
+            type="number"
+            min="0"
+            step="0.01"
+            class="form-input"
+            placeholder="0.00"
+            @keyup.enter="confirmVariablePriceSelection"
+          />
+        </label>
+        <div class="modal-actions">
+          <button
+            @click="confirmVariablePriceSelection"
+            class="btn btn-confirm-payment"
+            :class="{ selected: true }"
+            :disabled="!isVariablePriceValid"
+          >
+            Artikel hinzufügen
+          </button>
+          <button @click="closeVariablePriceModal" class="btn btn-danger">
+            Abbrechen / Zurück
+          </button>
+        </div>
+      </div>
+    </div>
   </div>
 </template>
 
@@ -707,6 +755,16 @@ const paymentSource = ref('cart')
 const activePaymentDeckel = ref(null)
 const pendingInternalMaterialProduct = ref(null)
 const internalMaterialNote = ref('')
+
+// Variable price modal
+const showVariablePriceModal = ref(false)
+const pendingVariablePriceProduct = ref(null)
+const variablePrice = ref('')
+const variablePriceInput = ref(null)
+const isVariablePriceValid = computed(() => {
+  const price = parseFloat(variablePrice.value)
+  return !isNaN(price) && price >= 0
+})
 
 const voucherReasonLabels = {
   DYP_SIEGER: 'DYP-Sieger',
@@ -826,6 +884,13 @@ const cashChangeDisplay = computed(() => {
   const change = Math.max(Math.round((value * 100) - paymentTotal.value), 0)
   return formatPrice(change)
 })
+
+const cashChangeCents = computed(() => {
+  const value = Number(cashGiven.value || 0)
+  const given = Math.round(value * 100)
+  if (given < paymentTotal.value) return 0
+  return given - paymentTotal.value
+})
 const voucherActionLabel = computed(() => {
   if (redeemingVoucher.value) {
     return '⏳ Wird verarbeitet...'
@@ -914,6 +979,17 @@ const selectProduct = (product, categoryId = null) => {
     return
   }
 
+  if (product.is_variable_price) {
+    pendingVariablePriceProduct.value = { ...product, categoryId }
+    variablePrice.value = (product.price_cents / 100).toFixed(2)
+    showVariablePriceModal.value = true
+    nextTick(() => {
+      variablePriceInput.value?.focus()
+      variablePriceInput.value?.select?.()
+    })
+    return
+  }
+
   const result = cartStore.addItem({
     ...product,
     is_internal_material: false,
@@ -921,6 +997,32 @@ const selectProduct = (product, categoryId = null) => {
   if (!result.success) {
     notificationStore.error(`Nur ${getAvailableStock(product)} Einheiten von ${product.name} verfügbar`)
   }
+}
+
+const closeVariablePriceModal = () => {
+  showVariablePriceModal.value = false
+  pendingVariablePriceProduct.value = null
+  variablePrice.value = ''
+}
+
+const confirmVariablePriceSelection = () => {
+  if (!pendingVariablePriceProduct.value || !isVariablePriceValid.value) return
+
+  const product = pendingVariablePriceProduct.value
+  const priceCents = Math.round(parseFloat(variablePrice.value) * 100)
+  const result = cartStore.addItem({
+    ...product,
+    price_cents: priceCents,
+    member_price_cents: null,
+    is_internal_material: false,
+  }, getAvailableStock(product))
+
+  if (!result.success) {
+    notificationStore.error(`Nur ${getAvailableStock(product)} Einheiten von ${product.name} verfügbar`)
+    return
+  }
+
+  closeVariablePriceModal()
 }
 
 const closeInternalMaterialNoteModal = () => {
@@ -1040,11 +1142,45 @@ const confirmPayment = async () => {
     }
   }
 
+  cartStore.tipCents = 0
   processingPayment.value = true
   const transaction = await handlePaymentAndCheckout(pendingPaymentMethod.value)
   processingPayment.value = false
 
   if (transaction?.appliedBalanceOnly) {
+    closePaymentConfirmation()
+    return
+  }
+
+  if (transaction) {
+    if (transaction.issued_prepaid_voucher_numbers?.length) {
+      paymentResult.value = transaction
+      return
+    }
+    closePaymentConfirmation()
+  }
+}
+
+const confirmPaymentWithTip = async () => {
+  if (!pendingPaymentMethod.value || cashChangeCents.value <= 0) {
+    return
+  }
+
+  if (pendingPaymentMethod.value === 'CASH') {
+    const givenCents = Math.round(Number(cashGiven.value || 0) * 100)
+    if (givenCents < paymentTotal.value) {
+      notificationStore.error('Der gegebene Barbetrag reicht nicht aus')
+      return
+    }
+  }
+
+  cartStore.tipCents = cashChangeCents.value
+  processingPayment.value = true
+  const transaction = await handlePaymentAndCheckout(pendingPaymentMethod.value)
+  processingPayment.value = false
+
+  if (transaction?.appliedBalanceOnly) {
+    cartStore.tipCents = 0
     closePaymentConfirmation()
     return
   }
@@ -2396,6 +2532,10 @@ onBeforeUnmount(() => {
           margin-bottom: 0;
           margin-top: 0.5rem;
         }
+
+        .tip-donate-row {
+          grid-column: 1 / -1;
+        }
       }
     }
 
@@ -2536,6 +2676,40 @@ onBeforeUnmount(() => {
 
   &:not(:disabled):hover {
     background: #256a29;
+  }
+}
+
+.btn-tip-donate {
+  width: 100%;
+  padding: 0.5rem 1rem;
+  background: #e65100;
+  color: #fff;
+  border: none;
+  border-radius: 8px;
+  font-weight: 600;
+  cursor: pointer;
+  font-size: 0.9rem;
+  transition: background 0.15s;
+
+  &:not(:disabled):hover {
+    background: #bf360c;
+  }
+
+  &:disabled {
+    background: #bdbdbd;
+    cursor: not-allowed;
+  }
+}
+
+.form-input-label {
+  display: block;
+  font-weight: 600;
+  color: #334155;
+  margin-bottom: 1rem;
+
+  .form-input {
+    margin-top: 0.5rem;
+    width: 100%;
   }
 }
 
