@@ -1665,19 +1665,19 @@ onBeforeUnmount(() => {
 
 .products-grid {
   display: grid;
-  grid-template-columns: repeat(5, 1fr);
-  gap: .65rem;
+  grid-template-columns: repeat(10, 1fr);
+  gap: .5rem;
 
   @media (max-width: 1400px) {
-    grid-template-columns: repeat(4, 1fr);
+    grid-template-columns: repeat(6, 1fr);
   }
 
   @media (max-width: 1100px) {
-    grid-template-columns: repeat(3, 1fr);
+    grid-template-columns: repeat(5, 1fr);
   }
 
   @media (max-width: 800px) {
-    grid-template-columns: repeat(2, 1fr);
+    grid-template-columns: repeat(3, 1fr);
   }
 
   @media (max-width: 600px) {
