@@ -52,6 +52,7 @@ class AppSettingsService:
             "apple_touch_icon_url": "/api/app-settings/apple-touch-icon.png",
             "manifest_url": "/api/app-settings/manifest.webmanifest",
             "asset_version": self._asset_version(settings),
+            "kasse_layout": settings.kasse_layout,
         }
 
     def to_private_payload(self, settings: AppSettings | None = None) -> dict:
@@ -78,6 +79,9 @@ class AppSettingsService:
                 if not HEX_COLOR_RE.match(value):
                     raise ValueError(f"Invalid color value for {field}")
                 setattr(settings, field, value)
+
+        if "kasse_layout" in kwargs:
+            settings.kasse_layout = kwargs["kasse_layout"]
 
         self.db.commit()
         self.db.refresh(settings)

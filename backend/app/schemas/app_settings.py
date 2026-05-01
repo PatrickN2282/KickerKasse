@@ -7,6 +7,7 @@ class AppSettingsBase(BaseModel):
     background_color: str = Field(..., pattern=r"^#[0-9A-Fa-f]{6}$")
     banner_color: str = Field(..., pattern=r"^#[0-9A-Fa-f]{6}$")
     highlight_color: str = Field(..., pattern=r"^#[0-9A-Fa-f]{6}$")
+    kasse_layout: str | None = None
 
 
 class AppSettingsUpdate(AppSettingsBase):
