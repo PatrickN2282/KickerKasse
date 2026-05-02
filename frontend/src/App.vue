@@ -149,11 +149,12 @@ const authStore = useAuthStore()
 const appSettingsStore = useAppSettingsStore()
 const router = useRouter()
 const LAYOUT_STORAGE_KEY = 'kasseLayout'
+// Poll modestly in the background; focus/visibility refreshes pick up changes faster on active clients.
 const LAYOUT_REFRESH_INTERVAL_MS = 15000
 
 const showLoginModal = ref(false)
 const modalError = ref('')
-let layoutRefreshIntervalId = null
+const layoutRefreshIntervalId = ref(null)
 const refreshInFlight = ref(false)
 
 const loginForm = reactive({
@@ -250,7 +251,7 @@ onMounted(async () => {
   )
   window.addEventListener('focus', refreshPublicSettings)
   document.addEventListener('visibilitychange', handleVisibilityChange)
-  layoutRefreshIntervalId = window.setInterval(refreshPublicSettings, LAYOUT_REFRESH_INTERVAL_MS)
+  layoutRefreshIntervalId.value = window.setInterval(refreshPublicSettings, LAYOUT_REFRESH_INTERVAL_MS)
 })
 
 onBeforeUnmount(() => {
@@ -260,8 +261,8 @@ onBeforeUnmount(() => {
   )
   window.removeEventListener('focus', refreshPublicSettings)
   document.removeEventListener('visibilitychange', handleVisibilityChange)
-  if (layoutRefreshIntervalId !== null) {
-    window.clearInterval(layoutRefreshIntervalId)
+  if (layoutRefreshIntervalId.value !== null) {
+    window.clearInterval(layoutRefreshIntervalId.value)
   }
 })
 </script>

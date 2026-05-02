@@ -6,7 +6,7 @@
 </template>
 
 <script setup>
-import { markRaw, shallowRef, watch } from 'vue'
+import { markRaw, ref, shallowRef, watch } from 'vue'
 import { useAppSettingsStore } from '@/stores/appSettings'
 
 const LAYOUT_STORAGE_KEY = 'kasseLayout'
@@ -33,15 +33,15 @@ const getLayoutModule = (layoutName) => {
     ?? layoutModules[`/src/views/kasse/${defaultLayout}.vue`]
 }
 
-let activeLoadId = 0
+const activeLoadId = ref(0)
 
 watch(
-  getPreferredLayout,
+  () => getPreferredLayout(),
   async (layoutName) => {
-    const loadId = ++activeLoadId
+    const loadId = ++activeLoadId.value
     const moduleLoader = getLayoutModule(layoutName)
     const module = await moduleLoader()
-    if (loadId !== activeLoadId) {
+    if (loadId !== activeLoadId.value) {
       return
     }
     currentLayoutComponent.value = markRaw(module.default)
