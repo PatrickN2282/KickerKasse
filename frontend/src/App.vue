@@ -31,7 +31,7 @@
         <div class="navbar-col navbar-col--actions">
           <router-link
             to="/"
-            class="nav-link"
+            class="nav-link nav-link--kasse"
           >
             Kasse
           </router-link>
@@ -39,7 +39,7 @@
           <router-link
             v-if="authStore.canAccessAdminPanel"
             to="/admin"
-            class="nav-link"
+            class="nav-link nav-link--admin"
           >
             Admin
           </router-link>
@@ -60,6 +60,7 @@
             @click="logout"
           >
             <span class="btn-logout__user">{{ authStore.user?.username }}</span>
+            <span class="btn-logout__divider"></span>
             <span class="btn-logout__label">Logout</span>
           </button>
         </div>
@@ -288,12 +289,12 @@ onBeforeUnmount(() => {
 .navbar-content {
   display: grid;
   grid-template-columns: 1fr 1fr 1fr;
-  align-items: center;
+  align-items: stretch; /* Spalten auf volle Navhöhe dehnen */
 
   width: 100%;
-  padding: .3rem .85rem;
+  padding: 0 .85rem;
   box-sizing: border-box;
-  min-height: 52px; /* kompakte Gesamthöhe */
+  min-height: 54px;
 }
 
 /* ── Spalten ─────────────────────────────────────────────── */
@@ -303,6 +304,7 @@ onBeforeUnmount(() => {
 
   &--logo {
     justify-content: flex-start;
+    padding: .2rem 0; /* mini Luft oben/unten, Logo selbst füllt Rest */
   }
 
   &--title {
@@ -311,81 +313,122 @@ onBeforeUnmount(() => {
 
   &--actions {
     justify-content: flex-end;
-    gap: .45rem;
+    gap: .4rem;
     flex-wrap: wrap;
   }
 }
 
 /* ── Logo ────────────────────────────────────────────────── */
 .navbar-logo {
-  width: min(130px, 28vw);
-  height: 40px;
+  /* volle Navhöhe minus Border-bottom (3px) nutzen */
+  height: calc(100% - 0px);
+  max-height: 54px;
+  width: auto;
+  max-width: min(160px, 30vw);
   object-fit: contain;
 }
 
 /* ── Titel ───────────────────────────────────────────────── */
 .navbar-title {
   color: var(--app-banner-contrast);
-  font-size: clamp(.9rem, 1.4vw, 1.2rem);
+  font-size: clamp(1rem, 1.7vw, 1.4rem);
   font-weight: 800;
   letter-spacing: .01em;
   text-align: center;
   white-space: nowrap;
 }
 
-/* ── Nav-Links ───────────────────────────────────────────── */
-.nav-link {
-  color: var(--app-banner-contrast);
-  text-decoration: none;
-  padding: .25rem .65rem;
+/* ── Gemeinsame Pill-Basis für Nav-Links + Buttons ───────── */
+%pill {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border: none;
   border-radius: 999px;
-  font-size: .82rem;
-  transition: all .2s;
+  cursor: pointer;
+  font-size: .78rem;
+  font-weight: 700;
+  letter-spacing: .04em;
+  text-transform: uppercase;
+  text-decoration: none;
+  padding: .28rem .75rem;
+  line-height: 1.2;
+  transition: filter .15s, opacity .15s;
 
-  &:hover,
-  &.router-link-active {
-    background: var(--app-highlight-color);
-    color: var(--app-highlight-contrast);
+  &:hover { filter: brightness(1.12); }
+}
+
+/* ── Nav-Links ───────────────────────────────────────────── */
+/* Kasse → Highlight-Farbe */
+.nav-link {
+  @extend %pill;
+  background: transparent;
+  color: var(--app-banner-contrast);
+  opacity: .7;
+
+  &.router-link-active,
+  &:hover {
+    opacity: 1;
   }
 }
 
-/* ── Buttons ─────────────────────────────────────────────── */
-.btn-login {
+/* Kasse-Link gezielt in Highlight einfärben */
+.nav-link--kasse {
   background: var(--app-highlight-color);
   color: var(--app-highlight-contrast);
-  border: none;
-  padding: .25rem .7rem;
-  border-radius: 999px;
-  cursor: pointer;
-  font-size: .82rem;
-  line-height: 1.2;
+  opacity: 1;
+
+  &:hover { filter: brightness(1.1); }
 }
 
-/* Logout-Button: Username als kleine Zeile darüber */
+/* Admin → Pastell-Gelb */
+.nav-link--admin {
+  background: #f5e642;
+  color: #5a4a00;
+  opacity: 1;
+
+  &:hover { filter: brightness(1.08); }
+}
+
+/* ── Login-Button → helles Grün ──────────────────────────── */
+.btn-login {
+  @extend %pill;
+  background: #4caf7d;
+  color: #fff;
+}
+
+/* ── Logout-Button ───────────────────────────────────────── */
 .btn-logout {
+  @extend %pill;
   background: #c62828;
   color: #fff;
-  border: none;
-  padding: .18rem .7rem .22rem;
-  border-radius: 999px;
-  cursor: pointer;
-  display: flex;
   flex-direction: column;
-  align-items: center;
+  padding: .15rem .75rem .2rem;
   gap: 0;
-  line-height: 1.15;
 
   &__user {
-    font-size: .65rem;
-    font-weight: 600;
-    opacity: .82;
-    letter-spacing: .03em;
+    font-size: .6rem;
+    font-weight: 400;
+    letter-spacing: .06em;
     text-transform: uppercase;
+    opacity: .65;
+    line-height: 1.3;
+  }
+
+  /* Trennlinie zwischen User und Schriftzug */
+  &__divider {
+    width: 100%;
+    height: 1px;
+    background: rgba(255, 255, 255, .35);
+    margin: .1rem 0 .08rem;
   }
 
   &__label {
-    font-size: .82rem;
+    font-size: .78rem;
     font-weight: 700;
+    letter-spacing: .06em;
+    text-transform: uppercase;
+    line-height: 1.2;
   }
 }
 
