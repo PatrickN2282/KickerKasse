@@ -134,7 +134,7 @@
 
 
 <script setup>
-import { onBeforeUnmount, onMounted, reactive, ref } from 'vue'
+import { onBeforeUnmount, onMounted, reactive, ref, watch } from 'vue'
 import { useAuthStore } from '@/stores/auth'
 import { useAppSettingsStore } from '@/stores/appSettings'
 import { useRouter } from 'vue-router'
@@ -143,7 +143,7 @@ import NotificationCenter from '@/components/NotificationCenter.vue'
 import PwaInstallButton from '@/components/PwaInstallButton.vue'
 
 import pkg from '../package.json'
-import { SESSION_RELOAD_FLAG_KEY } from '@/constants'
+import { KASSE_LAYOUT_REFRESH_INTERVAL_MS, KASSE_LAYOUT_STORAGE_KEY, SESSION_RELOAD_FLAG_KEY } from '@/constants'
 
 const authStore = useAuthStore()
 const appSettingsStore = useAppSettingsStore()
@@ -151,6 +151,8 @@ const router = useRouter()
 
 const showLoginModal = ref(false)
 const modalError = ref('')
+const layoutRefreshIntervalId = ref(null)
+const refreshInFlight = ref(false)
 
 const loginForm = reactive({
   username: '',
@@ -200,33 +202,57 @@ const handleBeforeUnload = () => {
   authStore.clearClientSession()
 }
 
+const syncLayoutStorage = (layout) => {
+  if (layout) {
+    localStorage.setItem(KASSE_LAYOUT_STORAGE_KEY, layout)
+    return
+  }
+  localStorage.removeItem(KASSE_LAYOUT_STORAGE_KEY)
+}
+
+const refreshPublicSettings = async () => {
+  if (!authStore.isAuthenticated) {
+    return
+  }
+
+  if (refreshInFlight.value) {
+    return
+  }
+
+  refreshInFlight.value = true
+  try {
+    await appSettingsStore.loadPublicSettings()
+  } catch (error) {
+    console.error('[App] Failed to refresh public app settings:', error)
+  } finally {
+    refreshInFlight.value = false
+  }
+}
+
+const handleVisibilityChange = () => {
+  if (document.visibilityState === 'visible') {
+    refreshPublicSettings()
+  }
+}
+
+watch(
+  () => appSettingsStore.settings.kasse_layout,
+  (layout) => {
+    syncLayoutStorage(layout)
+  },
+  { immediate: true }
+)
+
 onMounted(async () => {
   appSettingsStore.applyToDocument()
-
-  // Sync kasse layout from server on startup
-  const LAYOUT_SYNC_KEY = 'kasseLayoutSynced'
-  if (!sessionStorage.getItem(LAYOUT_SYNC_KEY)) {
-    sessionStorage.setItem(LAYOUT_SYNC_KEY, '1')
-    try {
-      const serverSettings = await appSettingsStore.loadPublicSettings()
-      const serverLayout = serverSettings?.kasse_layout
-      if (serverLayout) {
-        const localLayout = localStorage.getItem('kasseLayout')
-        if (serverLayout !== localLayout) {
-          localStorage.setItem('kasseLayout', serverLayout)
-          window.location.reload()
-          return
-        }
-      }
-    } catch (e) {
-      console.error('[App] Failed to sync layout from server:', e)
-    }
-  }
 
   window.addEventListener(
     'beforeunload',
     handleBeforeUnload
   )
+  window.addEventListener('focus', refreshPublicSettings)
+  document.addEventListener('visibilitychange', handleVisibilityChange)
+  layoutRefreshIntervalId.value = window.setInterval(refreshPublicSettings, KASSE_LAYOUT_REFRESH_INTERVAL_MS)
 })
 
 onBeforeUnmount(() => {
@@ -234,6 +260,11 @@ onBeforeUnmount(() => {
     'beforeunload',
     handleBeforeUnload
   )
+  window.removeEventListener('focus', refreshPublicSettings)
+  document.removeEventListener('visibilitychange', handleVisibilityChange)
+  if (layoutRefreshIntervalId.value !== null) {
+    window.clearInterval(layoutRefreshIntervalId.value)
+  }
 })
 </script>
 
