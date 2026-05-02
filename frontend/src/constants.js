@@ -8,3 +8,4 @@
 export const SESSION_RELOAD_FLAG_KEY = 'kicker_kasse_reloading'
 export const KASSE_ROUTE_NAME = 'Kasse'
 export const KASSE_LAYOUT_STORAGE_KEY = 'kasseLayout'
+export const KASSE_LAYOUT_REFRESH_INTERVAL_MS = 15000

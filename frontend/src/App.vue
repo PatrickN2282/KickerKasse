@@ -143,13 +143,11 @@ import NotificationCenter from '@/components/NotificationCenter.vue'
 import PwaInstallButton from '@/components/PwaInstallButton.vue'
 
 import pkg from '../package.json'
-import { KASSE_LAYOUT_STORAGE_KEY, KASSE_ROUTE_NAME, SESSION_RELOAD_FLAG_KEY } from '@/constants'
+import { KASSE_LAYOUT_REFRESH_INTERVAL_MS, KASSE_LAYOUT_STORAGE_KEY, SESSION_RELOAD_FLAG_KEY } from '@/constants'
 
 const authStore = useAuthStore()
 const appSettingsStore = useAppSettingsStore()
 const router = useRouter()
-// Poll modestly in the background; focus/visibility refreshes pick up changes faster on active clients.
-const LAYOUT_REFRESH_INTERVAL_MS = 15000
 
 const showLoginModal = ref(false)
 const modalError = ref('')
@@ -213,7 +211,7 @@ const syncLayoutStorage = (layout) => {
 }
 
 const refreshPublicSettings = async () => {
-  if (!authStore.isAuthenticated || router.currentRoute.value.name !== KASSE_ROUTE_NAME) {
+  if (!authStore.isAuthenticated) {
     return
   }
 
@@ -254,7 +252,7 @@ onMounted(async () => {
   )
   window.addEventListener('focus', refreshPublicSettings)
   document.addEventListener('visibilitychange', handleVisibilityChange)
-  layoutRefreshIntervalId.value = window.setInterval(refreshPublicSettings, LAYOUT_REFRESH_INTERVAL_MS)
+  layoutRefreshIntervalId.value = window.setInterval(refreshPublicSettings, KASSE_LAYOUT_REFRESH_INTERVAL_MS)
 })
 
 onBeforeUnmount(() => {

@@ -32,7 +32,9 @@ const latestLayoutLoadId = ref(0)
 watch(
   () => appSettingsStore.settings.kasse_layout,
   async (serverLayout) => {
-    const layoutName = serverLayout || localStorage.getItem(KASSE_LAYOUT_STORAGE_KEY) || defaultLayout
+    const layoutName = serverLayout == null
+      ? localStorage.getItem(KASSE_LAYOUT_STORAGE_KEY) || defaultLayout
+      : serverLayout
     const loadId = ++latestLayoutLoadId.value
     const moduleLoader = getLayoutModule(layoutName)
     const module = await moduleLoader()
