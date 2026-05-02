@@ -2,20 +2,6 @@ import { createRouter, createWebHistory } from 'vue-router'
 import { useAuthStore } from '@/stores/auth'
 import { SESSION_RELOAD_FLAG_KEY } from '@/constants'
 
-const LAYOUT_STORAGE_KEY = 'kasseLayout'
-
-function getKasseComponent() {
-  const layout = localStorage.getItem(LAYOUT_STORAGE_KEY) || 'Kasse'
-  // Dynamically load alternate layouts (e.g. Kasse2.vue, Kasse3.vue)
-  const allLayouts = import.meta.glob('@/views/kasse/Kasse*.vue')
-  const key = `/src/views/kasse/${layout}.vue`
-  if (allLayouts[key]) {
-    return () => allLayouts[key]()
-  }
-  // Fallback to default
-  return () => import('@/views/kasse/Kasse.vue')
-}
-
 const routes = [
   {
     path: '/login',
@@ -25,7 +11,7 @@ const routes = [
   {
     path: '/',
     name: 'Kasse',
-    component: getKasseComponent(),
+    component: () => import('@/views/kasse/KasseLayoutHost.vue'),
     meta: { requiresAuth: true },
   },
   {
