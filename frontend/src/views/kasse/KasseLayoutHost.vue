@@ -12,6 +12,9 @@ import { useAppSettingsStore } from '@/stores/appSettings'
 const LAYOUT_STORAGE_KEY = 'kasseLayout'
 const layoutModules = import.meta.glob('@/views/kasse/Kasse*.vue')
 const defaultLayout = 'Kasse'
+const validLayouts = new Set(
+  Object.keys(layoutModules).map((path) => path.match(/\/(Kasse(?:\d+)?)\.vue$/)?.[1]).filter(Boolean)
+)
 const currentLayoutComponent = shallowRef(null)
 const appSettingsStore = useAppSettingsStore()
 
@@ -25,7 +28,7 @@ const getPreferredLayout = () => {
 }
 
 const getLayoutModule = (layoutName) => {
-  const sanitizedLayout = typeof layoutName === 'string' && /^Kasse(?:\d+)?$/.test(layoutName)
+  const sanitizedLayout = typeof layoutName === 'string' && validLayouts.has(layoutName)
     ? layoutName
     : defaultLayout
 

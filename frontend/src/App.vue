@@ -214,6 +214,10 @@ const syncLayoutStorage = (layout) => {
 }
 
 const refreshPublicSettings = async () => {
+  if (!authStore.isAuthenticated || router.currentRoute.value.path !== '/') {
+    return
+  }
+
   if (refreshInFlight.value) {
     return
   }
