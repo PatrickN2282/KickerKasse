@@ -149,12 +149,12 @@ const authStore = useAuthStore()
 const appSettingsStore = useAppSettingsStore()
 const router = useRouter()
 const LAYOUT_STORAGE_KEY = 'kasseLayout'
-const LAYOUT_REFRESH_INTERVAL_MS = 5000
+const LAYOUT_REFRESH_INTERVAL_MS = 15000
 
 const showLoginModal = ref(false)
 const modalError = ref('')
 let layoutRefreshIntervalId = null
-let refreshInFlight = false
+const refreshInFlight = ref(false)
 
 const loginForm = reactive({
   username: '',
@@ -213,17 +213,17 @@ const syncLayoutStorage = (layout) => {
 }
 
 const refreshPublicSettings = async () => {
-  if (refreshInFlight) {
+  if (refreshInFlight.value) {
     return
   }
 
-  refreshInFlight = true
+  refreshInFlight.value = true
   try {
     await appSettingsStore.loadPublicSettings()
   } catch (error) {
     console.error('[App] Failed to refresh public app settings:', error)
   } finally {
-    refreshInFlight = false
+    refreshInFlight.value = false
   }
 }
 

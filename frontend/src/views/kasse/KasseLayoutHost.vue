@@ -15,6 +15,15 @@ const defaultLayout = 'Kasse'
 const currentLayoutComponent = shallowRef(null)
 const appSettingsStore = useAppSettingsStore()
 
+const getPreferredLayout = () => {
+  const serverLayout = appSettingsStore.settings.kasse_layout
+  if (serverLayout) {
+    return serverLayout
+  }
+
+  return localStorage.getItem(LAYOUT_STORAGE_KEY) || defaultLayout
+}
+
 const getLayoutModule = (layoutName) => {
   const sanitizedLayout = typeof layoutName === 'string' && /^Kasse(?:\d+)?$/.test(layoutName)
     ? layoutName
@@ -27,7 +36,7 @@ const getLayoutModule = (layoutName) => {
 let activeLoadId = 0
 
 watch(
-  () => appSettingsStore.settings.kasse_layout || localStorage.getItem(LAYOUT_STORAGE_KEY) || defaultLayout,
+  getPreferredLayout,
   async (layoutName) => {
     const loadId = ++activeLoadId
     const moduleLoader = getLayoutModule(layoutName)
