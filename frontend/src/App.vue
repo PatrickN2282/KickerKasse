@@ -143,12 +143,11 @@ import NotificationCenter from '@/components/NotificationCenter.vue'
 import PwaInstallButton from '@/components/PwaInstallButton.vue'
 
 import pkg from '../package.json'
-import { SESSION_RELOAD_FLAG_KEY } from '@/constants'
+import { KASSE_LAYOUT_STORAGE_KEY, KASSE_ROUTE_NAME, SESSION_RELOAD_FLAG_KEY } from '@/constants'
 
 const authStore = useAuthStore()
 const appSettingsStore = useAppSettingsStore()
 const router = useRouter()
-const LAYOUT_STORAGE_KEY = 'kasseLayout'
 // Poll modestly in the background; focus/visibility refreshes pick up changes faster on active clients.
 const LAYOUT_REFRESH_INTERVAL_MS = 15000
 
@@ -207,14 +206,14 @@ const handleBeforeUnload = () => {
 
 const syncLayoutStorage = (layout) => {
   if (layout) {
-    localStorage.setItem(LAYOUT_STORAGE_KEY, layout)
+    localStorage.setItem(KASSE_LAYOUT_STORAGE_KEY, layout)
     return
   }
-  localStorage.removeItem(LAYOUT_STORAGE_KEY)
+  localStorage.removeItem(KASSE_LAYOUT_STORAGE_KEY)
 }
 
 const refreshPublicSettings = async () => {
-  if (!authStore.isAuthenticated || router.currentRoute.value.name !== 'Kasse') {
+  if (!authStore.isAuthenticated || router.currentRoute.value.name !== KASSE_ROUTE_NAME) {
     return
   }
 

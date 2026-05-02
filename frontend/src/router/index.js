@@ -1,6 +1,6 @@
 import { createRouter, createWebHistory } from 'vue-router'
 import { useAuthStore } from '@/stores/auth'
-import { SESSION_RELOAD_FLAG_KEY } from '@/constants'
+import { KASSE_ROUTE_NAME, SESSION_RELOAD_FLAG_KEY } from '@/constants'
 
 const routes = [
   {
@@ -10,7 +10,7 @@ const routes = [
   },
   {
     path: '/',
-    name: 'Kasse',
+    name: KASSE_ROUTE_NAME,
     component: () => import('@/views/kasse/KasseLayoutHost.vue'),
     meta: { requiresAuth: true },
   },
