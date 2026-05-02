@@ -214,7 +214,7 @@ const syncLayoutStorage = (layout) => {
 }
 
 const refreshPublicSettings = async () => {
-  if (!authStore.isAuthenticated || router.currentRoute.value.path !== '/') {
+  if (!authStore.isAuthenticated || router.currentRoute.value.name !== 'Kasse') {
     return
   }
 

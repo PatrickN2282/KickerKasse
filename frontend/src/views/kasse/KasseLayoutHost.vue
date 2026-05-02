@@ -36,15 +36,15 @@ const getLayoutModule = (layoutName) => {
     ?? layoutModules[`/src/views/kasse/${defaultLayout}.vue`]
 }
 
-const activeLoadId = ref(0)
+const latestLayoutLoadId = ref(0)
 
 watch(
   () => getPreferredLayout(),
   async (layoutName) => {
-    const loadId = ++activeLoadId.value
+    const loadId = ++latestLayoutLoadId.value
     const moduleLoader = getLayoutModule(layoutName)
     const module = await moduleLoader()
-    if (loadId !== activeLoadId.value) {
+    if (loadId !== latestLayoutLoadId.value) {
       return
     }
     currentLayoutComponent.value = markRaw(module.default)
