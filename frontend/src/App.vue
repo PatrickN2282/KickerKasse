@@ -54,14 +54,17 @@
             Login
           </button>
 
-          <!-- Logout-Button mit eingebettetem Username -->
+          <!-- Angemeldeter Benutzer als eigene Blase -->
+          <span class="user-chip">
+            👤 {{ authStore.user?.username }}
+          </span>
+
+          <!-- Logout-Button -->
           <button
             class="btn-logout"
             @click="logout"
           >
-            <span class="btn-logout__user">{{ authStore.user?.username }}</span>
-            <span class="btn-logout__divider"></span>
-            <span class="btn-logout__label">Logout</span>
+            Logout
           </button>
         </div>
 
@@ -303,7 +306,7 @@ onBeforeUnmount(() => {
   align-items: center;
 
   &--logo {
-    justify-content: center;
+    justify-content: flex-start;
     padding: .2rem 0; /* mini Luft oben/unten, Logo selbst füllt Rest */
   }
 
@@ -344,48 +347,55 @@ onBeforeUnmount(() => {
   align-items: center;
   justify-content: center;
   border: none;
-  border-radius: 999px;
+  border-radius: 8px;
   cursor: pointer;
-  font-size: .78rem;
+  font-size: .85rem;
   font-weight: 700;
-  letter-spacing: .04em;
+  letter-spacing: .05em;
   text-transform: uppercase;
   text-decoration: none;
-  padding: .28rem .75rem;
+  padding: .45rem 1.1rem;
   line-height: 1.2;
-  transition: filter .15s, opacity .15s;
+  transition: filter .15s, box-shadow .15s;
+  white-space: nowrap;
 
-  &:hover { filter: brightness(1.12); }
+  &:hover { filter: brightness(1.1); }
 }
 
 /* ── Nav-Links ───────────────────────────────────────────── */
-/* Kasse → Highlight-Farbe */
 .nav-link {
   @extend %pill;
-  background: transparent;
+  background: rgba(255,255,255,.12);
   color: var(--app-banner-contrast);
-  opacity: .7;
+  border: 1.5px solid rgba(255,255,255,.18);
 
   &.router-link-active,
   &:hover {
-    opacity: 1;
+    background: rgba(255,255,255,.22);
+    border-color: rgba(255,255,255,.35);
   }
 }
 
-/* Kasse-Link gezielt in Highlight einfärben */
+/* Kasse → Highlight-Farbe */
 .nav-link--kasse {
   background: var(--app-highlight-color);
   color: var(--app-highlight-contrast);
-  opacity: 1;
+  border-color: transparent;
+  box-shadow: 0 2px 6px rgba(0,0,0,.25);
 
-  &:hover { filter: brightness(1.1); }
+  &.router-link-active,
+  &:hover {
+    background: var(--app-highlight-color);
+    filter: brightness(1.1);
+  }
 }
 
 /* Admin → Pastell-Gelb */
 .nav-link--admin {
   background: #f5e642;
   color: #5a4a00;
-  opacity: 1;
+  border-color: transparent;
+  box-shadow: 0 2px 6px rgba(0,0,0,.2);
 
   &:hover { filter: brightness(1.08); }
 }
@@ -393,8 +403,26 @@ onBeforeUnmount(() => {
 /* ── Login-Button → helles Grün ──────────────────────────── */
 .btn-login {
   @extend %pill;
-  background: #4caf7d;
+  background: #2e9e5b;
   color: #fff;
+  box-shadow: 0 2px 6px rgba(0,0,0,.25);
+}
+
+/* ── User-Chip ───────────────────────────────────────────── */
+.user-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: .3rem;
+  background: rgba(255,255,255,.15);
+  color: var(--app-banner-contrast);
+  border: 1.5px solid rgba(255,255,255,.28);
+  border-radius: 8px;
+  padding: .4rem .85rem;
+  font-size: .82rem;
+  font-weight: 600;
+  letter-spacing: .02em;
+  white-space: nowrap;
+  user-select: none;
 }
 
 /* ── Logout-Button ───────────────────────────────────────── */
@@ -402,34 +430,7 @@ onBeforeUnmount(() => {
   @extend %pill;
   background: #c62828;
   color: #fff;
-  flex-direction: column;
-  padding: .15rem .75rem .2rem;
-  gap: 0;
-
-  &__user {
-    font-size: .6rem;
-    font-weight: 400;
-    letter-spacing: .06em;
-    text-transform: uppercase;
-    opacity: .65;
-    line-height: 1.3;
-  }
-
-  /* Trennlinie zwischen User und Schriftzug */
-  &__divider {
-    width: 100%;
-    height: 1px;
-    background: rgba(255, 255, 255, .35);
-    margin: .1rem 0 .08rem;
-  }
-
-  &__label {
-    font-size: .78rem;
-    font-weight: 700;
-    letter-spacing: .06em;
-    text-transform: uppercase;
-    line-height: 1.2;
-  }
+  box-shadow: 0 2px 6px rgba(0,0,0,.28);
 }
 
 
