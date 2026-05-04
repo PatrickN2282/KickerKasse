@@ -220,7 +220,7 @@ const applyLayout = async () => {
     await appSettingsStore.saveAdminSettings({
       kasse_layout: selectedLayout.value,
     })
-  } catch (err) {
+  } catch {
     notificationStore.error('Layout konnte nicht gespeichert werden')
     return
   }
