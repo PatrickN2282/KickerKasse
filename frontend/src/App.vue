@@ -29,43 +29,50 @@
 
         <!-- Spalte 3: Navigation + User-Aktionen -->
         <div class="navbar-col navbar-col--actions">
-          <router-link
-            to="/"
-            class="nav-link nav-link--kasse"
-          >
-            Kasse
-          </router-link>
-
-          <router-link
-            v-if="authStore.canAccessAdminPanel"
-            to="/admin"
-            class="nav-link nav-link--admin"
-          >
-            Admin
-          </router-link>
 
           <PwaInstallButton />
 
-          <button
-            v-if="authStore.isKasseUser"
-            class="btn-login"
-            @click="openLoginModal"
-          >
-            Login
-          </button>
-
-          <!-- Angemeldeter Benutzer als eigene Blase -->
+          <!-- User-Chip: immer sichtbar -->
           <span class="user-chip">
             👤 {{ authStore.user?.username }}
           </span>
 
-          <!-- Logout-Button -->
-          <button
-            class="btn-logout"
-            @click="logout"
-          >
-            Logout
-          </button>
+          <!-- Kasse-User: nur Login anzeigen, kein Kasse/Logout -->
+          <template v-if="isKasseUser">
+            <button
+              class="btn-login"
+              @click="openLoginModal"
+            >
+              Login
+            </button>
+          </template>
+
+          <!-- Anderer User: entweder Kasse oder Admin (je nach aktiver Route), plus Logout -->
+          <template v-else>
+            <router-link
+              v-if="isOnAdminRoute"
+              to="/"
+              class="nav-link nav-link--kasse"
+            >
+              Kasse
+            </router-link>
+
+            <router-link
+              v-else-if="authStore.canAccessAdminPanel"
+              to="/admin"
+              class="nav-link nav-link--admin"
+            >
+              Admin
+            </router-link>
+
+            <button
+              class="btn-logout"
+              @click="logout"
+            >
+              Logout
+            </button>
+          </template>
+
         </div>
 
       </div>
@@ -138,10 +145,10 @@
 
 
 <script setup>
-import { onBeforeUnmount, onMounted, reactive, ref, watch } from 'vue'
+import { computed, onBeforeUnmount, onMounted, reactive, ref, watch } from 'vue'
 import { useAuthStore } from '@/stores/auth'
 import { useAppSettingsStore } from '@/stores/appSettings'
-import { useRouter } from 'vue-router'
+import { useRoute, useRouter } from 'vue-router'
 
 import NotificationCenter from '@/components/NotificationCenter.vue'
 import PwaInstallButton from '@/components/PwaInstallButton.vue'
@@ -152,6 +159,12 @@ import { KASSE_LAYOUT_REFRESH_INTERVAL_MS, KASSE_LAYOUT_STORAGE_KEY, SESSION_REL
 const authStore = useAuthStore()
 const appSettingsStore = useAppSettingsStore()
 const router = useRouter()
+const route = useRoute()
+
+// true wenn der angemeldete User der Kasse-User ist
+const isKasseUser = computed(() => authStore.isKasseUser)
+// true wenn gerade die Admin-Route aktiv ist
+const isOnAdminRoute = computed(() => route.path.startsWith('/admin'))
 
 const showLoginModal = ref(false)
 const modalError = ref('')
