@@ -126,6 +126,18 @@ async def get_manifest(db: Session = Depends(get_db)):
                 "type": "image/png",
                 "purpose": "any",
             },
+            {
+                "src": f"/api/app-settings/icon-192.png?v={payload['asset_version']}",
+                "sizes": "192x192",
+                "type": "image/png",
+                "purpose": "maskable",
+            },
+            {
+                "src": f"/api/app-settings/icon-512.png?v={payload['asset_version']}",
+                "sizes": "512x512",
+                "type": "image/png",
+                "purpose": "maskable",
+            },
         ],
     }
     return JSONResponse(content=manifest, media_type="application/manifest+json")
