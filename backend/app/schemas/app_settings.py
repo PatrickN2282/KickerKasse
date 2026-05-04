@@ -8,6 +8,8 @@ class AppSettingsBase(BaseModel):
     banner_color: str = Field(..., pattern=r"^#[0-9A-Fa-f]{6}$")
     highlight_color: str = Field(..., pattern=r"^#[0-9A-Fa-f]{6}$")
     kasse_layout: str | None = None
+    session_timer_enabled: bool = False
+    session_timer_minutes: int = Field(default=15, ge=1, le=1440)
 
 
 class AppSettingsUpdate(AppSettingsBase):

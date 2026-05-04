@@ -58,6 +58,42 @@
           </div>
         </div>
       </div>
+
+      <div class="settings-card">
+        <div class="settings-card-header">
+          <div class="settings-card-icon">⏱️</div>
+          <div>
+            <h3>Session-Timer</h3>
+            <p>Automatischer Logout nach Inaktivität mit Rückkehr zum Login-Screen.</p>
+          </div>
+        </div>
+        <div class="session-timer-settings">
+          <button
+            class="btn"
+            :class="sessionTimer.enabled ? 'btn-success' : 'btn-secondary'"
+            type="button"
+            @click="sessionTimer.enabled = !sessionTimer.enabled"
+          >
+            {{ sessionTimer.enabled ? 'Eingeschaltet' : 'Ausgeschaltet' }}
+          </button>
+
+          <div class="form-group">
+            <label for="session-timer-minutes">Automatische Abmeldung nach (Minuten)</label>
+            <input
+              id="session-timer-minutes"
+              v-model.number="sessionTimer.minutes"
+              type="number"
+              min="1"
+              step="1"
+              inputmode="numeric"
+            >
+          </div>
+
+          <button class="btn btn-primary" type="button" @click="saveSessionTimer">
+            Session-Timer speichern
+          </button>
+        </div>
+      </div>
     </div>
 
     <!-- Business Data Modal -->
@@ -125,7 +161,6 @@
 import { ref, computed, onMounted } from 'vue'
 import { useNotificationStore } from '@/stores/notification'
 import { useAppSettingsStore } from '@/stores/appSettings'
-import apiService from '@/services/api'
 import { SESSION_RELOAD_FLAG_KEY } from '@/constants'
 
 const notificationStore = useNotificationStore()
@@ -134,6 +169,10 @@ const appSettingsStore = useAppSettingsStore()
 const LAYOUT_STORAGE_KEY = 'kasseLayout'
 
 const showBusinessModal = ref(false)
+const sessionTimer = ref({
+  enabled: false,
+  minutes: 15,
+})
 
 const businessData = ref({
   name: '',
@@ -171,15 +210,14 @@ const initialLayout = ref(localStorage.getItem(LAYOUT_STORAGE_KEY) || 'Kasse')
 
 const layoutChanged = computed(() => selectedLayout.value !== initialLayout.value)
 
+const syncSessionTimer = () => {
+  sessionTimer.value.enabled = !!appSettingsStore.settings.session_timer_enabled
+  sessionTimer.value.minutes = Number(appSettingsStore.settings.session_timer_minutes) || 15
+}
+
 const applyLayout = async () => {
   try {
-    const response = await apiService.get('/app-settings')
-    const current = response.data
-    await apiService.put('/app-settings', {
-      app_name: current.app_name,
-      background_color: current.background_color,
-      banner_color: current.banner_color,
-      highlight_color: current.highlight_color,
+    await appSettingsStore.saveAdminSettings({
       kasse_layout: selectedLayout.value,
     })
   } catch (err) {
@@ -191,6 +229,25 @@ const applyLayout = async () => {
   window.location.reload()
 }
 
+const saveSessionTimer = async () => {
+  const minutes = Number(sessionTimer.value.minutes)
+  if (!Number.isInteger(minutes) || minutes < 1) {
+    notificationStore.error('Bitte eine gültige Anzahl Minuten ab 1 eingeben')
+    return
+  }
+
+  try {
+    await appSettingsStore.saveAdminSettings({
+      session_timer_enabled: sessionTimer.value.enabled,
+      session_timer_minutes: minutes,
+    })
+    syncSessionTimer()
+    notificationStore.success('Session-Timer gespeichert')
+  } catch (error) {
+    notificationStore.error(error.response?.data?.detail || 'Session-Timer konnte nicht gespeichert werden')
+  }
+}
+
 const saveBusinessData = () => {
   // Persist data locally for later use
   localStorage.setItem('businessData', JSON.stringify(businessData.value))
@@ -198,7 +255,7 @@ const saveBusinessData = () => {
   showBusinessModal.value = false
 }
 
-onMounted(() => {
+onMounted(async () => {
   // Pre-fill with any previously saved data
   const saved = localStorage.getItem('businessData')
   if (saved) {
@@ -209,12 +266,16 @@ onMounted(() => {
     }
   }
 
+  await appSettingsStore.loadAdminSettings()
+
   // Sync layout from server settings
   const serverLayout = appSettingsStore.settings.kasse_layout
   if (serverLayout) {
     selectedLayout.value = serverLayout
     initialLayout.value = serverLayout
   }
+
+  syncSessionTimer()
 })
 </script>
 
@@ -351,6 +412,12 @@ onMounted(() => {
   font-size: 0.85rem;
   color: #92400e;
   flex-wrap: wrap;
+}
+
+.session-timer-settings {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
 }
 
 /* ── Modal ──────────────────────────────────────── */

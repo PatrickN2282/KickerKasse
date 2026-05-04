@@ -12,7 +12,10 @@ from app.constants import (
     INTERNAL_MATERIAL_CATEGORY_DISPLAY_ORDER,
     INTERNAL_MATERIAL_CATEGORY_NAME,
 )
-from app.services.app_settings_service import DEFAULT_APP_NAME
+from app.services.app_settings_service import (
+    DEFAULT_APP_NAME,
+    DEFAULT_SESSION_TIMER_MINUTES,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -299,6 +302,38 @@ class DatabaseMigrator:
                         logger.info("✓ Added kasse_layout column to app_settings")
                     except Exception as e:
                         logger.warning(f"Could not add kasse_layout column: {str(e)}")
+                        try:
+                            conn.rollback()
+                        except:
+                            pass
+
+                if 'session_timer_enabled' not in app_settings_columns:
+                    logger.info("Adding session_timer_enabled column to app_settings table...")
+                    try:
+                        conn.execute(text(
+                            "ALTER TABLE app_settings "
+                            "ADD COLUMN session_timer_enabled BOOLEAN DEFAULT FALSE NOT NULL"
+                        ))
+                        conn.commit()
+                        logger.info("✓ Added session_timer_enabled column to app_settings")
+                    except Exception as e:
+                        logger.warning(f"Could not add session_timer_enabled column: {str(e)}")
+                        try:
+                            conn.rollback()
+                        except:
+                            pass
+
+                if 'session_timer_minutes' not in app_settings_columns:
+                    logger.info("Adding session_timer_minutes column to app_settings table...")
+                    try:
+                        conn.execute(text(
+                            "ALTER TABLE app_settings "
+                            "ADD COLUMN session_timer_minutes INTEGER DEFAULT :default_session_timer_minutes NOT NULL"
+                        ), {"default_session_timer_minutes": DEFAULT_SESSION_TIMER_MINUTES})
+                        conn.commit()
+                        logger.info("✓ Added session_timer_minutes column to app_settings")
+                    except Exception as e:
+                        logger.warning(f"Could not add session_timer_minutes column: {str(e)}")
                         try:
                             conn.rollback()
                         except:

@@ -95,7 +95,7 @@ const handleLogoSelection = (event) => {
 
 const saveSettings = async () => {
   try {
-    await appSettingsStore.saveThemeSettings({ ...form })
+    await appSettingsStore.saveAdminSettings({ ...form })
     syncForm()
     notificationStore.success('Design-Einstellungen gespeichert')
   } catch (error) {

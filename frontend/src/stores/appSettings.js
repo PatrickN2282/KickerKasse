@@ -19,6 +19,8 @@ const fallbackSettings = {
   manifest_url: '/api/app-settings/manifest.webmanifest',
   asset_version: '1',
   kasse_layout: null,
+  session_timer_enabled: false,
+  session_timer_minutes: 15,
 }
 
 const setLinkTag = (id, rel, href, type = null, attributes = {}) => {
@@ -105,18 +107,27 @@ export const useAppSettingsStore = defineStore('app-settings', () => {
     return mergeAndApply(response.data)
   }
 
-  const saveThemeSettings = async (payload) => {
+  const buildAdminPayload = (payload = {}) => ({
+    app_name: payload.app_name ?? settings.value.app_name,
+    background_color: payload.background_color ?? settings.value.background_color,
+    banner_color: payload.banner_color ?? settings.value.banner_color,
+    highlight_color: payload.highlight_color ?? settings.value.highlight_color,
+    kasse_layout: payload.kasse_layout ?? settings.value.kasse_layout,
+    session_timer_enabled: payload.session_timer_enabled ?? settings.value.session_timer_enabled,
+    session_timer_minutes: payload.session_timer_minutes ?? settings.value.session_timer_minutes,
+  })
+
+  const saveAdminSettings = async (payload) => {
     isSaving.value = true
     try {
-      const response = await apiService.put('/app-settings', {
-        kasse_layout: settings.value.kasse_layout,
-        ...payload,
-      })
+      const response = await apiService.put('/app-settings', buildAdminPayload(payload))
       return mergeAndApply(response.data)
     } finally {
       isSaving.value = false
     }
   }
+
+  const saveThemeSettings = async (payload) => saveAdminSettings(payload)
 
   const uploadLogo = async (file) => {
     isSaving.value = true
@@ -144,6 +155,7 @@ export const useAppSettingsStore = defineStore('app-settings', () => {
     applyToDocument,
     loadPublicSettings,
     loadAdminSettings,
+    saveAdminSettings,
     saveThemeSettings,
     uploadLogo,
   }

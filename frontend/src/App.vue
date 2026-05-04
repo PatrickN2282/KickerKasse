@@ -148,6 +148,7 @@
 import { computed, onBeforeUnmount, onMounted, reactive, ref, watch } from 'vue'
 import { useAuthStore } from '@/stores/auth'
 import { useAppSettingsStore } from '@/stores/appSettings'
+import { useNotificationStore } from '@/stores/notification'
 import { useRoute, useRouter } from 'vue-router'
 
 import NotificationCenter from '@/components/NotificationCenter.vue'
@@ -158,6 +159,7 @@ import { KASSE_LAYOUT_REFRESH_INTERVAL_MS, KASSE_LAYOUT_STORAGE_KEY, SESSION_REL
 
 const authStore = useAuthStore()
 const appSettingsStore = useAppSettingsStore()
+const notificationStore = useNotificationStore()
 const router = useRouter()
 const route = useRoute()
 
@@ -170,6 +172,7 @@ const showLoginModal = ref(false)
 const modalError = ref('')
 const layoutRefreshIntervalId = ref(null)
 const refreshInFlight = ref(false)
+const sessionTimerId = ref(null)
 
 const loginForm = reactive({
   username: '',
@@ -195,6 +198,47 @@ const closeLoginModal = () => {
   loginForm.password = ''
 }
 
+const clearSessionTimer = () => {
+  if (sessionTimerId.value !== null) {
+    window.clearTimeout(sessionTimerId.value)
+    sessionTimerId.value = null
+  }
+}
+
+const sessionTimerDelayMs = computed(() => {
+  if (!authStore.isAuthenticated || !appSettingsStore.settings.session_timer_enabled) {
+    return null
+  }
+
+  const minutes = Number(appSettingsStore.settings.session_timer_minutes)
+  if (!Number.isFinite(minutes) || minutes < 1) {
+    return null
+  }
+
+  return minutes * 60 * 1000
+})
+
+const handleSessionTimeout = async () => {
+  clearSessionTimer()
+  if (!authStore.isAuthenticated) return
+
+  closeLoginModal()
+  await authStore.logout()
+  notificationStore.info('Session-Timer: Benutzer wurde automatisch abgemeldet')
+  router.replace('/login')
+}
+
+const resetSessionTimer = () => {
+  clearSessionTimer()
+  if (sessionTimerDelayMs.value == null) return
+  sessionTimerId.value = window.setTimeout(handleSessionTimeout, sessionTimerDelayMs.value)
+}
+
+const handleUserActivity = () => {
+  if (document.visibilityState === 'hidden') return
+  resetSessionTimer()
+}
+
 const loginFromModal = async () => {
   modalError.value = ''
 
@@ -215,6 +259,7 @@ const loginFromModal = async () => {
 
 const handleBeforeUnload = () => {
   sessionStorage.setItem(SESSION_RELOAD_FLAG_KEY, '1')
+  clearSessionTimer()
   authStore.clearClientSession()
 }
 
@@ -254,11 +299,31 @@ watch(
   { immediate: true }
 )
 
+watch(
+  [
+    () => authStore.isAuthenticated,
+    () => appSettingsStore.settings.session_timer_enabled,
+    () => appSettingsStore.settings.session_timer_minutes,
+  ],
+  ([isAuthenticated]) => {
+    if (!isAuthenticated) {
+      clearSessionTimer()
+      return
+    }
+    resetSessionTimer()
+  },
+  { immediate: true }
+)
+
 onMounted(async () => {
   appSettingsStore.applyToDocument()
 
   window.addEventListener('beforeunload', handleBeforeUnload)
   window.addEventListener('focus', refreshPublicSettings)
+  window.addEventListener('pointerdown', handleUserActivity)
+  window.addEventListener('keydown', handleUserActivity)
+  window.addEventListener('touchstart', handleUserActivity)
+  window.addEventListener('scroll', handleUserActivity, true)
   document.addEventListener('visibilitychange', handleVisibilityChange)
   layoutRefreshIntervalId.value = window.setInterval(refreshPublicSettings, KASSE_LAYOUT_REFRESH_INTERVAL_MS)
 })
@@ -266,10 +331,15 @@ onMounted(async () => {
 onBeforeUnmount(() => {
   window.removeEventListener('beforeunload', handleBeforeUnload)
   window.removeEventListener('focus', refreshPublicSettings)
+  window.removeEventListener('pointerdown', handleUserActivity)
+  window.removeEventListener('keydown', handleUserActivity)
+  window.removeEventListener('touchstart', handleUserActivity)
+  window.removeEventListener('scroll', handleUserActivity, true)
   document.removeEventListener('visibilitychange', handleVisibilityChange)
   if (layoutRefreshIntervalId.value !== null) {
     window.clearInterval(layoutRefreshIntervalId.value)
   }
+  clearSessionTimer()
 })
 </script>
 
