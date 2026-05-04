@@ -92,7 +92,10 @@ export const useAppSettingsStore = defineStore('app-settings', () => {
   const saveThemeSettings = async (payload) => {
     isSaving.value = true
     try {
-      const response = await apiService.put('/app-settings', payload)
+      const response = await apiService.put('/app-settings', {
+        kasse_layout: settings.value.kasse_layout,
+        ...payload,
+      })
       return mergeAndApply(response.data)
     } finally {
       isSaving.value = false
