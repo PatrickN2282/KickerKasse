@@ -1,6 +1,7 @@
 from datetime import datetime
 from pydantic import BaseModel, Field
 
+# Hard limit to one day so accidental oversized values cannot keep sessions alive indefinitely.
 MAX_SESSION_TIMER_MINUTES = 1440
 
 

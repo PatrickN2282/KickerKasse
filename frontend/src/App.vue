@@ -333,7 +333,7 @@ onMounted(async () => {
   window.addEventListener('pointerdown', handleUserActivity)
   window.addEventListener('keydown', handleUserActivity)
   window.addEventListener('touchstart', handleUserActivity)
-  window.addEventListener('scroll', handleUserActivity, true)
+  window.addEventListener('scroll', handleUserActivity, { capture: true, passive: true })
   document.addEventListener('visibilitychange', handleVisibilityChange)
   layoutRefreshIntervalId.value = window.setInterval(refreshPublicSettings, KASSE_LAYOUT_REFRESH_INTERVAL_MS)
 })

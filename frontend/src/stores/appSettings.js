@@ -127,8 +127,6 @@ export const useAppSettingsStore = defineStore('app-settings', () => {
     }
   }
 
-  const saveThemeSettings = async (payload) => saveAdminSettings(payload)
-
   const uploadLogo = async (file) => {
     isSaving.value = true
     try {
@@ -156,7 +154,6 @@ export const useAppSettingsStore = defineStore('app-settings', () => {
     loadPublicSettings,
     loadAdminSettings,
     saveAdminSettings,
-    saveThemeSettings,
     uploadLogo,
   }
 })
