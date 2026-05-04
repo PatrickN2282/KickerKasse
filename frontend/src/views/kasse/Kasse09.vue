@@ -17,7 +17,7 @@
               @click="toggleCategory(category.id)"
             >
               <span class="cat-name">{{ category.name }}</span>
-              <span class="cat-count">{{ getProductsByCategory(category.id).length }}</span>
+              <span v-if="!expandedCategories.includes(category.id)" class="cat-count">{{ getProductsByCategory(category.id).length }}</span>
             </button>
             <div
               v-if="expandedCategories.includes(category.id)"
@@ -59,7 +59,7 @@
               @click="toggleCategory(0)"
             >
               <span class="cat-name">Ohne Kategorie</span>
-              <span class="cat-count">{{ productsWithoutCategory.length }}</span>
+              <span v-if="!expandedCategories.includes(0)" class="cat-count">{{ productsWithoutCategory.length }}</span>
             </button>
             <div
               v-if="expandedCategories.includes(0)"
@@ -501,9 +501,9 @@ const {
     .cat-name {
       writing-mode: horizontal-tb;
       transform: none;
-      font-size: .72rem;
+      font-size: .85rem;
       line-height: 1;
-      letter-spacing: 0.04em;
+      letter-spacing: 0.03em;
       white-space: nowrap;
       overflow: hidden;
       text-overflow: ellipsis;
@@ -512,7 +512,7 @@ const {
     }
 
     .cat-count {
-      font-size: .65rem;
+      font-size: .8rem;
       opacity: .75;
       font-weight: 500;
       flex-shrink: 0;
@@ -533,7 +533,7 @@ const {
       writing-mode: vertical-rl;
       transform: rotate(180deg);
       text-orientation: mixed;
-      font-size: .68rem;
+      font-size: .8rem;
       line-height: 1;
       letter-spacing: 0.05em;
       overflow: hidden;
@@ -545,7 +545,7 @@ const {
     }
 
     .cat-count {
-      font-size: .6rem;
+      font-size: .7rem;
       opacity: .75;
       font-weight: 500;
       flex-shrink: 0;
