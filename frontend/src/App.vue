@@ -399,7 +399,7 @@ onBeforeUnmount(() => {
   align-items: center;
 
   &--logo {
-    justify-content: flex-start;
+    justify-content: center;
     padding: .2rem 0; /* mini Luft oben/unten, Logo selbst füllt Rest */
   }
 
