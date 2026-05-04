@@ -491,7 +491,7 @@ const {
     flex-direction: row;
     width: auto;
     height: 28px;         /* flache horizontale Pille */
-    padding: .25rem .65rem;
+    padding: 2px .65rem;
 
     .cat-name {
       writing-mode: horizontal-tb;
