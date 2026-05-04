@@ -341,7 +341,7 @@ onBeforeUnmount(() => {
   max-height: 54px;
   width: auto;
   max-width: min(160px, 30vw);
-  object-fit: contain;
+  object-fit: center;
 }
 
 /* ── Titel ───────────────────────────────────────────────── */
