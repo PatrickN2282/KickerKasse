@@ -9,14 +9,19 @@ const fallbackSettings = {
   banner_color: '#131820',
   highlight_color: '#5C8F3A',
   logo_url: '/api/app-settings/logo',
+  favicon_ico_url: '/api/app-settings/favicon.ico',
+  favicon_16_url: '/api/app-settings/favicon-16x16.png',
+  favicon_32_url: '/api/app-settings/favicon-32x32.png',
   favicon_url: '/api/app-settings/favicon.png',
   apple_touch_icon_url: '/api/app-settings/apple-touch-icon.png',
+  icon_192_url: '/api/app-settings/icon-192.png',
+  icon_512_url: '/api/app-settings/icon-512.png',
   manifest_url: '/api/app-settings/manifest.webmanifest',
   asset_version: '1',
   kasse_layout: null,
 }
 
-const setLinkTag = (id, rel, href, type = null) => {
+const setLinkTag = (id, rel, href, type = null, attributes = {}) => {
   let link = document.getElementById(id)
   if (!link) {
     link = document.createElement('link')
@@ -28,6 +33,13 @@ const setLinkTag = (id, rel, href, type = null) => {
     document.head.appendChild(link)
   }
   link.href = href
+  Object.entries(attributes).forEach(([name, value]) => {
+    if (value == null) {
+      link.removeAttribute(name)
+      return
+    }
+    link.setAttribute(name, value)
+  })
 }
 
 export const useAppSettingsStore = defineStore('app-settings', () => {
@@ -56,9 +68,13 @@ export const useAppSettingsStore = defineStore('app-settings', () => {
       themeMeta.setAttribute('content', settings.value.banner_color)
     }
 
-    setLinkTag('app-favicon', 'icon', versionedUrl(settings.value.favicon_url), 'image/png')
-    setLinkTag('app-favicon-32', 'icon', versionedUrl(settings.value.favicon_url), 'image/png')
-    setLinkTag('app-apple-touch-icon', 'apple-touch-icon', versionedUrl(settings.value.apple_touch_icon_url))
+    setLinkTag('app-shortcut-icon', 'shortcut icon', versionedUrl(settings.value.favicon_ico_url), 'image/x-icon')
+    setLinkTag('app-favicon-16', 'icon', versionedUrl(settings.value.favicon_16_url), 'image/png', { sizes: '16x16' })
+    setLinkTag('app-favicon-32', 'icon', versionedUrl(settings.value.favicon_32_url), 'image/png', { sizes: '32x32' })
+    setLinkTag('app-favicon', 'icon', versionedUrl(settings.value.favicon_url), 'image/png', { sizes: '64x64' })
+    setLinkTag('app-apple-touch-icon', 'apple-touch-icon', versionedUrl(settings.value.apple_touch_icon_url), null, { sizes: '180x180' })
+    setLinkTag('app-pwa-icon-192', 'icon', versionedUrl(settings.value.icon_192_url), 'image/png', { sizes: '192x192' })
+    setLinkTag('app-pwa-icon-512', 'icon', versionedUrl(settings.value.icon_512_url), 'image/png', { sizes: '512x512' })
     setLinkTag('app-manifest-link', 'manifest', versionedUrl(settings.value.manifest_url))
   }
 

@@ -13,11 +13,14 @@ APP_SETTINGS_DIR = UPLOADS_DIR / "app_settings"
 
 
 ICON_SPECS = {
+    "favicon-16x16.png": 16,
+    "favicon-32x32.png": 32,
     "favicon.png": 64,
     "apple-touch-icon.png": 180,
     "icon-192.png": 192,
     "icon-512.png": 512,
 }
+FAVICON_ICO_SIZES = (16, 32, 48)
 
 
 def ensure_upload_directories():
@@ -107,14 +110,25 @@ async def save_app_logo(file: UploadFile) -> str:
     logo_path = APP_SETTINGS_DIR / "logo.png"
     image.save(logo_path, format="PNG")
 
-    for filename, size in ICON_SPECS.items():
+    def create_square_icon(size: int) -> Image.Image:
         icon_canvas = Image.new("RGBA", (size, size), (0, 0, 0, 0))
         resized = image.copy()
         resized.thumbnail((size, size), Image.Resampling.LANCZOS)
         x_offset = (size - resized.width) // 2
         y_offset = (size - resized.height) // 2
         icon_canvas.paste(resized, (x_offset, y_offset), resized)
-        icon_canvas.save(APP_SETTINGS_DIR / filename, format="PNG")
+        return icon_canvas
+
+    for filename, size in ICON_SPECS.items():
+        create_square_icon(size).save(APP_SETTINGS_DIR / filename, format="PNG")
+
+    favicon_sources = [create_square_icon(size) for size in FAVICON_ICO_SIZES]
+    favicon_sources[0].save(
+        APP_SETTINGS_DIR / "favicon.ico",
+        format="ICO",
+        sizes=[(size, size) for size in FAVICON_ICO_SIZES],
+        append_images=favicon_sources[1:],
+    )
 
     return "app_settings/logo.png"
 
