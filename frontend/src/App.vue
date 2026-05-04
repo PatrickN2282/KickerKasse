@@ -319,7 +319,7 @@ onBeforeUnmount(() => {
   align-items: center;
 
   &--logo {
-    justify-content: center;
+    justify-content: flex-start;
     padding: .2rem 0; /* mini Luft oben/unten, Logo selbst füllt Rest */
   }
 
@@ -359,7 +359,7 @@ onBeforeUnmount(() => {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  border: none;
+  border: 2px solid transparent;
   border-radius: 8px;
   cursor: pointer;
   font-size: .85rem;
@@ -369,10 +369,10 @@ onBeforeUnmount(() => {
   text-decoration: none;
   padding: .45rem 1.1rem;
   line-height: 1.2;
-  transition: filter .15s, box-shadow .15s;
+  transition: border-color .15s, box-shadow .15s;
   white-space: nowrap;
 
-  &:hover { filter: brightness(1.1); }
+  &:hover { border-color: rgba(255,255,255,.85); }
 }
 
 /* ── Nav-Links ───────────────────────────────────────────── */
@@ -380,12 +380,14 @@ onBeforeUnmount(() => {
   @extend %pill;
   background: rgba(255,255,255,.12);
   color: var(--app-banner-contrast);
-  border: 1.5px solid rgba(255,255,255,.18);
+  border-color: rgba(255,255,255,.18);
 
-  &.router-link-active,
+  &.router-link-active {
+    border-color: rgba(255,255,255,.5);
+  }
+
   &:hover {
-    background: rgba(255,255,255,.22);
-    border-color: rgba(255,255,255,.35);
+    border-color: rgba(255,255,255,.85);
   }
 }
 
@@ -396,10 +398,8 @@ onBeforeUnmount(() => {
   border-color: transparent;
   box-shadow: 0 2px 6px rgba(0,0,0,.25);
 
-  &.router-link-active,
-  &:hover {
-    background: var(--app-highlight-color);
-    filter: brightness(1.1);
+  &.router-link-active {
+    border-color: rgba(255,255,255,.5);
   }
 }
 
@@ -409,8 +409,6 @@ onBeforeUnmount(() => {
   color: #5a4a00;
   border-color: transparent;
   box-shadow: 0 2px 6px rgba(0,0,0,.2);
-
-  &:hover { filter: brightness(1.08); }
 }
 
 /* ── Login-Button → helles Grün ──────────────────────────── */
