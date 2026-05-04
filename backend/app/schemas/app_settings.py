@@ -1,6 +1,9 @@
 from datetime import datetime
 from pydantic import BaseModel, Field
 
+# Hard limit to one day so accidental oversized values cannot keep sessions alive indefinitely.
+MAX_SESSION_TIMER_MINUTES = 1440
+
 
 class AppSettingsBase(BaseModel):
     app_name: str = Field(..., min_length=1, max_length=120)
@@ -8,6 +11,8 @@ class AppSettingsBase(BaseModel):
     banner_color: str = Field(..., pattern=r"^#[0-9A-Fa-f]{6}$")
     highlight_color: str = Field(..., pattern=r"^#[0-9A-Fa-f]{6}$")
     kasse_layout: str | None = None
+    session_timer_enabled: bool = False
+    session_timer_minutes: int = Field(default=15, ge=1, le=MAX_SESSION_TIMER_MINUTES)
 
 
 class AppSettingsUpdate(AppSettingsBase):
