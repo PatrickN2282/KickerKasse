@@ -157,6 +157,8 @@ import PwaInstallButton from '@/components/PwaInstallButton.vue'
 import pkg from '../package.json'
 import { KASSE_LAYOUT_REFRESH_INTERVAL_MS, KASSE_LAYOUT_STORAGE_KEY, SESSION_RELOAD_FLAG_KEY } from '@/constants'
 
+const SESSION_ACTIVITY_RESET_THROTTLE_MS = 1000
+
 const authStore = useAuthStore()
 const appSettingsStore = useAppSettingsStore()
 const notificationStore = useNotificationStore()
@@ -173,6 +175,7 @@ const modalError = ref('')
 const layoutRefreshIntervalId = ref(null)
 const refreshInFlight = ref(false)
 const sessionTimerId = ref(null)
+const lastSessionActivityAt = ref(0)
 
 const loginForm = reactive({
   username: '',
@@ -236,6 +239,13 @@ const resetSessionTimer = () => {
 
 const handleUserActivity = () => {
   if (document.visibilityState === 'hidden') return
+
+  const now = Date.now()
+  if (now - lastSessionActivityAt.value < SESSION_ACTIVITY_RESET_THROTTLE_MS) {
+    return
+  }
+
+  lastSessionActivityAt.value = now
   resetSessionTimer()
 }
 
