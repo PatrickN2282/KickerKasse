@@ -5,9 +5,10 @@
       <div v-else class="products-section">
 
         <template
-          v-for="category in activeCategories"
+          v-for="(category, index) in activeCategories"
           :key="category.id"
         >
+          <hr v-if="index > 0" class="category-separator" />
           <div class="category-row">
             <button
               class="cat-btn"
@@ -50,6 +51,7 @@
         </template>
 
         <template v-if="productsWithoutCategory.length > 0">
+          <hr v-if="activeCategories.length > 0" class="category-separator" />
           <div class="category-row">
             <button
               class="cat-btn"
@@ -449,31 +451,30 @@ const {
   gap: .5rem;
 }
 
-/* ── Category row: schmale Blase + ggf. Produktkarten ───── */
+/* ── Category separator ───────────────────────────────── */
+.category-separator {
+  border: none;
+  border-top: 1px solid color-mix(in srgb, var(--app-banner-color) 25%, transparent);
+  margin: .15rem 0;
+}
+
+/* ── Category row ─────────────────────────────────────── */
 .category-row {
   display: flex;
   flex-direction: row;
   align-items: center;
   gap: .75rem;
-  /* Mindesthöhe = Produktkarte: card-img (80px) + card-body (~36px) */
-  min-height: 116px;
+  min-height: 116px; /* = card-img 80px + card-body ~36px */
 }
 
-/* ── Kategorie-Blase ─────────────────────────────────────── */
+/* ── Kategorie-Blase: gemeinsame Basis ───────────────── */
 .cat-btn {
-  /* Schmal wie vorher */
   flex-shrink: 0;
-  width: 28px;
-  /* Füllt die volle Zeilenhöhe (= Produktkartenhöhe) */
-  align-self: stretch;
-
   display: flex;
-  flex-direction: column;
   align-items: center;
   justify-content: center;
   gap: 4px;
 
-  padding: .4rem .1rem;
   background: var(--app-banner-color);
   color: var(--app-banner-contrast);
   border: 2px solid transparent;
@@ -485,37 +486,67 @@ const {
 
   &:hover { opacity: .82; }
 
-  /* Expandiert → Highlight-Farbe */
+  /* ── Eingeklappt: horizontale Pille, kippt in den Kartenbereich ── */
+  &:not(.cat-btn--expanded) {
+    flex-direction: row;
+    width: auto;
+    height: 28px;         /* flache horizontale Pille */
+    padding: .25rem .65rem;
+
+    .cat-name {
+      writing-mode: horizontal-tb;
+      transform: none;
+      font-size: .72rem;
+      line-height: 1;
+      letter-spacing: 0.04em;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      max-width: 180px;   /* ab hier kürzen */
+      display: block;
+    }
+
+    .cat-count {
+      font-size: .65rem;
+      opacity: .75;
+      font-weight: 500;
+      flex-shrink: 0;
+      writing-mode: horizontal-tb;
+    }
+  }
+
+  /* ── Expandiert: schmale vertikale Leiste, volle Zeilenhöhe ──── */
   &.cat-btn--expanded {
+    flex-direction: column;
+    width: 28px;
+    align-self: stretch;  /* volle Höhe der category-row */
+    padding: .4rem .1rem;
     background: var(--app-highlight-color);
     color: var(--app-highlight-contrast);
-  }
 
-  /* Name: vertikal rotiert, überschüssiger Text abgeschnitten */
-  .cat-name {
-    writing-mode: vertical-rl;
-    transform: rotate(180deg);
-    text-orientation: mixed;
-    font-size: .68rem;
-    line-height: 1;
-    letter-spacing: 0.05em;
-    /* Text kürzen wenn zu lang */
-    overflow: hidden;
-    text-overflow: ellipsis;
-    /* max-height begrenzt die sichtbare Länge des vertikalen Textes */
-    max-height: 90px;
-    white-space: nowrap;
-    display: block;
-    text-align: center;
-  }
+    .cat-name {
+      writing-mode: vertical-rl;
+      transform: rotate(180deg);
+      text-orientation: mixed;
+      font-size: .68rem;
+      line-height: 1;
+      letter-spacing: 0.05em;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      max-height: 90px;
+      white-space: nowrap;
+      display: block;
+      text-align: center;
+    }
 
-  .cat-count {
-    font-size: .6rem;
-    opacity: .75;
-    font-weight: 500;
-    flex-shrink: 0;
-    writing-mode: horizontal-tb;
-    transform: none;
+    .cat-count {
+      font-size: .6rem;
+      opacity: .75;
+      font-weight: 500;
+      flex-shrink: 0;
+      writing-mode: horizontal-tb;
+      transform: none;
+    }
   }
 }
 
