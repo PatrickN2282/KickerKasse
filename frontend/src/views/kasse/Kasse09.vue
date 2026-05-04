@@ -464,7 +464,12 @@ const {
   flex-direction: row;
   align-items: center;
   gap: .75rem;
-  min-height: 116px; /* = card-img 80px + card-body ~36px */
+  /* Keine min-height — eingeklappte Zeilen sollen kompakt sein */
+}
+
+/* Expandierte Zeile bekommt die Mindesthöhe der Produktkarten */
+.category-row:has(.cat-btn--expanded) {
+  min-height: 116px;
 }
 
 /* ── Kategorie-Blase: gemeinsame Basis ───────────────── */
