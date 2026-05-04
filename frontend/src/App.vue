@@ -319,7 +319,7 @@ onBeforeUnmount(() => {
   align-items: center;
 
   &--logo {
-    justify-content: flex-start;
+    justify-content: center;
     padding: .2rem 0; /* mini Luft oben/unten, Logo selbst füllt Rest */
   }
 
@@ -341,7 +341,7 @@ onBeforeUnmount(() => {
   max-height: 54px;
   width: auto;
   max-width: min(160px, 30vw);
-  object-fit: center;
+  object-fit: contain;
 }
 
 /* ── Titel ───────────────────────────────────────────────── */
