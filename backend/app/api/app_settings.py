@@ -75,6 +75,27 @@ async def get_favicon_file(db: Session = Depends(get_db)):
     return FileResponse(file_path, media_type="image/png")
 
 
+@router.get("/favicon.ico")
+@router.get("/favicon.ico/")
+async def get_favicon_ico_file(db: Session = Depends(get_db)):
+    file_path = AppSettingsService(db).get_icon_file_path("favicon.ico")
+    return FileResponse(file_path, media_type="image/x-icon")
+
+
+@router.get("/favicon-16x16.png")
+@router.get("/favicon-16x16.png/")
+async def get_favicon_16_file(db: Session = Depends(get_db)):
+    file_path = AppSettingsService(db).get_icon_file_path("favicon-16x16.png")
+    return FileResponse(file_path, media_type="image/png")
+
+
+@router.get("/favicon-32x32.png")
+@router.get("/favicon-32x32.png/")
+async def get_favicon_32_file(db: Session = Depends(get_db)):
+    file_path = AppSettingsService(db).get_icon_file_path("favicon-32x32.png")
+    return FileResponse(file_path, media_type="image/png")
+
+
 @router.get("/apple-touch-icon.png")
 @router.get("/apple-touch-icon.png/")
 async def get_apple_touch_icon_file(db: Session = Depends(get_db)):
@@ -115,25 +136,37 @@ async def get_manifest(db: Session = Depends(get_db)):
         "orientation": "any",
         "icons": [
             {
-                "src": f"/api/app-settings/icon-192.png?v={payload['asset_version']}",
+                "src": f"/api/app-settings/favicon.png?v={payload['asset_version']}",
+                "sizes": "64x64",
+                "type": "image/png",
+                "purpose": "any",
+            },
+            {
+                "src": f"/api/app-settings/apple-touch-icon.png?v={payload['asset_version']}",
+                "sizes": "180x180",
+                "type": "image/png",
+                "purpose": "any",
+            },
+            {
+                "src": f"{payload['icon_192_url']}?v={payload['asset_version']}",
                 "sizes": "192x192",
                 "type": "image/png",
                 "purpose": "any",
             },
             {
-                "src": f"/api/app-settings/icon-512.png?v={payload['asset_version']}",
+                "src": f"{payload['icon_512_url']}?v={payload['asset_version']}",
                 "sizes": "512x512",
                 "type": "image/png",
                 "purpose": "any",
             },
             {
-                "src": f"/api/app-settings/icon-192.png?v={payload['asset_version']}",
+                "src": f"{payload['icon_192_url']}?v={payload['asset_version']}",
                 "sizes": "192x192",
                 "type": "image/png",
                 "purpose": "maskable",
             },
             {
-                "src": f"/api/app-settings/icon-512.png?v={payload['asset_version']}",
+                "src": f"{payload['icon_512_url']}?v={payload['asset_version']}",
                 "sizes": "512x512",
                 "type": "image/png",
                 "purpose": "maskable",

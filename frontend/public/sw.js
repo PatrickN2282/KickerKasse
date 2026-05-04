@@ -5,7 +5,11 @@ const urlsToCache = [
   '/index.html',
   '/api/app-settings/manifest.webmanifest',
   '/api/app-settings/logo',
+  '/api/app-settings/favicon.ico',
+  '/api/app-settings/favicon-16x16.png',
+  '/api/app-settings/favicon-32x32.png',
   '/api/app-settings/favicon.png',
+  '/api/app-settings/apple-touch-icon.png',
   '/api/app-settings/icon-192.png',
   '/api/app-settings/icon-512.png',
 ]
@@ -13,6 +17,9 @@ const urlsToCache = [
 const isCacheableAppSettingsAsset = (url) => {
   return url.includes('/api/app-settings/manifest.webmanifest')
     || url.includes('/api/app-settings/logo')
+    || url.includes('/api/app-settings/favicon.ico')
+    || url.includes('/api/app-settings/favicon-16x16.png')
+    || url.includes('/api/app-settings/favicon-32x32.png')
     || url.includes('/api/app-settings/favicon.png')
     || url.includes('/api/app-settings/icon-192.png')
     || url.includes('/api/app-settings/icon-512.png')

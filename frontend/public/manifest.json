@@ -1,24 +1,51 @@
 {
-  "name": "Kassensoftware",
-  "short_name": "Kasse",
+  "name": "KGB - KickerKasse",
+  "short_name": "KGB - KickerKasse",
   "description": "Webbasierte Kassensoftware für Vereine",
+  "id": "/",
   "start_url": "/",
+  "scope": "/",
   "display": "standalone",
-  "background_color": "#ffffff",
-  "theme_color": "#1976d2",
-  "orientation": "portrait",
+  "display_override": ["standalone", "minimal-ui", "browser"],
+  "background_color": "#d7dce2",
+  "theme_color": "#131820",
+  "orientation": "any",
   "icons": [
     {
-      "src": "/icon-192.png",
+      "src": "/api/app-settings/favicon.png",
+      "sizes": "64x64",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "/api/app-settings/apple-touch-icon.png",
+      "sizes": "180x180",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "/api/app-settings/icon-192.png",
       "sizes": "192x192",
       "type": "image/png",
       "purpose": "any"
     },
     {
-      "src": "/icon-512.png",
+      "src": "/api/app-settings/icon-512.png",
       "sizes": "512x512",
       "type": "image/png",
       "purpose": "any"
+    },
+    {
+      "src": "/api/app-settings/icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "maskable"
+    },
+    {
+      "src": "/api/app-settings/icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "maskable"
     }
   ]
 }

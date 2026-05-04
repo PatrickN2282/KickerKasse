@@ -17,8 +17,13 @@ class AppSettingsUpdate(AppSettingsBase):
 class AppSettingsResponse(AppSettingsBase):
     id: int
     logo_url: str
+    favicon_ico_url: str
+    favicon_16_url: str
+    favicon_32_url: str
     favicon_url: str
     apple_touch_icon_url: str
+    icon_192_url: str
+    icon_512_url: str
     manifest_url: str
     asset_version: str
     created_at: datetime
@@ -30,7 +35,12 @@ class AppSettingsResponse(AppSettingsBase):
 
 class PublicAppSettingsResponse(AppSettingsBase):
     logo_url: str
+    favicon_ico_url: str
+    favicon_16_url: str
+    favicon_32_url: str
     favicon_url: str
     apple_touch_icon_url: str
+    icon_192_url: str
+    icon_512_url: str
     manifest_url: str
     asset_version: str
