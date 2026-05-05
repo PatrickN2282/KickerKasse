@@ -36,8 +36,8 @@ async def update_app_settings(
     request: Request,
     db: Session = Depends(get_db),
 ):
-    service = AppSettingsService(db)
     current_user = require_roles(request, db, UserRole.ADMIN)
+    service = AppSettingsService(db)
 
     current_settings = service.get_or_create_settings()
     current_payload = service.to_private_payload(current_settings)
