@@ -41,6 +41,11 @@ class MemberUpdate(BaseModel):
     account_password: Optional[str] = Field(default=None, min_length=8)
 
 
+class MemberBalanceCorrectionRequest(BaseModel):
+    new_balance_cents: int = Field(..., ge=0)
+    reason: Optional[str] = Field(default=None, max_length=255)
+
+
 class MemberResponse(MemberBase):
     id: int
     member_number: int
@@ -121,3 +126,18 @@ class MemberResponse(MemberBase):
 
 class MemberDetailResponse(MemberResponse):
     pass
+
+
+class MemberBalanceCorrectionLogResponse(BaseModel):
+    id: int
+    member_id: int
+    member_name: str
+    old_balance_cents: int
+    new_balance_cents: int
+    change_cents: int
+    executed_by_username: str
+    reason: str
+    created_at: datetime
+
+    class Config:
+        from_attributes = True

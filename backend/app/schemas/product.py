@@ -32,6 +32,11 @@ class ProductUpdate(BaseModel):
     is_active: Optional[bool] = None
 
 
+class ProductStockCorrectionRequest(BaseModel):
+    new_stock_quantity: int = Field(..., ge=0)
+    reason: Optional[str] = Field(default=None, max_length=255)
+
+
 class CategoryInfo(BaseModel):
     id: int
     name: str
@@ -50,6 +55,21 @@ class ProductResponse(ProductBase):
 
     class Config:
         from_attributes = True
+
+    class Config:
+        from_attributes = True
+
+
+class ProductStockCorrectionLogResponse(BaseModel):
+    id: int
+    product_id: int
+    product_name: str
+    old_stock_quantity: int
+    new_stock_quantity: int
+    change_quantity: int
+    executed_by_username: str
+    reason: str
+    created_at: datetime
 
     class Config:
         from_attributes = True

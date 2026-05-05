@@ -5,6 +5,7 @@ from app.models import (
     CashEntry,
     ClubAccountEntry,
     Deckel,
+    MemberBalanceCorrectionLog,
     MaterialAccountEntry,
     Member,
     Transaction,
@@ -170,6 +171,45 @@ class MemberService:
         )
         
         return member
+
+    def correct_balance(
+        self,
+        member_id: int,
+        new_balance_cents: int,
+        executed_by_username: str,
+        reason: str | None = None,
+    ):
+        """Set member balance without cash flow and create a separate correction audit log."""
+        member = self.repo.get_by_id(member_id)
+        if not member:
+            return None
+
+        old_balance = member.balance_cents
+        member.balance_cents = new_balance_cents
+        correction_reason = (reason or "").strip() or "KORREKTURBUCHUNG"
+
+        log = MemberBalanceCorrectionLog(
+            member_id=member.id,
+            member_name=member.name,
+            old_balance_cents=old_balance,
+            new_balance_cents=new_balance_cents,
+            change_cents=new_balance_cents - old_balance,
+            executed_by_username=executed_by_username,
+            reason=correction_reason,
+        )
+        self.db.add(log)
+        self.db.commit()
+        self.db.refresh(member)
+        self.db.refresh(log)
+        return member
+
+    def get_balance_correction_logs(self):
+        """Get all member balance correction logs."""
+        return (
+            self.db.query(MemberBalanceCorrectionLog)
+            .order_by(MemberBalanceCorrectionLog.created_at.desc(), MemberBalanceCorrectionLog.id.desc())
+            .all()
+        )
     
     def check_sufficient_balance(self, member_id: int, amount_cents: int) -> bool:
         """Check if member has sufficient balance"""

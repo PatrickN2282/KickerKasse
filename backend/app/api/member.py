@@ -5,7 +5,13 @@ from sqlalchemy.orm import Session
 from sqlalchemy.exc import IntegrityError
 from app.core import get_db
 from app.core.auth import require_password_confirmation, require_roles
-from app.schemas import MemberCreate, MemberUpdate, MemberResponse
+from app.schemas import (
+    MemberCreate,
+    MemberUpdate,
+    MemberResponse,
+    MemberBalanceCorrectionRequest,
+    MemberBalanceCorrectionLogResponse,
+)
 from app.services import MemberService
 from app.services.file_service import save_member_photo, get_full_path
 from app.repositories import MemberRepository, UserRepository
@@ -17,6 +23,18 @@ router = APIRouter(prefix="/api/members", tags=["Members"])
 class MemberRechargeRequest(BaseModel):
     amount_cents: int
     auth_password: str
+
+
+@router.get("/balance-corrections", response_model=list[MemberBalanceCorrectionLogResponse])
+@router.get("/balance-corrections/", response_model=list[MemberBalanceCorrectionLogResponse])
+async def list_balance_corrections(
+    request: Request,
+    db: Session = Depends(get_db),
+):
+    """List member balance correction logs."""
+    require_roles(request, db, UserRole.ADMIN, UserRole.MANAGER)
+    service = MemberService(db)
+    return service.get_balance_correction_logs()
 
 
 @router.post("/", response_model=MemberResponse, status_code=status.HTTP_201_CREATED)
@@ -293,6 +311,41 @@ async def recharge_member_balance(
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Recharge failed: {str(e)}",
+        )
+
+
+@router.post("/{member_id}/balance-correction", response_model=MemberResponse)
+@router.post("/{member_id}/balance-correction/", response_model=MemberResponse)
+async def correct_member_balance(
+    member_id: int,
+    correction_request: MemberBalanceCorrectionRequest,
+    request: Request,
+    db: Session = Depends(get_db),
+):
+    """Correct member balance without cash flow."""
+    current_user = require_roles(request, db, UserRole.ADMIN, UserRole.MANAGER)
+
+    try:
+        service = MemberService(db)
+        member = service.correct_balance(
+            member_id,
+            correction_request.new_balance_cents,
+            current_user.username,
+            correction_request.reason,
+        )
+        if not member:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="Member not found",
+            )
+        return member
+    except HTTPException:
+        raise
+    except Exception as e:
+        db.rollback()
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Balance correction failed: {str(e)}",
         )
 
 
