@@ -173,7 +173,7 @@ class MemberService:
         return member
 
     def correct_balance(self, member_id: int, new_balance_cents: int, executed_by_username: str):
-        """Set member balance without cash flow and create audit log."""
+        """Set member balance without cash flow and create a separate correction audit log."""
         member = self.repo.get_by_id(member_id)
         if not member:
             return None

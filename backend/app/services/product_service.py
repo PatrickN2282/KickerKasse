@@ -56,7 +56,7 @@ class ProductService:
             return self.repo.get_by_id(product_id)
 
     def correct_stock(self, product_id: int, new_stock_quantity: int, executed_by_username: str):
-        """Set product stock without cash flow and create audit log."""
+        """Set product stock without cash flow and create a separate correction audit log."""
         product = self.repo.get_by_id(product_id)
         if not product:
             return None

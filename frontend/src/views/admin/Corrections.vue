@@ -6,6 +6,9 @@
         <p class="page-subtitle">
           Guthaben und Lagerbestände ohne Bargeldfluss revisionssicher korrigieren.
         </p>
+        <p class="page-note">
+          Korrekturen erscheinen ausschließlich in der Korrektur-Historie und nicht als normale Z-Bon-Umsätze.
+        </p>
       </div>
     </div>
 
@@ -463,6 +466,12 @@ onMounted(() => {
 .page-subtitle {
   color: #64748b;
   margin-top: 0.25rem;
+}
+
+.page-note {
+  color: #64748b;
+  margin-top: 0.35rem;
+  font-size: 0.86rem;
 }
 
 .correction-subtabs {

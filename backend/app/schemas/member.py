@@ -42,7 +42,7 @@ class MemberUpdate(BaseModel):
 
 
 class MemberBalanceCorrectionRequest(BaseModel):
-    new_balance_cents: int
+    new_balance_cents: int = Field(..., ge=0)
 
 
 class MemberResponse(MemberBase):
