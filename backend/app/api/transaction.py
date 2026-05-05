@@ -601,7 +601,7 @@ async def create_zbon(
     db: Session = Depends(get_db),
 ):
     """Create and archive a new immutable Z-Bon."""
-    current_user = _require_finance_access(request, db)
+    current_user = require_roles(request, db, UserRole.ADMIN)
     require_password_confirmation(current_user, zbon_req.auth_password)
 
     cash_count = None
@@ -1133,7 +1133,7 @@ async def record_cash_withdrawal(
     db: Session = Depends(get_db),
 ):
     """Record a cash withdrawal (Entnahme)"""
-    current_user = _require_finance_access(request, db)
+    current_user = require_roles(request, db, UserRole.ADMIN)
     user_id = current_user.id
     
     try:

@@ -61,7 +61,7 @@ const routes = [
         path: 'corrections',
         name: 'AdminCorrections',
         component: () => import('@/views/admin/Corrections.vue'),
-        meta: { requiresAuth: true, allowedRoles: ['TOP_ADMIN', 'ADMIN', 'MANAGER'] },
+        meta: { requiresAuth: true, allowedRoles: ['TOP_ADMIN', 'ADMIN'] },
       },
       {
         path: 'settings',

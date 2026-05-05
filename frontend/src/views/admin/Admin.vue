@@ -37,7 +37,7 @@ const tabs = [
   { path: '/admin/users', label: 'Benutzer', icon: '👤', roles: ['TOP_ADMIN', 'ADMIN'] },
   { path: '/admin/vouchers', label: 'Gutscheine', icon: '🎫', roles: ['TOP_ADMIN', 'ADMIN', 'MANAGER'] },
   { path: '/admin/finance', label: 'Finanzen', icon: '💰', roles: ['TOP_ADMIN', 'ADMIN', 'MANAGER'] },
-  { path: '/admin/corrections', label: 'Konto-Korrektur', icon: '🧾', roles: ['TOP_ADMIN', 'ADMIN', 'MANAGER'] },
+  { path: '/admin/corrections', label: 'Konto-Korrektur', icon: '🧾', roles: ['TOP_ADMIN', 'ADMIN'] },
   { path: '/admin/settings', label: 'Design', icon: '🎨', roles: ['TOP_ADMIN', 'ADMIN'] },
   { path: '/admin/data-maintenance', label: 'Datenpflege', icon: '🧹', roles: ['TOP_ADMIN', 'ADMIN'] },
   { path: '/admin/ext-settings', label: 'Ext. Settings', icon: '⚙️', roles: ['TOP_ADMIN'] },

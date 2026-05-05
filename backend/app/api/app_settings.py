@@ -9,6 +9,11 @@ from app.schemas import AppSettingsResponse, AppSettingsUpdate, PublicAppSetting
 from app.services.app_settings_service import AppSettingsService
 
 router = APIRouter(prefix="/api/app-settings", tags=["App Settings"])
+TOP_ADMIN_ONLY_SETTINGS_FIELDS = (
+    "kasse_layout",
+    "session_timer_enabled",
+    "session_timer_minutes",
+)
 
 
 @router.get("/public", response_model=PublicAppSettingsResponse)
@@ -36,8 +41,22 @@ async def update_app_settings(
     request: Request,
     db: Session = Depends(get_db),
 ):
-    require_roles(request, db, UserRole.ADMIN)
+    current_user = require_roles(request, db, UserRole.ADMIN)
     service = AppSettingsService(db)
+    payload_data = payload.model_dump(exclude_unset=True)
+
+    current_settings = service.get_or_create_settings()
+    current_payload = service.to_private_payload(current_settings)
+    is_restricted_change = any(
+        field_name in payload_data and payload_data[field_name] != current_payload[field_name]
+        for field_name in TOP_ADMIN_ONLY_SETTINGS_FIELDS
+    )
+    if is_restricted_change and not current_user.is_top_admin:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Nur der Top-Admin darf Kassenlayout und Session-Timer ändern",
+        )
+
     try:
         settings = service.update_settings(**payload.model_dump())
     except ValueError as exc:

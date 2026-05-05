@@ -27,7 +27,7 @@ async def create_product(
     db: Session = Depends(get_db),
 ):
     """Create a new product"""
-    require_roles(request, db, UserRole.ADMIN, UserRole.MANAGER)
+    require_roles(request, db, UserRole.ADMIN)
     
     try:
         service = ProductService(db)
@@ -58,7 +58,7 @@ async def list_stock_corrections(
     db: Session = Depends(get_db),
 ):
     """List product stock correction logs."""
-    require_roles(request, db, UserRole.ADMIN, UserRole.MANAGER)
+    require_roles(request, db, UserRole.ADMIN)
     service = ProductService(db)
     return service.get_stock_correction_logs()
 
@@ -167,7 +167,7 @@ async def correct_stock(
     db: Session = Depends(get_db),
 ):
     """Correct product stock without cash flow."""
-    current_user = require_roles(request, db, UserRole.ADMIN, UserRole.MANAGER)
+    current_user = require_roles(request, db, UserRole.ADMIN)
 
     try:
         service = ProductService(db)
