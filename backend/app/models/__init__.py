@@ -3,9 +3,11 @@ from .user import User, UserRole
 from .app_settings import AppSettings
 from .member import Member
 from .product import Product
+from .product_stock_correction_log import ProductStockCorrectionLog
 from .category import Category, product_category
 from .transaction import Transaction, TransactionItem, TransactionType, PaymentMethod
 from .balance_log import BalanceLog
+from .member_balance_correction_log import MemberBalanceCorrectionLog
 from .zbon_history import ZBonHistory
 from .cash_management import CashBalance, CashEntry, CashEntryType
 from .voucher import Voucher, VoucherType, VoucherStatus, VoucherReason
@@ -20,6 +22,7 @@ __all__ = [
     "AppSettings",
     "Member",
     "Product",
+    "ProductStockCorrectionLog",
     "Category",
     "product_category",
     "Transaction",
@@ -27,6 +30,7 @@ __all__ = [
     "TransactionType",
     "PaymentMethod",
     "BalanceLog",
+    "MemberBalanceCorrectionLog",
     "ZBonHistory",
     "CashBalance",
     "CashEntry",

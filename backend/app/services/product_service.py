@@ -1,4 +1,5 @@
 from sqlalchemy.orm import Session
+from app.models import ProductStockCorrectionLog
 from app.repositories import ProductRepository
 
 
@@ -53,6 +54,38 @@ class ProductService:
             if not self.repo.deduct_stock(product_id, abs(quantity)):
                 return None
             return self.repo.get_by_id(product_id)
+
+    def correct_stock(self, product_id: int, new_stock_quantity: int, executed_by_username: str):
+        """Set product stock without cash flow and create audit log."""
+        product = self.repo.get_by_id(product_id)
+        if not product:
+            return None
+
+        old_stock_quantity = product.stock_quantity
+        product.stock_quantity = new_stock_quantity
+
+        log = ProductStockCorrectionLog(
+            product_id=product.id,
+            product_name=product.name,
+            old_stock_quantity=old_stock_quantity,
+            new_stock_quantity=new_stock_quantity,
+            change_quantity=new_stock_quantity - old_stock_quantity,
+            executed_by_username=executed_by_username,
+            reason="KORREKTURBUCHUNG",
+        )
+        self.db.add(log)
+        self.db.commit()
+        self.db.refresh(product)
+        self.db.refresh(log)
+        return product
+
+    def get_stock_correction_logs(self):
+        """Get all product stock correction logs."""
+        return (
+            self.db.query(ProductStockCorrectionLog)
+            .order_by(ProductStockCorrectionLog.created_at.desc(), ProductStockCorrectionLog.id.desc())
+            .all()
+        )
     
     def delete_product(self, product_id: int):
         """Delete product (soft delete)"""

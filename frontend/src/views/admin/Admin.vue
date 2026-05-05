@@ -10,7 +10,8 @@
           :to="tab.path"
           :class="['tab-button', { active: isTabActive(tab.path) }]"
         >
-          {{ tab.label }}
+          <span class="tab-icon">{{ tab.icon }}</span>
+          <span class="tab-label">{{ tab.label }}</span>
         </router-link>
       </div>
     </div>
@@ -30,15 +31,16 @@ const route = useRoute()
 const authStore = useAuthStore()
 
 const tabs = [
-  { path: '/admin/members', label: '👥 Mitglieder', roles: ['TOP_ADMIN', 'ADMIN', 'MANAGER'] },
-  { path: '/admin/products', label: '📦 Produkte', roles: ['TOP_ADMIN', 'ADMIN', 'MANAGER'] },
-  { path: '/admin/categories', label: '🏷️ Kategorien', roles: ['TOP_ADMIN', 'ADMIN'] },
-  { path: '/admin/users', label: '👤 Benutzer', roles: ['TOP_ADMIN', 'ADMIN'] },
-  { path: '/admin/vouchers', label: '🎫 Gutscheine', roles: ['TOP_ADMIN', 'ADMIN', 'MANAGER'] },
-  { path: '/admin/finance', label: '💰 Finanzen', roles: ['TOP_ADMIN', 'ADMIN', 'MANAGER'] },
-  { path: '/admin/settings', label: '🎨 Design', roles: ['TOP_ADMIN', 'ADMIN'] },
-  { path: '/admin/data-maintenance', label: '🧹 Datenpflege', roles: ['TOP_ADMIN', 'ADMIN'] },
-  { path: '/admin/ext-settings', label: '⚙️ Ext. Settings', roles: ['TOP_ADMIN'] },
+  { path: '/admin/members', label: 'Mitglieder', icon: '👥', roles: ['TOP_ADMIN', 'ADMIN', 'MANAGER'] },
+  { path: '/admin/products', label: 'Produkte', icon: '📦', roles: ['TOP_ADMIN', 'ADMIN', 'MANAGER'] },
+  { path: '/admin/categories', label: 'Kategorien', icon: '🏷️', roles: ['TOP_ADMIN', 'ADMIN'] },
+  { path: '/admin/users', label: 'Benutzer', icon: '👤', roles: ['TOP_ADMIN', 'ADMIN'] },
+  { path: '/admin/vouchers', label: 'Gutscheine', icon: '🎫', roles: ['TOP_ADMIN', 'ADMIN', 'MANAGER'] },
+  { path: '/admin/finance', label: 'Finanzen', icon: '💰', roles: ['TOP_ADMIN', 'ADMIN', 'MANAGER'] },
+  { path: '/admin/corrections', label: 'Konto-Korrektur', icon: '🧾', roles: ['TOP_ADMIN', 'ADMIN', 'MANAGER'] },
+  { path: '/admin/settings', label: 'Design', icon: '🎨', roles: ['TOP_ADMIN', 'ADMIN'] },
+  { path: '/admin/data-maintenance', label: 'Datenpflege', icon: '🧹', roles: ['TOP_ADMIN', 'ADMIN'] },
+  { path: '/admin/ext-settings', label: 'Ext. Settings', icon: '⚙️', roles: ['TOP_ADMIN'] },
 ]
 
 const visibleTabs = computed(() => tabs.filter(tab => tab.roles.includes(authStore.role)))
@@ -50,7 +52,7 @@ const isTabActive = (path) => route.path === path
 .admin-container {
   height: 100%;
   min-height: 0;
-  padding: 1.5rem 2rem 2rem;
+  padding: 1rem 1.25rem 1.25rem;
   max-width: 1400px;
   margin: 0 auto;
   display: flex;
@@ -59,35 +61,39 @@ const isTabActive = (path) => route.path === path
 
 .admin-header {
   flex-shrink: 0;
-  padding-bottom: 1.5rem;
+  padding-bottom: 0.75rem;
   background: var(--app-background-color);
 
   h1 {
     color: #333;
-    margin-bottom: 1.5rem;
+    margin-bottom: 1rem;
   }
 }
 
 .admin-tabs {
   display: flex;
   gap: 0.5rem;
-  margin-bottom: 2rem;
-  border-bottom: 2px solid #f0f0f0;
+  margin-bottom: 1rem;
+  padding-bottom: 0.75rem;
+  border-bottom: 1px solid #e2e8f0;
   flex-wrap: wrap;
 }
 
 .tab-button {
-  padding: 1rem 1.5rem;
-  background: var(--app-banner-color);
-  border: 1px solid color-mix(in srgb, var(--app-banner-color) 70%, #000 30%);
-  color: var(--app-banner-contrast);
-  font-size: 1rem;
-  font-weight: 500;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.45rem;
+  white-space: nowrap;
+  padding: 0.55rem 0.9rem;
+  background: color-mix(in srgb, var(--app-banner-color) 14%, white);
+  border: 1px solid color-mix(in srgb, var(--app-banner-color) 70%, #000 25%);
+  color: #334155;
+  font-size: 0.9rem;
+  font-weight: 700;
   cursor: pointer;
-  transition: all 0.3s;
+  transition: all 0.2s ease;
   text-decoration: none;
-  display: block;
-  border-radius: 10px 10px 0 0;
+  border-radius: 8px;
 
   &:hover,
   &.active {
@@ -97,12 +103,27 @@ const isTabActive = (path) => route.path === path
   }
 }
 
+.tab-icon {
+  font-size: 0.95rem;
+}
+
 .tab-content {
   flex: 1;
   min-height: 0;
   overflow-x: hidden;
   overflow-y: auto;
   animation: fadeIn 0.2s;
+}
+
+@media (max-width: 700px) {
+  .admin-container {
+    padding: 0.85rem 0.9rem 1rem;
+  }
+
+  .tab-button {
+    padding: 0.5rem 0.75rem;
+    font-size: 0.85rem;
+  }
 }
 
 @keyframes fadeIn {

@@ -2512,11 +2512,11 @@ onMounted(() => {
 .admin-finance {
   background: #dde2e8;
   border-radius: 8px;
-  padding: 2rem;
+  padding: 1.25rem;
   box-shadow: 0 10px 24px rgba(24, 28, 34, 0.14);
 
   h2 {
-    margin-bottom: 2rem;
+    margin-bottom: 1rem;
     color: #333;
   }
 
@@ -2532,26 +2532,33 @@ onMounted(() => {
 }
 
 .finance-tabs {
+  position: sticky;
+  top: 0;
+  z-index: 5;
   display: flex;
-  gap: 1rem;
-  margin-bottom: 2rem;
-  border-bottom: 2px solid #aeb5be;
+  gap: 0.5rem;
+  margin-bottom: 1rem;
+  padding: 0.35rem 0 0.7rem;
+  border-bottom: 1px solid #aeb5be;
   flex-wrap: wrap;
+  background: #dde2e8;
 }
 
 .tab-btn {
-  padding: 0.75rem 1.5rem;
-  background: var(--app-banner-color);
-  border: 1px solid color-mix(in srgb, var(--app-banner-color) 70%, #000 30%);
-  border-bottom: none;
-  border-radius: 10px 10px 0 0;
+  padding: 0.5rem 0.9rem;
+  background: color-mix(in srgb, var(--app-banner-color) 14%, white);
+  border: 1px solid color-mix(in srgb, var(--app-banner-color) 70%, #000 25%);
+  border-radius: 8px;
   cursor: pointer;
-  font-weight: 600;
-  color: var(--app-banner-contrast);
+  font-size: 0.9rem;
+  font-weight: 700;
+  color: #334155;
   transition: all 0.2s;
 
   &:hover {
-    opacity: 0.92;
+    background: var(--app-highlight-color);
+    border-color: var(--app-highlight-color);
+    color: var(--app-highlight-contrast);
   }
 
   &.active {
@@ -2563,6 +2570,12 @@ onMounted(() => {
 
 .tab-content {
   animation: fadeIn 0.2s;
+}
+
+@media (max-width: 700px) {
+  .admin-finance {
+    padding: 1rem;
+  }
 }
 
 @keyframes fadeIn {

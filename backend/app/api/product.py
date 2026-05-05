@@ -4,7 +4,13 @@ from sqlalchemy.orm import Session
 from sqlalchemy.exc import IntegrityError
 from app.core import get_db
 from app.core.auth import require_roles
-from app.schemas import ProductCreate, ProductUpdate, ProductResponse
+from app.schemas import (
+    ProductCreate,
+    ProductUpdate,
+    ProductResponse,
+    ProductStockCorrectionRequest,
+    ProductStockCorrectionLogResponse,
+)
 from app.services import ProductService
 from app.services.file_service import save_product_image, save_product_original_image, get_full_path, get_product_original_image_path
 from app.repositories import ProductRepository, UserRepository
@@ -43,6 +49,18 @@ async def create_product(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="Daten ungültig oder dupliziert",
         )
+
+
+@router.get("/stock-corrections", response_model=list[ProductStockCorrectionLogResponse])
+@router.get("/stock-corrections/", response_model=list[ProductStockCorrectionLogResponse])
+async def list_stock_corrections(
+    request: Request,
+    db: Session = Depends(get_db),
+):
+    """List product stock correction logs."""
+    require_roles(request, db, UserRole.ADMIN, UserRole.MANAGER)
+    service = ProductService(db)
+    return service.get_stock_correction_logs()
 
 
 @router.get("/", response_model=list[ProductResponse])
@@ -138,6 +156,40 @@ async def adjust_stock(
         )
     
     return product
+
+
+@router.post("/{product_id}/stock-correction", response_model=ProductResponse)
+@router.post("/{product_id}/stock-correction/", response_model=ProductResponse)
+async def correct_stock(
+    product_id: int,
+    correction_request: ProductStockCorrectionRequest,
+    request: Request,
+    db: Session = Depends(get_db),
+):
+    """Correct product stock without cash flow."""
+    current_user = require_roles(request, db, UserRole.ADMIN, UserRole.MANAGER)
+
+    try:
+        service = ProductService(db)
+        product = service.correct_stock(
+            product_id,
+            correction_request.new_stock_quantity,
+            current_user.username,
+        )
+        if not product:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="Product not found",
+            )
+        return product
+    except HTTPException:
+        raise
+    except Exception as e:
+        db.rollback()
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Stock correction failed: {str(e)}",
+        )
 
 
 @router.delete("/{product_id}", status_code=status.HTTP_204_NO_CONTENT)

@@ -1,6 +1,18 @@
 from .user import UserCreate, UserFinanceOptionResponse, UserUpdate, UserResponse
-from .member import MemberCreate, MemberUpdate, MemberResponse
-from .product import ProductCreate, ProductUpdate, ProductResponse
+from .member import (
+    MemberCreate,
+    MemberUpdate,
+    MemberResponse,
+    MemberBalanceCorrectionRequest,
+    MemberBalanceCorrectionLogResponse,
+)
+from .product import (
+    ProductCreate,
+    ProductUpdate,
+    ProductResponse,
+    ProductStockCorrectionRequest,
+    ProductStockCorrectionLogResponse,
+)
 from .category import CategoryCreate, CategoryUpdate, CategoryResponse
 from .transaction import TransactionCreate, TransactionResponse, TransactionStornoCreate, ZBonResponse
 from .auth import LoginRequest, LoginResponse, SetupStatusResponse, TopAdminSetupRequest
@@ -27,9 +39,13 @@ __all__ = [
     "MemberCreate",
     "MemberUpdate",
     "MemberResponse",
+    "MemberBalanceCorrectionRequest",
+    "MemberBalanceCorrectionLogResponse",
     "ProductCreate",
     "ProductUpdate",
     "ProductResponse",
+    "ProductStockCorrectionRequest",
+    "ProductStockCorrectionLogResponse",
     "CategoryCreate",
     "CategoryUpdate",
     "CategoryResponse",
