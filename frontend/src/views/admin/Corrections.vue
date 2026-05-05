@@ -3,7 +3,9 @@
     <div class="page-header">
       <div>
         <h2>Konto-Korrektur</h2>
-        <p class="page-subtitle">Guthaben und Lagerbestände ohne Bargeldfluss revisionssicher korrigieren.</p>
+        <p class="page-subtitle">
+          Guthaben und Lagerbestände ohne Bargeldfluss revisionssicher korrigieren.
+        </p>
       </div>
     </div>
 
@@ -21,7 +23,10 @@
     </div>
 
     <div class="correction-content">
-      <section v-if="activeTab === 'members'" class="panel-card">
+      <section
+        v-if="activeTab === 'members'"
+        class="panel-card"
+      >
         <div class="section-header">
           <div>
             <h3>Mitgliedsguthaben korrigieren</h3>
@@ -34,7 +39,11 @@
             <span>Mitglied</span>
             <select v-model="selectedMemberId">
               <option :value="null">Mitglied auswählen</option>
-              <option v-for="member in memberStore.members" :key="member.id" :value="member.id">
+              <option
+                v-for="member in memberStore.members"
+                :key="member.id"
+                :value="member.id"
+              >
                 {{ getMemberFullName(member) }} · #{{ member.member_number }}
               </option>
             </select>
@@ -42,16 +51,29 @@
 
           <label class="form-group">
             <span>Aktueller Bestand</span>
-            <input :value="selectedMember ? formatBalance(selectedMember.balance_cents) : '—'" type="text" disabled>
+            <input
+              :value="selectedMember ? formatBalance(selectedMember.balance_cents) : '—'"
+              type="text"
+              disabled
+            >
           </label>
 
           <label class="form-group">
             <span>Neuer Bestand (€)</span>
-            <input v-model.number="memberTargetBalanceEuro" type="number" min="0" step="0.01" placeholder="0,00">
+            <input
+              v-model.number="memberTargetBalanceEuro"
+              type="number"
+              min="0"
+              step="0.01"
+              placeholder="0,00"
+            >
           </label>
         </div>
 
-        <div v-if="selectedMember" class="preview-card">
+        <div
+          v-if="selectedMember"
+          class="preview-card"
+        >
           <div>
             <span class="preview-label">Differenz</span>
             <strong>{{ formatBalance(memberDeltaCents) }}</strong>
@@ -74,7 +96,10 @@
         </div>
       </section>
 
-      <section v-else-if="activeTab === 'products'" class="panel-card">
+      <section
+        v-else-if="activeTab === 'products'"
+        class="panel-card"
+      >
         <div class="section-header">
           <div>
             <h3>Warenbestand korrigieren</h3>
@@ -87,7 +112,11 @@
             <span>Produkt</span>
             <select v-model="selectedProductId">
               <option :value="null">Produkt auswählen</option>
-              <option v-for="product in productStore.products" :key="product.id" :value="product.id">
+              <option
+                v-for="product in productStore.products"
+                :key="product.id"
+                :value="product.id"
+              >
                 {{ product.name }}
               </option>
             </select>
@@ -95,7 +124,11 @@
 
           <label class="form-group">
             <span>Aktueller Bestand</span>
-            <input :value="selectedProduct ? formatStockValue(selectedProduct) : '—'" type="text" disabled>
+            <input
+              :value="selectedProduct ? formatStockValue(selectedProduct) : '—'"
+              type="text"
+              disabled
+            >
           </label>
 
           <label class="form-group">
@@ -111,7 +144,10 @@
           </label>
         </div>
 
-        <div v-if="selectedProduct" class="preview-card">
+        <div
+          v-if="selectedProduct"
+          class="preview-card"
+        >
           <div>
             <span class="preview-label">Differenz</span>
             <strong>{{ productDelta }}</strong>
@@ -122,7 +158,10 @@
           </div>
         </div>
 
-        <p v-if="selectedProduct?.is_unlimited_stock" class="inline-hint">
+        <p
+          v-if="selectedProduct?.is_unlimited_stock"
+          class="inline-hint"
+        >
           Produkte mit unendlichem Bestand benötigen keine Korrekturbuchung.
         </p>
 
@@ -138,7 +177,10 @@
         </div>
       </section>
 
-      <section v-else class="history-layout">
+      <section
+        v-else
+        class="history-layout"
+      >
         <div class="panel-card">
           <div class="section-header">
             <div>
@@ -160,7 +202,10 @@
                 </tr>
               </thead>
               <tbody>
-                <tr v-for="log in memberLogs" :key="`member-${log.id}`">
+                <tr
+                  v-for="log in memberLogs"
+                  :key="`member-${log.id}`"
+                >
                   <td>{{ formatTimestamp(log.created_at) }}</td>
                   <td>{{ log.member_name }}</td>
                   <td>{{ formatBalance(log.old_balance_cents) }}</td>
@@ -169,7 +214,12 @@
                   <td>{{ log.executed_by_username }}</td>
                 </tr>
                 <tr v-if="memberLogs.length === 0">
-                  <td colspan="6" class="empty-state-cell">Noch keine Guthaben-Korrekturen vorhanden</td>
+                  <td
+                    colspan="6"
+                    class="empty-state-cell"
+                  >
+                    Noch keine Guthaben-Korrekturen vorhanden
+                  </td>
                 </tr>
               </tbody>
             </table>
@@ -197,7 +247,10 @@
                 </tr>
               </thead>
               <tbody>
-                <tr v-for="log in productLogs" :key="`product-${log.id}`">
+                <tr
+                  v-for="log in productLogs"
+                  :key="`product-${log.id}`"
+                >
                   <td>{{ formatTimestamp(log.created_at) }}</td>
                   <td>{{ log.product_name }}</td>
                   <td>{{ log.old_stock_quantity }}</td>
@@ -206,7 +259,12 @@
                   <td>{{ log.executed_by_username }}</td>
                 </tr>
                 <tr v-if="productLogs.length === 0">
-                  <td colspan="6" class="empty-state-cell">Noch keine Bestands-Korrekturen vorhanden</td>
+                  <td
+                    colspan="6"
+                    class="empty-state-cell"
+                  >
+                    Noch keine Bestands-Korrekturen vorhanden
+                  </td>
                 </tr>
               </tbody>
             </table>
