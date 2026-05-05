@@ -7,7 +7,7 @@
           Guthaben und Lagerbestände ohne Bargeldfluss revisionssicher korrigieren.
         </p>
         <p class="page-note">
-          Korrekturen erscheinen ausschließlich in der Korrektur-Historie und nicht als normale Z-Bon-Umsätze.
+          Korrekturen werden als separate Korrekturbuchungen dokumentiert und hier nachvollziehbar archiviert.
         </p>
       </div>
     </div>
@@ -69,6 +69,16 @@
               min="0"
               step="0.01"
               placeholder="0,00"
+            >
+          </label>
+
+          <label class="form-group form-group--full">
+            <span>Grund der Korrektur</span>
+            <input
+              v-model.trim="memberCorrectionReason"
+              type="text"
+              maxlength="255"
+              placeholder="z. B. Übertrag aus alter Kasse"
             >
           </label>
         </div>
@@ -145,6 +155,16 @@
               placeholder="0"
             >
           </label>
+
+          <label class="form-group form-group--full">
+            <span>Grund der Korrektur</span>
+            <input
+              v-model.trim="productCorrectionReason"
+              type="text"
+              maxlength="255"
+              placeholder="z. B. Inventurkorrektur"
+            >
+          </label>
         </div>
 
         <div
@@ -201,6 +221,7 @@
                   <th>Altbestand</th>
                   <th>Neubestand</th>
                   <th>Differenz</th>
+                  <th>Grund</th>
                   <th>Benutzer</th>
                 </tr>
               </thead>
@@ -214,11 +235,12 @@
                   <td>{{ formatBalance(log.old_balance_cents) }}</td>
                   <td>{{ formatBalance(log.new_balance_cents) }}</td>
                   <td>{{ formatBalance(log.change_cents) }}</td>
+                  <td>{{ log.reason }}</td>
                   <td>{{ log.executed_by_username }}</td>
                 </tr>
                 <tr v-if="memberLogs.length === 0">
                   <td
-                    colspan="6"
+                    colspan="7"
                     class="empty-state-cell"
                   >
                     Noch keine Guthaben-Korrekturen vorhanden
@@ -246,6 +268,7 @@
                   <th>Altbestand</th>
                   <th>Neubestand</th>
                   <th>Differenz</th>
+                  <th>Grund</th>
                   <th>Benutzer</th>
                 </tr>
               </thead>
@@ -259,11 +282,12 @@
                   <td>{{ log.old_stock_quantity }}</td>
                   <td>{{ log.new_stock_quantity }}</td>
                   <td>{{ formatSignedNumber(log.change_quantity) }}</td>
+                  <td>{{ log.reason }}</td>
                   <td>{{ log.executed_by_username }}</td>
                 </tr>
                 <tr v-if="productLogs.length === 0">
                   <td
-                    colspan="6"
+                    colspan="7"
                     class="empty-state-cell"
                   >
                     Noch keine Bestands-Korrekturen vorhanden
@@ -304,6 +328,8 @@ const selectedMemberId = ref(null)
 const selectedProductId = ref(null)
 const memberTargetBalanceEuro = ref(null)
 const productTargetStock = ref(null)
+const memberCorrectionReason = ref('')
+const productCorrectionReason = ref('')
 const memberLogs = ref([])
 const productLogs = ref([])
 const isSubmitting = ref(false)
@@ -398,10 +424,12 @@ const submitMemberCorrection = async () => {
   try {
     await apiService.post(`/members/${selectedMember.value.id}/balance-correction`, {
       new_balance_cents: memberTargetBalanceCents.value,
+      reason: memberCorrectionReason.value || null,
     })
     await Promise.all([memberStore.getMembers(), loadLogs()])
     ensureSelections()
     memberTargetBalanceEuro.value = selectedMember.value ? selectedMember.value.balance_cents / 100 : null
+    memberCorrectionReason.value = ''
     notificationStore.success('Guthaben erfolgreich korrigiert')
     activeTab.value = 'history'
   } catch (error) {
@@ -418,10 +446,12 @@ const submitProductCorrection = async () => {
   try {
     await apiService.post(`/products/${selectedProduct.value.id}/stock-correction`, {
       new_stock_quantity: Number(productTargetStock.value),
+      reason: productCorrectionReason.value || null,
     })
     await Promise.all([productStore.getProducts(), loadLogs()])
     ensureSelections()
     productTargetStock.value = selectedProduct.value ? selectedProduct.value.stock_quantity : null
+    productCorrectionReason.value = ''
     notificationStore.success('Bestand erfolgreich korrigiert')
     activeTab.value = 'history'
   } catch (error) {
@@ -543,6 +573,10 @@ onMounted(() => {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
   gap: 0.85rem;
+}
+
+.form-group--full {
+  grid-column: 1 / -1;
 }
 
 .form-group {

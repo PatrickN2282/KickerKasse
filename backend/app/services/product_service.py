@@ -55,7 +55,13 @@ class ProductService:
                 return None
             return self.repo.get_by_id(product_id)
 
-    def correct_stock(self, product_id: int, new_stock_quantity: int, executed_by_username: str):
+    def correct_stock(
+        self,
+        product_id: int,
+        new_stock_quantity: int,
+        executed_by_username: str,
+        reason: str | None = None,
+    ):
         """Set product stock without cash flow and create a separate correction audit log."""
         product = self.repo.get_by_id(product_id)
         if not product:
@@ -63,6 +69,7 @@ class ProductService:
 
         old_stock_quantity = product.stock_quantity
         product.stock_quantity = new_stock_quantity
+        correction_reason = (reason or "").strip() or "KORREKTURBUCHUNG"
 
         log = ProductStockCorrectionLog(
             product_id=product.id,
@@ -71,7 +78,7 @@ class ProductService:
             new_stock_quantity=new_stock_quantity,
             change_quantity=new_stock_quantity - old_stock_quantity,
             executed_by_username=executed_by_username,
-            reason="KORREKTURBUCHUNG",
+            reason=correction_reason,
         )
         self.db.add(log)
         self.db.commit()

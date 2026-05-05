@@ -34,6 +34,7 @@ class ProductUpdate(BaseModel):
 
 class ProductStockCorrectionRequest(BaseModel):
     new_stock_quantity: int = Field(..., ge=0)
+    reason: Optional[str] = Field(default=None, max_length=255)
 
 
 class CategoryInfo(BaseModel):

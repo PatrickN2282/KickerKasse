@@ -175,6 +175,7 @@ async def correct_stock(
             product_id,
             correction_request.new_stock_quantity,
             current_user.username,
+            correction_request.reason,
         )
         if not product:
             raise HTTPException(

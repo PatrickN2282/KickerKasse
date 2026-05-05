@@ -43,6 +43,7 @@ class MemberUpdate(BaseModel):
 
 class MemberBalanceCorrectionRequest(BaseModel):
     new_balance_cents: int = Field(..., ge=0)
+    reason: Optional[str] = Field(default=None, max_length=255)
 
 
 class MemberResponse(MemberBase):

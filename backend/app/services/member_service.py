@@ -172,7 +172,13 @@ class MemberService:
         
         return member
 
-    def correct_balance(self, member_id: int, new_balance_cents: int, executed_by_username: str):
+    def correct_balance(
+        self,
+        member_id: int,
+        new_balance_cents: int,
+        executed_by_username: str,
+        reason: str | None = None,
+    ):
         """Set member balance without cash flow and create a separate correction audit log."""
         member = self.repo.get_by_id(member_id)
         if not member:
@@ -180,6 +186,7 @@ class MemberService:
 
         old_balance = member.balance_cents
         member.balance_cents = new_balance_cents
+        correction_reason = (reason or "").strip() or "KORREKTURBUCHUNG"
 
         log = MemberBalanceCorrectionLog(
             member_id=member.id,
@@ -188,7 +195,7 @@ class MemberService:
             new_balance_cents=new_balance_cents,
             change_cents=new_balance_cents - old_balance,
             executed_by_username=executed_by_username,
-            reason="KORREKTURBUCHUNG",
+            reason=correction_reason,
         )
         self.db.add(log)
         self.db.commit()
