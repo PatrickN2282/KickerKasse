@@ -36,8 +36,26 @@ async def update_app_settings(
     request: Request,
     db: Session = Depends(get_db),
 ):
-    require_roles(request, db, UserRole.ADMIN)
     service = AppSettingsService(db)
+    current_user = require_roles(request, db, UserRole.ADMIN)
+
+    current_settings = service.get_or_create_settings()
+    current_payload = service.to_private_payload(current_settings)
+    restricted_field_pairs = (
+        ("kasse_layout", current_payload["kasse_layout"]),
+        ("session_timer_enabled", current_payload["session_timer_enabled"]),
+        ("session_timer_minutes", current_payload["session_timer_minutes"]),
+    )
+    is_restricted_change = any(
+        getattr(payload, field_name) != current_value
+        for field_name, current_value in restricted_field_pairs
+    )
+    if is_restricted_change and not current_user.is_top_admin:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Nur der Top-Admin darf Kassenlayout und Session-Timer ändern",
+        )
+
     try:
         settings = service.update_settings(**payload.model_dump())
     except ValueError as exc:

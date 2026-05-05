@@ -170,6 +170,7 @@
               ✅ Z-Bon erstellen
             </button>
             <button
+              v-if="authStore.isAdmin"
               class="btn btn-warning"
               @click="openWithdrawalModal"
             >

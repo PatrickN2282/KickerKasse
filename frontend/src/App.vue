@@ -264,7 +264,7 @@ const loginFromModal = async () => {
   }
 
   closeLoginModal()
-  router.push('/')
+  router.push(authStore.canAccessAdminPanel ? '/admin' : '/')
 }
 
 const handleBeforeUnload = () => {
