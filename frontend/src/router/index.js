@@ -60,7 +60,7 @@ const routes = [
       {
         path: 'corrections',
         name: 'AdminCorrections',
-        component: () => import('@/views/admin/Corrections.vue'),
+        redirect: '/admin/finance?tab=corrections',
         meta: { requiresAuth: true, allowedRoles: ['TOP_ADMIN', 'ADMIN'] },
       },
       {

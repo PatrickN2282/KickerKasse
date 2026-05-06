@@ -2,12 +2,12 @@
   <div class="admin-corrections">
     <div class="page-header">
       <div>
-        <h2>Konto-Korrektur</h2>
+        <h2>Korrektur-Buchungen</h2>
         <p class="page-subtitle">
           Guthaben und Lagerbestände ohne Bargeldfluss revisionssicher korrigieren.
         </p>
         <p class="page-note">
-          Korrekturen werden als separate Korrekturbuchungen dokumentiert und hier nachvollziehbar archiviert.
+          Korrekturen werden als separate Korrekturbuchungen dokumentiert und direkt im jeweiligen Bereich archiviert.
         </p>
       </div>
     </div>
@@ -38,19 +38,32 @@
         </div>
 
         <div class="form-grid">
-          <label class="form-group">
-            <span>Mitglied</span>
-            <select v-model="selectedMemberId">
-              <option :value="null">Mitglied auswählen</option>
-              <option
-                v-for="member in memberStore.members"
+          <div class="form-group form-group--full">
+            <span>Mitglied auswählen</span>
+            <input
+              v-model.trim="memberSearch"
+              type="text"
+              placeholder="Nach Name oder Nummer filtern..."
+            >
+            <div class="picker-list">
+              <button
+                v-for="member in filteredMembers"
                 :key="member.id"
-                :value="member.id"
+                type="button"
+                :class="['picker-item', { active: selectedMemberId === member.id }]"
+                @click="selectedMemberId = member.id"
               >
-                {{ getMemberFullName(member) }} · #{{ member.member_number }}
-              </option>
-            </select>
-          </label>
+                <strong>{{ getMemberFullName(member) }}</strong>
+                <span>#{{ member.member_number }} · {{ formatBalance(member.balance_cents) }}</span>
+              </button>
+              <div
+                v-if="filteredMembers.length === 0"
+                class="picker-empty"
+              >
+                Keine passenden Mitglieder gefunden
+              </div>
+            </div>
+          </div>
 
           <label class="form-group">
             <span>Aktueller Bestand</span>
@@ -107,10 +120,57 @@
             Guthaben korrigieren
           </button>
         </div>
+
+        <div class="history-block">
+          <div class="section-header section-header--compact">
+            <div>
+              <h3>Historie</h3>
+              <p>Alle Korrekturbuchungen für Mitglieder.</p>
+            </div>
+          </div>
+
+          <div class="history-table-wrapper">
+            <table class="history-table">
+              <thead>
+                <tr>
+                  <th>Datum</th>
+                  <th>Mitglied</th>
+                  <th>Altbestand</th>
+                  <th>Neubestand</th>
+                  <th>Differenz</th>
+                  <th>Grund</th>
+                  <th>Benutzer</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr
+                  v-for="log in memberLogs"
+                  :key="`member-${log.id}`"
+                >
+                  <td>{{ formatTimestamp(log.created_at) }}</td>
+                  <td>{{ log.member_name }}</td>
+                  <td>{{ formatBalance(log.old_balance_cents) }}</td>
+                  <td>{{ formatBalance(log.new_balance_cents) }}</td>
+                  <td>{{ formatBalance(log.change_cents) }}</td>
+                  <td>{{ log.reason }}</td>
+                  <td>{{ log.executed_by_username }}</td>
+                </tr>
+                <tr v-if="memberLogs.length === 0">
+                  <td
+                    colspan="7"
+                    class="empty-state-cell"
+                  >
+                    Noch keine Guthaben-Korrekturen vorhanden
+                  </td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
       </section>
 
       <section
-        v-else-if="activeTab === 'products'"
+        v-else
         class="panel-card"
       >
         <div class="section-header">
@@ -121,19 +181,32 @@
         </div>
 
         <div class="form-grid">
-          <label class="form-group">
-            <span>Produkt</span>
-            <select v-model="selectedProductId">
-              <option :value="null">Produkt auswählen</option>
-              <option
-                v-for="product in productStore.products"
+          <div class="form-group form-group--full">
+            <span>Produkt auswählen</span>
+            <input
+              v-model.trim="productSearch"
+              type="text"
+              placeholder="Nach Produktname oder Warengruppe filtern..."
+            >
+            <div class="picker-list">
+              <button
+                v-for="product in filteredProducts"
                 :key="product.id"
-                :value="product.id"
+                type="button"
+                :class="['picker-item', { active: selectedProductId === product.id }]"
+                @click="selectedProductId = product.id"
               >
-                {{ product.name }}
-              </option>
-            </select>
-          </label>
+                <strong>{{ product.name }}</strong>
+                <span>{{ getProductMeta(product) }}</span>
+              </button>
+              <div
+                v-if="filteredProducts.length === 0"
+                class="picker-empty"
+              >
+                Keine passenden Produkte gefunden
+              </div>
+            </div>
+          </div>
 
           <label class="form-group">
             <span>Aktueller Bestand</span>
@@ -198,63 +271,11 @@
             Bestand korrigieren
           </button>
         </div>
-      </section>
 
-      <section
-        v-else
-        class="history-layout"
-      >
-        <div class="panel-card">
-          <div class="section-header">
+        <div class="history-block">
+          <div class="section-header section-header--compact">
             <div>
-              <h3>Guthaben-Korrekturen</h3>
-              <p>Alle Korrekturbuchungen für Mitglieder.</p>
-            </div>
-          </div>
-
-          <div class="history-table-wrapper">
-            <table class="history-table">
-              <thead>
-                <tr>
-                  <th>Datum</th>
-                  <th>Mitglied</th>
-                  <th>Altbestand</th>
-                  <th>Neubestand</th>
-                  <th>Differenz</th>
-                  <th>Grund</th>
-                  <th>Benutzer</th>
-                </tr>
-              </thead>
-              <tbody>
-                <tr
-                  v-for="log in memberLogs"
-                  :key="`member-${log.id}`"
-                >
-                  <td>{{ formatTimestamp(log.created_at) }}</td>
-                  <td>{{ log.member_name }}</td>
-                  <td>{{ formatBalance(log.old_balance_cents) }}</td>
-                  <td>{{ formatBalance(log.new_balance_cents) }}</td>
-                  <td>{{ formatBalance(log.change_cents) }}</td>
-                  <td>{{ log.reason }}</td>
-                  <td>{{ log.executed_by_username }}</td>
-                </tr>
-                <tr v-if="memberLogs.length === 0">
-                  <td
-                    colspan="7"
-                    class="empty-state-cell"
-                  >
-                    Noch keine Guthaben-Korrekturen vorhanden
-                  </td>
-                </tr>
-              </tbody>
-            </table>
-          </div>
-        </div>
-
-        <div class="panel-card">
-          <div class="section-header">
-            <div>
-              <h3>Bestands-Korrekturen</h3>
+              <h3>Historie</h3>
               <p>Alle Korrekturbuchungen für Produkte.</p>
             </div>
           </div>
@@ -310,7 +331,7 @@ import { useMemberStore } from '@/stores/member'
 import { useNotificationStore } from '@/stores/notification'
 import { useProductStore } from '@/stores/product'
 import { formatBalance } from '@/services/utils'
-import { getMemberFullName } from '@/services/member'
+import { getMemberFullName, getMemberSearchText } from '@/services/member'
 
 const authStore = useAuthStore()
 const memberStore = useMemberStore()
@@ -320,12 +341,13 @@ const notificationStore = useNotificationStore()
 const subTabs = [
   { id: 'members', label: 'Mitglieder', icon: '👥' },
   { id: 'products', label: 'Produkte', icon: '📦' },
-  { id: 'history', label: 'Historie', icon: '🧾' },
 ]
 
 const activeTab = ref('members')
 const selectedMemberId = ref(null)
 const selectedProductId = ref(null)
+const memberSearch = ref('')
+const productSearch = ref('')
 const memberTargetBalanceEuro = ref(null)
 const productTargetStock = ref(null)
 const memberCorrectionReason = ref('')
@@ -341,6 +363,31 @@ const selectedMember = computed(() => (
 const selectedProduct = computed(() => (
   productStore.products.find(product => product.id === Number(selectedProductId.value)) || null
 ))
+
+const filteredMembers = computed(() => {
+  const search = memberSearch.value.trim().toLowerCase()
+
+  if (!search) {
+    return memberStore.members
+  }
+
+  return memberStore.members.filter(member => getMemberSearchText(member).includes(search))
+})
+
+const getProductSearchText = (product) => [product?.name, product?.warengruppe]
+  .filter(Boolean)
+  .join(' ')
+  .toLowerCase()
+
+const filteredProducts = computed(() => {
+  const search = productSearch.value.trim().toLowerCase()
+
+  if (!search) {
+    return productStore.products
+  }
+
+  return productStore.products.filter(product => getProductSearchText(product).includes(search))
+})
 
 const memberTargetBalanceCents = computed(() => (
   memberTargetBalanceEuro.value === null || memberTargetBalanceEuro.value === ''
@@ -390,6 +437,17 @@ const formatSignedNumber = (value) => {
 
 const formatStockValue = (product) => (product?.is_unlimited_stock ? '∞' : `${product?.stock_quantity ?? 0}`)
 
+const getProductMeta = (product) => {
+  if (!product) return '—'
+
+  const parts = []
+  if (product.warengruppe) {
+    parts.push(product.warengruppe)
+  }
+  parts.push(product.is_unlimited_stock ? '∞ Bestand' : `${product.stock_quantity ?? 0} Stück`)
+  return parts.join(' · ')
+}
+
 const ensureSelections = () => {
   if (!selectedMember.value && memberStore.members.length > 0) {
     selectedMemberId.value = memberStore.members[0].id
@@ -431,7 +489,6 @@ const submitMemberCorrection = async () => {
     memberTargetBalanceEuro.value = selectedMember.value ? selectedMember.value.balance_cents / 100 : null
     memberCorrectionReason.value = ''
     notificationStore.success('Guthaben erfolgreich korrigiert')
-    activeTab.value = 'history'
   } catch (error) {
     notificationStore.error(error.response?.data?.detail || 'Guthaben-Korrektur fehlgeschlagen')
   } finally {
@@ -453,7 +510,6 @@ const submitProductCorrection = async () => {
     productTargetStock.value = selectedProduct.value ? selectedProduct.value.stock_quantity : null
     productCorrectionReason.value = ''
     notificationStore.success('Bestand erfolgreich korrigiert')
-    activeTab.value = 'history'
   } catch (error) {
     notificationStore.error(error.response?.data?.detail || 'Bestands-Korrektur fehlgeschlagen')
   } finally {
@@ -471,7 +527,7 @@ watch(selectedProduct, (product) => {
 
 onMounted(() => {
   initialize().catch(() => {
-    notificationStore.error('Konto-Korrekturen konnten nicht geladen werden')
+    notificationStore.error('Korrekturbuchungen konnten nicht geladen werden')
   })
 })
 </script>
@@ -542,8 +598,7 @@ onMounted(() => {
   font-size: 0.95rem;
 }
 
-.correction-content,
-.history-layout {
+.correction-content {
   display: grid;
   gap: 1rem;
 }
@@ -569,6 +624,10 @@ onMounted(() => {
   }
 }
 
+.section-header--compact {
+  margin-bottom: 0.75rem;
+}
+
 .form-grid {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
@@ -586,13 +645,55 @@ onMounted(() => {
   color: #334155;
   font-weight: 600;
 
-  select,
   input {
     border: 1px solid var(--border);
     border-radius: 10px;
     padding: 0.75rem 0.9rem;
     font-size: 0.95rem;
   }
+}
+
+.picker-list {
+  display: grid;
+  gap: 0.5rem;
+  max-height: 240px;
+  overflow-y: auto;
+  padding: 0.35rem;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  background: #f8fafc;
+}
+
+.picker-item {
+  display: flex;
+  flex-direction: column;
+  gap: 0.2rem;
+  align-items: flex-start;
+  padding: 0.75rem 0.85rem;
+  border: 1px solid transparent;
+  border-radius: 10px;
+  background: white;
+  color: #1e293b;
+  text-align: left;
+  cursor: pointer;
+  transition: all 0.2s ease;
+
+  span {
+    color: #64748b;
+    font-size: 0.86rem;
+  }
+
+  &:hover,
+  &.active {
+    border-color: var(--app-highlight-color);
+    background: color-mix(in srgb, var(--app-highlight-color) 12%, white);
+  }
+}
+
+.picker-empty {
+  padding: 0.9rem;
+  text-align: center;
+  color: #64748b;
 }
 
 .preview-card {
@@ -621,6 +722,12 @@ onMounted(() => {
   display: flex;
   justify-content: flex-end;
   margin-top: 1rem;
+}
+
+.history-block {
+  margin-top: 1.5rem;
+  padding-top: 1.25rem;
+  border-top: 1px solid var(--border);
 }
 
 .history-table-wrapper {

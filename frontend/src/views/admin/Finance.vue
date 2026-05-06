@@ -836,6 +836,13 @@
     </div>
 
     <div
+      v-if="activeTab === 'corrections'"
+      class="tab-content tab-content--flush"
+    >
+      <Corrections />
+    </div>
+
+    <div
       v-if="activeTab === 'internalAccounts'"
       class="tab-content"
     >
@@ -1448,6 +1455,7 @@
 
 <script setup>
 import { ref, computed, onMounted, watch } from 'vue'
+import { useRoute, useRouter } from 'vue-router'
 import { formatPrice } from '@/services/utils'
 import apiService from '@/services/api'
 import CashCounterModal from '@/components/CashCounterModal.vue'
@@ -1456,10 +1464,13 @@ import { useNotificationStore } from '@/stores/notification'
 import { useMemberStore } from '@/stores/member'
 import { getMemberFullName, getMemberSearchText, getMemberShortName } from '@/services/member'
 import { useAuthStore } from '@/stores/auth'
+import Corrections from '@/views/admin/Corrections.vue'
 
 const notificationStore = useNotificationStore()
 const memberStore = useMemberStore()
 const authStore = useAuthStore()
+const route = useRoute()
+const router = useRouter()
 
 const activeTab = ref('zbon')
 const loading = ref(false)
@@ -1563,7 +1574,10 @@ const memberStats = ref({
   top_members: [],
 })
 
-const tabs = computed(() => (authStore.isManager ? ['zbon', 'zbons'] : ['zbon', 'zbons', 'history', 'revenue', 'members', 'internalAccounts']))
+const tabs = computed(() => (authStore.isManager
+  ? ['zbon', 'zbons']
+  : ['zbon', 'zbons', 'history', 'revenue', 'members', 'internalAccounts', ...(authStore.isAdmin ? ['corrections'] : [])]
+))
 const tabLabels = {
   zbon: '📊 Z-Bon',
   zbons: '📑 Z-Bons Verlauf',
@@ -1571,6 +1585,7 @@ const tabLabels = {
   revenue: '📈 Umsatz',
   members: '👥 Mitglieder',
   internalAccounts: '🏦 Interne Konten',
+  corrections: '🧾 Korrekturen',
 }
 
 // Scheduler configuration
@@ -2466,8 +2481,27 @@ const zbonsTotalRevenue = computed(() => {
   return zbonsList.value.reduce((sum, zbon) => sum + ((zbon.total_revenue || 0) * 100), 0)
 })
 
+const resolveActiveTab = (requestedTab) => (tabs.value.includes(requestedTab) ? requestedTab : tabs.value[0] || 'zbon')
+
+watch(() => route.query.tab, (requestedTab) => {
+  const nextTab = resolveActiveTab(typeof requestedTab === 'string' ? requestedTab : '')
+  if (activeTab.value !== nextTab) {
+    activeTab.value = nextTab
+  }
+}, { immediate: true })
+
+watch(tabs, (availableTabs) => {
+  if (!availableTabs.includes(activeTab.value)) {
+    activeTab.value = availableTabs[0] || 'zbon'
+  }
+})
+
 // Watch für Tab-Wechsel
 watch(activeTab, (newTab) => {
+  if (route.query.tab !== newTab) {
+    router.replace({ query: { ...route.query, tab: newTab } })
+  }
+
   console.log('Switched to tab:', newTab)
   if (newTab === 'zbon' && dailyStats.value.transaction_count === 0) {
     loadDailyStats()
