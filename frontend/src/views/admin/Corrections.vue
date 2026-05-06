@@ -374,7 +374,7 @@ const filteredMembers = computed(() => {
   return memberStore.members.filter(member => getMemberSearchText(member).includes(search))
 })
 
-const getProductSearchText = (product) => [product?.name, product?.warengruppe]
+const buildProductSearchText = (product) => [product?.name, product?.warengruppe]
   .filter(Boolean)
   .join(' ')
   .toLowerCase()
@@ -386,7 +386,7 @@ const filteredProducts = computed(() => {
     return productStore.products
   }
 
-  return productStore.products.filter(product => getProductSearchText(product).includes(search))
+  return productStore.products.filter(product => buildProductSearchText(product).includes(search))
 })
 
 const memberTargetBalanceCents = computed(() => (

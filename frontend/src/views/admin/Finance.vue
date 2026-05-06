@@ -1472,7 +1472,8 @@ const authStore = useAuthStore()
 const route = useRoute()
 const router = useRouter()
 
-const activeTab = ref('zbon')
+const DEFAULT_FINANCE_TAB = 'zbon'
+const activeTab = ref(DEFAULT_FINANCE_TAB)
 const loading = ref(false)
 const loadingHistory = ref(false)
 
@@ -2481,7 +2482,7 @@ const zbonsTotalRevenue = computed(() => {
   return zbonsList.value.reduce((sum, zbon) => sum + ((zbon.total_revenue || 0) * 100), 0)
 })
 
-const resolveActiveTab = (requestedTab) => (tabs.value.includes(requestedTab) ? requestedTab : tabs.value[0] || 'zbon')
+const resolveActiveTab = (requestedTab) => (tabs.value.includes(requestedTab) ? requestedTab : tabs.value[0] || DEFAULT_FINANCE_TAB)
 
 watch(() => route.query.tab, (requestedTab) => {
   const nextTab = resolveActiveTab(typeof requestedTab === 'string' ? requestedTab : '')
@@ -2492,7 +2493,7 @@ watch(() => route.query.tab, (requestedTab) => {
 
 watch(tabs, (availableTabs) => {
   if (!availableTabs.includes(activeTab.value)) {
-    activeTab.value = availableTabs[0] || 'zbon'
+    activeTab.value = availableTabs[0] || DEFAULT_FINANCE_TAB
   }
 })
 
