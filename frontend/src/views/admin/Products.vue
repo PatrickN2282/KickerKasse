@@ -3,7 +3,7 @@
     <div class="page-header">
       <div>
         <h2>Produktverwaltung</h2>
-        <p class="page-subtitle">Produkte, Preise und Lagerbestände im gleichen Layout wie die Mitgliederverwaltung pflegen.</p>
+        <p class="page-subtitle">Produkte und Preise im gleichen Layout wie die Mitgliederverwaltung pflegen.</p>
       </div>
       <button class="btn btn-primary" @click="openCreateModal">
         <span class="icon">+</span> Neues Produkt
@@ -165,6 +165,7 @@
               <div class="summary-card">
                 <span class="label">Lagerbestand</span>
                 <span class="value">{{ formData.isUnlimitedStock ? '∞' : formData.stock }}</span>
+                <span class="desc">Pflege nur noch über Korrektur-Buchungen im Bereich Finanzen.</span>
               </div>
             </div>
           </aside>
@@ -193,12 +194,6 @@
                       :value="group"
                     />
                   </datalist>
-                </div>
-              </div>
-              <div class="form-row">
-                <div class="form-group">
-                  <label for="stock">Lagerbestand*</label>
-                  <input id="stock" v-model.number="formData.stock" type="number" min="0" :disabled="formData.isUnlimitedStock" required>
                 </div>
               </div>
             </section>
@@ -1208,6 +1203,13 @@ onUnmounted(() => {
     font-size: 1.3rem;
     font-weight: 700;
     color: #047857;
+  }
+
+  .desc {
+    display: block;
+    margin-top: 0.4rem;
+    font-size: 0.78rem;
+    color: #065f46;
   }
 }
 
