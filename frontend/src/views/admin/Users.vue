@@ -465,19 +465,22 @@ onMounted(async () => {
   background: white;
   width: 100%;
   max-width: 900px;
-  max-height: 90vh;
+  max-height: calc(100vh - 2rem);
   border-radius: 16px;
   display: flex;
   flex-direction: column;
   box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25);
+  overflow: hidden;
 }
 
 .modal-card-form {
-  max-width: 760px;
+  max-width: 960px;
+  min-height: min(560px, calc(100vh - 2rem));
 }
 
 .modal-card-compact {
   max-width: 520px;
+  min-height: auto;
 }
 
 .modal-header {
@@ -496,6 +499,10 @@ onMounted(async () => {
 .modal-form-content {
   padding: 1.5rem;
   overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  flex: 1 1 auto;
+  min-height: 0;
 }
 
 .form-section {
@@ -596,9 +603,14 @@ onMounted(async () => {
   display: flex;
   justify-content: flex-end;
   gap: 1rem;
+  margin-top: auto;
 }
 
 @media (max-width: 768px) {
+  .modal-card-form {
+    min-height: auto;
+  }
+
   .page-header {
     flex-direction: column;
     align-items: stretch;

@@ -561,9 +561,6 @@ onMounted(() => {
 }
 
 .correction-subtabs {
-  position: sticky;
-  top: 0;
-  z-index: 5;
   display: flex;
   gap: 0.5rem;
   flex-wrap: wrap;

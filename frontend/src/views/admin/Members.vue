@@ -490,7 +490,7 @@ onMounted(() => memberStore.getMembers())
 }
 
 .modal-card {
-  background: white; width: 100%; max-width: 900px; max-height: 90vh;
+  background: white; width: 100%; max-width: 1120px; min-height: min(640px, calc(100vh - 2rem)); max-height: calc(100vh - 2rem);
   border-radius: 16px; display: flex; flex-direction: column;
   box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25);
   overflow: hidden;
@@ -505,20 +505,24 @@ onMounted(() => memberStore.getMembers())
 /* Modal Body Layout (Grid) */
 .modal-body-layout { 
   display: grid; 
-  grid-template-columns: 260px 1fr; 
+  grid-template-columns: 300px minmax(0, 1fr); 
   overflow: hidden;
+  flex: 1 1 auto;
   height: 100%;
+  min-height: 0;
 }
 
 .modal-sidebar {
   padding: 1.5rem; background: var(--bg-main);
   border-right: 1px solid var(--border); display: flex; flex-direction: column; gap: 1.5rem;
+  overflow-y: auto;
+  min-height: 0;
 }
 
 .modal-form-content { 
   padding: 1.5rem; 
   overflow-y: auto; 
-  max-height: calc(90vh - 160px); 
+  min-height: 0;
 }
 
 /* Foto & Sidebar Komponenten */
@@ -611,6 +615,7 @@ onMounted(() => memberStore.getMembers())
 @keyframes spin { to { transform: rotate(360deg); } }
 
 @media (max-width: 768px) {
+  .modal-card { min-height: auto; }
   .modal-body-layout, .form-row { grid-template-columns: 1fr; }
   .modal-sidebar { border-right: none; border-bottom: 1px solid var(--border); }
 }
