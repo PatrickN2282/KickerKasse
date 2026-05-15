@@ -1067,12 +1067,14 @@ onUnmounted(() => {
 .modal-card {
   background: white;
   width: 100%;
-  max-width: 1050px;
-  max-height: 90vh;
+  max-width: 1180px;
+  min-height: min(660px, calc(100vh - 2rem));
+  max-height: calc(100vh - 2rem);
   border-radius: 16px;
   display: flex;
   flex-direction: column;
   box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25);
+  overflow: hidden;
 }
 
 .modal-header {
@@ -1090,8 +1092,10 @@ onUnmounted(() => {
 
 .modal-body-layout {
   display: grid;
-  grid-template-columns: 260px 1fr;
+  grid-template-columns: 300px minmax(0, 1fr);
   overflow: hidden;
+  flex: 1 1 auto;
+  min-height: 0;
 }
 
 .modal-sidebar {
@@ -1102,6 +1106,7 @@ onUnmounted(() => {
   flex-direction: column;
   gap: 1.5rem;
   overflow-y: auto;
+  min-height: 0;
 }
 
 .product-image-panel,
@@ -1114,7 +1119,7 @@ onUnmounted(() => {
 .modal-form-content {
   padding: 1.5rem;
   overflow-y: auto;
-  max-height: calc(90vh - 160px);
+  min-height: 0;
 }
 
 .avatar-display {
@@ -1316,6 +1321,10 @@ onUnmounted(() => {
 }
 
 @media (max-width: 768px) {
+  .modal-card {
+    min-height: auto;
+  }
+
   .modal-body-layout,
   .form-row {
     grid-template-columns: 1fr;
