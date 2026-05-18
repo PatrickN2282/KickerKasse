@@ -736,8 +736,8 @@ onMounted(() => {
 }
 
 .modal-card-form {
-  max-width: 980px;
-  min-height: min(560px, calc(100vh - 2rem));
+  max-width: 860px;
+  min-height: min(480px, calc(100vh - 2rem));
 }
 
 .modal-header {
@@ -902,11 +902,19 @@ onMounted(() => {
   justify-content: flex-end;
   gap: 1rem;
   margin-top: auto;
+  padding: 1rem 1.5rem;
+  border-top: 1px solid var(--border);
 }
 
 @media (max-width: 900px) {
   .form-row {
     grid-template-columns: 1fr;
+  }
+
+  .modal-header,
+  .modal-form-content,
+  .modal-footer {
+    padding: 1rem;
   }
 }
 

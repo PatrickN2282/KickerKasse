@@ -13,11 +13,14 @@
 
         <!-- Spalte 1: Logo -->
         <div class="navbar-col navbar-col--logo">
-          <img
-            :src="appSettingsStore.logoUrl"
-            :alt="appSettingsStore.settings.app_name"
-            class="navbar-logo"
-          >
+          <div class="logo-area">
+            <img
+              :src="appSettingsStore.logoUrl"
+              :alt="appSettingsStore.settings.app_name"
+              class="navbar-logo"
+            >
+            <PwaInstallButton />
+          </div>
         </div>
 
         <!-- Spalte 2: Titel -->
@@ -29,8 +32,6 @@
 
         <!-- Spalte 3: Navigation + User-Aktionen -->
         <div class="navbar-col navbar-col--actions">
-
-          <PwaInstallButton />
 
           <!-- User-Chip: immer sichtbar -->
           <span class="user-chip">
@@ -421,6 +422,12 @@ onBeforeUnmount(() => {
 }
 
 /* ── Logo ────────────────────────────────────────────────── */
+.logo-area {
+  display: flex;
+  align-items: center;
+  gap: 0.45rem;
+}
+
 .navbar-logo {
   /* volle Navhöhe minus Border-bottom (3px) nutzen */
   height: calc(100% - 0px);

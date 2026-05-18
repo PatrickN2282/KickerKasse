@@ -1064,7 +1064,7 @@ onMounted(() => {
     width: 100%;
     padding: 0.75rem;
     border: 1px solid #ddd;
-    border-radius: 4px;
+    border-radius: 8px;
     font-size: 1rem;
 
     &:focus {
@@ -1273,10 +1273,11 @@ onMounted(() => {
 .btn-small {
   padding: 0.5rem 1rem;
   border: none;
-  border-radius: 4px;
+  border-radius: 8px;
   cursor: pointer;
   font-size: 0.9rem;
-  transition: all 0.3s;
+  font-weight: 600;
+  transition: all 0.2s;
 
   &:disabled {
     opacity: 0.5;
@@ -1288,7 +1289,6 @@ onMounted(() => {
   width: 100%;
   background: #0275d8;
   color: white;
-  font-weight: 500;
 
   &:hover:not(:disabled) {
     background: #025aa5;
@@ -1296,16 +1296,17 @@ onMounted(() => {
 }
 
 .btn-secondary {
-  background: #6c757d;
-  color: white;
+  background: #f1f5f9;
+  color: #475569;
+  border: 1px solid #e2e8f0;
 
   &:hover:not(:disabled) {
-    background: #5a6268;
+    background: #e2e8f0;
   }
 }
 
 .btn-small {
-  padding: 0.25rem 0.5rem;
+  padding: 0.3rem 0.6rem;
   background: #0275d8;
   color: white;
   font-size: 0.8rem;

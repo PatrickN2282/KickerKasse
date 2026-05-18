@@ -490,7 +490,7 @@ onMounted(() => memberStore.getMembers())
 }
 
 .modal-card {
-  background: white; width: 100%; max-width: 1120px; min-height: min(640px, calc(100vh - 2rem)); max-height: calc(100vh - 2rem);
+  background: white; width: 100%; max-width: 1050px; min-height: min(520px, calc(100vh - 2rem)); max-height: calc(100vh - 2rem);
   border-radius: 16px; display: flex; flex-direction: column;
   box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25);
   overflow: hidden;
@@ -505,7 +505,7 @@ onMounted(() => memberStore.getMembers())
 /* Modal Body Layout (Grid) */
 .modal-body-layout { 
   display: grid; 
-  grid-template-columns: 300px minmax(0, 1fr); 
+  grid-template-columns: 260px minmax(0, 1fr); 
   overflow: hidden;
   flex: 1 1 auto;
   height: 100%;
@@ -618,5 +618,18 @@ onMounted(() => memberStore.getMembers())
   .modal-card { min-height: auto; }
   .modal-body-layout, .form-row { grid-template-columns: 1fr; }
   .modal-sidebar { border-right: none; border-bottom: 1px solid var(--border); }
+}
+
+@media (max-width: 1100px) {
+  .modal-header,
+  .modal-sidebar,
+  .modal-form-content,
+  .modal-footer {
+    padding: 1rem;
+  }
+
+  .modal-body-layout {
+    grid-template-columns: 220px minmax(0, 1fr);
+  }
 }
 </style>

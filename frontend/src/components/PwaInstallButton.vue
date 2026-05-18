@@ -59,10 +59,12 @@ onBeforeUnmount(() => {
   color: white;
   border: none;
   border-radius: 999px;
-  padding: 0.55rem 1rem;
+  padding: 0.28rem 0.6rem;
+  font-size: 0.75rem;
   font-weight: 600;
   cursor: pointer;
   transition: opacity 0.2s ease;
+  white-space: nowrap;
 
   &:hover {
     opacity: 0.9;

@@ -2640,7 +2640,7 @@ onMounted(() => {
   input {
     padding: 0.5rem;
     border: 1px solid #9ca4ae;
-    border-radius: 4px;
+    border-radius: 8px;
     font-size: 1rem;
   }
 }
@@ -2705,7 +2705,7 @@ onMounted(() => {
   margin-bottom: 2rem;
   padding: 1rem;
   background: #d8dde3;
-  border-radius: 4px;
+  border-radius: 8px;
   align-items: flex-end;
 }
 
@@ -2721,9 +2721,9 @@ onMounted(() => {
 
   input,
   select {
-    padding: 0.5rem;
-      border: 1px solid #9ca4ae;
-    border-radius: 4px;
+    padding: 0.5rem 0.75rem;
+    border: 1px solid #9ca4ae;
+    border-radius: 8px;
   }
 }
 
@@ -2995,11 +2995,12 @@ onMounted(() => {
 }
 
 .btn {
-  padding: 0.75rem 1.5rem;
+  padding: 0.65rem 1.25rem;
   border: none;
-  border-radius: 4px;
+  border-radius: 8px;
   cursor: pointer;
   font-weight: 600;
+  font-size: 0.9rem;
   transition: all 0.2s;
 }
 
@@ -3022,12 +3023,12 @@ onMounted(() => {
 }
 
 .btn-secondary {
-  background: #f5f5f5;
-  color: #666;
-  border: 1px solid #ddd;
+  background: #f1f5f9;
+  color: #475569;
+  border: 1px solid #e2e8f0;
 
   &:hover {
-    background: #e0e0e0;
+    background: #e2e8f0;
   }
 }
 
@@ -3038,9 +3039,9 @@ onMounted(() => {
   flex-wrap: wrap;
 }
 .form-input {
-  padding: 0.5rem;
+  padding: 0.5rem 0.75rem;
   border: 1px solid #ddd;
-  border-radius: 4px;
+  border-radius: 8px;
   font-size: 1rem;
 }
 
@@ -3117,29 +3118,34 @@ onMounted(() => {
 }
 .confirmation-overlay {
   position: fixed;
-  top: 0;
-  left: 0;
-  right: 0;
-  bottom: 0;
-  background: rgba(0, 0, 0, 0.5);
+  inset: 0;
+  background: rgba(15, 23, 42, 0.7);
+  backdrop-filter: blur(4px);
   display: flex;
   align-items: center;
   justify-content: center;
   z-index: 1500;
+  padding: 1rem;
 }
 
 .confirmation-dialog {
-  background: #dde2e8;
-  border-radius: 8px;
-  padding: 2rem;
+  background: white;
+  border-radius: 16px;
+  padding: 1.5rem;
   max-width: 400px;
   width: min(100%, 520px);
-  box-shadow: 0 10px 40px rgba(0, 0, 0, 0.3);
+  max-height: calc(100vh - 2rem);
+  overflow-y: auto;
+  box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25);
   text-align: center;
 
   h3 {
-    margin: 0 0 0.75rem 0;
-    color: #333;
+    margin: 0 0 1rem 0;
+    color: #1e293b;
+    font-size: 1.2rem;
+    padding-bottom: 0.75rem;
+    border-bottom: 1px solid #e2e8f0;
+    text-align: left;
   }
 
   p {
@@ -3152,6 +3158,7 @@ onMounted(() => {
   max-width: min(92vw, 1080px);
   width: min(92vw, 1080px);
   text-align: left;
+  padding: 1.25rem;
 }
 
 .zbon-create-layout {
@@ -3391,7 +3398,7 @@ onMounted(() => {
   gap: 1rem;
   padding: 0.5rem;
   background: #eef1f4;
-  border-radius: 4px;
+  border-radius: 6px;
   border-left: 3px solid #667eea;
   font-size: 0.9rem;
 
@@ -3454,7 +3461,7 @@ onMounted(() => {
 
 .zbon-preview-frame-shell {
   background: white;
-  border-radius: 4px;
+  border-radius: 8px;
   max-height: min(80vh, 1200px);
   overflow: hidden;
   border: 1px solid #eee;
@@ -3494,7 +3501,7 @@ onMounted(() => {
   width: 100%;
   border-collapse: collapse;
   background: white;
-  border-radius: 4px;
+  border-radius: 8px;
 
   tr {
     border-bottom: 1px solid #eee;
