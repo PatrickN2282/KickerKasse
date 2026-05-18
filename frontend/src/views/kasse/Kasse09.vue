@@ -4,6 +4,7 @@
       <div v-if="productStore.isLoading" class="loading">Läuft...</div>
       <div v-else class="products-section">
 
+        <!-- One row per category: narrow toggle button + product grid side by side -->
         <template
           v-for="(category, index) in activeCategories"
           :key="category.id"
@@ -12,12 +13,12 @@
           <div class="category-row">
             <button
               class="cat-btn"
-              :class="{ 'cat-btn--expanded': expandedCategories.includes(category.id) }"
+              :class="{ active: expandedCategories.includes(category.id) }"
               :style="getCategoryChipStyle(category, expandedCategories.includes(category.id))"
               @click="toggleCategory(category.id)"
             >
               <span class="cat-name">{{ category.name }}</span>
-              <span v-if="!expandedCategories.includes(category.id)" class="cat-count">{{ getProductsByCategory(category.id).length }}</span>
+              <span class="cat-count">{{ getProductsByCategory(category.id).length }}</span>
             </button>
             <div
               v-if="expandedCategories.includes(category.id)"
@@ -34,15 +35,14 @@
                 >
                   <div class="card-img">
                     <span v-if="hasMemberPrice(product)" class="card-badge discount-badge">Rabatt</span>
-                    <span class="card-badge stock-badge">{{ product.is_unlimited_stock ? '∞' : getAvailableStock(product) }}</span>
                     <img v-if="product.image_path && !imageErrorMap[product.id]" :src="`/api/products/${product.id}/image`" :alt="product.name" @error="onImageError(product.id)" />
                     <div v-else class="card-img-ph">🛒</div>
                   </div>
                   <div class="card-body">
                     <div class="card-name">{{ product.name }}</div>
-                    <div class="card-bottom">
-                      <span class="card-price">{{ formatPrice(getDisplayedProductPriceCents(product, category.id)) }}</span>
-                    </div>
+                    <div class="card-price">{{ formatPrice(getDisplayedProductPriceCents(product, category.id)) }}</div>
+                    <div class="card-stock">{{ product.is_unlimited_stock ? '∞' : getAvailableStock(product) }}</div>
+                    <!-- /div -->
                   </div>
                 </button>
               </div>
@@ -50,16 +50,17 @@
           </div>
         </template>
 
+        <!-- Products without category -->
         <template v-if="productsWithoutCategory.length > 0">
           <hr v-if="activeCategories.length > 0" class="category-separator" />
           <div class="category-row">
             <button
               class="cat-btn"
-              :class="{ 'cat-btn--expanded': expandedCategories.includes(0) }"
+              :class="{ active: expandedCategories.includes(0) }"
               @click="toggleCategory(0)"
             >
               <span class="cat-name">Ohne Kategorie</span>
-              <span v-if="!expandedCategories.includes(0)" class="cat-count">{{ productsWithoutCategory.length }}</span>
+              <span class="cat-count">{{ productsWithoutCategory.length }}</span>
             </button>
             <div
               v-if="expandedCategories.includes(0)"
@@ -75,14 +76,14 @@
                 >
                   <div class="card-img">
                     <span v-if="hasMemberPrice(product)" class="card-badge discount-badge">Rabatt</span>
-                    <span class="card-badge stock-badge">{{ product.is_unlimited_stock ? '∞' : getAvailableStock(product) }}</span>
                     <img v-if="product.image_path && !imageErrorMap[product.id]" :src="`/api/products/${product.id}/image`" :alt="product.name" @error="onImageError(product.id)" />
                     <div v-else class="card-img-ph">🛒</div>
                   </div>
                   <div class="card-body">
                     <div class="card-name">{{ product.name }}</div>
                     <div class="card-bottom">
-                      <span class="card-price">{{ formatPrice(product.price_cents) }}</span>
+                    <div class="card-price">{{ formatPrice(product.price_cents) }}</div>
+                    <div class="card-stock">{{ product.is_unlimited_stock ? '∞' : getAvailableStock(product) }}</div>
                     </div>
                   </div>
                 </button>
@@ -91,6 +92,7 @@
           </div>
         </template>
 
+        <!-- Hint shown when no category is expanded -->
         <div v-if="!hasExpandedCategory" class="empty-products">
           Kategorie auswählen
         </div>
@@ -108,6 +110,7 @@
         <div class="receipt-number-banner">
           Beleg: <strong>#{{ nextReceiptNumber || '-' }}</strong>
         </div>
+        <!-- Top section: Items -->
         <div class="bon-items">
           <div
             v-for="item in cartStore.items"
@@ -190,6 +193,7 @@
           </div>
         </div>
 
+        <!-- Bottom section: Member selection -->
         <div class="member-selection-bottom">
           <div v-if="!cartStore.selectedMemberId" class="member-selector">
             <button
@@ -228,6 +232,7 @@
             </button>
           </div>
 
+          <!-- Payment buttons at bottom -->
           <div class="payment-section">
             <div class="payment-buttons">
               <button
@@ -357,21 +362,10 @@ const {
 </script>
 
 <style scoped lang="scss">
-
-/* =========================================================================
-   DESIGN KONFIGURATION (Hier kannst du die wichtigsten Werte anpassen)
-   ========================================================================= */
 .kasse-container {
-  --kasse-spacing-outer: 0.5rem;          /* Abstand Container zum Rand (vorher 1rem) */
-  --kasse-spacing-panels: 0.5rem;         /* Inneres Padding der Hauptpanels (Produkte) */
-  --kasse-spacing-bon: 0.75rem;           /* Inneres Padding des Bon-Bereichs (vorher 1.5rem) */
-  --kasse-spacing-bon-items: 0.4rem;      /* Padding für Bon-Listeneinträge */
-  --kasse-resizer-width: 6px;             /* Breite des Trenners (vorher 12px) */
-  --kasse-bg-opacity: 85%;                /* Deckkraft der weißen Hintergründe (Transparenz) */
-
   display: flex;
-  gap: 0;                                 /* Abstand zwischen Produkt- und Bonbereich entfernt */
-  padding: var(--kasse-spacing-outer);
+  gap: 1rem;
+  padding: 1rem;
   width: 100%;
   height: 100%;
   min-height: 0;
@@ -387,22 +381,21 @@ const {
 .kasse-products {
   flex: 1 1 auto;
   min-width: 0;
-  /* Hintergrund mit 85% Transparenz */
-  background: color-mix(in srgb, var(--app-surface-color) var(--kasse-bg-opacity), transparent);
+  background: var(--app-surface-color);
   border-radius: 12px;
-  padding: var(--kasse-spacing-panels);
+  padding: 1rem;
   box-shadow: 0 8px 20px rgba(24, 28, 34, 0.1);
   overflow-y: auto;
   border: 1px solid var(--app-banner-color);
 }
 
 .kasse-resizer {
-  width: var(--kasse-resizer-width);
-  margin: 0; /* Padding komplett entfernt */
+  width: 12px;
+  margin: 0 0.5rem;
   border-radius: 999px;
   background: var(--app-highlight-color);
   cursor: col-resize;
-  flex: 0 0 var(--kasse-resizer-width);
+  flex: 0 0 12px;
   align-self: stretch;
   transition: background 0.2s ease;
 
@@ -422,10 +415,9 @@ const {
   width: 420px;
   min-width: 320px;
   max-width: min(70vw, 720px);
-  /* Hintergrund mit 85% Transparenz */
-  background: color-mix(in srgb, var(--app-surface-color) var(--kasse-bg-opacity), transparent);
+  background: var(--app-surface-color);
   border-radius: 8px;
-  padding: var(--kasse-spacing-bon);
+  padding: 1.5rem;
   box-shadow: 0 10px 24px rgba(24, 28, 34, 0.14);
   overflow-y: auto;
   border: 1px solid var(--app-banner-color);
@@ -458,28 +450,24 @@ const {
   margin: .15rem 0;
 }
 
-/* ── Category row ─────────────────────────────────────── */
+/* ── Category row: narrow toggle + products side by side ─ */
 .category-row {
   display: flex;
   flex-direction: row;
-  align-items: center;
+  align-items: flex-start;
   gap: .75rem;
-  /* Keine min-height — eingeklappte Zeilen sollen kompakt sein */
 }
 
-/* Expandierte Zeile bekommt die Mindesthöhe der Produktkarten */
-.category-row:has(.cat-btn--expanded) {
-  min-height: 116px;
-}
-
-/* ── Kategorie-Blase: gemeinsame Basis ───────────────── */
+/* ── Category toggle button (always compact/narrow) ────── */
 .cat-btn {
   flex-shrink: 0;
+  /* So schmal wie möglich – nur Padding + Schrift */
+  width: 26px;
   display: flex;
+  flex-direction: column;
   align-items: center;
-  justify-content: center;
-  gap: 4px;
-
+  justify-content: flex-end;   /* Text startet unten */
+  padding: .5rem .2rem;
   background: var(--app-banner-color);
   color: var(--app-banner-contrast);
   border: 2px solid transparent;
@@ -488,78 +476,44 @@ const {
   font-weight: 600;
   text-align: center;
   transition: opacity .18s, background .18s, border-color .18s;
+  gap: 4px;
+  align-self: stretch;
 
-  &:hover { opacity: .82; }
-
-  /* ── Eingeklappt: horizontale Pille, kippt in den Kartenbereich ── */
-  &:not(.cat-btn--expanded) {
-    flex-direction: row;
-    width: auto;
-    height: 28px;         /* flache horizontale Pille */
-    padding: 2px .65rem;
-
-    .cat-name {
-      writing-mode: horizontal-tb;
-      transform: none;
-      font-size: .85rem;
-      line-height: 1;
-      letter-spacing: 0.03em;
-      white-space: nowrap;
-      overflow: hidden;
-      text-overflow: ellipsis;
-      max-width: 180px;   /* ab hier kürzen */
-      display: block;
-    }
-
-    .cat-count {
-      font-size: .8rem;
-      opacity: .75;
-      font-weight: 500;
-      flex-shrink: 0;
-      writing-mode: horizontal-tb;
-    }
+  &:hover {
+    opacity: .82;
   }
 
-  /* ── Expandiert: schmale vertikale Leiste, volle Zeilenhöhe ──── */
-  &.cat-btn--expanded {
-    flex-direction: column;
-    width: 28px;
-    align-self: stretch;  /* volle Höhe der category-row */
-    padding: .4rem .1rem;
+  &.active {
     background: var(--app-highlight-color);
     color: var(--app-highlight-contrast);
+  }
 
-    .cat-name {
-      writing-mode: vertical-rl;
-      transform: rotate(180deg);
-      text-orientation: mixed;
-      font-size: .8rem;
-      line-height: 1;
-      letter-spacing: 0.05em;
-      overflow: hidden;
-      text-overflow: ellipsis;
-      max-height: 90px;
-      white-space: nowrap;
-      display: block;
-      text-align: center;
-    }
+  .cat-name {
+    /* vertical-rl + rotate(180deg) = Text läuft von UNTEN nach OBEN */
+    writing-mode: vertical-rl;
+    transform: rotate(180deg);
+    text-orientation: mixed;
+    font-size: .68rem;
+    line-height: 1;
+    letter-spacing: 0.05em;
+    overflow: hidden;
+    /* Kein max-height – wächst mit dem Inhalt */
+  }
 
-    .cat-count {
-      font-size: .7rem;
-      opacity: .75;
-      font-weight: 500;
-      flex-shrink: 0;
-      writing-mode: horizontal-tb;
-      transform: none;
-    }
+  .cat-count {
+    font-size: .6rem;
+    opacity: .75;
+    font-weight: 500;
+    flex-shrink: 0;
+    writing-mode: horizontal-tb;
+    transform: none;
   }
 }
 
 .category-products {
   flex: 1;
   min-width: 0;
-  display: flex;
-  align-items: center; /* Produktkarten vertikal zentriert */
+  margin-bottom: .75rem;
 }
 
 .empty-products {
@@ -571,27 +525,23 @@ const {
 
 .products-grid {
   display: grid;
-  grid-template-columns: repeat(7, 1fr); /* Default für große Bildschirme (>1280px) */
+  grid-template-columns: repeat(5, 1fr);
   gap: .65rem;
 
-  @media (max-width: 1280px) {
-    grid-template-columns: repeat(6, 1fr);
-  }
-
-  @media (max-width: 1100px) {
-    grid-template-columns: repeat(5, 1fr);
-  }
-
-  @media (max-width: 900px) {
+  @media (max-width: 1400px) {
     grid-template-columns: repeat(4, 1fr);
   }
 
-  @media (max-width: 700px) {
+  @media (max-width: 1100px) {
     grid-template-columns: repeat(3, 1fr);
   }
 
-  @media (max-width: 500px) {
+  @media (max-width: 800px) {
     grid-template-columns: repeat(2, 1fr);
+  }
+
+  @media (max-width: 600px) {
+    grid-template-columns: 1fr;
   }
 }
 
@@ -614,6 +564,8 @@ const {
     border-color: var(--app-highlight-color);
     box-shadow: 0 4px 16px color-mix(in srgb, var(--app-highlight-color) 18%, transparent);
     transform: translateY(-2px);
+
+
   }
 
   &:disabled {
@@ -631,7 +583,7 @@ const {
     img {
       width: 100%;
       height: 100%;
-      object-fit: contain;
+      object-fit: cover;
       display: block;
       transition: none;
     }
@@ -649,7 +601,9 @@ const {
   .card-badge {
     position: absolute;
     top: 5px;
+    left: 5px;
     z-index: 1;
+    font-size: 10px;
     font-weight: 800;
     padding: 2px 5px;
     border-radius: 4px;
@@ -657,22 +611,13 @@ const {
     line-height: 1.4;
 
     &.discount-badge {
-      left: 5px;
-      font-size: 10px;
       background: #fffbeb;
       color: #d97706;
-    }
-
-    &.stock-badge {
-      right: 5px;
-      font-size: 11px;
-      background: #e2e8f0;
-      color: #475569;
     }
   }
 
   .card-body {
-    padding: 4px 6px; /* Reduziert von 7px 8px */
+    padding: 7px 8px 8px;
     flex: 1;
     display: flex;
     flex-direction: column;
@@ -680,7 +625,7 @@ const {
   }
 
   .card-name {
-    font-size: .8rem;
+    font-size: 1.0rem;
     font-weight: 700;
     line-height: 1.2;
     color: #111827;
@@ -698,7 +643,17 @@ const {
     font-weight: 800;
     color: var(--app-highlight-color);
     letter-spacing: -0.02em;
-    margin: 0 auto; /* Zentriert den Preis, da Stock entfernt wurde */
+  }
+
+  .card-stock {
+    font-size: .72rem;
+    color: #64748b;
+    font-weight: 500;
+
+    /* Fügt den Text "Verfügbar: " vor den Inhalt der Klasse ein */
+    &::before {
+      content: "Lager: ";
+    }
   }
 }
 
@@ -803,7 +758,7 @@ const {
   display: flex;
   gap: 0.5rem;
   align-items: center;
-  padding: var(--kasse-spacing-bon-items);
+  padding: 0.75rem;
   background: white;
   border-radius: 4px;
   margin-bottom: 0.5rem;
@@ -905,7 +860,7 @@ const {
 
 .receipt-number-banner {
   margin-bottom: 0.75rem;
-  padding: 0.4rem 0.6rem; /* Reduziert von 0.65rem 0.85rem */
+  padding: 0.65rem 0.85rem;
   background: color-mix(in srgb, var(--app-banner-color) 12%, white 88%);
   border-radius: 8px;
   color: var(--app-banner-color);
@@ -1182,10 +1137,12 @@ const {
   color: #ffffff;
 }
 
-/* Modals styles unchanged - remaining CSS keeps existing definitions */
 .issued-voucher-panel {
   margin-top: 1rem;
-  h4 { margin-bottom: 0.75rem; }
+
+  h4 {
+    margin-bottom: 0.75rem;
+  }
 }
 
 .issued-voucher-box {
@@ -1339,6 +1296,10 @@ const {
           margin-bottom: 0;
           margin-top: 0.5rem;
         }
+
+        .tip-donate-row {
+          grid-column: 1 / -1;
+        }
       }
     }
 
@@ -1479,6 +1440,40 @@ const {
 
   &:not(:disabled):hover {
     background: #256a29;
+  }
+}
+
+.btn-tip-donate {
+  width: 100%;
+  padding: 0.5rem 1rem;
+  background: #e65100;
+  color: #fff;
+  border: none;
+  border-radius: 8px;
+  font-weight: 600;
+  cursor: pointer;
+  font-size: 0.9rem;
+  transition: background 0.15s;
+
+  &:not(:disabled):hover {
+    background: #bf360c;
+  }
+
+  &:disabled {
+    background: #bdbdbd;
+    cursor: not-allowed;
+  }
+}
+
+.form-input-label {
+  display: block;
+  font-weight: 600;
+  color: #334155;
+  margin-bottom: 1rem;
+
+  .form-input {
+    margin-top: 0.5rem;
+    width: 100%;
   }
 }
 

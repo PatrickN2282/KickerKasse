@@ -1067,8 +1067,8 @@ onUnmounted(() => {
 .modal-card {
   background: white;
   width: 100%;
-  max-width: 1180px;
-  min-height: min(660px, calc(100vh - 2rem));
+  max-width: 1100px;
+  min-height: min(520px, calc(100vh - 2rem));
   max-height: calc(100vh - 2rem);
   border-radius: 16px;
   display: flex;
@@ -1092,7 +1092,7 @@ onUnmounted(() => {
 
 .modal-body-layout {
   display: grid;
-  grid-template-columns: 300px minmax(0, 1fr);
+  grid-template-columns: 260px minmax(0, 1fr);
   overflow: hidden;
   flex: 1 1 auto;
   min-height: 0;
@@ -1333,6 +1333,19 @@ onUnmounted(() => {
   .modal-sidebar {
     border-right: none;
     border-bottom: 1px solid var(--border);
+  }
+}
+
+@media (max-width: 1100px) {
+  .modal-header,
+  .modal-sidebar,
+  .modal-form-content,
+  .modal-footer {
+    padding: 1rem;
+  }
+
+  .modal-body-layout {
+    grid-template-columns: 220px minmax(0, 1fr);
   }
 }
 
