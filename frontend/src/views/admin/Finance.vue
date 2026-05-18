@@ -2552,7 +2552,6 @@ watch([zbonsFilterStartDate, zbonsFilterEndDate, zbonsCurrentPage], () => {
 })
 
 onMounted(() => {
-  updateFinanceHeaderHeight()
   nextTick(() => {
     updateFinanceHeaderHeight()
     if (typeof ResizeObserver !== 'undefined' && financeHeader.value) {
