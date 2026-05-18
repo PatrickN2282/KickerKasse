@@ -109,97 +109,99 @@
     </div>
 
     <div v-if="showCategoryModal" class="modal-overlay" @click.self="closeCategoryModal">
-      <div class="modal-card modal-card-form">
+      <div class="modal-card modal-compact">
         <header class="modal-header">
           <div>
             <h3>{{ editingId ? 'Kategorie bearbeiten' : 'Neue Kategorie anlegen' }}</h3>
-            <p class="modal-subtitle">Kategorie mit Namen, Beschreibung und Anzeigeeinstellungen kompakt verwalten.</p>
+            <p class="modal-subtitle">Kategorie mit Namen, Beschreibung und Anzeigeeinstellungen verwalten.</p>
           </div>
           <button class="modal-close" @click="closeCategoryModal">×</button>
         </header>
 
-        <form class="modal-form-content" @submit.prevent="submitForm">
-          <section class="form-section">
-            <h4>Stammdaten</h4>
-            <div class="form-row">
-              <div class="form-group">
-                <label for="name">Name</label>
-                <input id="name" v-model="formData.name" type="text" required>
+        <form class="modal-compact-layout" @submit.prevent="submitForm">
+          <div class="modal-scroller">
+            <section class="form-section">
+              <h4>Stammdaten</h4>
+              <div class="form-row">
+                <div class="form-group">
+                  <label for="name">Name</label>
+                  <input id="name" v-model="formData.name" type="text" required>
+                </div>
+                <div class="form-group">
+                  <label for="display_order">Anzeigereihenfolge</label>
+                  <input id="display_order" v-model.number="formData.display_order" type="number">
+                </div>
               </div>
               <div class="form-group">
-                <label for="display_order">Anzeigereihenfolge</label>
-                <input id="display_order" v-model.number="formData.display_order" type="number">
+                <label for="description">Beschreibung</label>
+                <textarea id="description" v-model="formData.description" rows="3"></textarea>
               </div>
-            </div>
-            <div class="form-group">
-              <label for="description">Beschreibung</label>
-              <textarea id="description" v-model="formData.description" rows="3"></textarea>
-            </div>
-          </section>
+            </section>
 
-          <section class="form-section">
-            <h4>Farbe</h4>
-            <div class="color-picker-section">
-              <p class="color-picker-hint">Wähle eine Farbe für diese Kategorie – sie erscheint am Chip und am Produktrahmen in der Kasse.</p>
+            <section class="form-section">
+              <h4>Farbe</h4>
+              <div class="color-picker-section">
+                <p class="color-picker-hint">Wähle eine Farbe für diese Kategorie – sie erscheint am Chip und am Produktrahmen in der Kasse.</p>
 
-              <div class="color-options">
-                <!-- No color option -->
-                <button
-                  type="button"
-                  class="color-option color-option-none"
-                  :class="{ selected: !formData.color }"
-                  title="Keine Farbe"
-                  @click="formData.color = null"
-                >
-                  <span class="no-color-icon">✕</span>
-                </button>
-
-                <!-- Pastel color swatches -->
-                <button
-                  v-for="pastel in pastelColors"
-                  :key="pastel.value"
-                  type="button"
-                  class="color-option"
-                  :class="{ selected: formData.color === pastel.value }"
-                  :style="{ background: pastel.value }"
-                  :title="pastel.label"
-                  @click="formData.color = pastel.value"
-                ></button>
-
-                <!-- Custom color picker -->
-                <label class="color-option color-option-custom" :class="{ selected: isCustomColor }" title="Eigene Farbe wählen">
-                  <span v-if="isCustomColor" class="custom-color-preview" :style="{ background: formData.color }"></span>
-                  <span v-else class="custom-color-icon">🎨</span>
-                  <input
-                    type="color"
-                    :value="formData.color || '#ffffff'"
-                    @input="setCustomColor($event.target.value)"
+                <div class="color-options">
+                  <!-- No color option -->
+                  <button
+                    type="button"
+                    class="color-option color-option-none"
+                    :class="{ selected: !formData.color }"
+                    title="Keine Farbe"
+                    @click="formData.color = null"
                   >
-                </label>
-              </div>
+                    <span class="no-color-icon">✕</span>
+                  </button>
 
-              <div v-if="formData.color" class="color-preview-row">
-                <span class="color-preview-chip" :style="{ borderColor: formData.color, background: formData.color + '33' }">
-                  Vorschau Chip
-                </span>
-                <span class="color-preview-card" :style="{ borderColor: formData.color }">
-                  Vorschau Karte
-                </span>
-                <button type="button" class="btn-clear-color" @click="formData.color = null">Farbe entfernen</button>
-              </div>
-            </div>
-          </section>
+                  <!-- Pastel color swatches -->
+                  <button
+                    v-for="pastel in pastelColors"
+                    :key="pastel.value"
+                    type="button"
+                    class="color-option"
+                    :class="{ selected: formData.color === pastel.value }"
+                    :style="{ background: pastel.value }"
+                    :title="pastel.label"
+                    @click="formData.color = pastel.value"
+                  ></button>
 
-          <section class="form-section highlight">
-            <h4>Darstellung</h4>
-            <label class="checkbox-card">
-              <input id="is_active" v-model="formData.is_active_in_kasse" type="checkbox">
-              <div class="checkbox-content">
-                <span class="label">In Kassenansicht sichtbar</span>
-                <span class="desc">Die Kategorie wird direkt in der Kasse als auswählbarer Bereich angezeigt.</span>
+                  <!-- Custom color picker -->
+                  <label class="color-option color-option-custom" :class="{ selected: isCustomColor }" title="Eigene Farbe wählen">
+                    <span v-if="isCustomColor" class="custom-color-preview" :style="{ background: formData.color }"></span>
+                    <span v-else class="custom-color-icon">🎨</span>
+                    <input
+                      type="color"
+                      :value="formData.color || '#ffffff'"
+                      @input="setCustomColor($event.target.value)"
+                    >
+                  </label>
+                </div>
+
+                <div v-if="formData.color" class="color-preview-row">
+                  <span class="color-preview-chip" :style="{ borderColor: formData.color, background: formData.color + '33' }">
+                    Vorschau Chip
+                  </span>
+                  <span class="color-preview-card" :style="{ borderColor: formData.color }">
+                    Vorschau Karte
+                  </span>
+                  <button type="button" class="btn-clear-color" @click="formData.color = null">Farbe entfernen</button>
+                </div>
               </div>
-            </label>
-          </section>
+            </section>
+
+            <section class="form-section highlight">
+              <h4>Darstellung</h4>
+              <label class="checkbox-card">
+                <input id="is_active" v-model="formData.is_active_in_kasse" type="checkbox">
+                <div class="checkbox-content">
+                  <span class="label">In Kassenansicht sichtbar</span>
+                  <span class="desc">Die Kategorie wird direkt in der Kasse als auswählbarer Bereich angezeigt.</span>
+                </div>
+              </label>
+            </section>
+          </div>
 
           <footer class="modal-footer">
             <button type="button" class="btn btn-secondary" @click="closeCategoryModal">Abbrechen</button>
@@ -726,44 +728,57 @@ onMounted(() => {
 .modal-card {
   background: white;
   width: 100%;
-  max-width: 900px;
   max-height: calc(100vh - 2rem);
   border-radius: 16px;
   display: flex;
   flex-direction: column;
-  box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25);
+  box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04);
   overflow: hidden;
 }
 
-.modal-card-form {
-  max-width: 860px;
-  min-height: min(480px, calc(100vh - 2rem));
+.modal-compact {
+  max-width: 680px;
 }
 
 .modal-header {
-  padding: 1.5rem;
+  padding: 1.25rem 1.5rem;
   border-bottom: 1px solid var(--border);
   display: flex;
   justify-content: space-between;
+  align-items: flex-start;
   gap: 1rem;
 
   h3 {
     margin: 0;
     font-size: 1.25rem;
+    font-weight: 600;
+    color: #1e293b;
+  }
+
+  .modal-subtitle {
+    margin: 0.15rem 0 0 0;
+    font-size: 0.85rem;
+    color: #64748b;
   }
 }
 
-.modal-form-content {
-  padding: 1.5rem;
-  overflow-y: auto;
+.modal-compact-layout {
   display: flex;
   flex-direction: column;
-  flex: 1 1 auto;
-  min-height: 0;
+  overflow: hidden;
+}
+
+.modal-scroller {
+  padding: 1.5rem;
+  overflow-y: auto;
+  max-height: calc(85vh - 120px);
+  display: flex;
+  flex-direction: column;
+  gap: 1.5rem;
 }
 
 .form-section {
-  margin-bottom: 2rem;
+  margin-bottom: 0;
 
   h4 {
     font-size: 0.875rem;
@@ -786,7 +801,7 @@ onMounted(() => {
 .form-row {
   display: grid;
   grid-template-columns: 1fr 1fr;
-  gap: 1rem;
+  gap: 0.75rem;
 }
 
 .form-group {
@@ -794,19 +809,20 @@ onMounted(() => {
 
   label {
     display: block;
-    font-size: 0.875rem;
-    font-weight: 500;
-    margin-bottom: 0.4rem;
-    color: #1e293b;
+    font-size: 0.85rem;
+    font-weight: 600;
+    margin-bottom: 0.35rem;
+    color: #334155;
   }
 
   input,
   textarea {
     width: 100%;
-    padding: 0.6rem 0.8rem;
+    padding: 0.55rem 0.75rem;
     border: 1px solid var(--border);
     border-radius: 8px;
-    font-size: 0.95rem;
+    font-size: 0.9rem;
+    color: #0f172a;
 
     &:focus {
       outline: none;
@@ -842,11 +858,12 @@ onMounted(() => {
 }
 
 .btn {
-  padding: 0.6rem 1.2rem;
-  border-radius: 8px;
+  padding: 0.55rem 1.1rem;
+  border-radius: 6px;
   font-weight: 600;
   cursor: pointer;
   border: none;
+  font-size: 0.9rem;
 }
 
 .btn-primary {
@@ -891,36 +908,25 @@ onMounted(() => {
 .modal-close {
   border: none;
   background: transparent;
-  font-size: 1.6rem;
+  font-size: 1.5rem;
   line-height: 1;
   cursor: pointer;
   color: #6b7280;
+  padding: 0;
 }
 
 .modal-footer {
   display: flex;
   justify-content: flex-end;
-  gap: 1rem;
-  margin-top: auto;
+  gap: 0.75rem;
   padding: 1rem 1.5rem;
   border-top: 1px solid var(--border);
+  background: #f8fafc;
 }
 
-@media (max-width: 900px) {
+@media (max-width: 600px) {
   .form-row {
     grid-template-columns: 1fr;
-  }
-
-  .modal-header,
-  .modal-form-content,
-  .modal-footer {
-    padding: 1rem;
-  }
-}
-
-@media (max-width: 768px) {
-  .modal-card-form {
-    min-height: auto;
   }
 
   .page-header {
@@ -929,7 +935,6 @@ onMounted(() => {
   }
 
   .assignment-controls,
-  .modal-footer,
   .action-cell {
     flex-direction: column;
   }

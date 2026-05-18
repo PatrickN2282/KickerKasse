@@ -571,6 +571,7 @@ const {
 
 .products-grid {
   display: grid;
+  width: 100%;
   grid-template-columns: repeat(7, 1fr); /* Default für große Bildschirme (>1280px) */
   gap: .65rem;
 

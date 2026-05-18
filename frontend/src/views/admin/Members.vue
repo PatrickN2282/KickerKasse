@@ -90,68 +90,69 @@
     </div>
 
     <div v-if="showMemberModal" class="modal-overlay" @click.self="closeMemberModal">
-      <div class="modal-card">
+      <div class="modal-card modal-compact">
         <header class="modal-header">
           <div>
             <h3>{{ editingId ? 'Mitglied bearbeiten' : 'Neues Mitglied anlegen' }}</h3>
-            <p class="modal-subtitle">Stammdaten und Berechtigungen im Admin-Layout verwalten.</p>
+            <p class="modal-subtitle">Stammdaten und Berechtigungen verwalten.</p>
           </div>
           <button class="modal-close" @click="closeMemberModal">×</button>
         </header>
 
-        <form class="modal-body-layout" @submit.prevent="handleSaveMember">
-          <aside class="modal-sidebar">
-            <div class="photo-uploader">
-              <div class="avatar-display" @click="$refs.fileInput.click()">
-                <img v-if="photoPreview" :src="photoPreview" class="profile-img">
-                <div v-else class="photo-placeholder">
-                  <span>Bild hochladen</span>
-                </div>
-                <div class="hover-overlay">Ändern</div>
-              </div>
-              <input type="file" ref="fileInput" hidden @change="handlePhotoUpload" accept="image/*">
-            </div>
+        <form class="modal-compact-layout" @submit.prevent="handleSaveMember">
+          <div class="modal-scroller">
 
-            <div class="sidebar-info-box">
-              <label class="checkbox-card">
-                <input v-model="formData.has_discount" type="checkbox">
-                <div class="checkbox-content">
-                  <span class="label">Rabattberechtigt</span>
-                  <span class="desc">Darf Mitgliederpreise an der Kasse nutzen.</span>
+            <div class="main-form-grid">
+              <div class="image-upload-section">
+                <span class="section-label">Foto</span>
+                <div class="avatar-display compact-avatar" @click="$refs.fileInput.click()">
+                  <img v-if="photoPreview" :src="photoPreview" class="profile-img">
+                  <div v-else class="photo-placeholder">
+                    <span>Bild hochladen</span>
+                  </div>
+                  <div class="hover-overlay">Ändern</div>
                 </div>
-              </label>
+                <input type="file" ref="fileInput" hidden @change="handlePhotoUpload" accept="image/*">
 
-              <div v-if="editingId" class="summary-card balance-card">
-                <span class="label">Aktuelles Guthaben</span>
-                <span class="value">{{ formatBalance(currentMemberBalance || 0) }}</span>
-                <div class="recharge-trigger">
-                  <input v-model.number="rechargeAmount" type="number" step="0.01" placeholder="0,00€">
-                  <button type="button" class="btn-recharge" @click="openRechargeModal" :disabled="!rechargeAmount">Laden</button>
+                <div v-if="editingId" class="summary-card compact-summary balance-card">
+                  <div class="summary-text-layout">
+                    <span class="label">Guthaben</span>
+                    <span class="value">{{ formatBalance(currentMemberBalance || 0) }}</span>
+                  </div>
+                  <div class="recharge-trigger">
+                    <input v-model.number="rechargeAmount" type="number" step="0.01" placeholder="0,00€">
+                    <button type="button" class="btn-recharge" @click="openRechargeModal" :disabled="!rechargeAmount">Laden</button>
+                  </div>
                 </div>
               </div>
-            </div>
-          </aside>
 
-          <main class="modal-form-content">
-            <section class="form-section">
-              <h4>Stammdaten</h4>
-              <div class="form-row">
-                <div class="form-group">
-                  <label>Vorname*</label>
-                  <input v-model="formData.first_name" type="text" required>
+              <div class="fields-section">
+                <div class="form-row">
+                  <div class="form-group">
+                    <label>Vorname*</label>
+                    <input v-model="formData.first_name" type="text" required>
+                  </div>
+                  <div class="form-group">
+                    <label>Nachname*</label>
+                    <input v-model="formData.last_name" type="text" required>
+                  </div>
                 </div>
                 <div class="form-group">
-                  <label>Nachname*</label>
-                  <input v-model="formData.last_name" type="text" required>
+                  <label>Mitgliedsnummer (Extern)</label>
+                  <input v-model="formData.membership_number" type="text" placeholder="Optional">
                 </div>
-              </div>
-              <div class="form-group">
-                <label>Mitgliedsnummer (Extern)</label>
-                <input v-model="formData.membership_number" type="text" placeholder="Optional">
-              </div>
-            </section>
 
-            <section v-if="authStore.isTopAdmin" class="form-section highlight-box">
+                <label class="checkbox-card compact-cb">
+                  <input v-model="formData.has_discount" type="checkbox">
+                  <div class="checkbox-content">
+                    <span class="label">Rabattberechtigt</span>
+                    <span class="desc">Darf Mitgliederpreise an der Kasse nutzen.</span>
+                  </div>
+                </label>
+              </div>
+            </div>
+
+            <div v-if="authStore.isTopAdmin" class="options-section highlight-box">
               <h4>System-Zugang & Berechtigungen</h4>
               <div class="form-row">
                 <div class="form-group">
@@ -168,27 +169,28 @@
                   </select>
                 </div>
               </div>
-              
+
               <div v-if="formData.role" class="password-box">
                 <div class="form-group">
                   <label>{{ hasExistingUserAccount ? 'Passwort überschreiben' : 'Initial-Passwort festlegen*' }}</label>
-                  <input v-model="formData.account_password" type="password" 
+                  <input v-model="formData.account_password" type="password"
                          :required="!hasExistingUserAccount" minlength="8">
                 </div>
                 <p class="help-text">
                   {{ hasExistingUserAccount ? 'Nur ausfüllen, wenn das Passwort neu gesetzt werden soll.' : 'Erforderlich für den ersten System-Login.' }}
                 </p>
               </div>
-            </section>
+            </div>
 
-            <section class="form-section">
+            <div class="options-section">
               <h4>Zusatzangaben</h4>
               <div class="form-group">
                 <label>Interne Notizen</label>
                 <textarea v-model="formData.notes" rows="3" placeholder="Interne Bemerkungen..."></textarea>
               </div>
-            </section>
-          </main>
+            </div>
+
+          </div>
 
           <footer class="modal-footer">
             <button type="button" class="btn btn-secondary" @click="closeMemberModal">Abbrechen</button>
@@ -490,87 +492,180 @@ onMounted(() => memberStore.getMembers())
 }
 
 .modal-card {
-  background: white; width: 100%; max-width: 1050px; min-height: min(520px, calc(100vh - 2rem)); max-height: calc(100vh - 2rem);
-  border-radius: 16px; display: flex; flex-direction: column;
-  box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25);
+  background: white;
+  width: 100%;
+  max-height: calc(100vh - 2rem);
+  border-radius: 16px;
+  display: flex;
+  flex-direction: column;
+  box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04);
   overflow: hidden;
+}
+
+.modal-compact {
+  max-width: 680px;
 }
 
 .modal-header {
-  padding: 1.5rem; border-bottom: 1px solid var(--border);
-  display: flex; justify-content: space-between;
-  h3 { margin: 0; font-size: 1.25rem; }
+  padding: 1.25rem 1.5rem;
+  border-bottom: 1px solid var(--border);
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 1rem;
+  h3 { margin: 0; font-size: 1.25rem; font-weight: 600; color: #1e293b; }
+  .modal-subtitle { margin: 0.15rem 0 0 0; font-size: 0.85rem; color: #64748b; }
 }
 
-/* Modal Body Layout (Grid) */
-.modal-body-layout { 
-  display: grid; 
-  grid-template-columns: 260px minmax(0, 1fr); 
+.modal-compact-layout {
+  display: flex;
+  flex-direction: column;
   overflow: hidden;
-  flex: 1 1 auto;
-  height: 100%;
-  min-height: 0;
 }
 
-.modal-sidebar {
-  padding: 1.5rem; background: var(--bg-main);
-  border-right: 1px solid var(--border); display: flex; flex-direction: column; gap: 1.5rem;
+.modal-scroller {
+  padding: 1.5rem;
   overflow-y: auto;
-  min-height: 0;
+  max-height: calc(85vh - 120px);
+  display: flex;
+  flex-direction: column;
+  gap: 1.5rem;
 }
 
-.modal-form-content { 
-  padding: 1.5rem; 
-  overflow-y: auto; 
-  min-height: 0;
+/* Bild + Kernfelder nebeneinander */
+.main-form-grid {
+  display: grid;
+  grid-template-columns: 160px 1fr;
+  gap: 1.5rem;
+  align-items: start;
 }
 
-/* Foto & Sidebar Komponenten */
+.section-label {
+  display: block;
+  font-size: 0.75rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  color: #64748b;
+  letter-spacing: 0.05em;
+  margin-bottom: 0.5rem;
+}
+
+.image-upload-section {
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  gap: 0.5rem;
+}
+
 .avatar-display {
-  width: 150px; height: 150px; margin: 0 auto;
-  border-radius: 20px; background: #fff; border: 2px dashed #cbd5e1;
-  position: relative; overflow: hidden; cursor: pointer;
+  width: 100%;
+  height: 120px;
+  border-radius: 14px;
+  background: #fff;
+  border: 2px dashed #cbd5e1;
+  position: relative;
+  overflow: hidden;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
   &:hover .hover-overlay { opacity: 1; }
 }
 
+.compact-avatar {
+  height: 120px;
+}
+
 .profile-img { width: 100%; height: 100%; object-fit: cover; }
-.photo-placeholder { height: 100%; display: flex; align-items: center; justify-content: center; color: #94a3b8; font-size: 0.8rem; }
+.photo-placeholder { height: 100%; display: flex; align-items: center; justify-content: center; color: #94a3b8; font-size: 0.8rem; text-align: center; }
 .hover-overlay {
   position: absolute; inset: 0; background: rgba(0,0,0,0.4);
   color: white; display: flex; align-items: center; justify-content: center; opacity: 0; transition: 0.2s;
 }
 
-.summary-card {
-  padding: 1rem; border-radius: 10px; border: 1px solid #a7f3d0; background: #ecfdf5;
-  .label { font-size: 0.7rem; text-transform: uppercase; color: #065f46; font-weight: 700; }
-  .value { display: block; font-size: 1.3rem; font-weight: 700; color: #047857; margin-top: 0.25rem; }
+.compact-summary {
+  background: #ecfdf5;
+  border: 1px solid #a7f3d0;
+  padding: 0.75rem 1rem;
+  border-radius: 8px;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+
+  .summary-text-layout {
+    display: flex;
+    justify-content: space-between;
+    align-items: baseline;
+  }
+
+  .label {
+    font-size: 0.7rem;
+    text-transform: uppercase;
+    color: #065f46;
+    font-weight: 700;
+    letter-spacing: 0.02em;
+  }
+
+  .value {
+    font-size: 1.3rem;
+    font-weight: 800;
+    color: #047857;
+    margin: 0;
+    line-height: 1;
+  }
 }
 
 .recharge-trigger {
-  display: flex; gap: 0.5rem; margin-top: 0.75rem;
+  display: flex; gap: 0.5rem; margin-top: 0.5rem;
   input { width: 100%; padding: 0.4rem; border: 1px solid #a7f3d0; border-radius: 6px; font-size: 0.9rem; }
-  .btn-recharge { background: #059669; color: white; border: none; padding: 0.4rem 0.75rem; border-radius: 6px; font-weight: 600; cursor: pointer; }
+  .btn-recharge { background: #059669; color: white; border: none; padding: 0.4rem 0.75rem; border-radius: 6px; font-weight: 600; cursor: pointer; white-space: nowrap; }
 }
 
-.checkbox-card {
-  display: flex; gap: 0.75rem; padding: 0.9rem 1rem; background: white; border: 1px solid var(--border); border-radius: 10px; cursor: pointer;
-  .label { font-weight: 600; font-size: 0.9rem; }
-  .desc { font-size: 0.75rem; color: #64748b; display: block; }
+.fields-section {
+  display: flex;
+  flex-direction: column;
+  gap: 0.65rem;
+  .form-group { margin-bottom: 0; }
 }
 
-/* Formular Sektionen */
-.form-section {
-  margin-bottom: 2rem;
-  h4 { font-size: 0.875rem; text-transform: uppercase; color: #64748b; border-bottom: 1px solid var(--border); padding-bottom: 0.5rem; margin-bottom: 1rem; }
+/* Optionale Sektionen unterhalb des Haupt-Grids */
+.options-section {
+  border-top: 1px dashed var(--border);
+  padding-top: 1.25rem;
+  h4 {
+    font-size: 0.875rem;
+    text-transform: uppercase;
+    color: #64748b;
+    border-bottom: 1px solid var(--border);
+    padding-bottom: 0.5rem;
+    margin-bottom: 1rem;
+  }
   &.highlight-box { background: #f0f7ff; padding: 1.25rem; border-radius: 12px; border: 1px solid #bae6fd; }
 }
 
-.form-row { display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; }
+.compact-cb {
+  display: flex;
+  gap: 0.6rem;
+  padding: 0.65rem 0.85rem;
+  background: #f8fafc;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  cursor: pointer;
+  align-items: flex-start;
+  transition: background-color 0.15s ease, border-color 0.15s ease;
+  &:hover { background: #f1f5f9; border-color: #cbd5e1; }
+  input { margin-top: 0.2rem; }
+  .label { display: block; font-size: 0.85rem; font-weight: 600; color: #1e293b; }
+  .desc { display: block; font-size: 0.72rem; color: #64748b; line-height: 1.3; margin-top: 0.05rem; }
+}
+
+/* Formular */
+.form-row { display: grid; grid-template-columns: 1fr 1fr; gap: 0.75rem; }
 .form-group {
   margin-bottom: 1rem;
-  label { display: block; font-size: 0.875rem; font-weight: 500; margin-bottom: 0.4rem; color: #1e293b; }
+  label { display: block; font-size: 0.85rem; font-weight: 600; margin-bottom: 0.35rem; color: #334155; }
   input, select, textarea {
-    width: 100%; padding: 0.6rem 0.8rem; border: 1px solid var(--border); border-radius: 8px; font-size: 0.95rem;
+    width: 100%; padding: 0.55rem 0.75rem; border: 1px solid var(--border); border-radius: 8px; font-size: 0.9rem; color: #0f172a;
     &:focus { outline: none; border-color: var(--primary); box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1); }
   }
 }
@@ -578,19 +673,18 @@ onMounted(() => memberStore.getMembers())
 .password-box { margin-top: 1rem; padding-top: 1rem; border-top: 1px dashed #bae6fd; }
 .help-text { font-size: 0.75rem; color: #64748b; margin-top: 0.4rem; }
 
-/* Modal Footer - Rechts unten platziert */
-.modal-footer { 
-  grid-column: 1 / -1; // Spannt über beide Grid-Spalten
-  padding: 1.5rem; 
-  border-top: 1px solid var(--border); 
-  display: flex; 
-  justify-content: flex-end; // Schiebt Buttons nach rechts
-  gap: 1rem; 
-  background: white;
+/* Modal Footer */
+.modal-footer {
+  padding: 1rem 1.5rem;
+  border-top: 1px solid var(--border);
+  background: #f8fafc;
+  display: flex;
+  justify-content: flex-end;
+  gap: 0.75rem;
 }
 
 /* Button & Action Styles */
-.btn { padding: 0.6rem 1.2rem; border-radius: 8px; font-weight: 600; cursor: pointer; border: none; min-width: 120px; }
+.btn { padding: 0.55rem 1.1rem; border-radius: 6px; font-weight: 600; cursor: pointer; border: none; font-size: 0.9rem; }
 .btn-primary { background: var(--primary); color: white; }
 .btn-success { background: var(--success); color: white; }
 .btn-secondary { background: #e2e8f0; color: #475569; }
@@ -601,7 +695,7 @@ onMounted(() => memberStore.getMembers())
 }
 .btn-action-danger { border-color: #fecaca; color: #b91c1c; }
 
-.modal-close { border: none; background: transparent; font-size: 1.6rem; cursor: pointer; color: #6b7280; }
+.modal-close { border: none; background: transparent; font-size: 1.5rem; line-height: 1; cursor: pointer; color: #6b7280; padding: 0; }
 
 .loading-state {
   display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 3rem; color: #64748b;
@@ -614,22 +708,8 @@ onMounted(() => memberStore.getMembers())
 
 @keyframes spin { to { transform: rotate(360deg); } }
 
-@media (max-width: 768px) {
-  .modal-card { min-height: auto; }
-  .modal-body-layout, .form-row { grid-template-columns: 1fr; }
-  .modal-sidebar { border-right: none; border-bottom: 1px solid var(--border); }
-}
-
-@media (max-width: 1100px) {
-  .modal-header,
-  .modal-sidebar,
-  .modal-form-content,
-  .modal-footer {
-    padding: 1rem;
-  }
-
-  .modal-body-layout {
-    grid-template-columns: 220px minmax(0, 1fr);
-  }
+@media (max-width: 600px) {
+  .main-form-grid { grid-template-columns: 1fr; }
+  .form-row { grid-template-columns: 1fr; }
 }
 </style>
