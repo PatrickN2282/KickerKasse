@@ -1,7 +1,15 @@
 <template>
   <div class="admin-container">
     <div class="admin-header">
-      <h1>Admin Panel</h1>
+      <div class="admin-header-row">
+        <h1>Admin Panel</h1>
+        <a
+          href="https://www.paypal.com/donate/?hosted_button_id=64BS2U8G43M5U"
+          target="_blank"
+          rel="noopener noreferrer"
+          class="admin-donate-link"
+        >💛 Spenden</a>
+      </div>
 
       <div class="admin-tabs">
         <router-link
@@ -62,10 +70,34 @@ const isTabActive = (path) => route.path === path
   flex-shrink: 0;
   padding-bottom: 0.75rem;
   background: var(--app-background-color);
+}
+
+.admin-header-row {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  margin-bottom: 1rem;
 
   h1 {
     color: #333;
-    margin-bottom: 1rem;
+    margin: 0;
+  }
+}
+
+.admin-donate-link {
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: #888;
+  text-decoration: none;
+  border: 1px solid #ddd;
+  border-radius: 6px;
+  padding: 0.25rem 0.6rem;
+  white-space: nowrap;
+  transition: color 0.15s, border-color 0.15s;
+
+  &:hover {
+    color: #555;
+    border-color: #bbb;
   }
 }
 

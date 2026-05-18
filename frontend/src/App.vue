@@ -85,7 +85,13 @@
 
 
     <div class="app-inline-footer">
-      {{ pkg.name }} v{{ pkg.version }} · © by Pixel-Finanz 2026
+      <span>{{ pkg.name }} v{{ pkg.version }} · © by Pixel-Finanz 2026</span>
+      <a
+        href="https://www.paypal.com/donate/?hosted_button_id=64BS2U8G43M5U"
+        target="_blank"
+        rel="noopener noreferrer"
+        class="footer-donate-link"
+      >💛 Spenden</a>
     </div>
 
 
@@ -540,6 +546,10 @@ onBeforeUnmount(() => {
   bottom: 3px;
   left: 0;
   right: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: .6rem;
   text-align: center;
   font-size: 10px;
   letter-spacing: .04em;
@@ -548,6 +558,17 @@ onBeforeUnmount(() => {
   color: var(--app-text-color, #555);
   user-select: none;
   pointer-events: none;
+}
+
+.footer-donate-link {
+  pointer-events: all;
+  color: var(--app-text-color, #555);
+  text-decoration: underline;
+  opacity: 1;
+
+  &:hover {
+    opacity: .8;
+  }
 }
 
 
