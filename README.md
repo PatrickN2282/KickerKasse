@@ -99,24 +99,35 @@ Zusätzlich existiert der versteckte Systembenutzer **Kasse** für den direkten 
 
 ```text
 .
-├── backend/                  # FastAPI Backend
+├── backend/                        # FastAPI Backend
 │   ├── app/
-│   │   ├── api/              # REST-Endpunkte
-│   │   ├── core/             # DB, Auth, Security, Migrationen
-│   │   ├── models/           # SQLAlchemy-Modelle
-│   │   ├── repositories/     # Datenzugriff
-│   │   ├── schemas/          # Pydantic-Schemas
-│   │   ├── services/         # Business-Logik
-│   │   └── templates/        # Z-Bon-/Mail-Templates
-│   └── requirements.txt
-├── frontend/                 # Vue 3 + Pinia + Vite
+│   │   ├── api/                    # REST-Endpunkte
+│   │   ├── core/                   # DB, Auth, Security, Migrationen
+│   │   ├── models/                 # SQLAlchemy-Modelle
+│   │   ├── repositories/           # Datenzugriff
+│   │   ├── schemas/                # Pydantic-Schemas
+│   │   ├── services/               # Business-Logik
+│   │   └── templates/              # Z-Bon-HTML-Templates
+│   ├── Dockerfile
+│   ├── docker-entrypoint.sh
+│   ├── main.py
+│   ├── requirements.txt
+│   └── uploads/                    # Produktbilder / Vereinslogo (persistent)
+├── frontend/                       # Vue 3 + Pinia + Vite
 │   ├── src/
-│   │   ├── components/
-│   │   ├── stores/
-│   │   ├── views/
-│   │   └── services/
-├── User-Auth.md              # Verbindliche Rollenbeschreibung
-├── docker-compose.yml
+│   │   ├── components/             # Wiederverwendbare UI-Komponenten
+│   │   ├── stores/                 # Pinia State-Management
+│   │   ├── views/                  # Seiten (Admin + Kasse)
+│   │   ├── services/               # API-Kommunikation
+│   │   ├── router/                 # Vue Router Konfiguration
+│   │   ├── styles/                 # Globale SCSS-Stylesheets
+│   │   └── constants.js
+│   └── public/                     # PWA-Icons, Manifest
+├── .env.example                    # Vorlage für Umgebungsvariablen
+├── docker-compose.yml              # Deployment-Konfiguration
+├── docker-init-db.sh               # Postgres-Initialisierungsskript
+├── start.ps1                       # Windows-Startskript
+├── User-Auth.md                    # Verbindliche Rollenbeschreibung
 └── README.md
 ```
 
@@ -130,6 +141,70 @@ Zusätzlich existiert der versteckte Systembenutzer **Kasse** für den direkten 
 | Styling | SCSS |
 | Deployment | Docker Compose |
 | App-Modus | PWA |
+
+## 🚦 Inbetriebnahme und Vorbereitung
+
+### Schritt 1 – Voraussetzungen
+
+| Voraussetzung | Mindestversion |
+|---|---|
+| Docker | 24+ |
+| Docker Compose | 2.20+ |
+
+Ein lokal installiertes Node.js oder Python ist für den **Docker-Betrieb nicht notwendig** – alle Abhängigkeiten sind im Container enthalten.
+
+### Schritt 2 – Umgebungsvariablen konfigurieren
+
+```bash
+cp .env.example .env
+```
+
+Passe folgende Werte in `.env` an:
+
+| Variable | Bedeutung | Empfehlung |
+|---|---|---|
+| `SECRET_KEY` | Session-Verschlüsselungsschlüssel | Mindestens 32 zufällige Zeichen, **unbedingt ändern!** |
+| `DATABASE_PASSWORD` | Passwort für die Postgres-Datenbank | Sicheres Passwort setzen |
+
+> ⚠️ **Wichtig:** Starte die App niemals produktiv ohne einen individuellen `SECRET_KEY`!
+
+### Schritt 3 – Anwendung starten
+
+```bash
+docker compose up -d
+```
+
+Docker lädt die nötigen Images, baut das Frontend, startet PostgreSQL und das Backend.
+Die App ist danach unter **http://localhost:9190** erreichbar.
+
+> Der Standard-Port ist `9190`. Dieser kann in `docker-compose.yml` unter `ports` angepasst werden.
+
+### Schritt 4 – TopAdmin einrichten (Erststart)
+
+Beim **allerersten Start** existiert noch kein Admin-Konto.  
+Rufe die Anwendung im Browser auf – du wirst automatisch in den **Setup-Flow** geleitet:
+
+1. Vollständigen Namen für den TopAdmin eingeben
+2. Benutzernamen und sicheres Passwort festlegen
+3. Einrichtung abschließen → TopAdmin ist aktiv
+
+### Schritt 5 – Grunddaten anlegen (empfohlen vor dem ersten Kasseneinsatz)
+
+Im Admin-Bereich sollten folgende Grunddaten zuerst eingerichtet werden:
+
+1. **Design & App-Name** (`Admin → Design`): Vereinslogo hochladen, App-Name und Farben anpassen
+2. **Kategorien** (`Admin → Kategorien`): Produktkategorien für die Kassenlayouts anlegen
+3. **Produkte** (`Admin → Produkte`): Artikel mit Preisen, Bildern und Lagerbestand erfassen
+4. **Mitglieder** (`Admin → Mitglieder`): Mitglieder anlegen, optional Benutzerkonten und Rollen vergeben
+5. **Kassenlayout & Session-Timer** (`Admin → Ext. Settings`): Layout wählen und optionalen Automations-Timer konfigurieren
+
+### Schritt 6 – Erster Kassenbetrieb
+
+- Kassenbenutzer: Über den Button **„Kasse anmelden"** auf der Login-Seite startet der Kassenbetrieb ohne persönlichen Login
+- Admin-Benutzer: Mit persönlichem Konto anmelden → automatische Weiterleitung in den Admin-Bereich
+- Z-Bon: Am Schichtenende unter `Admin → Finanzen` den Z-Bon erstellen und ggf. exportieren
+
+---
 
 ## 🐳 Betrieb mit Docker
 
@@ -206,9 +281,6 @@ Hinweis: Die Backend-Tests benötigen eine erreichbare PostgreSQL-Datenbank pass
 ## 📚 Weitere Dokumentation
 
 - [User-Auth.md](./User-Auth.md) – verbindliche Rollen- und Rechteübersicht
-- [DOCKER_QUICKSTART.md](./DOCKER_QUICKSTART.md) – vereinfachter Docker-Einstieg
-- [ARCHITECTURE.md](./ARCHITECTURE.md) – technische Architektur
-- [PROJECT_OVERVIEW.md](./PROJECT_OVERVIEW.md) – fachlicher Überblick
 
 ## 🧯 Troubleshooting
 
