@@ -537,7 +537,7 @@ onMounted(() => {
 <style scoped lang="scss">
 .admin-corrections {
   --border: #e2e8f0;
-  padding: 0.75rem 1rem;
+  padding: 0 1rem 0.75rem;
   background: var(--app-background-color);
   min-height: 100%;
 }
@@ -551,7 +551,7 @@ onMounted(() => {
   flex-direction: column;
   gap: 0.5rem;
   flex-wrap: wrap;
-  margin: -0.75rem -1rem 0.6rem;
+  margin: 0 -1rem 0.6rem;
   padding: 0.75rem 1rem;
   border-bottom: 1px solid rgba(0, 0, 0, 0.13);
 
@@ -791,7 +791,7 @@ onMounted(() => {
 
 @media (max-width: 700px) {
   .admin-corrections {
-    padding: 1rem;
+    padding: 0 1rem 1rem;
   }
 
   .action-row {

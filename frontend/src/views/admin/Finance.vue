@@ -2553,7 +2553,7 @@ onMounted(() => {
 .admin-finance {
   background: var(--app-background-color);
   border-radius: 8px;
-  padding: 0.75rem 1rem;
+  padding: 0 1rem 0.75rem;
   box-shadow: 0 10px 24px rgba(24, 28, 34, 0.14);
 
   h3 {
@@ -2576,7 +2576,7 @@ onMounted(() => {
   flex-direction: column;
   gap: 0.5rem;
   flex-wrap: wrap;
-  margin: -0.75rem -1rem 1rem;
+  margin: 0 -1rem 1rem;
   padding: 0.75rem 1rem;
   border-bottom: 1px solid rgba(0, 0, 0, 0.13);
 }
@@ -2641,11 +2641,11 @@ onMounted(() => {
 
 @media (max-width: 700px) {
   .admin-finance {
-    padding: 1rem;
+    padding: 0 1rem 1rem;
   }
 
   .page-header {
-    margin: -1rem -1rem 1rem;
+    margin: 0 -1rem 1rem;
     padding: 1rem;
   }
 }
