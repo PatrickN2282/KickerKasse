@@ -69,13 +69,13 @@ const handleHardReset = async ({ password, confirmationText }) => {
 <style scoped lang="scss">
 .data-maintenance {
   background: white;
-  padding: 2rem;
+  padding: 0.75rem 1rem;
   border-radius: 8px;
 }
 
 .warning-box {
-  margin: 1.5rem 0;
-  padding: 1rem 1.25rem;
+  margin: 0.75rem 0;
+  padding: 0.75rem 1rem;
   border-radius: 10px;
   background: #fff4e5;
   border: 1px solid #f59e0b;

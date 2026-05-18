@@ -124,23 +124,23 @@ onMounted(async () => {
 <style scoped lang="scss">
 .admin-settings {
   background: white;
-  padding: 2rem;
+  padding: 0.75rem 1rem;
   border-radius: 8px;
 }
 
 .settings-grid {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
-  gap: 1.5rem;
+  gap: 1rem;
 }
 
 .settings-card {
   background: #f5f5f5;
-  padding: 1.5rem;
+  padding: 1rem;
   border-radius: 8px;
   display: flex;
   flex-direction: column;
-  gap: 1rem;
+  gap: 0.75rem;
 }
 
 .form-group {

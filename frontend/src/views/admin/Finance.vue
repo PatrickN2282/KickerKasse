@@ -2548,21 +2548,21 @@ onMounted(() => {
 .admin-finance {
   background: #dde2e8;
   border-radius: 8px;
-  padding: 1.25rem;
+  padding: 0.75rem 1rem;
   box-shadow: 0 10px 24px rgba(24, 28, 34, 0.14);
 
   h2 {
-    margin-bottom: 1rem;
+    margin-bottom: 0.6rem;
     color: #333;
   }
 
   h3 {
-    margin-bottom: 1.5rem;
+    margin-bottom: 0.75rem;
     color: #555;
   }
 
   h4 {
-    margin: 1.5rem 0 1rem 0;
+    margin: 0.75rem 0 0.5rem 0;
     color: #666;
   }
 }
@@ -2648,14 +2648,14 @@ onMounted(() => {
 .zbon-layout {
   display: flex;
   flex-direction: column;
-  gap: 1.5rem;
+  gap: 0.75rem;
 }
 
 .zbon-section {
   background: rgba(255, 255, 255, 0.55);
   border: 1px solid rgba(24, 28, 34, 0.08);
   border-radius: 18px;
-  padding: 1.25rem;
+  padding: 0.85rem 1rem;
   box-shadow: 0 8px 20px rgba(24, 28, 34, 0.08);
 }
 
@@ -2701,9 +2701,9 @@ onMounted(() => {
 .filter-section {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-  gap: 1rem;
-  margin-bottom: 2rem;
-  padding: 1rem;
+  gap: 0.75rem;
+  margin-bottom: 1rem;
+  padding: 0.75rem;
   background: #d8dde3;
   border-radius: 8px;
   align-items: flex-end;
@@ -2730,8 +2730,8 @@ onMounted(() => {
 .summary-grid {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-  gap: 1rem;
-  margin-bottom: 2rem;
+  gap: 0.75rem;
+  margin-bottom: 1rem;
 }
 
 .zbon-card-grid {
@@ -2745,7 +2745,7 @@ onMounted(() => {
 .summary-card {
   background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
   color: white;
-  padding: 1.5rem;
+  padding: 1rem;
   border-radius: 8px;
   box-shadow: 0 4px 6px rgba(102, 126, 234, 0.2);
 
@@ -2762,13 +2762,13 @@ onMounted(() => {
   }
 
   .card-label {
-    font-size: 0.9rem;
+    font-size: 0.85rem;
     opacity: 0.9;
-    margin-bottom: 0.5rem;
+    margin-bottom: 0.3rem;
   }
 
   .card-value {
-    font-size: 1.8rem;
+    font-size: 1.5rem;
     font-weight: bold;
   }
 }
@@ -2794,13 +2794,13 @@ onMounted(() => {
 .members-table {
   width: 100%;
   border-collapse: collapse;
-  margin-top: 1rem;
+  margin-top: 0.75rem;
 
   thead {
     background: #d8dde3;
 
     th {
-      padding: 1rem;
+      padding: 0.55rem 0.75rem;
       text-align: left;
       font-weight: 600;
       border-bottom: 2px solid #ddd;
@@ -2816,7 +2816,7 @@ onMounted(() => {
       }
 
       td {
-        padding: 1rem;
+        padding: 0.5rem 0.75rem;
 
         &.amount {
           font-weight: 600;
@@ -2897,15 +2897,15 @@ onMounted(() => {
 .member-stats-overview {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-  gap: 1rem;
-  margin-bottom: 2rem;
+  gap: 0.75rem;
+  margin-bottom: 1rem;
 }
 
 .summary-item,
 .stat-card,
 .revenue-card {
   background: #d8dde3;
-  padding: 1.5rem;
+  padding: 1rem;
   border-radius: 8px;
   display: flex;
   flex-direction: column;
@@ -3048,8 +3048,8 @@ onMounted(() => {
 .scheduler-section {
   background: #f9f9f9;
   border-radius: 8px;
-  padding: 1.5rem;
-  margin: 2rem 0;
+  padding: 1rem;
+  margin: 1rem 0;
   border-left: 4px solid #ff9800;
 }
 
