@@ -1485,6 +1485,7 @@ const router = useRouter()
 const financeHeader = ref(null)
 const financeHeaderHeight = ref(0)
 let financeHeaderResizeObserver = null
+let usesWindowResizeFallback = false
 
 const DEFAULT_FINANCE_TAB = 'zbon'
 const activeTab = ref(DEFAULT_FINANCE_TAB)
@@ -2551,12 +2552,14 @@ watch([zbonsFilterStartDate, zbonsFilterEndDate, zbonsCurrentPage], () => {
 })
 
 onMounted(() => {
+  updateFinanceHeaderHeight()
   nextTick(() => {
     updateFinanceHeaderHeight()
     if (typeof ResizeObserver !== 'undefined' && financeHeader.value) {
       financeHeaderResizeObserver = new ResizeObserver(updateFinanceHeaderHeight)
       financeHeaderResizeObserver.observe(financeHeader.value)
     } else {
+      usesWindowResizeFallback = true
       window.addEventListener('resize', updateFinanceHeaderHeight)
     }
   })
@@ -2573,7 +2576,9 @@ onMounted(() => {
 
 onBeforeUnmount(() => {
   financeHeaderResizeObserver?.disconnect()
-  window.removeEventListener('resize', updateFinanceHeaderHeight)
+  if (usesWindowResizeFallback) {
+    window.removeEventListener('resize', updateFinanceHeaderHeight)
+  }
 })
 </script>
 
