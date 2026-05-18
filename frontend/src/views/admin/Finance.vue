@@ -2556,8 +2556,9 @@ onMounted(() => {
     if (typeof ResizeObserver !== 'undefined' && financeHeader.value) {
       financeHeaderResizeObserver = new ResizeObserver(updateFinanceHeaderHeight)
       financeHeaderResizeObserver.observe(financeHeader.value)
+    } else {
+      window.addEventListener('resize', updateFinanceHeaderHeight)
     }
-    window.addEventListener('resize', updateFinanceHeaderHeight)
   })
   console.log('Finance component mounted, loading data...')
   memberStore.getMembers()
