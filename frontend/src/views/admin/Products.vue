@@ -24,6 +24,7 @@
           class="search-input"
         >
       </div>
+
       <div class="products-table-wrapper">
         <table class="products-table">
           <thead>
@@ -87,97 +88,72 @@
     </div>
 
     <div v-if="showProductModal" class="modal-overlay" @click.self="closeProductModal">
-      <div class="modal-card">
+      <div class="modal-card modal-compact">
         <header class="modal-header">
           <div>
             <h3>{{ editingId ? 'Produkt bearbeiten' : 'Neues Produkt anlegen' }}</h3>
-            <p class="modal-subtitle">Pflichtangaben, Preise und Bild im angepassten Admin-Layout verwalten.</p>
+            <p class="modal-subtitle">Preise, Bild und Bestände verwalten.</p>
           </div>
           <button class="modal-close" @click="closeProductModal">×</button>
         </header>
 
-        <form class="modal-body-layout" @submit.prevent="handleSaveProduct">
-          <aside class="modal-sidebar">
-            <div class="product-image-panel">
-              <!-- Image loaded: show card preview + action buttons -->
-              <template v-if="cropImageSrc">
-                <p class="image-editor-label">Vorschau: Kassenkarte</p>
-                <div class="kasse-card-preview product-btn-preview">
-                  <div class="card-img">
-                    <span v-if="hasMemberPrice({ member_price_cents: formData.memberPrice !== null ? 1 : null })" class="card-badge discount-badge">Rabatt</span>
-                    <img
-                      :src="cropImageSrc"
-                      class="preview-crop-img"
-                      :style="cropPreviewImgStyle"
-                      draggable="false"
-                      alt=""
-                    >
-                  </div>
-                  <div class="card-body">
-                    <div class="card-name">{{ formData.name || 'Produktname' }}</div>
-                    <div class="card-bottom">
-                      <span class="card-price">{{ previewPriceText }}</span>
-                      <span class="card-stock">{{ formData.isUnlimitedStock ? '∞' : formData.stock }}</span>
+        <form class="modal-compact-layout" @submit.prevent="handleSaveProduct">
+          <div class="modal-scroller">
+            
+            <div class="main-form-grid">
+              
+              <div class="image-upload-section">
+                <span class="section-label">Produktbild Vorschau</span>
+                
+                <template v-if="cropImageSrc">
+                  <div class="kasse-card-preview">
+                    <div class="card-img">
+                      <span v-if="formData.memberPrice !== null && formData.memberPrice !== ''" class="card-badge discount-badge">Rabatt</span>
+                      <img
+                        :src="cropImageSrc"
+                        class="preview-crop-img"
+                        :style="cropPreviewImgStyle"
+                        draggable="false"
+                        alt=""
+                      >
+                    </div>
+                    <div class="card-body">
+                      <div class="card-name">{{ formData.name || 'Produktname' }}</div>
+                      <div class="card-bottom">
+                        <span class="card-price">{{ previewPriceText }}</span>
+                        <span class="card-stock">{{ formData.isUnlimitedStock ? '∞' : formData.stock }}</span>
+                      </div>
                     </div>
                   </div>
-                </div>
-
-                <div class="crop-sidebar-actions">
-                  <button type="button" class="btn-crop-open" @click="showCropModal = true">✂ Bildausschnitt anpassen</button>
-                  <label class="upload-button">
-                    Anderes Bild
-                    <input type="file" accept="image/*" hidden @change="handleImageUpload">
-                  </label>
-                </div>
-              </template>
-
-              <!-- Default view: no image selected yet -->
-              <template v-else>
-                <div class="avatar-display">
-                  <div class="photo-placeholder">
-                    <span>Bild hochladen</span>
+                  
+                  <div class="image-action-buttons">
+                    <button type="button" class="btn-action btn-sm" @click="showCropModal = true">✂ Zuschneiden</button>
+                    <label class="upload-button btn-sm">
+                      Ändern
+                      <input type="file" accept="image/*" hidden @change="handleImageUpload">
+                    </label>
                   </div>
-                </div>
-                <label class="upload-button">
-                  Bild auswählen
-                  <input id="image" type="file" accept="image/*" hidden @change="handleImageUpload">
-                </label>
-              </template>
-            </div>
+                </template>
 
-            <div class="sidebar-info-box">
-              <label class="checkbox-card">
-                <input id="unlimited-stock" v-model="formData.isUnlimitedStock" type="checkbox" @change="handleUnlimitedStockChange">
-                <div class="checkbox-content">
-                  <span class="label">Unendlich verfügbar</span>
-                  <span class="desc">Artikel ohne Bestand, z. B. Eintrittspreise, bleiben immer buchbar.</span>
-                </div>
-              </label>
-
-              <label class="checkbox-card">
-                <input id="variable-price" v-model="formData.isVariablePrice" type="checkbox">
-                <div class="checkbox-content">
-                  <span class="label">Variabler Endpreis</span>
-                  <span class="desc">Beim Hinzufügen zum Warenkorb wird nach dem Preis gefragt.</span>
-                </div>
-              </label>
-
-              <div class="summary-card">
-                <span class="label">Lagerbestand</span>
-                <span class="value">{{ formData.isUnlimitedStock ? '∞' : formData.stock }}</span>
-                <span class="desc">Pflege nur noch über Korrektur-Buchungen im Bereich Finanzen.</span>
+                <template v-else>
+                  <div class="avatar-display compact-avatar">
+                    <div class="photo-placeholder">
+                      <span>Kein Bild ausgewählt</span>
+                    </div>
+                  </div>
+                  <label class="upload-button hint-upload">
+                    Bild auswählen
+                    <input id="image" type="file" accept="image/*" hidden @change="handleImageUpload">
+                  </label>
+                </template>
               </div>
-            </div>
-          </aside>
 
-          <main class="modal-form-content">
-            <section class="form-section">
-              <h4>Allgemeine Informationen</h4>
-              <div class="form-row">
+              <div class="fields-section">
                 <div class="form-group">
                   <label for="name">Name*</label>
-                  <input id="name" v-model="formData.name" type="text" required>
+                  <input id="name" v-model="formData.name" type="text" required placeholder="z.B. Fritz-Kola 0,33l">
                 </div>
+
                 <div class="form-group">
                   <label for="warengruppe">Warengruppe</label>
                   <input
@@ -185,33 +161,55 @@
                     v-model.trim="formData.warengruppe"
                     type="text"
                     list="warengruppe-options"
-                    placeholder="Neue oder bestehende Warengruppe"
+                    placeholder="Neue oder bestehende Gruppe"
                   >
                   <datalist id="warengruppe-options">
-                    <option
-                      v-for="group in warengruppeOptions"
-                      :key="group"
-                      :value="group"
-                    />
+                    <option v-for="group in warengruppeOptions" :key="group" :value="group" />
                   </datalist>
                 </div>
-              </div>
-            </section>
 
-            <section class="form-section">
-              <h4>Preisgestaltung</h4>
-              <div class="form-row">
-                <div class="form-group">
-                  <label for="price">Preis (€)*</label>
-                  <input id="price" v-model.number="formData.price" type="number" step="0.01" required>
-                </div>
-                <div class="form-group">
-                  <label for="member-price">Mitgliedspreis (€)</label>
-                  <input id="member-price" v-model.number="formData.memberPrice" type="number" step="0.01">
+                <div class="form-row">
+                  <div class="form-group">
+                    <label for="price">Preis (€)*</label>
+                    <input id="price" v-model.number="formData.price" type="number" step="0.01" required>
+                  </div>
+                  <div class="form-group">
+                    <label for="member-price">Mitgliedspreis (€)</label>
+                    <input id="member-price" v-model.number="formData.memberPrice" type="number" step="0.01" placeholder="Optional">
+                  </div>
                 </div>
               </div>
-            </section>
-          </main>
+            </div>
+
+            <div class="options-form-grid">
+              <div class="checkbox-group-wrapper">
+                <label class="checkbox-card compact-cb">
+                  <input id="unlimited-stock" v-model="formData.isUnlimitedStock" type="checkbox" @change="handleUnlimitedStockChange">
+                  <div class="checkbox-content">
+                    <span class="label">Unendlich verfügbar</span>
+                    <span class="desc">Für immaterielle Artikel (z.B. Eintritte oder Umlagen)</span>
+                  </div>
+                </label>
+
+                <label class="checkbox-card compact-cb">
+                  <input id="variable-price" v-model="formData.isVariablePrice" type="checkbox">
+                  <div class="checkbox-content">
+                    <span class="label">Variabler Endpreis</span>
+                    <span class="desc">Der Preis wird erst beim Bonieren abgefragt</span>
+                  </div>
+                </label>
+              </div>
+
+              <div class="summary-card compact-summary">
+                <div class="summary-text-layout">
+                  <span class="label">Lagerbestand</span>
+                  <span class="value">{{ formData.isUnlimitedStock ? '∞' : formData.stock }}</span>
+                </div>
+                <span class="desc">Bestandskorrekturen erfolgen über das Finanzen-Modul.</span>
+              </div>
+            </div>
+
+          </div>
 
           <footer class="modal-footer">
             <button type="button" class="btn btn-secondary" @click="closeProductModal">Abbrechen</button>
@@ -224,13 +222,12 @@
     </div>
   </div>
 
-  <!-- Crop Sub-Modal -->
   <div v-if="showCropModal" class="modal-overlay crop-modal-overlay" @click.self="showCropModal = false">
     <div class="crop-modal-card">
       <header class="modal-header">
         <div>
           <h3>Bildausschnitt anpassen</h3>
-          <p class="modal-subtitle">Verschieben und zoomen – Änderungen werden beim Speichern des Produkts übernommen.</p>
+          <p class="modal-subtitle">Verschieben und zoomen, um den Ausschnitt für die Kassenkarte festzulegen.</p>
         </div>
         <button class="modal-close" @click="showCropModal = false">×</button>
       </header>
@@ -246,13 +243,7 @@
           @touchmove.prevent="onCropTouchMove"
           @touchend="onCropTouchEnd"
         >
-          <img
-            :src="cropImageSrc"
-            class="crop-source-img"
-            :style="cropImgStyle"
-            draggable="false"
-            alt=""
-          >
+          <img :src="cropImageSrc" class="crop-source-img" :style="cropImgStyle" draggable="false" alt="">
         </div>
 
         <div class="crop-zoom-row">
@@ -269,19 +260,15 @@
           <span class="zoom-icon">+</span>
           <span class="zoom-pct">{{ cropMinScale > 0 ? Math.round(cropScale / cropMinScale * 100) : 100 }}%</span>
         </div>
-        <div class="crop-action-row">
-          <button type="button" class="btn-crop-reset" @click="resetCrop">↺ Zurücksetzen</button>
-          <button
-            v-if="cropOriginalSrc"
-            type="button"
-            class="btn-crop-reset btn-crop-restore"
-            @click="restoreOriginalImage"
-          >🔄 Originalbild</button>
+
+        <div class="crop-file-actions">
+          <button type="button" class="btn-crop-reset" @click="resetCrop">↺ Ausrichtung zurücksetzen</button>
+          <button v-if="cropOriginalSrc" type="button" class="btn-crop-reset btn-crop-restore" @click="restoreOriginalImage">🔄 Originalbild wiederherstellen</button>
         </div>
       </div>
 
       <footer class="crop-modal-footer">
-        <button type="button" class="btn btn-success" @click="showCropModal = false">Fertig</button>
+        <button type="button" class="btn btn-success" @click="showCropModal = false">Ausschnitt übernehmen</button>
       </footer>
     </div>
   </div>
@@ -303,6 +290,7 @@ const imagePreview = ref(null)
 const imageFile = ref(null)
 const lastFiniteStock = ref(0)
 const productSearch = ref('')
+
 const formData = reactive({
   name: '',
   warengruppe: '',
@@ -313,37 +301,38 @@ const formData = reactive({
   isVariablePrice: false,
 })
 
-// ── Image crop editor ─────────────────────────────────────────────────────────
-// Crop frame dimensions (pixels in the editor DOM); 3:2 aspect ratio
+// ── Image crop editor configuration & states ─────────────────────────────────
 const CROP_ASPECT = 3 / 2
 const CROP_W = 320
 const CROP_H = Math.round(CROP_W / CROP_ASPECT)   // 213 px
-// Output image size written to the server (same 3:2 aspect)
 const OUTPUT_W = 600
 const OUTPUT_H = Math.round(OUTPUT_W / CROP_ASPECT) // 400 px
-// JPEG encode quality (0–1); 0.92 balances file size and visual quality
 const JPEG_QUALITY = 0.92
-// Card preview image-area dimensions
+
 const PREVIEW_W = 180
-const PREVIEW_H = Math.round(PREVIEW_W / CROP_ASPECT)  // ≈ 120 px
+const PREVIEW_H = Math.round(PREVIEW_W / CROP_ASPECT)  // ~120 px
 const PREVIEW_SCALE = PREVIEW_W / CROP_W
 
-const cropImageSrc = ref(null)     // always a data-URL (or null)
-const cropOriginalSrc = ref(null)  // original (pre-crop) data-URL for reset
-const cropIsNewUpload = ref(false) // true when the user uploaded a new file this session
+const cropImageSrc = ref(null)     
+const cropOriginalSrc = ref(null)  
+const cropIsNewUpload = ref(false) 
+
 const cropNaturalW = ref(0)
 const cropNaturalH = ref(0)
 const cropScale = ref(1)
 const cropMinScale = ref(0.1)
 const cropPanX = ref(0)
 const cropPanY = ref(0)
+
 const cropIsDragging = ref(false)
 const cropDragLastX = ref(0)
 const cropDragLastY = ref(0)
 const cropLastPinchDist = ref(0)
 const cropModified = ref(false)
-const cropFrameEl = ref(null)   // template ref for the crop-frame div
 
+const cropFrameEl = ref(null)   
+
+// Computed Styles für den Crop Editor und die Kassenkarten-Vorschau
 const cropImgStyle = computed(() => ({
   position: 'absolute',
   left: `${cropPanX.value}px`,
@@ -372,45 +361,41 @@ const previewPriceText = computed(() => {
   return `${(cents / 100).toFixed(2).replace('.', ',')} €`
 })
 
-const canRestoreOriginal = computed(() => !!(cropOriginalSrc.value && cropOriginalSrc.value !== cropImageSrc.value))
+const hasMemberPrice = (product) => {
+  return product.member_price_cents !== null && product.member_price_cents !== undefined
+}
 
-const hasMemberPrice = (product) => product.member_price_cents !== null && product.member_price_cents !== undefined
-
-const getProductSearchText = (product) => [
-  product?.name,
-  product?.warengruppe,
-  product?.description,
-  product?.stock_quantity,
-  product?.price_cents,
-  product?.member_price_cents,
-]
-  .filter(value => value !== null && value !== undefined && value !== '')
-  .join(' ')
-  .toLowerCase()
+const getProductSearchText = (product) => {
+  return [
+    product?.name,
+    product?.warengruppe,
+    product?.description,
+    product?.stock_quantity,
+    product?.price_cents,
+    product?.member_price_cents,
+  ]
+    .filter(value => value !== null && value !== undefined && value !== '')
+    .join(' ')
+    .toLowerCase()
+}
 
 const filteredProducts = computed(() => {
   const search = productSearch.value.trim().toLowerCase()
-
-  if (!search) {
-    return productStore.products
-  }
-
+  if (!search) return productStore.products
   return productStore.products.filter(product => getProductSearchText(product).includes(search))
 })
 
-const warengruppeOptions = computed(() => (
-  [...new Set(
-    productStore.products
-      .map(product => product?.warengruppe?.trim())
-      .filter(Boolean),
-  )].sort((left, right) => left.localeCompare(right, 'de'))
-))
+const warengruppeOptions = computed(() => {
+  const groups = productStore.products
+    .map(product => product?.warengruppe?.trim())
+    .filter(Boolean)
+  return [...new Set(groups)].sort((left, right) => left.localeCompare(right, 'de'))
+})
 
-const toMemberPriceCents = () => (
-  formData.memberPrice === null || formData.memberPrice === ''
-    ? null
-    : Math.round(formData.memberPrice * 100)
-)
+const toMemberPriceCents = () => {
+  if (formData.memberPrice === null || formData.memberPrice === '') return null
+  return Math.round(formData.memberPrice * 100)
+}
 
 const handleUnlimitedStockChange = () => {
   if (formData.isUnlimitedStock) {
@@ -418,7 +403,6 @@ const handleUnlimitedStockChange = () => {
     formData.stock = 0
     return
   }
-
   if (formData.stock === 0 && lastFiniteStock.value > 0) {
     formData.stock = lastFiniteStock.value
   }
@@ -435,14 +419,13 @@ const closeProductModal = () => {
 }
 
 const handleSaveProduct = async () => {
-  // Build the cropped file blob when the image was changed/added
   if (cropImageSrc.value && cropModified.value) {
     try {
       const blob = await getCroppedBlob()
       imageFile.value = new File([blob], 'product-image.jpg', { type: 'image/jpeg' })
     } catch (err) {
-      console.error('Crop failed:', err)
-      notificationStore.error('Fehler beim Verarbeiten des Bildes')
+      console.error('Failed to bake cropped canvas to file blob:', err)
+      notificationStore.error('Fehler beim Verarbeiten des zugeschnittenen Bildes')
       return
     }
   }
@@ -464,7 +447,7 @@ const handleSaveProduct = async () => {
     })
 
     if (result) {
-      notificationStore.success('Produkt aktualisiert')
+      notificationStore.success('Produkt erfolgreich aktualisiert')
       resetForm()
     } else {
       notificationStore.error(productStore.error)
@@ -484,12 +467,12 @@ const handleSaveProduct = async () => {
       if (imageFile.value) {
         const imageUploadSuccess = await uploadImageToProduct(result.id)
         if (!imageUploadSuccess) {
-          notificationStore.warning('Produkt erstellt, aber Bild-Upload fehlgeschlagen')
+          notificationStore.warning('Produkt wurde erstellt, aber der Bild-Upload ist fehlgeschlagen.')
         } else {
-          notificationStore.success('Produkt mit Bild erstellt')
+          notificationStore.success('Produkt mit Bild erfolgreich erstellt')
         }
       } else {
-        notificationStore.success('Produkt erstellt')
+        notificationStore.success('Produkt erfolgreich erstellt')
       }
       resetForm()
     } else {
@@ -501,7 +484,6 @@ const handleSaveProduct = async () => {
 const uploadImageToProduct = async (productId) => {
   if (!imageFile.value) return true
 
-  // If this is a new upload, first save the original (uncropped) image for future resets
   if (cropIsNewUpload.value && cropOriginalSrc.value) {
     try {
       const origBlob = await dataUrlToBlob(cropOriginalSrc.value)
@@ -513,7 +495,7 @@ const uploadImageToProduct = async (productId) => {
         credentials: 'include',
       })
     } catch (err) {
-      console.error('Original image upload error:', err)
+      console.error('Failed to back up original image raw payload:', err)
     }
   }
 
@@ -536,23 +518,30 @@ const uploadImageToProduct = async (productId) => {
       return false
     }
   } catch (error) {
-    console.error('Image upload error:', error)
-    notificationStore.error('Fehler beim Bild-Upload')
+    console.error('Image upload connection error:', error)
+    notificationStore.error('Fehler beim Übertragen des Bildes')
     return false
   }
 }
 
-const dataUrlToBlob = (dataUrl) => new Promise((resolve, reject) => {
-  const parts = dataUrl.split(',')
-  const mimeMatch = parts[0].match(/:(.*?);/)
-  if (!mimeMatch) { reject(new Error('Invalid data URL')); return }
-  const mime = mimeMatch[1]
-  const bStr = atob(parts[1])
-  const n = bStr.length
-  const u8arr = new Uint8Array(n)
-  for (let i = 0; i < n; i++) u8arr[i] = bStr.charCodeAt(i)
-  resolve(new Blob([u8arr], { type: mime }))
-})
+const dataUrlToBlob = (dataUrl) => {
+  return new Promise((resolve, reject) => {
+    const parts = dataUrl.split(',')
+    const mimeMatch = parts[0].match(/:(.*?);/)
+    if (!mimeMatch) {
+      reject(new Error('Invalid data URL'))
+      return
+    }
+    const mime = mimeMatch[1]
+    const bStr = atob(parts[1])
+    let n = bStr.length
+    const u8arr = new Uint8Array(n)
+    while (n--) {
+      u8arr[n] = bStr.charCodeAt(n)
+    }
+    resolve(new Blob([u8arr], { type: mime }))
+  })
+}
 
 const resetForm = () => {
   formData.name = ''
@@ -568,7 +557,7 @@ const resetForm = () => {
   editingId.value = null
   showProductModal.value = false
   showCropModal.value = false
-  // Reset crop state
+
   cropImageSrc.value = null
   cropOriginalSrc.value = null
   cropIsNewUpload.value = false
@@ -601,7 +590,7 @@ const editProduct = async (product) => {
   if (product.image_path) {
     try {
       const resp = await fetch(`/api/products/${product.id}/image`, { credentials: 'include' })
-      if (!resp.ok) throw new Error(`Image load failed: ${resp.status}`)
+      if (!resp.ok) throw new Error(`Status ${resp.status}`)
       const blob = await resp.blob()
       const dataUrl = await new Promise((resolve) => {
         const reader = new FileReader()
@@ -611,7 +600,6 @@ const editProduct = async (product) => {
       cropImageSrc.value = dataUrl
       await loadCropImageDimensions(dataUrl)
 
-      // Try to load the original (pre-crop) image for reset functionality
       try {
         const origResp = await fetch(`/api/products/${product.id}/original-image`, { credentials: 'include' })
         if (origResp.ok) {
@@ -630,7 +618,7 @@ const editProduct = async (product) => {
     } catch {
       cropImageSrc.value = null
       cropOriginalSrc.value = null
-      notificationStore.warning('Produktbild konnte nicht geladen werden')
+      notificationStore.warning('Das bestehende Produktbild konnte nicht geladen werden.')
     }
   } else {
     cropImageSrc.value = null
@@ -644,35 +632,36 @@ const handleImageUpload = (event) => {
   const reader = new FileReader()
   reader.onload = (e) => {
     cropImageSrc.value = e.target.result
-    cropOriginalSrc.value = e.target.result  // new upload is the new original
+    cropOriginalSrc.value = e.target.result  
     cropIsNewUpload.value = true
     loadCropImageDimensions(e.target.result)
     cropModified.value = true
   }
   reader.readAsDataURL(file)
-  // Reset input so the same file can be re-selected
   event.target.value = ''
 }
 
-// ── Crop helper functions ─────────────────────────────────────────────────────
-const loadCropImageDimensions = (dataUrl) => new Promise((resolve) => {
-  const img = new Image()
-  img.onload = () => {
-    cropNaturalW.value = img.naturalWidth
-    cropNaturalH.value = img.naturalHeight
-    const scaleToFitW = CROP_W / img.naturalWidth
-    const scaleToFitH = CROP_H / img.naturalHeight
-    cropMinScale.value = Math.max(scaleToFitW, scaleToFitH)
-    cropScale.value = cropMinScale.value
-    centerCrop()
-    resolve()
-  }
-  img.onerror = () => {
-    notificationStore.error('Bild konnte nicht geladen werden')
-    resolve()
-  }
-  img.src = dataUrl
-})
+const loadCropImageDimensions = (dataUrl) => {
+  return new Promise((resolve) => {
+    const img = new Image()
+    img.onload = () => {
+      cropNaturalW.value = img.naturalWidth
+      cropNaturalH.value = img.naturalHeight
+      const scaleToFitW = CROP_W / img.naturalWidth
+      const scaleToFitH = CROP_H / img.naturalHeight
+      cropMinScale.value = Math.max(scaleToFitW, scaleToFitH)
+      cropScale.value = cropMinScale.value
+      centerCrop()
+      resolve()
+    }
+    img.onerror = () => {
+      notificationStore.error('Das ausgewählte Bild ist fehlerhaft oder beschädigt.')
+      resolve()
+    }
+    img.src = dataUrl
+  })
+}
+
 const clampPan = () => {
   const scaledW = cropNaturalW.value * cropScale.value
   const scaledH = cropNaturalH.value * cropScale.value
@@ -690,7 +679,6 @@ const centerCrop = () => {
 const resetCrop = () => {
   cropScale.value = cropMinScale.value
   centerCrop()
-  // Only mark as modified if a new file was uploaded (otherwise reverting to min-zoom is just visual)
   if (cropIsNewUpload.value) {
     cropModified.value = true
   }
@@ -788,7 +776,6 @@ const onCropTouchMove = (event) => {
     const dist = Math.hypot(dx, dy)
     const factor = dist / cropLastPinchDist.value
     const newScale = Math.max(cropMinScale.value, Math.min(cropMinScale.value * 5, cropScale.value * factor))
-    // Convert screen midpoint to frame-relative coordinates
     const frameRect = cropFrameEl.value ? cropFrameEl.value.getBoundingClientRect() : { left: 0, top: 0 }
     const midX = (event.touches[0].clientX + event.touches[1].clientX) / 2 - frameRect.left
     const midY = (event.touches[0].clientY + event.touches[1].clientY) / 2 - frameRect.top
@@ -807,40 +794,37 @@ const onCropTouchEnd = () => {
   cropLastPinchDist.value = 0
 }
 
-const getCroppedBlob = () => new Promise((resolve, reject) => {
-  const canvas = document.createElement('canvas')
-  canvas.width = OUTPUT_W
-  canvas.height = OUTPUT_H
-  const ctx = canvas.getContext('2d')
-  const img = new Image()
-  img.onload = () => {
-    // Source rect in original image pixels corresponding to the crop frame.
-    // panX/panY is the position of the scaled image's top-left inside the crop frame.
-    const sx = Math.max(0, -cropPanX.value / cropScale.value)
-    const sy = Math.max(0, -cropPanY.value / cropScale.value)
-    const sw = Math.min(CROP_W / cropScale.value, img.naturalWidth - sx)
-    const sh = Math.min(CROP_H / cropScale.value, img.naturalHeight - sy)
-    ctx.drawImage(img, sx, sy, sw, sh, 0, 0, OUTPUT_W, OUTPUT_H)
-    canvas.toBlob((blob) => {
-      if (blob) resolve(blob)
-      else reject(new Error('Canvas toBlob failed'))
-    }, 'image/jpeg', JPEG_QUALITY)
-  }
-  img.onerror = reject
-  img.src = cropImageSrc.value
-})
+const getCroppedBlob = () => {
+  return new Promise((resolve, reject) => {
+    const canvas = document.createElement('canvas')
+    canvas.width = OUTPUT_W
+    canvas.height = OUTPUT_H
+    const ctx = canvas.getContext('2d')
+    const img = new Image()
+    img.onload = () => {
+      const sx = Math.max(0, -cropPanX.value / cropScale.value)
+      const sy = Math.max(0, -cropPanY.value / cropScale.value)
+      const sw = Math.min(CROP_W / cropScale.value, img.naturalWidth - sx)
+      const sh = Math.min(CROP_H / cropScale.value, img.naturalHeight - sy)
+      ctx.drawImage(img, sx, sy, sw, sh, 0, 0, OUTPUT_W, OUTPUT_H)
+      canvas.toBlob((blob) => {
+        if (blob) resolve(blob)
+        else reject(new Error('Canvas toBlob empty'))
+      }, 'image/jpeg', JPEG_QUALITY)
+    }
+    img.onerror = reject
+    img.src = cropImageSrc.value
+  })
+}
 
 const deleteProduct = async (productId) => {
-  if (confirm('Wirklich löschen?')) {
+  if (confirm('Möchtest du dieses Produkt wirklich unwiderruflich löschen?')) {
     const result = await productStore.deleteProduct(productId)
-
     if (result) {
-      if (editingId.value === productId) {
-        resetForm()
-      }
-      notificationStore.success('Produkt gelöscht')
+      if (editingId.value === productId) resetForm()
+      notificationStore.success('Produkt wurde erfolgreich gelöscht.')
     } else {
-      notificationStore.error(productStore.error || 'Fehler beim Löschen')
+      notificationStore.error(productStore.error || 'Fehler beim Löschen des Produkts.')
     }
   }
 }
@@ -876,16 +860,14 @@ onUnmounted(() => {
   h2 {
     font-size: 1.5rem;
     color: #1e293b;
+    margin: 0;
   }
 }
 
-.page-subtitle,
-.modal-subtitle {
-  color: #64748b;
-}
-
 .page-subtitle {
+  color: #64748b;
   margin-top: 0.25rem;
+  margin-bottom: 0;
 }
 
 .loading-state {
@@ -931,7 +913,6 @@ onUnmounted(() => {
   border-radius: 12px;
   border: 1px solid var(--border);
   overflow-x: auto;
-  overflow-y: hidden;
 }
 
 .products-table {
@@ -945,13 +926,21 @@ onUnmounted(() => {
     font-size: 0.8rem;
     text-transform: uppercase;
     color: #64748b;
+    font-weight: 600;
     text-align: left;
+    letter-spacing: 0.05em;
   }
 
   td {
     padding: 1rem;
     border-bottom: 1px solid var(--border);
+    color: #334155;
+    font-size: 0.92rem;
     vertical-align: middle;
+  }
+
+  tr:last-child td {
+    border-bottom: none;
   }
 }
 
@@ -962,6 +951,7 @@ onUnmounted(() => {
 .empty-state-cell {
   text-align: center;
   color: #64748b;
+  padding: 3rem 1rem !important;
 }
 
 .action-cell {
@@ -969,9 +959,6 @@ onUnmounted(() => {
   align-items: center;
   justify-content: flex-end;
   gap: 0.5rem;
-  flex-wrap: wrap;
-  white-space: nowrap;
-  width: 100%;
 }
 
 .font-bold {
@@ -982,7 +969,6 @@ onUnmounted(() => {
   display: flex;
   align-items: center;
   gap: 0.5rem;
-  flex-wrap: wrap;
 }
 
 .product-badges {
@@ -1027,35 +1013,16 @@ onUnmounted(() => {
   font-weight: 600;
 }
 
-.badge-success {
-  background: #dcfce7;
-  color: #166534;
-}
-
-.badge-light {
-  background: #f1f5f9;
-  color: #475569;
-}
-
-.badge-info {
-  background: #dbeafe;
-  color: #1d4ed8;
-}
-
-.badge-danger {
-  background: #fee2e2;
-  color: #b91c1c;
-}
-
-.badge-dark {
-  background: #e2e8f0;
-  color: #0f172a;
-}
+.badge-success { background: #dcfce7; color: #166534; }
+.badge-light { background: #f1f5f9; color: #475569; }
+.badge-info { background: #dbeafe; color: #1d4ed8; }
+.badge-danger { background: #fee2e2; color: #b91c1c; }
+.badge-dark { background: #e2e8f0; color: #0f172a; }
 
 .modal-overlay {
   position: fixed;
   inset: 0;
-  background: rgba(15, 23, 42, 0.7);
+  background: rgba(15, 23, 42, 0.6);
   backdrop-filter: blur(4px);
   display: flex;
   align-items: center;
@@ -1064,197 +1031,151 @@ onUnmounted(() => {
   padding: 1rem;
 }
 
+/* ─────────────────────────────────────────────────────────
+   NEUES OPTIMIERTES FORMULAR-LAYOUT (680px statt 1100px)
+   ───────────────────────────────────────────────────────── */
 .modal-card {
   background: white;
   width: 100%;
-  max-width: 1100px;
-  min-height: min(520px, calc(100vh - 2rem));
-  max-height: calc(100vh - 2rem);
   border-radius: 16px;
   display: flex;
   flex-direction: column;
-  box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25);
+  box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04);
   overflow: hidden;
 }
 
+.modal-compact {
+  max-width: 680px;
+}
+
 .modal-header {
-  padding: 1.5rem;
+  padding: 1.25rem 1.5rem;
   border-bottom: 1px solid var(--border);
   display: flex;
   justify-content: space-between;
+  align-items: flex-start;
   gap: 1rem;
 
   h3 {
     margin: 0;
     font-size: 1.25rem;
+    font-weight: 600;
+    color: #1e293b;
+  }
+  
+  .modal-subtitle {
+    margin: 0.15rem 0 0 0;
+    font-size: 0.85rem;
+    color: #64748b;
   }
 }
 
-.modal-body-layout {
-  display: grid;
-  grid-template-columns: 260px minmax(0, 1fr);
+.modal-compact-layout {
+  display: flex;
+  flex-direction: column;
   overflow: hidden;
-  flex: 1 1 auto;
-  min-height: 0;
 }
 
-.modal-sidebar {
+.modal-scroller {
   padding: 1.5rem;
-  background: var(--bg-main);
-  border-right: 1px solid var(--border);
+  overflow-y: auto;
+  max-height: calc(85vh - 120px);
   display: flex;
   flex-direction: column;
   gap: 1.5rem;
-  overflow-y: auto;
-  min-height: 0;
 }
 
-.product-image-panel,
-.sidebar-info-box {
+/* Sektion 1: Bild und Standardfelder nebeneinander */
+.main-form-grid {
+  display: grid;
+  grid-template-columns: 180px 1fr;
+  gap: 1.5rem;
+  align-items: start;
+}
+
+.section-label {
+  display: block;
+  font-size: 0.75rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  color: #64748b;
+  letter-spacing: 0.05em;
+  margin-bottom: 0.5rem;
+}
+
+.image-upload-section {
   display: flex;
   flex-direction: column;
-  gap: 1rem;
+  align-items: stretch;
 }
 
-.modal-form-content {
-  padding: 1.5rem;
-  overflow-y: auto;
-  min-height: 0;
-}
-
-.avatar-display {
-  width: 150px;
-  height: 150px;
-  margin: 0 auto;
-  border-radius: 20px;
-  background: #fff;
-  border: 2px dashed #cbd5e1;
-  overflow: hidden;
-}
-
-.profile-img {
+.compact-avatar {
   width: 100%;
-  height: 100%;
-  object-fit: cover;
-}
-
-.photo-placeholder {
-  height: 100%;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  text-align: center;
-  padding: 1rem;
-  font-size: 0.8rem;
-  color: #94a3b8;
-}
-
-.upload-button {
-  display: inline-flex;
-  justify-content: center;
-  align-items: center;
-  padding: 0.65rem 1rem;
-  border-radius: 8px;
-  background: white;
-  border: 1px solid var(--border);
-  cursor: pointer;
-  font-weight: 600;
-  color: #334155;
-}
-
-.checkbox-card,
-.summary-card {
-  padding: 0.9rem 1rem;
-  background: white;
-  border: 1px solid var(--border);
+  height: 120px;
   border-radius: 10px;
+  background: #f8fafc;
+  margin-bottom: 0.5rem;
 }
 
-.checkbox-card {
+.image-action-buttons {
   display: flex;
-  gap: 0.75rem;
-  cursor: pointer;
+  gap: 0.35rem;
+  margin-top: 0.5rem;
+
+  .btn-action, .upload-button {
+    flex: 1;
+    padding: 0.4rem;
+    font-size: 0.78rem;
+    text-align: center;
+    justify-content: center;
+  }
 }
 
-.checkbox-content {
+.btn-sm {
+  padding: 0.4rem 0.6rem;
+  font-size: 0.8rem;
+}
+
+.hint-upload {
+  width: 100%;
+  font-size: 0.85rem;
+  text-align: center;
+  padding: 0.5rem;
+}
+
+.fields-section {
   display: flex;
   flex-direction: column;
+  gap: 0.85rem;
 
-  .label {
-    font-weight: 600;
-    font-size: 0.9rem;
-  }
-
-  .desc {
-    font-size: 0.75rem;
-    color: #64748b;
-  }
-}
-
-.summary-card {
-  background: #ecfdf5;
-  border-color: #a7f3d0;
-
-  .label {
-    font-size: 0.7rem;
-    text-transform: uppercase;
-    color: #065f46;
-    font-weight: 700;
-  }
-
-  .value {
-    display: block;
-    margin-top: 0.35rem;
-    font-size: 1.3rem;
-    font-weight: 700;
-    color: #047857;
-  }
-
-  .desc {
-    display: block;
-    margin-top: 0.4rem;
-    font-size: 0.78rem;
-    color: #065f46;
-  }
-}
-
-.form-section {
-  margin-bottom: 2rem;
-
-  h4 {
-    font-size: 0.875rem;
-    text-transform: uppercase;
-    letter-spacing: 0.05em;
-    color: #64748b;
-    border-bottom: 1px solid var(--border);
-    padding-bottom: 0.5rem;
-    margin-bottom: 1rem;
+  .form-group {
+    margin-bottom: 0;
   }
 }
 
 .form-row {
   display: grid;
   grid-template-columns: 1fr 1fr;
-  gap: 1rem;
+  gap: 0.75rem;
 }
 
 .form-group {
-  margin-bottom: 1rem;
-
   label {
     display: block;
-    font-size: 0.875rem;
-    font-weight: 500;
-    margin-bottom: 0.4rem;
-    color: #1e293b;
+    font-size: 0.85rem;
+    font-weight: 600;
+    margin-bottom: 0.35rem;
+    color: #334155;
   }
 
   input {
     width: 100%;
-    padding: 0.6rem 0.8rem;
+    padding: 0.55rem 0.75rem;
     border: 1px solid var(--border);
     border-radius: 8px;
-    font-size: 0.95rem;
+    font-size: 0.9rem;
+    color: #0f172a;
+    transition: border-color 0.15s ease, box-shadow 0.15s ease;
 
     &:focus {
       outline: none;
@@ -1264,216 +1185,170 @@ onUnmounted(() => {
   }
 }
 
-.btn {
-  padding: 0.6rem 1.2rem;
+/* Sektion 2: Checkboxen und Info-Box unterhalb */
+.options-form-grid {
+  display: grid;
+  grid-template-columns: 1fr 200px;
+  gap: 1rem;
+  border-top: 1px dashed var(--border);
+  padding-top: 1.25rem;
+}
+
+.checkbox-group-wrapper {
+  display: flex;
+  flex-direction: column;
+  gap: 0.65rem;
+}
+
+.compact-cb {
+  padding: 0.65rem 0.85rem;
+  background: #f8fafc;
+  display: flex;
+  gap: 0.6rem;
   border-radius: 8px;
+  border: 1px solid var(--border);
+  cursor: pointer;
+  align-items: flex-start;
+  transition: background-color 0.15s ease, border-color 0.15s ease;
+
+  &:hover {
+    background: #f1f5f9;
+    border-color: #cbd5e1;
+  }
+
+  input {
+    margin-top: 0.2rem;
+  }
+
+  .checkbox-content {
+    .label {
+      display: block;
+      font-size: 0.85rem;
+      font-weight: 600;
+      color: #1e293b;
+    }
+    
+    .desc {
+      display: block;
+      font-size: 0.72rem;
+      color: #64748b;
+      line-height: 1.3;
+      margin-top: 0.05rem;
+    }
+  }
+}
+
+.compact-summary {
+  background: #ecfdf5;
+  border: 1px solid #a7f3d0;
+  padding: 0.75rem 1rem;
+  border-radius: 8px;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+
+  .summary-text-layout {
+    display: flex;
+    justify-content: space-between;
+    align-items: baseline;
+  }
+
+  .label {
+    font-size: 0.7rem;
+    text-transform: uppercase;
+    color: #065f46;
+    font-weight: 700;
+    letter-spacing: 0.02em;
+  }
+
+  .value {
+    font-size: 1.3rem;
+    font-weight: 800;
+    color: #047857;
+    margin: 0;
+    line-height: 1;
+  }
+
+  .desc {
+    font-size: 0.7rem;
+    color: #065f46;
+    margin-top: 0.35rem;
+    line-height: 1.2;
+    opacity: 0.85;
+  }
+}
+
+/* Modal Footer */
+.modal-footer {
+  padding: 1rem 1.5rem;
+  border-top: 1px solid var(--border);
+  background: #f8fafc;
+  display: flex;
+  justify-content: flex-end;
+  gap: 0.75rem;
+}
+
+.btn {
+  padding: 0.55rem 1.1rem;
+  border-radius: 6px;
   font-weight: 600;
   cursor: pointer;
   border: none;
+  font-size: 0.9rem;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  transition: opacity 0.15s ease;
+
+  &:hover {
+    opacity: 0.9;
+  }
 }
 
-.btn-primary {
-  background: var(--primary);
-  color: white;
-}
-
-.btn-success {
-  background: var(--success);
-  color: white;
-}
-
-.btn-secondary {
-  background: #e2e8f0;
-  color: #475569;
-}
+.btn-primary { background: var(--primary); color: white; }
+.btn-success { background: var(--success); color: white; }
+.btn-secondary { background: #e2e8f0; color: #475569; }
 
 .btn-action {
   border: 1px solid var(--border);
   background: white;
   color: #334155;
   padding: 0.45rem 0.75rem;
-  border-radius: 8px;
+  border-radius: 6px;
   cursor: pointer;
   font-weight: 600;
+  font-size: 0.85rem;
+  transition: background-color 0.15s ease;
+
+  &:hover {
+    background: #f8fafc;
+  }
 }
 
 .btn-action-danger {
   border-color: #fecaca;
   color: #b91c1c;
+
+  &:hover {
+    background: #fef2f2;
+  }
 }
 
 .modal-close {
   border: none;
   background: transparent;
-  font-size: 1.6rem;
-  line-height: 1;
+  font-size: 1.5rem;
   cursor: pointer;
   color: #6b7280;
-}
-
-.modal-footer {
-  grid-column: 1 / -1;
-  padding: 1.5rem;
-  border-top: 1px solid var(--border);
-  display: flex;
-  justify-content: flex-end;
-  gap: 1rem;
-}
-
-@media (max-width: 768px) {
-  .modal-card {
-    min-height: auto;
-  }
-
-  .modal-body-layout,
-  .form-row {
-    grid-template-columns: 1fr;
-  }
-
-  .modal-sidebar {
-    border-right: none;
-    border-bottom: 1px solid var(--border);
-  }
-}
-
-@media (max-width: 1100px) {
-  .modal-header,
-  .modal-sidebar,
-  .modal-form-content,
-  .modal-footer {
-    padding: 1rem;
-  }
-
-  .modal-body-layout {
-    grid-template-columns: 220px minmax(0, 1fr);
-  }
-}
-
-@media (max-width: 640px) {
-  .page-header {
-    flex-direction: column;
-    align-items: stretch;
-  }
-
-  .modal-footer,
-  .action-cell {
-    flex-direction: column;
-  }
-
-  .btn,
-  .btn-action {
-    width: 100%;
-  }
-}
-
-@keyframes spin {
-  to {
-    transform: rotate(360deg);
-  }
-}
-
-// ── Crop editor & card preview ────────────────────────────────────────────────
-.image-editor-label {
-  font-size: 0.75rem;
-  font-weight: 700;
-  text-transform: uppercase;
-  letter-spacing: 0.05em;
-  color: #64748b;
-  margin: 0;
-}
-
-.image-editor-hint {
-  font-size: 0.72rem;
-  color: #94a3b8;
-  margin: -0.4rem 0 0;
-}
-
-.preview-label {
-  margin-top: 0.5rem;
-}
-
-// The crop frame: fixed size, clips the image
-.crop-frame {
-  width: 320px;
-  height: 213px;
-  position: relative;
-  overflow: hidden;
-  border-radius: 8px;
-  border: 2px solid var(--primary);
-  background: #e2e8f0;
-  flex-shrink: 0;
-  touch-action: none;
-  user-select: none;
-}
-
-.crop-source-img {
-  display: block;
-  max-width: none;
-  max-height: none;
-}
-
-.crop-zoom-row {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-
-  .zoom-icon {
-    font-size: 1rem;
-    color: #64748b;
-    font-weight: 700;
-    line-height: 1;
-    cursor: default;
-    user-select: none;
-  }
-
-  .zoom-pct {
-    font-size: 0.72rem;
-    color: #64748b;
-    min-width: 2.6rem;
-    text-align: right;
-  }
-}
-
-.zoom-slider {
-  flex: 1;
-  cursor: pointer;
-  accent-color: var(--primary);
-}
-
-.btn-crop-reset {
-  align-self: flex-start;
-  padding: 0.3rem 0.75rem;
-  border-radius: 6px;
-  border: 1px solid var(--border);
-  background: white;
-  font-size: 0.8rem;
-  font-weight: 600;
-  color: #475569;
-  cursor: pointer;
+  padding: 0;
+  line-height: 1;
 
   &:hover {
-    background: #f1f5f9;
+    color: #1f2937;
   }
 }
 
-.btn-crop-restore {
-  border-color: #fcd34d;
-  color: #92400e;
-  background: #fffbeb;
-
-  &:hover {
-    background: #fef3c7;
-  }
-}
-
-.crop-action-row {
-  display: flex;
-  gap: 0.5rem;
-  flex-wrap: wrap;
-  align-self: flex-start;
-}
-
-// Card preview mimics .product-btn from Kasse.vue
+/* ── Live-Kassenkarten-Vorschau (Exakt wie im POS) ───────────────── */
 .kasse-card-preview {
   width: 180px;
   border: 1.5px solid #e2e8f0;
@@ -1488,7 +1363,6 @@ onUnmounted(() => {
     height: 62px;
     overflow: hidden;
     background: #eef1f7;
-    flex-shrink: 0;
     position: relative;
   }
 
@@ -1507,8 +1381,6 @@ onUnmounted(() => {
     font-weight: 800;
     padding: 2px 4px;
     border-radius: 3px;
-    letter-spacing: 0.04em;
-    line-height: 1.4;
 
     &.discount-badge {
       background: #fffbeb;
@@ -1552,66 +1424,174 @@ onUnmounted(() => {
   }
 }
 
-.crop-file-actions {
+.avatar-display {
   display: flex;
-  gap: 0.5rem;
-  flex-wrap: wrap;
+  align-items: center;
+  justify-content: center;
+  border: 2px dashed var(--border);
 }
 
-.crop-sidebar-actions {
-  display: flex;
-  flex-direction: column;
-  gap: 0.5rem;
+.photo-placeholder {
+  text-align: center;
+  color: #94a3b8;
+  font-size: 0.8rem;
+  line-height: 1.4;
 }
 
-.btn-crop-open {
+.upload-button {
   display: inline-flex;
   justify-content: center;
   align-items: center;
-  padding: 0.65rem 1rem;
-  border-radius: 8px;
-  background: var(--primary);
-  border: none;
+  border: 1px solid var(--border);
+  background: white;
+  color: #334155;
+  border-radius: 6px;
   cursor: pointer;
   font-weight: 600;
-  color: white;
-  font-size: 0.9rem;
+  transition: background-color 0.15s ease;
 
   &:hover {
-    background: #2563eb;
+    background: #f8fafc;
   }
 }
 
-// Crop sub-modal
+/* Mobile-First Anpassungen für kleinere Bildschirme */
+@media (max-width: 640px) {
+  .main-form-grid {
+    grid-template-columns: 1fr;
+    gap: 1.25rem;
+  }
+
+  .image-upload-section {
+    align-items: center;
+    .kasse-card-preview, .image-action-buttons {
+      width: 100%;
+      max-width: 240px;
+    }
+  }
+
+  .options-form-grid {
+    grid-template-columns: 1fr;
+    gap: 1rem;
+  }
+
+  .modal-footer {
+    flex-direction: column-reverse;
+    .btn { width: 100%; justify-content: center; }
+  }
+}
+
+/* ── Crop Sub-Modal Styles ───────────────────────────────────────── */
 .crop-modal-overlay {
   z-index: 1001;
 }
 
 .crop-modal-card {
-  --success: #10b981;
-  --border: #e2e8f0;
-  --primary: #3b82f6;
   background: white;
   width: 100%;
-  max-width: 480px;
-  border-radius: 16px;
+  max-width: 400px;
+  border-radius: 12px;
   display: flex;
   flex-direction: column;
   box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.35);
 }
 
 .crop-modal-body {
-  padding: 1.5rem;
+  padding: 1.25rem;
   display: flex;
   flex-direction: column;
   align-items: center;
   gap: 1rem;
 }
 
+.crop-frame {
+  width: 320px;
+  height: 213px;
+  position: relative;
+  overflow: hidden;
+  border-radius: 8px;
+  border: 2px solid var(--primary);
+  background: #e2e8f0;
+  touch-action: none;
+}
+
+.crop-source-img {
+  display: block;
+  max-width: none;
+  max-height: none;
+}
+
+.crop-zoom-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+
+  .zoom-icon {
+    font-size: 1.1rem;
+    color: #64748b;
+    font-weight: 700;
+    user-select: none;
+  }
+
+  .zoom-pct {
+    font-size: 0.75rem;
+    color: #64748b;
+    min-width: 2.5rem;
+    text-align: right;
+    font-weight: 600;
+  }
+}
+
+.zoom-slider {
+  flex: 1;
+  cursor: pointer;
+  accent-color: var(--primary);
+  height: 6px;
+  background: #e2e8f0;
+  border-radius: 3px;
+}
+
+.crop-file-actions {
+  display: flex;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+  justify-content: center;
+}
+
+.btn-crop-reset {
+  padding: 0.4rem 0.75rem;
+  border-radius: 6px;
+  border: 1px solid var(--border);
+  background: white;
+  font-size: 0.78rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background-color 0.15s ease;
+
+  &:hover {
+    background: #f8fafc;
+  }
+}
+
+.btn-crop-restore {
+  border-color: #fcd34d;
+  color: #92400e;
+  background: #fffbeb;
+
+  &:hover {
+    background: #fef3c7;
+  }
+}
+
 .crop-modal-footer {
-  padding: 1rem 1.5rem;
+  padding: 0.75rem 1.25rem;
   border-top: 1px solid var(--border);
   display: flex;
   justify-content: flex-end;
+}
+
+@keyframes spin {
+  to { transform: rotate(360deg); }
 }
 </style>
