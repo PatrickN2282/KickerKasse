@@ -1485,7 +1485,7 @@ const router = useRouter()
 const financeHeader = ref(null)
 const financeHeaderHeight = ref(0)
 let financeHeaderResizeObserver = null
-let usesWindowResizeFallback = false
+let isWindowResizeListenerAttached = false
 
 const DEFAULT_FINANCE_TAB = 'zbon'
 const activeTab = ref(DEFAULT_FINANCE_TAB)
@@ -2559,7 +2559,7 @@ onMounted(() => {
       financeHeaderResizeObserver = new ResizeObserver(updateFinanceHeaderHeight)
       financeHeaderResizeObserver.observe(financeHeader.value)
     } else {
-      usesWindowResizeFallback = true
+      isWindowResizeListenerAttached = true
       window.addEventListener('resize', updateFinanceHeaderHeight)
     }
   })
@@ -2576,7 +2576,7 @@ onMounted(() => {
 
 onBeforeUnmount(() => {
   financeHeaderResizeObserver?.disconnect()
-  if (usesWindowResizeFallback) {
+  if (isWindowResizeListenerAttached) {
     window.removeEventListener('resize', updateFinanceHeaderHeight)
   }
 })
