@@ -1,13 +1,16 @@
 <template>
   <div class="admin-categories">
     <div class="page-header">
-      <div>
+      <div class="title-row">
         <h2>Kategorieverwaltung</h2>
-        <p class="page-subtitle">Kategorien verwalten und Artikel den Bereichen im Layout der Mitgliederverwaltung zuordnen.</p>
+        <span class="title-sep">|</span>
+        <span class="page-subtitle">Kategorien verwalten und Artikel den Bereichen im Layout der Mitgliederverwaltung zuordnen.</span>
       </div>
-      <button class="btn btn-primary" @click="openCreateModal">
-        <span class="icon">+</span> Neue Kategorie
-      </button>
+      <div class="page-header-actions">
+        <button class="btn btn-primary" @click="openCreateModal">
+          <span class="icon">+</span> Neue Kategorie
+        </button>
+      </div>
     </div>
 
     <div class="categories-table-wrapper">
@@ -397,7 +400,7 @@ onMounted(() => {
   --success: #10b981;
   --border: #e2e8f0;
   padding: 0.75rem 1rem;
-  background: white;
+  background: var(--app-background-color);
   min-height: 100%;
 }
 
@@ -405,34 +408,49 @@ onMounted(() => {
   position: sticky;
   top: 0;
   z-index: 10;
-  background: white;
+  background: var(--app-background-color);
   display: flex;
-  justify-content: space-between;
-  align-items: center;
-  gap: 1rem;
+  flex-direction: column;
+  gap: 0.5rem;
   margin: -0.75rem -1rem 0.75rem;
   padding: 0.75rem 1rem;
-  border-bottom: 1px solid #e2e8f0;
+  border-bottom: 1px solid rgba(0, 0, 0, 0.13);
 
   h2 {
     font-size: 1.25rem;
-    color: #1e293b;
+    color: #333;
+    margin: 0;
   }
+}
+
+.title-row {
+  display: flex;
+  align-items: baseline;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+}
+
+.title-sep {
+  color: #aaa;
+  font-weight: 300;
+}
+
+.page-header-actions {
+  display: flex;
+  gap: 0.5rem;
+  flex-wrap: wrap;
 }
 
 .page-subtitle,
 .modal-subtitle {
   color: #64748b;
-}
-
-.page-subtitle {
-  margin-top: 0.15rem;
+  margin: 0;
 }
 
 .categories-table-wrapper {
-  background: white;
+  background: color-mix(in srgb, var(--app-background-color) 30%, white);
   border-radius: 12px;
-  border: 1px solid var(--border);
+  border: 1px solid color-mix(in srgb, var(--app-background-color) 65%, #777);
   overflow-x: auto;
   overflow-y: hidden;
 }
@@ -443,7 +461,7 @@ onMounted(() => {
   border-collapse: collapse;
 
   th {
-    background: #f1f5f9;
+    background: color-mix(in srgb, var(--app-background-color) 75%, white);
     padding: 0.55rem 0.75rem;
     font-size: 0.78rem;
     text-transform: uppercase;

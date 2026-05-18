@@ -1,9 +1,10 @@
 <template>
   <div class="admin-finance">
     <div class="page-header">
-      <div class="page-header-title">
+      <div class="title-row">
         <h2>Finanzen</h2>
-        <p class="page-subtitle">Tagesabrechnungen, Z-Bons und Umsatzübersichten.</p>
+        <span class="title-sep">|</span>
+        <span class="page-subtitle">Tagesabrechnungen, Z-Bons und Umsatzübersichten.</span>
       </div>
       <div class="finance-tabs">
         <button
@@ -2550,7 +2551,7 @@ onMounted(() => {
 
 <style scoped lang="scss">
 .admin-finance {
-  background: #dde2e8;
+  background: var(--app-background-color);
   border-radius: 8px;
   padding: 0.75rem 1rem;
   box-shadow: 0 10px 24px rgba(24, 28, 34, 0.14);
@@ -2570,25 +2571,32 @@ onMounted(() => {
   position: sticky;
   top: 0;
   z-index: 10;
-  background: #dde2e8;
+  background: var(--app-background-color);
   display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 1rem;
+  flex-direction: column;
+  gap: 0.5rem;
   flex-wrap: wrap;
   margin: -0.75rem -1rem 1rem;
   padding: 0.75rem 1rem;
-  border-bottom: 1px solid #aeb5be;
+  border-bottom: 1px solid rgba(0, 0, 0, 0.13);
 }
 
-.page-header-title {
-  flex-shrink: 0;
+.title-row {
+  display: flex;
+  align-items: baseline;
+  gap: 0.5rem;
+  flex-wrap: wrap;
 
   h2 {
-    margin: 0 0 0.15rem;
+    margin: 0;
     color: #333;
     font-size: 1.25rem;
   }
+}
+
+.title-sep {
+  color: #aaa;
+  font-weight: 300;
 }
 
 .page-subtitle {
@@ -2641,7 +2649,6 @@ onMounted(() => {
     padding: 1rem;
   }
 }
-
 @keyframes fadeIn {
   from {
     opacity: 0;
@@ -2732,7 +2739,7 @@ onMounted(() => {
   gap: 0.75rem;
   margin-bottom: 1rem;
   padding: 0.75rem;
-  background: #d8dde3;
+  background: color-mix(in srgb, var(--app-background-color) 80%, white);
   border-radius: 8px;
   align-items: flex-end;
 }
@@ -2840,7 +2847,7 @@ onMounted(() => {
       border-bottom: 1px solid #eee;
 
       &:hover {
-        background: #dde2e8;
+        background: color-mix(in srgb, var(--app-background-color) 60%, white);
       }
 
       td {
