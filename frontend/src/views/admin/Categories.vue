@@ -396,7 +396,7 @@ onMounted(() => {
   --primary: #3b82f6;
   --success: #10b981;
   --border: #e2e8f0;
-  padding: 1.5rem;
+  padding: 0.75rem 1rem;
   background: white;
   min-height: 100%;
 }
@@ -406,10 +406,10 @@ onMounted(() => {
   justify-content: space-between;
   align-items: center;
   gap: 1rem;
-  margin-bottom: 2rem;
+  margin-bottom: 0.75rem;
 
   h2 {
-    font-size: 1.5rem;
+    font-size: 1.25rem;
     color: #1e293b;
   }
 }
@@ -420,7 +420,7 @@ onMounted(() => {
 }
 
 .page-subtitle {
-  margin-top: 0.25rem;
+  margin-top: 0.15rem;
 }
 
 .categories-table-wrapper {
@@ -438,15 +438,15 @@ onMounted(() => {
 
   th {
     background: #f1f5f9;
-    padding: 1rem;
-    font-size: 0.8rem;
+    padding: 0.55rem 0.75rem;
+    font-size: 0.78rem;
     text-transform: uppercase;
     color: #64748b;
     text-align: left;
   }
 
   td {
-    padding: 1rem;
+    padding: 0.5rem 0.75rem;
     border-bottom: 1px solid var(--border);
     vertical-align: top;
   }

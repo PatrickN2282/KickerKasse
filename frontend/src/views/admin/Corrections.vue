@@ -535,23 +535,24 @@ onMounted(() => {
 <style scoped lang="scss">
 .admin-corrections {
   --border: #e2e8f0;
-  padding: 1.25rem;
+  padding: 0.75rem 1rem;
   background: white;
   min-height: 100%;
 }
 
 .page-header {
-  margin-bottom: 1rem;
+  margin-bottom: 0.6rem;
 
   h2 {
     margin: 0;
     color: #1e293b;
+    font-size: 1.25rem;
   }
 }
 
 .page-subtitle {
   color: #64748b;
-  margin-top: 0.25rem;
+  margin-top: 0.15rem;
 }
 
 .page-note {

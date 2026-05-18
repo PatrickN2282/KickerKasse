@@ -955,13 +955,13 @@ onMounted(() => {
 
 <style scoped lang="scss">
 .vouchers-container {
-  padding: 1.25rem;
+  padding: 0.75rem 1rem;
   background: #cfd3d8;
   min-height: 100%;
 
   h2 {
     color: #333;
-    margin-bottom: 1rem;
+    margin-bottom: 0.6rem;
   }
 }
 
@@ -1021,51 +1021,51 @@ onMounted(() => {
 .form-grid {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(350px, 1fr));
-  gap: 2rem;
-  margin-bottom: 2rem;
+  gap: 1rem;
+  margin-bottom: 1rem;
 }
 
 .form-card {
   border: 1px solid #9ca4ae;
   border-radius: 8px;
-  padding: 1.5rem;
+  padding: 1rem;
   background: #dde2e8;
 
   h3 {
     color: #333;
-    margin-bottom: 0.5rem;
+    margin-bottom: 0.4rem;
   }
 
   .form-description {
     color: #666;
     font-size: 0.85rem;
-    margin-bottom: 1.5rem;
+    margin-bottom: 0.75rem;
   }
 
   .form-help {
     color: #555;
     font-size: 0.85rem;
-    margin-bottom: 1rem;
+    margin-bottom: 0.6rem;
   }
 }
 
 .form-group {
-  margin-bottom: 1rem;
+  margin-bottom: 0.6rem;
 
   label {
     display: block;
     color: #333;
     font-weight: 500;
-    margin-bottom: 0.5rem;
+    margin-bottom: 0.3rem;
   }
 
   input,
   select {
     width: 100%;
-    padding: 0.75rem;
+    padding: 0.5rem 0.75rem;
     border: 1px solid #ddd;
     border-radius: 8px;
-    font-size: 1rem;
+    font-size: 0.9rem;
 
     &:focus {
       outline: none;
@@ -1085,8 +1085,8 @@ onMounted(() => {
   background: #d4edda;
   border: 1px solid #c3e6cb;
   border-radius: 4px;
-  padding: 1rem;
-  margin-top: 1.5rem;
+  padding: 0.75rem 1rem;
+  margin-top: 0.75rem;
   color: #155724;
 
   p {
@@ -1105,15 +1105,15 @@ onMounted(() => {
   background: #f8d7da;
   border: 1px solid #f5c6cb;
   border-radius: 4px;
-  padding: 1rem;
-  margin-top: 1rem;
+  padding: 0.75rem 1rem;
+  margin-top: 0.6rem;
   color: #721c24;
 }
 
 .filter-section {
   display: flex;
   gap: 1rem;
-  margin-bottom: 2rem;
+  margin-bottom: 1rem;
   align-items: flex-end;
   flex-wrap: wrap;
 }
@@ -1121,7 +1121,7 @@ onMounted(() => {
 .filter-group {
   display: flex;
   flex-direction: column;
-  gap: 0.5rem;
+  gap: 0.35rem;
 
   label {
     color: #333;
@@ -1130,7 +1130,7 @@ onMounted(() => {
   }
 
   select {
-    padding: 0.5rem;
+    padding: 0.45rem 0.6rem;
     border: 1px solid #ddd;
     border-radius: 4px;
     font-size: 0.9rem;
@@ -1142,13 +1142,13 @@ onMounted(() => {
   overflow-x: auto;
   border: 1px solid #9ca4ae;
   border-radius: 8px;
-  margin-bottom: 2rem;
+  margin-bottom: 1rem;
 }
 
 .vouchers-table {
   width: 100%;
   border-collapse: collapse;
-  font-size: 0.9rem;
+  font-size: 0.88rem;
 
   thead {
     background: #d8dde3;
@@ -1156,7 +1156,7 @@ onMounted(() => {
 
   th,
   td {
-    padding: 0.75rem;
+    padding: 0.5rem 0.75rem;
     text-align: left;
     border-bottom: 1px solid #ddd;
   }

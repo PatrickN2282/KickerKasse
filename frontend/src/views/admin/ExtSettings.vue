@@ -284,39 +284,39 @@ onMounted(async () => {
   --primary: #3b82f6;
   --success: #10b981;
   --border: #e2e8f0;
-  padding: 1.5rem;
+  padding: 0.75rem 1rem;
   background: white;
   min-height: 100%;
 }
 
 .page-header {
-  margin-bottom: 2rem;
+  margin-bottom: 0.75rem;
 
   h2 {
-    font-size: 1.5rem;
+    font-size: 1.25rem;
     color: #1e293b;
   }
 }
 
 .page-subtitle {
   color: #64748b;
-  margin-top: 0.25rem;
+  margin-top: 0.15rem;
 }
 
 .settings-grid {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(360px, 1fr));
-  gap: 1.5rem;
+  gap: 1rem;
 }
 
 .settings-card {
   background: #f8fafc;
   border: 1px solid var(--border);
   border-radius: 14px;
-  padding: 1.5rem;
+  padding: 1rem;
   display: flex;
   flex-direction: column;
-  gap: 1.25rem;
+  gap: 0.85rem;
 }
 
 .settings-card-header {

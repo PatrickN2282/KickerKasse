@@ -59,16 +59,14 @@ const isTabActive = (path) => route.path === path
 .admin-container {
   height: 100%;
   min-height: 0;
-  padding: 1rem 1.25rem 1.25rem;
-  max-width: 1400px;
-  margin: 0 auto;
+  padding: 0.5rem 1rem 0.75rem;
   display: flex;
   flex-direction: column;
 }
 
 .admin-header {
   flex-shrink: 0;
-  padding-bottom: 0.75rem;
+  padding-bottom: 0.4rem;
   background: var(--app-background-color);
 }
 
@@ -76,22 +74,23 @@ const isTabActive = (path) => route.path === path
   display: flex;
   align-items: center;
   gap: 1rem;
-  margin-bottom: 1rem;
+  margin-bottom: 0.5rem;
 
   h1 {
     color: #333;
     margin: 0;
+    font-size: 1.35rem;
   }
 }
 
 .admin-donate-link {
-  font-size: 0.8rem;
+  font-size: 0.78rem;
   font-weight: 600;
   color: #888;
   text-decoration: none;
   border: 1px solid #ddd;
   border-radius: 6px;
-  padding: 0.25rem 0.6rem;
+  padding: 0.2rem 0.5rem;
   white-space: nowrap;
   transition: color 0.15s, border-color 0.15s;
 
@@ -103,9 +102,9 @@ const isTabActive = (path) => route.path === path
 
 .admin-tabs {
   display: flex;
-  gap: 0.5rem;
-  margin-bottom: 1rem;
-  padding-bottom: 0.75rem;
+  gap: 0.4rem;
+  margin-bottom: 0.5rem;
+  padding-bottom: 0.5rem;
   border-bottom: 1px solid #e2e8f0;
   flex-wrap: wrap;
 }
@@ -113,13 +112,13 @@ const isTabActive = (path) => route.path === path
 .tab-button {
   display: inline-flex;
   align-items: center;
-  gap: 0.45rem;
+  gap: 0.4rem;
   white-space: nowrap;
-  padding: 0.55rem 0.9rem;
+  padding: 0.4rem 0.75rem;
   background: color-mix(in srgb, var(--app-banner-color) 14%, white);
   border: 1px solid color-mix(in srgb, var(--app-banner-color) 70%, #000 25%);
   color: #334155;
-  font-size: 0.9rem;
+  font-size: 0.85rem;
   font-weight: 700;
   cursor: pointer;
   transition: all 0.2s ease;
@@ -135,7 +134,7 @@ const isTabActive = (path) => route.path === path
 }
 
 .tab-icon {
-  font-size: 0.95rem;
+  font-size: 0.85rem;
 }
 
 .tab-content {
@@ -148,12 +147,12 @@ const isTabActive = (path) => route.path === path
 
 @media (max-width: 700px) {
   .admin-container {
-    padding: 0.85rem 0.9rem 1rem;
+    padding: 0.4rem 0.75rem 0.6rem;
   }
 
   .tab-button {
-    padding: 0.5rem 0.75rem;
-    font-size: 0.85rem;
+    padding: 0.35rem 0.6rem;
+    font-size: 0.8rem;
   }
 }
 
