@@ -2,10 +2,13 @@
   <div class="admin-corrections">
     <div class="page-header">
       <div class="page-header-title">
-        <h2>Korrektur-Buchungen</h2>
-        <p class="page-subtitle">
-          Guthaben und Lagerbestände ohne Bargeldfluss revisionssicher korrigieren.
-        </p>
+        <div class="title-row">
+          <h2>Korrektur-Buchungen</h2>
+          <span class="title-sep">|</span>
+          <span class="page-subtitle">
+            Guthaben und Lagerbestände ohne Bargeldfluss revisionssicher korrigieren.
+          </span>
+        </div>
         <p class="page-note">
           Korrekturen werden als separate Korrekturbuchungen dokumentiert und direkt im jeweiligen Bereich archiviert.
         </p>
@@ -535,7 +538,7 @@ onMounted(() => {
 .admin-corrections {
   --border: #e2e8f0;
   padding: 0.75rem 1rem;
-  background: white;
+  background: var(--app-background-color);
   min-height: 100%;
 }
 
@@ -543,36 +546,48 @@ onMounted(() => {
   position: sticky;
   top: 0;
   z-index: 10;
-  background: white;
+  background: var(--app-background-color);
   display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 1rem;
+  flex-direction: column;
+  gap: 0.5rem;
   flex-wrap: wrap;
   margin: -0.75rem -1rem 0.6rem;
   padding: 0.75rem 1rem;
-  border-bottom: 1px solid var(--border);
+  border-bottom: 1px solid rgba(0, 0, 0, 0.13);
 
   h2 {
     margin: 0;
-    color: #1e293b;
+    color: #333;
     font-size: 1.25rem;
   }
 }
 
 .page-header-title {
-  flex: 1;
-  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.2rem;
+}
+
+.title-row {
+  display: flex;
+  align-items: baseline;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+}
+
+.title-sep {
+  color: #aaa;
+  font-weight: 300;
 }
 
 .page-subtitle {
   color: #64748b;
-  margin-top: 0.15rem;
+  margin: 0;
 }
 
 .page-note {
   color: #64748b;
-  margin-top: 0.35rem;
+  margin: 0;
   font-size: 0.86rem;
 }
 
@@ -618,9 +633,9 @@ onMounted(() => {
 }
 
 .panel-card {
-  border: 1px solid var(--border);
+  border: 1px solid color-mix(in srgb, var(--app-background-color) 65%, #777);
   border-radius: 12px;
-  background: #fff;
+  background: color-mix(in srgb, var(--app-background-color) 55%, white);
   padding: 1rem;
 }
 

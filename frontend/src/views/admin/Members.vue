@@ -1,13 +1,16 @@
 <template>
   <div class="admin-members">
     <div class="page-header">
-      <div>
+      <div class="title-row">
         <h2>Mitgliederverwaltung</h2>
-        <p class="page-subtitle">Stammdaten, Guthaben und System-Zugänge zentral pflegen.</p>
+        <span class="title-sep">|</span>
+        <span class="page-subtitle">Stammdaten, Guthaben und System-Zugänge zentral pflegen.</span>
       </div>
-      <button class="btn btn-primary" @click="openCreateModal">
-        <span class="icon">+</span> Neues Mitglied
-      </button>
+      <div class="page-header-actions">
+        <button class="btn btn-primary" @click="openCreateModal">
+          <span class="icon">+</span> Neues Mitglied
+        </button>
+      </div>
     </div>
 
     <div v-if="memberStore.isLoading" class="loading-state">
@@ -392,7 +395,7 @@ onMounted(() => memberStore.getMembers())
   --bg-main: #f8fafc;
   --border: #e2e8f0;
   padding: 0.75rem 1rem;
-  background: white;
+  background: var(--app-background-color);
   min-height: 100%;
 }
 
@@ -400,17 +403,36 @@ onMounted(() => memberStore.getMembers())
   position: sticky;
   top: 0;
   z-index: 10;
-  background: white;
+  background: var(--app-background-color);
   display: flex;
-  justify-content: space-between;
-  align-items: center;
+  flex-direction: column;
+  gap: 0.5rem;
   margin: -0.75rem -1rem 0.75rem;
   padding: 0.75rem 1rem;
-  border-bottom: 1px solid #e2e8f0;
-  h2 { font-size: 1.25rem; color: #1e293b; }
+  border-bottom: 1px solid rgba(0, 0, 0, 0.13);
 }
 
-.page-subtitle, .modal-subtitle { color: #64748b; margin-top: 0.15rem; }
+.title-row {
+  display: flex;
+  align-items: baseline;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+
+  h2 { font-size: 1.25rem; color: #333; margin: 0; }
+}
+
+.title-sep {
+  color: #aaa;
+  font-weight: 300;
+}
+
+.page-header-actions {
+  display: flex;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+}
+
+.page-subtitle, .modal-subtitle { color: #64748b; margin: 0; }
 
 .table-toolbar {
   margin-bottom: 0.6rem;
@@ -433,9 +455,9 @@ onMounted(() => memberStore.getMembers())
 
 /* Tabelle */
 .members-table-wrapper {
-  background: white;
+  background: color-mix(in srgb, var(--app-background-color) 30%, white);
   border-radius: 12px;
-  border: 1px solid var(--border);
+  border: 1px solid color-mix(in srgb, var(--app-background-color) 65%, #777);
   overflow-x: auto;
 }
 
@@ -443,7 +465,7 @@ onMounted(() => memberStore.getMembers())
   width: 100%;
   border-collapse: collapse;
   th {
-    background: #f1f5f9;
+    background: color-mix(in srgb, var(--app-background-color) 75%, white);
     padding: 0.55rem 0.75rem;
     font-size: 0.78rem;
     text-transform: uppercase;

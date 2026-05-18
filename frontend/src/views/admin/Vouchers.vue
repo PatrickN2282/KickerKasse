@@ -1,9 +1,10 @@
 <template>
   <div class="vouchers-container">
     <div class="page-header">
-      <div class="page-header-title">
+      <div class="title-row">
         <h2>🎫 Gutscheine</h2>
-        <p class="page-subtitle">Gutscheine erstellen und verwalten.</p>
+        <span class="title-sep">|</span>
+        <span class="page-subtitle">Gutscheine erstellen und verwalten.</span>
       </div>
 
       <!-- Sub-tabs -->
@@ -961,7 +962,7 @@ onMounted(() => {
 <style scoped lang="scss">
 .vouchers-container {
   padding: 0.75rem 1rem;
-  background: #cfd3d8;
+  background: var(--app-background-color);
   min-height: 100%;
 }
 
@@ -969,25 +970,31 @@ onMounted(() => {
   position: sticky;
   top: 0;
   z-index: 10;
-  background: #cfd3d8;
+  background: var(--app-background-color);
   display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 1rem;
-  flex-wrap: wrap;
+  flex-direction: column;
+  gap: 0.5rem;
   margin: -0.75rem -1rem 1rem;
   padding: 0.75rem 1rem;
-  border-bottom: 1px solid #aeb5be;
+  border-bottom: 1px solid rgba(0, 0, 0, 0.13);
 }
 
-.page-header-title {
-  flex-shrink: 0;
+.title-row {
+  display: flex;
+  align-items: baseline;
+  gap: 0.5rem;
+  flex-wrap: wrap;
 
   h2 {
     color: #333;
-    margin: 0 0 0.15rem;
+    margin: 0;
     font-size: 1.25rem;
   }
+}
+
+.title-sep {
+  color: #aaa;
+  font-weight: 300;
 }
 
 .page-subtitle {
@@ -1043,7 +1050,6 @@ onMounted(() => {
     padding: 1rem;
   }
 }
-
 .manage-section {
   animation: fadeIn 0.2s;
 }
@@ -1056,10 +1062,10 @@ onMounted(() => {
 }
 
 .form-card {
-  border: 1px solid #9ca4ae;
-  border-radius: 8px;
+  border: 1px solid color-mix(in srgb, var(--app-background-color) 65%, #777);
+  border-radius: 12px;
   padding: 1rem;
-  background: #dde2e8;
+  background: color-mix(in srgb, var(--app-background-color) 55%, white);
 
   h3 {
     color: #333;
@@ -1170,8 +1176,8 @@ onMounted(() => {
 
 .table-container {
   overflow-x: auto;
-  border: 1px solid #9ca4ae;
-  border-radius: 8px;
+  border: 1px solid color-mix(in srgb, var(--app-background-color) 65%, #777);
+  border-radius: 12px;
   margin-bottom: 1rem;
 }
 
@@ -1181,7 +1187,7 @@ onMounted(() => {
   font-size: 0.88rem;
 
   thead {
-    background: #d8dde3;
+    background: color-mix(in srgb, var(--app-background-color) 80%, white);
   }
 
   th,
@@ -1197,7 +1203,7 @@ onMounted(() => {
   }
 
   tr:hover {
-    background: #dde2e8;
+    background: color-mix(in srgb, var(--app-background-color) 60%, white);
   }
 
   .voucher-number {
@@ -1371,7 +1377,7 @@ onMounted(() => {
 
 .modal-card {
   width: min(480px, calc(100vw - 2rem));
-  background: #dde2e8;
+  background: color-mix(in srgb, var(--app-background-color) 55%, white);
   border-radius: 12px;
   padding: 1.5rem;
   box-shadow: 0 16px 40px rgba(15, 20, 28, 0.22);

@@ -2,9 +2,10 @@
   <div class="admin-config">
     <!-- Inner section navigation -->
     <div class="section-nav">
-      <div class="section-nav-title">
+      <div class="title-row">
         <span class="section-nav-label">Einstellungen</span>
-        <span class="section-nav-desc">Konfiguration, Design und Systemeinstellungen.</span>
+        <span class="title-sep">|</span>
+        <span class="page-subtitle">Konfiguration, Design und Systemeinstellungen.</span>
       </div>
       <div class="section-nav-buttons">
         <button
@@ -214,9 +215,10 @@
     <!-- ── Ext. Settings (TOP_ADMIN only) ─────────────── -->
     <div v-if="activeSection === 'extsettings' && authStore.isTopAdmin" class="section-content ext-settings-section">
       <div class="page-header">
-        <div>
+        <div class="title-row">
           <h2>⚙️ Ext. Settings</h2>
-          <p class="page-subtitle">Erweiterte Einstellungen – nur für TopAdmin zugänglich.</p>
+          <span class="title-sep">|</span>
+          <span class="page-subtitle">Erweiterte Einstellungen – nur für TopAdmin zugänglich.</span>
         </div>
       </div>
 
@@ -588,7 +590,7 @@ onMounted(async () => {
 
 <style scoped lang="scss">
 .admin-config {
-  background: white;
+  background: var(--app-background-color);
   padding: 0.75rem 1rem;
   border-radius: 8px;
   min-height: 100%;
@@ -599,35 +601,39 @@ onMounted(async () => {
   position: sticky;
   top: 0;
   z-index: 10;
-  background: white;
+  background: var(--app-background-color);
   display: flex;
-  align-items: center;
-  gap: 1rem;
+  flex-direction: column;
+  gap: 0.5rem;
   margin: -0.75rem -1rem 1rem;
   padding: 0.75rem 1rem;
-  border-bottom: 1px solid #e2e8f0;
+  border-bottom: 1px solid rgba(0, 0, 0, 0.13);
   flex-wrap: wrap;
 }
 
-.section-nav-title {
+.title-row {
   display: flex;
-  flex-direction: column;
-  gap: 0.1rem;
-  flex-shrink: 0;
-  margin-right: 0.5rem;
+  align-items: baseline;
+  gap: 0.5rem;
+  flex-wrap: wrap;
 }
 
 .section-nav-label {
   font-size: 1.15rem;
   font-weight: 700;
-  color: #1e293b;
+  color: #333;
   line-height: 1.2;
 }
 
-.section-nav-desc {
-  font-size: 0.78rem;
-  color: #64748b;
-  line-height: 1.3;
+.title-sep {
+  color: #aaa;
+  font-weight: 300;
+}
+
+.page-subtitle {
+  font-size: 0.82rem;
+  color: #556;
+  margin: 0;
 }
 
 .section-nav-buttons {
@@ -679,9 +685,10 @@ onMounted(async () => {
 }
 
 .settings-card {
-  background: #f5f5f5;
+  background: color-mix(in srgb, var(--app-background-color) 55%, white);
+  border: 1px solid color-mix(in srgb, var(--app-background-color) 65%, #777);
   padding: 1rem;
-  border-radius: 8px;
+  border-radius: 12px;
   display: flex;
   flex-direction: column;
   gap: 0.75rem;
@@ -882,15 +889,9 @@ onMounted(async () => {
 
   h2 {
     font-size: 1.2rem;
-    color: #1e293b;
-    margin: 0 0 0.15rem;
+    color: #333;
+    margin: 0;
   }
-}
-
-.page-subtitle {
-  color: #64748b;
-  font-size: 0.85rem;
-  margin: 0;
 }
 
 .ext-settings-grid {
@@ -900,8 +901,8 @@ onMounted(async () => {
 }
 
 .ext-card {
-  background: #f8fafc;
-  border: 1px solid #e2e8f0;
+  background: color-mix(in srgb, var(--app-background-color) 55%, white);
+  border: 1px solid color-mix(in srgb, var(--app-background-color) 65%, #777);
   border-radius: 14px;
   padding: 1rem;
   display: flex;
