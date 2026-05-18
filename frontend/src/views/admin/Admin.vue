@@ -40,14 +40,12 @@ const authStore = useAuthStore()
 
 const tabs = [
   { path: '/admin/members', label: 'Mitglieder', icon: '👥', roles: ['TOP_ADMIN', 'ADMIN', 'MANAGER'] },
+  { path: '/admin/users', label: 'Benutzer', icon: '👤', roles: ['TOP_ADMIN', 'ADMIN'] },
   { path: '/admin/products', label: 'Produkte', icon: '📦', roles: ['TOP_ADMIN', 'ADMIN', 'MANAGER'] },
   { path: '/admin/categories', label: 'Kategorien', icon: '🏷️', roles: ['TOP_ADMIN', 'ADMIN'] },
-  { path: '/admin/users', label: 'Benutzer', icon: '👤', roles: ['TOP_ADMIN', 'ADMIN'] },
-  { path: '/admin/vouchers', label: 'Gutscheine', icon: '🎫', roles: ['TOP_ADMIN', 'ADMIN', 'MANAGER'] },
   { path: '/admin/finance', label: 'Finanzen', icon: '💰', roles: ['TOP_ADMIN', 'ADMIN', 'MANAGER'] },
-  { path: '/admin/settings', label: 'Design', icon: '🎨', roles: ['TOP_ADMIN', 'ADMIN'] },
-  { path: '/admin/data-maintenance', label: 'Datenpflege', icon: '🧹', roles: ['TOP_ADMIN', 'ADMIN'] },
-  { path: '/admin/ext-settings', label: 'Ext. Settings', icon: '⚙️', roles: ['TOP_ADMIN'] },
+  { path: '/admin/vouchers', label: 'Gutscheine', icon: '🎫', roles: ['TOP_ADMIN', 'ADMIN', 'MANAGER'] },
+  { path: '/admin/config', label: 'Einstellungen', icon: '⚙️', roles: ['TOP_ADMIN', 'ADMIN'] },
 ]
 
 const visibleTabs = computed(() => tabs.filter(tab => tab.roles.includes(authStore.role)))
