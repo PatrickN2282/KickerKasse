@@ -2,28 +2,34 @@
   <div class="admin-config">
     <!-- Inner section navigation -->
     <div class="section-nav">
-      <button
-        :class="['section-tab', { active: activeSection === 'design' }]"
-        type="button"
-        @click="activeSection = 'design'"
-      >
-        🎨 Design
-      </button>
-      <button
-        :class="['section-tab', { active: activeSection === 'datamaintenance' }]"
-        type="button"
-        @click="activeSection = 'datamaintenance'"
-      >
-        🧹 Datenpflege
-      </button>
-      <button
-        v-if="authStore.isTopAdmin"
-        :class="['section-tab', { active: activeSection === 'extsettings' }]"
-        type="button"
-        @click="activeSection = 'extsettings'"
-      >
-        ⚙️ Ext. Settings
-      </button>
+      <div class="section-nav-title">
+        <span class="section-nav-label">Einstellungen</span>
+        <span class="section-nav-desc">Konfiguration, Design und Systemeinstellungen.</span>
+      </div>
+      <div class="section-nav-buttons">
+        <button
+          :class="['section-tab', { active: activeSection === 'design' }]"
+          type="button"
+          @click="activeSection = 'design'"
+        >
+          🎨 Design
+        </button>
+        <button
+          :class="['section-tab', { active: activeSection === 'datamaintenance' }]"
+          type="button"
+          @click="activeSection = 'datamaintenance'"
+        >
+          🧹 Datenpflege
+        </button>
+        <button
+          v-if="authStore.isTopAdmin"
+          :class="['section-tab', { active: activeSection === 'extsettings' }]"
+          type="button"
+          @click="activeSection = 'extsettings'"
+        >
+          ⚙️ Ext. Settings
+        </button>
+      </div>
     </div>
 
     <!-- ── Design ─────────────────────────────────────── -->
@@ -590,11 +596,43 @@ onMounted(async () => {
 
 // ── Inner section nav ─────────────────────────────────
 .section-nav {
+  position: sticky;
+  top: 0;
+  z-index: 10;
+  background: white;
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  margin: -0.75rem -1rem 1rem;
+  padding: 0.75rem 1rem;
+  border-bottom: 1px solid #e2e8f0;
+  flex-wrap: wrap;
+}
+
+.section-nav-title {
+  display: flex;
+  flex-direction: column;
+  gap: 0.1rem;
+  flex-shrink: 0;
+  margin-right: 0.5rem;
+}
+
+.section-nav-label {
+  font-size: 1.15rem;
+  font-weight: 700;
+  color: #1e293b;
+  line-height: 1.2;
+}
+
+.section-nav-desc {
+  font-size: 0.78rem;
+  color: #64748b;
+  line-height: 1.3;
+}
+
+.section-nav-buttons {
   display: flex;
   gap: 0.4rem;
-  margin-bottom: 1rem;
-  padding-bottom: 0.75rem;
-  border-bottom: 1px solid #e2e8f0;
   flex-wrap: wrap;
 }
 

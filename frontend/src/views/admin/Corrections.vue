@@ -1,7 +1,7 @@
 <template>
   <div class="admin-corrections">
     <div class="page-header">
-      <div>
+      <div class="page-header-title">
         <h2>Korrektur-Buchungen</h2>
         <p class="page-subtitle">
           Guthaben und Lagerbestände ohne Bargeldfluss revisionssicher korrigieren.
@@ -10,19 +10,18 @@
           Korrekturen werden als separate Korrekturbuchungen dokumentiert und direkt im jeweiligen Bereich archiviert.
         </p>
       </div>
-    </div>
-
-    <div class="correction-subtabs">
-      <button
-        v-for="tab in subTabs"
-        :key="tab.id"
-        :class="['subtab-button', { active: activeTab === tab.id }]"
-        type="button"
-        @click="activeTab = tab.id"
-      >
-        <span class="subtab-icon">{{ tab.icon }}</span>
-        <span>{{ tab.label }}</span>
-      </button>
+      <div class="correction-subtabs">
+        <button
+          v-for="tab in subTabs"
+          :key="tab.id"
+          :class="['subtab-button', { active: activeTab === tab.id }]"
+          type="button"
+          @click="activeTab = tab.id"
+        >
+          <span class="subtab-icon">{{ tab.icon }}</span>
+          <span>{{ tab.label }}</span>
+        </button>
+      </div>
     </div>
 
     <div class="correction-content">
@@ -541,13 +540,29 @@ onMounted(() => {
 }
 
 .page-header {
-  margin-bottom: 0.6rem;
+  position: sticky;
+  top: 0;
+  z-index: 10;
+  background: white;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  flex-wrap: wrap;
+  margin: -0.75rem -1rem 0.6rem;
+  padding: 0.75rem 1rem;
+  border-bottom: 1px solid var(--border);
 
   h2 {
     margin: 0;
     color: #1e293b;
     font-size: 1.25rem;
   }
+}
+
+.page-header-title {
+  flex: 1;
+  min-width: 0;
 }
 
 .page-subtitle {
@@ -565,10 +580,6 @@ onMounted(() => {
   display: flex;
   gap: 0.5rem;
   flex-wrap: wrap;
-  margin: 0 0 1rem;
-  padding: 0.4rem 0 0.75rem;
-  background: white;
-  border-bottom: 1px solid var(--border);
 }
 
 .subtab-button {
@@ -576,16 +587,21 @@ onMounted(() => {
   align-items: center;
   gap: 0.45rem;
   padding: 0.5rem 0.85rem;
-  border: 1px solid color-mix(in srgb, var(--app-banner-color) 70%, #000 25%);
+  border: 1px solid #e2e8f0;
   border-radius: 8px;
-  background: color-mix(in srgb, var(--app-banner-color) 14%, white);
-  color: #334155;
+  background: #f1f5f9;
+  color: #94a3b8;
   font-weight: 700;
   cursor: pointer;
   transition: all 0.2s ease;
 
-  &.active,
   &:hover {
+    background: color-mix(in srgb, var(--app-banner-color) 14%, white);
+    border-color: color-mix(in srgb, var(--app-banner-color) 70%, #000 25%);
+    color: #334155;
+  }
+
+  &.active {
     background: var(--app-highlight-color);
     border-color: var(--app-highlight-color);
     color: var(--app-highlight-contrast);

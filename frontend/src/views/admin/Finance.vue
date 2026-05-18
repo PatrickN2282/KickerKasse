@@ -1,17 +1,21 @@
 <template>
   <div class="admin-finance">
-    <h2>Finanzstatistik</h2>
-
-    <div class="finance-tabs">
-      <button
-        v-for="tab in tabs"
-        :key="tab"
-        :class="{ active: activeTab === tab }"
-        class="tab-btn"
-        @click="activeTab = tab"
-      >
-        {{ tabLabels[tab] }}
-      </button>
+    <div class="page-header">
+      <div class="page-header-title">
+        <h2>Finanzen</h2>
+        <p class="page-subtitle">Tagesabrechnungen, Z-Bons und Umsatzübersichten.</p>
+      </div>
+      <div class="finance-tabs">
+        <button
+          v-for="tab in tabs"
+          :key="tab"
+          :class="{ active: activeTab === tab }"
+          class="tab-btn"
+          @click="activeTab = tab"
+        >
+          {{ tabLabels[tab] }}
+        </button>
+      </div>
     </div>
 
     <!-- Z-BON / Tagesabrechnung -->
@@ -2551,11 +2555,6 @@ onMounted(() => {
   padding: 0.75rem 1rem;
   box-shadow: 0 10px 24px rgba(24, 28, 34, 0.14);
 
-  h2 {
-    margin-bottom: 0.6rem;
-    color: #333;
-  }
-
   h3 {
     margin-bottom: 0.75rem;
     color: #555;
@@ -2567,34 +2566,58 @@ onMounted(() => {
   }
 }
 
-.finance-tabs {
+.page-header {
   position: sticky;
   top: 0;
-  z-index: 5;
+  z-index: 10;
+  background: #dde2e8;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  flex-wrap: wrap;
+  margin: -0.75rem -1rem 1rem;
+  padding: 0.75rem 1rem;
+  border-bottom: 1px solid #aeb5be;
+}
+
+.page-header-title {
+  flex-shrink: 0;
+
+  h2 {
+    margin: 0 0 0.15rem;
+    color: #333;
+    font-size: 1.25rem;
+  }
+}
+
+.page-subtitle {
+  color: #556;
+  font-size: 0.82rem;
+  margin: 0;
+}
+
+.finance-tabs {
   display: flex;
   gap: 0.5rem;
-  margin-bottom: 1rem;
-  padding: 0.35rem 0 0.7rem;
-  border-bottom: 1px solid #aeb5be;
   flex-wrap: wrap;
-  background: #dde2e8;
 }
 
 .tab-btn {
   padding: 0.5rem 0.9rem;
-  background: color-mix(in srgb, var(--app-banner-color) 14%, white);
-  border: 1px solid color-mix(in srgb, var(--app-banner-color) 70%, #000 25%);
+  background: #f1f5f9;
+  border: 1px solid #e2e8f0;
   border-radius: 8px;
   cursor: pointer;
   font-size: 0.9rem;
   font-weight: 700;
-  color: #334155;
+  color: #94a3b8;
   transition: all 0.2s;
 
   &:hover {
-    background: var(--app-highlight-color);
-    border-color: var(--app-highlight-color);
-    color: var(--app-highlight-contrast);
+    background: color-mix(in srgb, var(--app-banner-color) 14%, white);
+    border-color: color-mix(in srgb, var(--app-banner-color) 70%, #000 25%);
+    color: #334155;
   }
 
   &.active {
@@ -2610,6 +2633,11 @@ onMounted(() => {
 
 @media (max-width: 700px) {
   .admin-finance {
+    padding: 1rem;
+  }
+
+  .page-header {
+    margin: -1rem -1rem 1rem;
     padding: 1rem;
   }
 }
