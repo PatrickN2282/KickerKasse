@@ -113,9 +113,9 @@ const isTabActive = (path) => route.path === path
   gap: 0.4rem;
   white-space: nowrap;
   padding: 0.4rem 0.75rem;
-  background: color-mix(in srgb, var(--app-banner-color) 14%, white);
-  border: 1px solid color-mix(in srgb, var(--app-banner-color) 70%, #000 25%);
-  color: #334155;
+  background: #f1f5f9;
+  border: 1px solid #e2e8f0;
+  color: #94a3b8;
   font-size: 0.85rem;
   font-weight: 700;
   cursor: pointer;
@@ -123,7 +123,12 @@ const isTabActive = (path) => route.path === path
   text-decoration: none;
   border-radius: 8px;
 
-  &:hover,
+  &:hover {
+    background: color-mix(in srgb, var(--app-banner-color) 14%, white);
+    border-color: color-mix(in srgb, var(--app-banner-color) 70%, #000 25%);
+    color: #334155;
+  }
+
   &.active {
     background: var(--app-highlight-color);
     border-color: var(--app-highlight-color);

@@ -397,10 +397,16 @@ onMounted(() => memberStore.getMembers())
 }
 
 .page-header {
+  position: sticky;
+  top: 0;
+  z-index: 10;
+  background: white;
   display: flex;
   justify-content: space-between;
   align-items: center;
-  margin-bottom: 0.75rem;
+  margin: -0.75rem -1rem 0.75rem;
+  padding: 0.75rem 1rem;
+  border-bottom: 1px solid #e2e8f0;
   h2 { font-size: 1.25rem; color: #1e293b; }
 }
 

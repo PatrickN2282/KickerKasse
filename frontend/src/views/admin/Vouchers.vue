@@ -1,28 +1,33 @@
 <template>
   <div class="vouchers-container">
-    <h2>🎫 Gutscheine Verwaltung</h2>
+    <div class="page-header">
+      <div class="page-header-title">
+        <h2>🎫 Gutscheine</h2>
+        <p class="page-subtitle">Gutscheine erstellen und verwalten.</p>
+      </div>
 
-    <!-- Sub-tabs -->
-    <div class="voucher-subtabs">
-      <button
-        :class="['subtab-button', { active: activeSubTab === 'create' }]"
-        @click="activeSubTab = 'create'"
-      >
-        ➕ Erstellen
-      </button>
-      <button
-        :class="['subtab-button', { active: activeSubTab === 'manage' }]"
-        @click="activeSubTab = 'manage'"
-      >
-        📋 Verwaltung
-      </button>
-      <button
-        v-if="authStore.isAdmin"
-        :class="['subtab-button', { active: activeSubTab === 'club-account' }]"
-        @click="activeSubTab = 'club-account'; loadClubAccount()"
-      >
-        🏦 Gutscheinkonto
-      </button>
+      <!-- Sub-tabs -->
+      <div class="voucher-subtabs">
+        <button
+          :class="['subtab-button', { active: activeSubTab === 'create' }]"
+          @click="activeSubTab = 'create'"
+        >
+          ➕ Erstellen
+        </button>
+        <button
+          :class="['subtab-button', { active: activeSubTab === 'manage' }]"
+          @click="activeSubTab = 'manage'"
+        >
+          📋 Verwaltung
+        </button>
+        <button
+          v-if="authStore.isAdmin"
+          :class="['subtab-button', { active: activeSubTab === 'club-account' }]"
+          @click="activeSubTab = 'club-account'; loadClubAccount()"
+        >
+          🏦 Gutscheinkonto
+        </button>
+      </div>
     </div>
 
     <!-- CREATE TAB -->
@@ -958,23 +963,43 @@ onMounted(() => {
   padding: 0.75rem 1rem;
   background: #cfd3d8;
   min-height: 100%;
+}
+
+.page-header {
+  position: sticky;
+  top: 0;
+  z-index: 10;
+  background: #cfd3d8;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  flex-wrap: wrap;
+  margin: -0.75rem -1rem 1rem;
+  padding: 0.75rem 1rem;
+  border-bottom: 1px solid #aeb5be;
+}
+
+.page-header-title {
+  flex-shrink: 0;
 
   h2 {
     color: #333;
-    margin-bottom: 0.6rem;
+    margin: 0 0 0.15rem;
+    font-size: 1.25rem;
   }
 }
 
+.page-subtitle {
+  color: #556;
+  font-size: 0.82rem;
+  margin: 0;
+}
+
 .voucher-subtabs {
-  position: sticky;
-  top: 0;
-  z-index: 5;
   display: flex;
   gap: 0.5rem;
-  margin-bottom: 1rem;
-  padding: 0.35rem 0 0.7rem;
-  border-bottom: 1px solid #aeb5be;
-  background: #cfd3d8;
+  flex-wrap: wrap;
 }
 
 .subtab-button {
@@ -982,19 +1007,19 @@ onMounted(() => {
   align-items: center;
   gap: 0.4rem;
   padding: 0.5rem 0.9rem;
-  background: color-mix(in srgb, var(--app-banner-color) 14%, white);
-  border: 1px solid color-mix(in srgb, var(--app-banner-color) 70%, #000 25%);
+  background: #f1f5f9;
+  border: 1px solid #e2e8f0;
   border-radius: 8px;
-  color: #334155;
+  color: #94a3b8;
   font-size: 0.9rem;
   font-weight: 700;
   cursor: pointer;
   transition: all 0.2s;
 
   &:hover {
-    background: var(--app-highlight-color);
-    border-color: var(--app-highlight-color);
-    color: var(--app-highlight-contrast);
+    background: color-mix(in srgb, var(--app-banner-color) 14%, white);
+    border-color: color-mix(in srgb, var(--app-banner-color) 70%, #000 25%);
+    color: #334155;
   }
 
   &.active {
@@ -1010,6 +1035,11 @@ onMounted(() => {
 
 @media (max-width: 700px) {
   .vouchers-container {
+    padding: 1rem;
+  }
+
+  .page-header {
+    margin: -1rem -1rem 1rem;
     padding: 1rem;
   }
 }
