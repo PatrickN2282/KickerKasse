@@ -1,6 +1,12 @@
 <template>
-  <div class="admin-finance">
-    <div class="page-header">
+  <div
+    class="admin-finance"
+    :style="{ '--finance-sticky-offset': `${financeHeaderHeight}px` }"
+  >
+    <div
+      ref="financeHeader"
+      class="page-header"
+    >
       <div class="title-row">
         <h2>Finanzen</h2>
         <span class="title-sep">|</span>
@@ -1459,7 +1465,7 @@
 </template>
 
 <script setup>
-import { ref, computed, onMounted, watch } from 'vue'
+import { ref, computed, nextTick, onBeforeUnmount, onMounted, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { formatPrice } from '@/services/utils'
 import apiService from '@/services/api'
@@ -1476,6 +1482,9 @@ const memberStore = useMemberStore()
 const authStore = useAuthStore()
 const route = useRoute()
 const router = useRouter()
+const financeHeader = ref(null)
+const financeHeaderHeight = ref(0)
+let financeHeaderResizeObserver = null
 
 const DEFAULT_FINANCE_TAB = 'zbon'
 const activeTab = ref(DEFAULT_FINANCE_TAB)
@@ -1600,6 +1609,11 @@ const schedulerStatus = ref({
   running: false,
   scheduled_time: '23:59',
 })
+
+const updateFinanceHeaderHeight = () => {
+  financeHeaderHeight.value = financeHeader.value?.offsetHeight || 0
+}
+
 function getDateDaysAgo(days) {
   const date = new Date()
   date.setDate(date.getDate() - days)
@@ -2537,6 +2551,14 @@ watch([zbonsFilterStartDate, zbonsFilterEndDate, zbonsCurrentPage], () => {
 })
 
 onMounted(() => {
+  nextTick(() => {
+    updateFinanceHeaderHeight()
+    if (typeof ResizeObserver !== 'undefined' && financeHeader.value) {
+      financeHeaderResizeObserver = new ResizeObserver(updateFinanceHeaderHeight)
+      financeHeaderResizeObserver.observe(financeHeader.value)
+    }
+    window.addEventListener('resize', updateFinanceHeaderHeight)
+  })
   console.log('Finance component mounted, loading data...')
   memberStore.getMembers()
   loadFinanceUsers()
@@ -2546,6 +2568,11 @@ onMounted(() => {
   loadMemberStats()
   loadInternalAccounts()
   loadSchedulerStatus()
+})
+
+onBeforeUnmount(() => {
+  financeHeaderResizeObserver?.disconnect()
+  window.removeEventListener('resize', updateFinanceHeaderHeight)
 })
 </script>
 

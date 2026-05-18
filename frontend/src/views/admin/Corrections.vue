@@ -544,8 +544,8 @@ onMounted(() => {
 
 .page-header {
   position: sticky;
-  top: 0;
-  z-index: 10;
+  top: var(--finance-sticky-offset, 0px);
+  z-index: 9;
   background: var(--app-background-color);
   display: flex;
   flex-direction: column;
