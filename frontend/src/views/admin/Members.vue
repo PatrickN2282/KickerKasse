@@ -106,6 +106,7 @@
           <div class="modal-scroller">
 
             <div class="main-form-grid">
+              <!-- LINKE SEITE: Foto & Rabatt-Checkbox -->
               <div class="image-upload-section">
                 <span class="section-label">Foto</span>
                 <div class="avatar-display compact-avatar" @click="$refs.fileInput.click()">
@@ -117,18 +118,17 @@
                 </div>
                 <input type="file" ref="fileInput" hidden @change="handlePhotoUpload" accept="image/*">
 
-                <div v-if="editingId" class="summary-card compact-summary balance-card">
-                  <div class="summary-text-layout">
-                    <span class="label">Guthaben</span>
-                    <span class="value">{{ formatBalance(currentMemberBalance || 0) }}</span>
+                <!-- Hierher verschoben: Rabattberechtigt-Checkbox -->
+                <label class="checkbox-card compact-cb">
+                  <input v-model="formData.has_discount" type="checkbox">
+                  <div class="checkbox-content">
+                    <span class="label">Rabattberechtigt</span>
+                    <span class="desc">Darf Mitgliederpreise nutzen.</span>
                   </div>
-                  <div class="recharge-trigger">
-                    <input v-model.number="rechargeAmount" type="number" step="0.01" placeholder="0,00€">
-                    <button type="button" class="btn-recharge" @click="openRechargeModal" :disabled="!rechargeAmount">Laden</button>
-                  </div>
-                </div>
+                </label>
               </div>
 
+              <!-- RECHTE SEITE: Eingabefelder & Guthaben aufladen -->
               <div class="fields-section">
                 <div class="form-row">
                   <div class="form-group">
@@ -145,13 +145,17 @@
                   <input v-model="formData.membership_number" type="text" placeholder="Optional">
                 </div>
 
-                <label class="checkbox-card compact-cb">
-                  <input v-model="formData.has_discount" type="checkbox">
-                  <div class="checkbox-content">
-                    <span class="label">Rabattberechtigt</span>
-                    <span class="desc">Darf Mitgliederpreise an der Kasse nutzen.</span>
+                <!-- Hierher verschoben: Guthaben aufbuchen (Hat jetzt volle Breite für Input + Button) -->
+                <div v-if="editingId" class="summary-card compact-summary balance-card">
+                  <div class="summary-text-layout">
+                    <span class="label">Guthaben</span>
+                    <span class="value">{{ formatBalance(currentMemberBalance || 0) }}</span>
                   </div>
-                </label>
+                  <div class="recharge-trigger">
+                    <input v-model.number="rechargeAmount" type="number" step="0.01" placeholder="0,00€">
+                    <button type="button" class="btn-recharge" @click="openRechargeModal" :disabled="!rechargeAmount">Laden</button>
+                  </div>
+                </div>
               </div>
             </div>
 
@@ -175,7 +179,7 @@
 
               <div v-if="formData.role" class="password-box">
                 <div class="form-group">
-                  <label>{{ hasExistingUserAccount ? 'Passwort überschreiben' : 'Initial-Passwort festlegen*' }}</label>
+                  <label> {{ hasExistingUserAccount ? 'Passwort überfragen' : 'Initial-Passwort festlegen*' }}</label>
                   <input v-model="formData.account_password" type="password"
                          :required="!hasExistingUserAccount" minlength="8">
                 </div>
