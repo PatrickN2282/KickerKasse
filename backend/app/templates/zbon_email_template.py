@@ -9,7 +9,7 @@ ZBON_EMAIL_HTML_TEMPLATE = """
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Z-Bon {{ business_date }}</title>
+    <title>Kassenbericht {{ business_date }}</title>
 </head>
 <body style="margin: 0; padding: 0; font-family: Arial, Helvetica, sans-serif; background-color: #f5f5f5;">
     <table cellpadding="0" cellspacing="0" style="width: 100%; background-color: #f5f5f5;">
@@ -21,7 +21,7 @@ ZBON_EMAIL_HTML_TEMPLATE = """
                     <!-- Header -->
                     <tr>
                         <td style="padding: 30px 20px; background-color: #f8f9fa; border-bottom: 2px solid #0275d8;">
-                            <h2 style="margin: 0 0 10px 0; color: #333; font-size: 24px;">Z-Bon #{{ seq_number }}</h2>
+                            <h2 style="margin: 0 0 10px 0; color: #333; font-size: 24px;">Kassenbericht #{{ seq_number }}</h2>
                             <p style="margin: 0; color: #666; font-size: 14px;">Tagesabschluss vom {{ business_date }}</p>
                         </td>
                     </tr>
@@ -107,7 +107,7 @@ ZBON_EMAIL_HTML_TEMPLATE = """
                     <tr>
                         <td style="padding: 20px; background-color: #f8f9fa; border-top: 1px solid #ddd; color: #666; font-size: 12px; text-align: center;">
                             <p style="margin: 0;">Diese E-Mail wurde automatisch generiert.</p>
-                            <p style="margin: 5px 0 0 0;">Bitte speichern Sie diesen Z-Bon für Ihre Unterlagen.</p>
+                            <p style="margin: 5px 0 0 0;">Bitte speichern Sie diesen Kassenbericht für Ihre Unterlagen.</p>
                         </td>
                     </tr>
                 </table>

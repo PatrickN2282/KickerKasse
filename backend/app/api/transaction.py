@@ -552,7 +552,7 @@ async def generate_zbon(
     except Exception as e:
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Error generating Z-Bon: {str(e)}",
+            detail=f"Error generating Kassenbericht: {str(e)}",
         )
 
 
@@ -695,7 +695,7 @@ async def send_zbon_email(
         
         return {
             "status": "success",
-            "message": f"Z-Bon sent to {recipient}",
+            "message": f"Kassenbericht sent to {recipient}",
             "date": target_date.isoformat(),
             "type": email_req.report_type,
         }
@@ -704,7 +704,7 @@ async def send_zbon_email(
     except Exception as e:
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Error sending Z-Bon via email: {str(e)}",
+            detail=f"Error sending Kassenbericht via email: {str(e)}",
         )
 
 
@@ -811,7 +811,7 @@ async def get_zbon_html(
         logger.error(f"Error generating Z-Bon HTML: {str(e)}", exc_info=True)
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Error generating Z-Bon HTML: {str(e)}",
+            detail=f"Error generating Kassenbericht HTML: {str(e)}",
         )
 
 
@@ -917,7 +917,7 @@ async def get_zbon_pdf(
         try:
             pdf_bytes = ZBonHTMLExporter.export_pdf(html)
             
-            filename = f"Z-Bon_{seq_number}_{target_date.strftime('%Y-%m-%d')}.pdf"
+            filename = f"Kassenbericht_{seq_number}_{target_date.strftime('%Y-%m-%d')}.pdf"
             logger.info(f"Returning PDF file: {filename}")
             return FileResponse(
                 pdf_bytes,
@@ -933,7 +933,7 @@ async def get_zbon_pdf(
             <div style="background-color: #fff3cd; border: 1px solid #ffc107; padding: 15px; margin: 10px 0; border-radius: 4px;">
                 <strong>⚠️ PDF export not available</strong><br>
                 PDF export is optional and requires additional system libraries. 
-                You can still view the Z-Bon in HTML format above and print it from your browser using Ctrl+P.
+                You can still view the Kassenbericht in HTML format above and print it from your browser using Ctrl+P.
             </div>
             {html}
             """
@@ -943,7 +943,7 @@ async def get_zbon_pdf(
         logger.error(f"Error generating Z-Bon PDF: {str(e)}", exc_info=True)
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Error generating Z-Bon PDF: {str(e)}",
+            detail=f"Error generating Kassenbericht PDF: {str(e)}",
         )
 
 
@@ -1062,7 +1062,7 @@ async def send_zbon_email(
         if success:
             return {
                 "status": "success",
-                "message": f"Z-Bon sent to {recipient}",
+                "message": f"Kassenbericht sent to {recipient}",
                 "date": target_date.strftime("%Y-%m-%d"),
                 "seq_number": seq_number,
                 "pdf_attached": include_pdf and pdf_bytes is not None,
@@ -1082,7 +1082,7 @@ async def send_zbon_email(
         logger.error(f"Error sending Z-Bon email: {str(e)}")
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Error sending Z-Bon email: {str(e)}",
+            detail=f"Error sending Kassenbericht email: {str(e)}",
         )
 @router.get("/scheduler/status")
 @router.get("/scheduler/status/")
@@ -1376,7 +1376,7 @@ async def get_zbon_history(
         logger.error(f"[TRANSACTION] Error retrieving Z-Bon history: {str(e)}", exc_info=True)
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Error retrieving Z-Bon history: {str(e)}",
+            detail=f"Error retrieving Kassenbericht history: {str(e)}",
         )
 
 
@@ -1398,7 +1398,7 @@ async def get_zbon_history_detail(
         if not history:
             raise HTTPException(
                 status_code=status.HTTP_404_NOT_FOUND,
-                detail=f"Z-Bon #{sequence_number} not found",
+                detail=f"Kassenbericht #{sequence_number} not found",
             )
         
         return ZBonHistoryResponse.from_orm(history)
@@ -1411,7 +1411,7 @@ async def get_zbon_history_detail(
         )
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Error retrieving Z-Bon: {str(e)}",
+            detail=f"Error retrieving Kassenbericht: {str(e)}",
         )
 
 
@@ -1429,7 +1429,7 @@ async def get_zbon_history_html(
     if not history or not history.report_content:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
-            detail=f"Z-Bon #{sequence_number} not found",
+            detail=f"Kassenbericht #{sequence_number} not found",
         )
 
     return HTMLResponse(content=history.report_content)
@@ -1449,7 +1449,7 @@ async def get_zbon_history_pdf(
     if not history or not history.report_content:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
-            detail=f"Z-Bon #{sequence_number} not found",
+            detail=f"Kassenbericht #{sequence_number} not found",
         )
 
     try:
@@ -1463,5 +1463,5 @@ async def get_zbon_history_pdf(
     return Response(
         content=pdf_file.getvalue(),
         media_type="application/pdf",
-        headers={"Content-Disposition": f'attachment; filename="Z-Bon-{sequence_number}.pdf"'},
+        headers={"Content-Disposition": f'attachment; filename="Kassenbericht-{sequence_number}.pdf"'},
     )
