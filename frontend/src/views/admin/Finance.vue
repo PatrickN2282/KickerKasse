@@ -3,15 +3,17 @@
     class="admin-finance"
     :style="{ '--finance-sticky-offset': `${financeHeaderHeight}px` }"
   >
+    <!-- Sticky Header -->
     <div
       ref="financeHeader"
-      class="page-header"
+      class="page-header sticky-header"
     >
       <div class="title-row">
         <h2>Finanzen</h2>
         <span class="title-sep">|</span>
         <span class="page-subtitle">Tagesabrechnungen, Z-Bons und Umsatzübersichten.</span>
       </div>
+
       <div class="finance-tabs">
         <button
           v-for="tab in tabs"
@@ -23,41 +25,72 @@
           {{ tabLabels[tab] }}
         </button>
       </div>
+
+      <!-- Sticky Action Bar – nur beim Z-Bon Tab -->
+      <div
+        v-if="activeTab === 'zbon'"
+        class="action-bar"
+      >
+        <div class="period-info">
+          <strong>Aktueller Zeitraum:</strong> {{ currentPeriodLabel }}
+          <span class="receipt-info">• {{ currentReceiptLabel }}</span>
+        </div>
+        <div class="action-buttons">
+          <button
+            class="btn btn-primary"
+            @click="openPreviewModal"
+          >
+            👁️ Vorschau
+          </button>
+          <button
+            class="btn btn-success"
+            @click="handleDownloadZBon"
+          >
+            ⬇️ HTML
+          </button>
+          <button
+            class="btn btn-info"
+            @click="openZbonCreateModal"
+          >
+            ✅ Z-Bon erstellen
+          </button>
+          <button
+            v-if="authStore.isAdmin"
+            class="btn btn-warning"
+            @click="openWithdrawalModal"
+          >
+            💸 Abschöpfung
+          </button>
+          <button
+            class="btn btn-secondary"
+            @click="openCashCounterModal"
+          >
+            💰 Kasse zählen
+          </button>
+        </div>
+      </div>
     </div>
 
     <!-- Z-BON / Tagesabrechnung -->
     <div
       v-if="activeTab === 'zbon'"
-      class="tab-content"
+      class="tab-content compact-content"
     >
-      <h3>Z-Bon</h3>
-
       <div
         v-if="loading"
         class="loading"
       >
-        Läuft...
+        Lade Daten...
       </div>
       <div
         v-else
         class="zbon-layout"
       >
-        <div class="zbon-section date-picker">
-          <div>
-            <strong>Aktueller Zeitraum:</strong>
-            {{ currentPeriodLabel }}
-          </div>
-          <div>
-            <strong>Letzter Belegbereich:</strong>
-            {{ currentReceiptLabel }}
-          </div>
-        </div>
-
+        <!-- Umsatz Übersicht -->
         <section class="zbon-section">
           <div class="zbon-section-header">
             <div>
-              <h4>Umsatz</h4>
-              <p>Aktuelle Buchungen seit dem letzten Z-Bon.</p>
+              <h4>Umsatz seit letztem Z-Bon</h4>
             </div>
           </div>
           <div class="summary-grid zbon-card-grid">
@@ -71,7 +104,7 @@
             </div>
             <div class="summary-card">
               <div class="card-label">
-                Umsatz (Guthaben)
+                Guthaben
               </div>
               <div class="card-value">
                 {{ formatPrice(dailyStats.balance_total) }}
@@ -87,13 +120,13 @@
             </div>
             <div class="summary-card">
               <div class="card-label">
-                Verzehrkarten verkauft
+                Verzehrkarten
               </div>
               <div class="card-value">
                 {{ formatPrice(dailyStats.prepaid_voucher_sales_total) }}
               </div>
             </div>
-            <div class="summary-card highlight">
+            <div class="summary-card highlight total">
               <div class="card-label">
                 Umsatz GESAMT
               </div>
@@ -104,11 +137,11 @@
           </div>
         </section>
 
+        <!-- Konten & Bestand -->
         <section class="zbon-section">
           <div class="zbon-section-header">
             <div>
               <h4>Konten & Bestand</h4>
-              <p>Kasse, offene Werte und Nebenbuchungen im Überblick.</p>
             </div>
           </div>
           <div class="summary-grid zbon-card-grid secondary">
@@ -146,7 +179,7 @@
             </div>
             <div class="summary-card neutral">
               <div class="card-label">
-                Anzahl Transaktionen
+                Transaktionen
               </div>
               <div class="card-value">
                 {{ dailyStats.transaction_count }}
@@ -155,47 +188,7 @@
           </div>
         </section>
 
-        <section class="zbon-section">
-          <div class="zbon-section-header">
-            <div>
-              <h4>Aktionen</h4>
-            </div>
-          </div>
-          <div class="zbon-actions">
-            <button
-              class="btn btn-primary"
-              @click="openPreviewModal"
-            >
-              👁️ Z-Bon Vorschau
-            </button>
-            <button
-              class="btn btn-success"
-              @click="handleDownloadZBon"
-            >
-              ⬇️ Als HTML herunterladen
-            </button>
-            <button
-              class="btn btn-info"
-              @click="openZbonCreateModal"
-            >
-              ✅ Z-Bon erstellen
-            </button>
-            <button
-              v-if="authStore.isAdmin"
-              class="btn btn-warning"
-              @click="openWithdrawalModal"
-            >
-              💸 Abschöpfung
-            </button>
-            <button
-              class="btn btn-secondary"
-              @click="openCashCounterModal"
-            >
-              💰 Kasse zählen
-            </button>
-          </div>
-        </section>
-
+        <!-- Transaktionen -->
         <section class="daily-transactions zbon-section">
           <h4>Transaktionen seit dem letzten Z-Bon</h4>
           <div
@@ -289,6 +282,7 @@
           </table>
         </section>
 
+        <!-- Scheduler Info -->
         <section class="scheduler-section zbon-section">
           <h4>⏱️ Automatischer Email-Versand</h4>
           <div class="scheduler-status">
@@ -428,8 +422,8 @@
               </tr>
             </thead>
             <tbody>
-              <tr 
-                v-for="zbon in zbonsList" 
+              <tr
+                v-for="zbon in zbonsList"
                 :key="zbon.id"
                 class="transaction-row"
                 style="cursor: pointer;"
@@ -498,6 +492,8 @@
         </div>
       </div>
     </div>
+
+    <!-- Transaktionshistorie -->
     <div
       v-if="activeTab === 'history'"
       class="tab-content"
@@ -846,6 +842,7 @@
       </table>
     </div>
 
+    <!-- Korrekturen -->
     <div
       v-if="activeTab === 'corrections'"
       class="tab-content tab-content--flush"
@@ -853,6 +850,7 @@
       <Corrections />
     </div>
 
+    <!-- Interne Konten -->
     <div
       v-if="activeTab === 'internalAccounts'"
       class="tab-content"
@@ -1164,210 +1162,190 @@
       @confirm="onCashCounterConfirm"
     />
 
+    <!-- Z-Bon Erstellen Modal (modernisiert, max 650px) -->
     <div
       v-if="showZbonCreateModal"
       class="confirmation-overlay"
     >
       <div class="confirmation-dialog zbon-create-dialog">
-        <h3>Z-Bon erstellen</h3>
-        <div class="zbon-create-layout">
-          <div class="zbon-create-main">
-            <div class="zbon-note-box">
-              Kassenprüfer wählen → Kassenbestand zählen → ggf. Abschöpfung vornehmen → mit neuem Kassenbestand abgleichen → Z-Bon erstellen
+        <h3>🧾 Z-Bon erstellen</h3>
+        <div class="modal-body">
+          <div class="info-box">
+            Kassenprüfer wählen → Kasse zählen → ggf. Abschöpfung → Z-Bon erstellen
+          </div>
+
+          <div class="form-grid">
+            <div class="form-group">
+              <label>Erstellt von</label>
+              <button
+                class="select-btn"
+                @click="openUserPicker('createdByUserId')"
+              >
+                {{ getSelectedUserName(zbonForm.createdByUserId, 'Benutzer auswählen') }}
+              </button>
             </div>
-            <div class="selection-grid">
-              <div class="selection-group">
-                <label>Erstellt von</label>
+            <div class="form-group">
+              <label>Kassenprüfer</label>
+              <div class="selection-actions">
                 <button
-                  class="member-select-btn"
-                  @click="openUserPicker('createdByUserId')"
+                  class="select-btn"
+                  @click="openMemberPicker('verifiedByUserId')"
                 >
-                  {{ getSelectedUserName(zbonForm.createdByUserId, 'Benutzer auswählen') }}
+                  {{ getSelectedVerifierName(zbonForm.verifiedByUserId, 'Mitglied auswählen') }}
+                </button>
+                <button
+                  v-if="zbonForm.verifiedByUserId"
+                  class="clear-selection-btn"
+                  @click="zbonForm.verifiedByUserId = null"
+                >
+                  Entfernen
                 </button>
               </div>
-              <div class="selection-group">
-                <label>Kassenprüfer</label>
-                <div class="selection-actions">
-                  <button
-                    class="member-select-btn"
-                    @click="openMemberPicker('verifiedByUserId')"
-                  >
-                    {{ getSelectedVerifierName(zbonForm.verifiedByUserId, 'Mitglied auswählen') }}
-                  </button>
-                  <button
-                    v-if="zbonForm.verifiedByUserId"
-                    class="clear-selection-btn"
-                    @click="zbonForm.verifiedByUserId = null"
-                  >
-                    Entfernen
-                  </button>
-                </div>
-              </div>
-            </div>
-            <div class="summary-grid compact-summary-grid">
-              <div class="summary-card modal-summary-card">
-                <div class="card-label">
-                  Vorheriger Barbestand
-                </div>
-                <div class="card-value">
-                  {{ formatEuroValue(dailyStats.opening_balance) }}
-                </div>
-              </div>
-              <div class="summary-card modal-summary-card">
-                <div class="card-label">
-                  Buchungs-Range
-                </div>
-                <div class="card-value">
-                  {{ currentReceiptLabel }}
-                </div>
-              </div>
-              <div class="summary-card modal-summary-card">
-                <div class="card-label">
-                  Abschöpfungen Zeitraum
-                </div>
-                <div class="card-value">
-                  {{ formatPrice(zbonModalWithdrawalTotalCents) }}
-                </div>
-              </div>
-              <div class="summary-card modal-summary-card">
-                <div class="card-label">
-                  Neuer Barbestand Soll
-                </div>
-                <div class="card-value">
-                  {{ zbonModalCashCalculatedDisplay }}
-                </div>
-              </div>
-            </div>
-            <div class="zbon-balance-group">
-              <div class="selection-group zbon-counted-group">
-                <label>Gezählter Kassenbestand</label>
-                <input
-                  v-model="zbonCountedCash"
-                  type="number"
-                  min="0"
-                  step="0.01"
-                  class="form-input"
-                  placeholder="0,00"
-                >
-              </div>
-              <div class="summary-grid zbon-side-summary">
-                <div class="summary-card modal-summary-card">
-                  <div class="card-label">
-                    Abschöpfung im Modal
-                  </div>
-                  <div class="card-value">
-                    {{ formatPrice(newWithdrawalsCents) }}
-                  </div>
-                </div>
-                <div class="summary-card modal-summary-card">
-                  <div class="card-label">
-                    Neuer Ist-Bestand
-                  </div>
-                  <div class="card-value">
-                    {{ zbonNewCashBalanceDisplay }}
-                  </div>
-                </div>
-                <div class="summary-card modal-summary-card">
-                  <div class="card-label">
-                    Differenz
-                  </div>
-                  <div class="card-value">
-                    {{ zbonDifferenceDisplay }}
-                  </div>
-                </div>
-              </div>
-              <small
-                v-if="zbonFinalCashInvalid"
-                class="zbon-warning-text"
-              >
-                Der gezählte Bestand darf nicht kleiner als die im Modal vorgenommenen Abschöpfung sein.
-              </small>
             </div>
           </div>
-          <div class="zbon-create-side">
-            <div class="confirmation-buttons zbon-create-buttons">
-              <button
-                class="btn btn-info"
-                @click="openCashCounterModal"
-              >
-                💰 Kasse zählen
-              </button>
-              <button
-                class="btn btn-warning"
-                @click="openWithdrawalModal"
-              >
-                💸 Abschöpfung
-              </button>
-              <button
-                :class="['btn', canCreateZbon ? 'btn-ready' : 'btn-disabled']"
-                :disabled="!canCreateZbon"
-                @click="requestZBonCreate"
-              >
-                ✓ Z-Bon erstellen
-              </button>
-              <button
-                class="btn btn-secondary"
-                @click="closeZbonCreateModal"
-              >
-                Abbrechen / Zurück
-              </button>
+
+          <div class="balance-summary">
+            <div class="balance-row">
+              <span>Vorheriger Barbestand:</span>
+              <strong>{{ formatEuroValue(dailyStats.opening_balance) }}</strong>
+            </div>
+            <div class="balance-row">
+              <span>Buchungs-Range:</span>
+              <strong>{{ currentReceiptLabel }}</strong>
+            </div>
+            <div class="balance-row">
+              <span>Abschöpfungen Zeitraum:</span>
+              <strong class="warning">{{ formatPrice(zbonModalWithdrawalTotalCents) }}</strong>
+            </div>
+            <div class="balance-row">
+              <span>Neuer Barbestand Soll:</span>
+              <strong>{{ zbonModalCashCalculatedDisplay }}</strong>
             </div>
           </div>
+
+          <div class="counted-input">
+            <label>Gezählter Kassenbestand (€)</label>
+            <input
+              v-model="zbonCountedCash"
+              type="number"
+              min="0"
+              step="0.01"
+              class="form-input large"
+              placeholder="0,00"
+            >
+          </div>
+
+          <div class="final-result">
+            <div class="result-row">
+              <span>Abschöpfung im Modal:</span>
+              <strong>{{ formatPrice(newWithdrawalsCents) }}</strong>
+            </div>
+            <div class="result-row">
+              <span>Neuer Ist-Bestand:</span>
+              <strong>{{ zbonNewCashBalanceDisplay }}</strong>
+            </div>
+            <div
+              class="result-row"
+              :class="{ error: zbonFinalCashInvalid }"
+            >
+              <span>Differenz:</span>
+              <strong>{{ zbonDifferenceDisplay }}</strong>
+            </div>
+          </div>
+          <small
+            v-if="zbonFinalCashInvalid"
+            class="zbon-warning-text"
+          >
+            Der gezählte Bestand darf nicht kleiner als die im Modal vorgenommenen Abschöpfung sein.
+          </small>
+        </div>
+
+        <div class="modal-actions">
+          <button
+            class="btn btn-secondary"
+            @click="closeZbonCreateModal"
+          >
+            Abbrechen
+          </button>
+          <button
+            class="btn btn-info"
+            @click="openCashCounterModal"
+          >
+            💰 Kasse zählen
+          </button>
+          <button
+            class="btn btn-warning"
+            @click="openWithdrawalModal"
+          >
+            💸 Abschöpfung
+          </button>
+          <button
+            :class="['btn', canCreateZbon ? 'btn-ready' : 'btn-disabled']"
+            :disabled="!canCreateZbon"
+            @click="requestZBonCreate"
+          >
+            ✓ Z-Bon erstellen
+          </button>
         </div>
       </div>
     </div>
 
+    <!-- Abschöpfung Modal (modernisiert, max 650px) -->
     <div
       v-if="showWithdrawalModal"
       class="confirmation-overlay"
     >
       <div class="confirmation-dialog">
-        <h3>Abschöpfung</h3>
-        <div class="filter-group">
-          <label>Betrag in EUR</label>
-          <input
-            v-model="withdrawalForm.amount"
-            type="number"
-            min="0"
-            step="0.01"
-            class="form-input"
-          >
+        <h3>💸 Abschöpfung durchführen</h3>
+        <div class="modal-body">
+          <div class="form-group">
+            <label>Betrag (€)</label>
+            <input
+              v-model="withdrawalForm.amount"
+              type="number"
+              min="0"
+              step="0.01"
+              class="form-input large"
+              placeholder="0,00"
+            >
+          </div>
+          <div class="form-group">
+            <label>Durchgeführt von</label>
+            <button
+              class="select-btn"
+              @click="openUserPicker('withdrawalUserId')"
+            >
+              {{ getSelectedUserName(selectedWithdrawalUserId, 'Benutzer auswählen') }}
+            </button>
+          </div>
+          <div class="form-group">
+            <label>Notiz (optional)</label>
+            <input
+              v-model="withdrawalForm.note"
+              type="text"
+              class="form-input"
+              placeholder="z. B. Vereinskasse, Bank..."
+            >
+          </div>
         </div>
-        <div class="selection-group">
-          <label>Durchgeführt von</label>
-          <button
-            class="member-select-btn"
-            @click="openUserPicker('withdrawalUserId')"
-          >
-            {{ getSelectedUserName(selectedWithdrawalUserId, 'Benutzer auswählen') }}
-          </button>
-        </div>
-        <div class="filter-group">
-          <label>Notiz (optional)</label>
-          <input
-            v-model="withdrawalForm.note"
-            type="text"
-            class="form-input"
-            placeholder="z. B. Vereinskasse"
-          >
-        </div>
-        <div class="confirmation-buttons">
+        <div class="modal-actions">
           <button
             class="btn btn-secondary"
             @click="closeWithdrawalModal"
           >
-            Abbrechen / Zurück
+            Abbrechen
           </button>
           <button
             class="btn btn-warning"
             @click="submitWithdrawal"
           >
-            💸 Abschöpfen
+            Abschöpfen
           </button>
         </div>
       </div>
     </div>
 
+    <!-- Member Picker Modal -->
     <div
       v-if="showMemberPickerModal"
       class="confirmation-overlay member-picker-overlay"
@@ -1416,11 +1394,13 @@
             class="btn btn-secondary"
             @click="closeMemberPicker"
           >
-            Abbrechen / Zurück
+            Abbrechen
           </button>
         </div>
       </div>
     </div>
+
+    <!-- Z-Bon Preview Modal -->
     <div
       v-if="showZbonPreviewModal && zBonHtml"
       class="confirmation-overlay"
@@ -1447,11 +1427,13 @@
             class="btn btn-secondary"
             @click="showZbonPreviewModal = false"
           >
-            Abbrechen / Zurück
+            Abbrechen
           </button>
         </div>
       </div>
     </div>
+
+    <!-- Password Confirm Modal -->
     <PasswordConfirmModal
       :show="showPasswordModal"
       title="Z-Bon erstellen"
@@ -2415,14 +2397,14 @@ const loadZbonsHistory = async () => {
       page: zbonsCurrentPage.value,
       page_size: 20,
     }
-    
+
     if (zbonsFilterStartDate.value) {
       params.start_date = zbonsFilterStartDate.value
     }
     if (zbonsFilterEndDate.value) {
       params.end_date = zbonsFilterEndDate.value
     }
-    
+
     console.log('[Finance] Loading Z-Böns history with params:', params)
     const response = await apiService.get('/transactions/zbon/history', { params })
     const payload = response.data
@@ -2582,6 +2564,7 @@ onBeforeUnmount(() => {
 </script>
 
 <style scoped lang="scss">
+/* ==================== BASE LAYOUT ==================== */
 .admin-finance {
   background: var(--app-background-color);
   border-radius: 8px;
@@ -2599,6 +2582,7 @@ onBeforeUnmount(() => {
   }
 }
 
+/* ==================== STICKY HEADER ==================== */
 .page-header {
   position: sticky;
   top: 0;
@@ -2611,6 +2595,16 @@ onBeforeUnmount(() => {
   margin: 0 -1rem 1rem;
   padding: 0.75rem 1rem;
   border-bottom: 1px solid rgba(0, 0, 0, 0.13);
+}
+
+.sticky-header {
+  position: sticky;
+  top: 0;
+  z-index: 20;
+  background: var(--app-background-color);
+  padding: 0.75rem 1rem;
+  border-bottom: 2px solid #e2e8f0;
+  margin-bottom: 1.5rem;
 }
 
 .title-row {
@@ -2637,6 +2631,7 @@ onBeforeUnmount(() => {
   margin: 0;
 }
 
+/* ==================== TABS ==================== */
 .finance-tabs {
   display: flex;
   gap: 0.5rem;
@@ -2667,20 +2662,46 @@ onBeforeUnmount(() => {
   }
 }
 
+/* ==================== ACTION BAR ==================== */
+.action-bar {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  background: #f8fafc;
+  padding: 0.85rem 1.1rem;
+  border-radius: 12px;
+  border: 1px solid #e2e8f0;
+  margin-top: 0.75rem;
+  flex-wrap: wrap;
+  gap: 1rem;
+}
+
+.period-info {
+  font-size: 0.95rem;
+  color: #475569;
+}
+
+.receipt-info {
+  color: #64748b;
+  margin-left: 0.5rem;
+}
+
+.action-buttons {
+  display: flex;
+  gap: 0.65rem;
+  flex-wrap: wrap;
+}
+
+/* ==================== TAB CONTENT ==================== */
 .tab-content {
   animation: fadeIn 0.2s;
 }
 
-@media (max-width: 700px) {
-  .admin-finance {
-    padding: 0 1rem 1rem;
-  }
-
-  .page-header {
-    margin: 0 -1rem 1rem;
-    padding: 1rem;
-  }
+.compact-content .zbon-section {
+  padding: 1.1rem 1.25rem;
+  margin-bottom: 1.25rem;
 }
+
 @keyframes fadeIn {
   from {
     opacity: 0;
@@ -2692,26 +2713,7 @@ onBeforeUnmount(() => {
   }
 }
 
-.date-picker {
-  display: flex;
-  justify-content: space-between;
-  flex-wrap: wrap;
-  gap: 1rem;
-  align-items: center;
-  margin-bottom: 0;
-
-  label {
-    font-weight: 600;
-  }
-
-  input {
-    padding: 0.5rem;
-    border: 1px solid #9ca4ae;
-    border-radius: 8px;
-    font-size: 1rem;
-  }
-}
-
+/* ==================== Z-BON LAYOUT ==================== */
 .zbon-layout {
   display: flex;
   flex-direction: column;
@@ -2724,16 +2726,6 @@ onBeforeUnmount(() => {
   border-radius: 18px;
   padding: 0.85rem 1rem;
   box-shadow: 0 8px 20px rgba(24, 28, 34, 0.08);
-}
-
-.internal-account-sections {
-  display: flex;
-  flex-direction: column;
-  gap: 1rem;
-}
-
-.internal-account-section {
-  margin: 0;
 }
 
 .zbon-section-header {
@@ -2753,51 +2745,11 @@ onBeforeUnmount(() => {
   }
 }
 
-.internal-account-header {
-  margin-bottom: 0;
-}
-
-.internal-account-section-body {
-  margin-top: 1rem;
-}
-
-.internal-account-toggle {
-  flex-shrink: 0;
-}
-
-.filter-section {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-  gap: 0.75rem;
-  margin-bottom: 1rem;
-  padding: 0.75rem;
-  background: color-mix(in srgb, var(--app-background-color) 80%, white);
-  border-radius: 8px;
-  align-items: flex-end;
-}
-
-.filter-group {
-  display: flex;
-  flex-direction: column;
-  gap: 0.5rem;
-
-  label {
-    font-weight: 600;
-    font-size: 0.9rem;
-  }
-
-  input,
-  select {
-    padding: 0.5rem 0.75rem;
-    border: 1px solid #9ca4ae;
-    border-radius: 8px;
-  }
-}
-
+/* ==================== SUMMARY CARDS ==================== */
 .summary-grid {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-  gap: 0.75rem;
+  gap: 0.9rem;
   margin-bottom: 1rem;
 }
 
@@ -2820,6 +2772,11 @@ onBeforeUnmount(() => {
     background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
   }
 
+  &.total {
+    background: linear-gradient(135deg, #4f46e5, #7c3aed);
+    transform: scale(1.02);
+  }
+
   &.warning {
     background: linear-gradient(135deg, #ffb74d 0%, #ef6c00 100%);
   }
@@ -2840,22 +2797,7 @@ onBeforeUnmount(() => {
   }
 }
 
-.zbon-actions {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
-  gap: 0.85rem;
-
-  .btn {
-    min-height: 52px;
-  }
-}
-
-.daily-transactions,
-.payment-stats,
-.top-products {
-  margin: 0;
-}
-
+/* ==================== TABLES ==================== */
 .transactions-table,
 .products-table,
 .members-table {
@@ -2894,6 +2836,85 @@ onBeforeUnmount(() => {
   }
 }
 
+.transaction-row {
+  &:hover {
+    background: #f0f0f0;
+  }
+}
+
+.items-row {
+  background: #d8dde3;
+
+  td {
+    padding: 0 !important;
+  }
+}
+
+.items-cell {
+  background: #d8dde3 !important;
+  padding: 0.5rem 1rem !important;
+}
+
+.items-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.item-detail {
+  display: flex;
+  gap: 1rem;
+  padding: 0.5rem;
+  background: #eef1f4;
+  border-radius: 6px;
+  border-left: 3px solid #667eea;
+  font-size: 0.9rem;
+
+  .item-name {
+    font-weight: 600;
+    flex: 1;
+  }
+
+  .item-qty {
+    color: #666;
+    min-width: 40px;
+  }
+
+  .item-price {
+    color: #666;
+    min-width: 60px;
+    text-align: right;
+  }
+
+  .item-total {
+    font-weight: 600;
+    color: #667eea;
+    min-width: 70px;
+    text-align: right;
+  }
+}
+
+.internal-material-item-detail {
+  flex-wrap: wrap;
+}
+
+.item-detail-note {
+  width: 100%;
+  margin-top: 0.25rem;
+  color: #475569;
+  font-size: 0.85rem;
+  padding-top: 0.35rem;
+  border-top: 1px dashed #c3ced9;
+}
+
+.no-items {
+  padding: 1rem;
+  text-align: center;
+  color: #999;
+  font-style: italic;
+}
+
+/* ==================== PAYMENT BADGES ==================== */
 .payment-badge {
   padding: 0.25rem 0.75rem;
   border-radius: 20px;
@@ -2932,33 +2953,228 @@ onBeforeUnmount(() => {
   }
 }
 
-.empty {
-  text-align: center;
-  padding: 2rem;
-  color: #999;
+/* ==================== FILTER SECTION ==================== */
+.filter-section {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: 0.75rem;
+  margin-bottom: 1rem;
+  padding: 0.75rem;
+  background: color-mix(in srgb, var(--app-background-color) 80%, white);
+  border-radius: 8px;
+  align-items: flex-end;
 }
 
-.loading {
-  text-align: center;
-  padding: 2rem;
-  color: #666;
+.filter-group {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+
+  label {
+    font-weight: 600;
+    font-size: 0.9rem;
+  }
+
+  input,
+  select {
+    padding: 0.5rem 0.75rem;
+    border: 1px solid #9ca4ae;
+    border-radius: 8px;
+  }
 }
 
+/* ==================== BUTTONS ==================== */
+.btn {
+  padding: 0.65rem 1.25rem;
+  border: none;
+  border-radius: 8px;
+  cursor: pointer;
+  font-weight: 600;
+  font-size: 0.9rem;
+  transition: all 0.2s;
+}
+
+.btn-primary {
+  background: #1976d2;
+  color: white;
+
+  &:hover {
+    background: #1565c0;
+  }
+}
+
+.btn-info {
+  background: #00bcd4;
+  color: white;
+
+  &:hover {
+    background: #0097a7;
+  }
+}
+
+.btn-success {
+  background: #4caf50;
+  color: white;
+
+  &:hover {
+    background: #45a049;
+  }
+}
+
+.btn-warning {
+  background: #ff9800;
+  color: white;
+
+  &:hover {
+    background: #e65100;
+  }
+}
+
+.btn-secondary {
+  background: #f1f5f9;
+  color: #475569;
+  border: 1px solid #e2e8f0;
+
+  &:hover {
+    background: #e2e8f0;
+  }
+}
+
+.btn-ready {
+  background: #2e7d32;
+  color: white;
+}
+
+.btn-disabled {
+  background: #9ca3af;
+  color: white;
+  cursor: not-allowed;
+}
+
+.btn-subtle {
+  background: transparent;
+  color: #64748b;
+  border: 1px solid #cbd5e1;
+
+  &:hover {
+    background: #f1f5f9;
+  }
+}
+
+/* ==================== FORM ELEMENTS ==================== */
+.form-input {
+  padding: 0.5rem 0.75rem;
+  border: 1px solid #ddd;
+  border-radius: 8px;
+  font-size: 1rem;
+
+  &.large {
+    font-size: 1.35rem;
+    padding: 0.9rem 1rem;
+    font-weight: 600;
+  }
+}
+
+.select-btn {
+  width: 100%;
+  padding: 0.85rem 1rem;
+  text-align: left;
+  background: #f8fafc;
+  border: 1px solid #cbd5e1;
+  border-radius: 8px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s;
+
+  &:hover {
+    background: #eef2f7;
+    border-color: #94a3b8;
+  }
+}
+
+.clear-selection-btn {
+  border: 1px solid #cbd5e1;
+  background: #fff;
+  color: #475569;
+  border-radius: 8px;
+  padding: 0.75rem 0.9rem;
+  cursor: pointer;
+}
+
+/* ==================== SCHEDULER ==================== */
 .scheduler-section {
-  .scheduler-status {
-    display: flex;
-    flex-wrap: wrap;
-    gap: 1rem;
-    margin-bottom: 1rem;
-  }
+  background: #f9f9f9;
+  border-radius: 8px;
+  padding: 1rem;
+  margin: 1rem 0;
+  border-left: 4px solid #ff9800;
+}
 
-  .status-item {
-    display: flex;
-    align-items: center;
-    gap: 0.5rem;
+.scheduler-status {
+  display: flex;
+  gap: 2rem;
+  margin: 1rem 0;
+  flex-wrap: wrap;
+}
+
+.status-item {
+  display: flex;
+  gap: 1rem;
+  align-items: center;
+
+  span:first-child {
+    font-weight: 600;
+    color: #666;
   }
 }
 
+.status-badge {
+  padding: 0.25rem 0.75rem;
+  border-radius: 20px;
+  font-size: 0.85rem;
+  font-weight: 600;
+
+  &.running {
+    background: #c8e6c9;
+    color: #2e7d32;
+  }
+
+  &.stopped {
+    background: #ffcccc;
+    color: #c62828;
+  }
+}
+
+.next-run {
+  color: #667eea;
+  font-weight: 600;
+}
+
+.scheduler-info {
+  margin: 1rem 0 0.5rem 0;
+  color: #666;
+  font-size: 0.9rem;
+}
+
+.config-list {
+  margin: 0.5rem 0 0 1.5rem;
+  color: #666;
+  font-size: 0.9rem;
+
+  li {
+    margin: 0.3rem 0;
+
+    code {
+      background: #fff;
+      padding: 0.2rem 0.5rem;
+      border-radius: 3px;
+      font-family: monospace;
+      color: #d32f2f;
+    }
+  }
+}
+
+/* ==================== HISTORY / REVENUE / MEMBERS ==================== */
 .history-summary,
 .revenue-overview,
 .member-stats-overview {
@@ -3061,128 +3277,30 @@ onBeforeUnmount(() => {
   }
 }
 
-.btn {
-  padding: 0.65rem 1.25rem;
-  border: none;
-  border-radius: 8px;
-  cursor: pointer;
-  font-weight: 600;
-  font-size: 0.9rem;
-  transition: all 0.2s;
-}
-
-.btn-primary {
-  background: #1976d2;
-  color: white;
-
-  &:hover {
-    background: #1565c0;
-  }
-}
-
-.btn-info {
-  background: #00bcd4;
-  color: white;
-
-  &:hover {
-    background: #0097a7;
-  }
-}
-
-.btn-secondary {
-  background: #f1f5f9;
-  color: #475569;
-  border: 1px solid #e2e8f0;
-
-  &:hover {
-    background: #e2e8f0;
-  }
-}
-
-.zbon-actions {
+/* ==================== INTERNAL ACCOUNTS ==================== */
+.internal-account-sections {
   display: flex;
-  gap: 0.75rem;
-  margin: 0 0 1.5rem 0;
-  flex-wrap: wrap;
-}
-.form-input {
-  padding: 0.5rem 0.75rem;
-  border: 1px solid #ddd;
-  border-radius: 8px;
-  font-size: 1rem;
-}
-
-.scheduler-section {
-  background: #f9f9f9;
-  border-radius: 8px;
-  padding: 1rem;
-  margin: 1rem 0;
-  border-left: 4px solid #ff9800;
-}
-
-.scheduler-status {
-  display: flex;
-  gap: 2rem;
-  margin: 1rem 0;
-  flex-wrap: wrap;
-}
-
-.status-item {
-  display: flex;
+  flex-direction: column;
   gap: 1rem;
-  align-items: center;
-
-  span:first-child {
-    font-weight: 600;
-    color: #666;
-  }
 }
 
-.status-badge {
-  padding: 0.25rem 0.75rem;
-  border-radius: 20px;
-  font-size: 0.85rem;
-  font-weight: 600;
-
-  &.running {
-    background: #c8e6c9;
-    color: #2e7d32;
-  }
-
-  &.stopped {
-    background: #ffcccc;
-    color: #c62828;
-  }
+.internal-account-section {
+  margin: 0;
 }
 
-.next-run {
-  color: #667eea;
-  font-weight: 600;
+.internal-account-header {
+  margin-bottom: 0;
 }
 
-.scheduler-info {
-  margin: 1rem 0 0.5rem 0;
-  color: #666;
-  font-size: 0.9rem;
+.internal-account-section-body {
+  margin-top: 1rem;
 }
 
-.config-list {
-  margin: 0.5rem 0 0 1.5rem;
-  color: #666;
-  font-size: 0.9rem;
-
-  li {
-    margin: 0.3rem 0;
-
-    code {
-      background: #fff;
-      padding: 0.2rem 0.5rem;
-      border-radius: 3px;
-      font-family: monospace;
-      color: #d32f2f;
-    }
-  }
+.internal-account-toggle {
+  flex-shrink: 0;
 }
+
+/* ==================== MODALS ==================== */
 .confirmation-overlay {
   position: fixed;
   inset: 0;
@@ -3199,8 +3317,8 @@ onBeforeUnmount(() => {
   background: white;
   border-radius: 16px;
   padding: 1.5rem;
-  max-width: 400px;
-  width: min(100%, 520px);
+  max-width: 620px;
+  width: 100%;
   max-height: calc(100vh - 2rem);
   overflow-y: auto;
   box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25);
@@ -3221,91 +3339,36 @@ onBeforeUnmount(() => {
   }
 }
 
+/* Z-Bon Create Modal */
 .zbon-create-dialog {
-  max-width: min(92vw, 1080px);
-  width: min(92vw, 1080px);
+  max-width: 620px;
+  width: 100%;
   text-align: left;
   padding: 1.25rem;
 }
 
-.zbon-create-layout {
-  display: grid;
-  grid-template-columns: minmax(0, 2fr) minmax(280px, 1fr);
-  gap: 1rem;
-  align-items: start;
+.modal-body {
+  padding: 1.25rem 0;
 }
 
-.zbon-note-box {
-  margin-bottom: 0.75rem;
-  padding: 0.75rem 1rem;
-  border-radius: 10px;
+.info-box {
   background: #eef4ff;
   border: 1px solid #c8d8f2;
-  color: #22446b;
+  color: #1e40af;
+  padding: 0.9rem 1.1rem;
+  border-radius: 10px;
+  margin-bottom: 1.25rem;
   font-weight: 500;
 }
 
-.selection-grid {
+.form-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
-  gap: 0.75rem;
-}
-
-.compact-summary-grid {
-  margin-bottom: 0;
-  gap: 0.75rem;
-}
-
-.zbon-balance-group {
-  padding: 0.9rem;
-  border-radius: 10px;
-  background: rgba(255, 255, 255, 0.55);
-  border: 1px solid #cbd5e1;
-}
-
-.zbon-counted-group {
-  margin-bottom: 0.75rem;
-}
-
-.zbon-side-summary {
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 0.75rem;
-  margin-bottom: 0.75rem;
-}
-
-.modal-summary-card {
-  padding: 1.15rem;
-
-  .card-label {
-    font-size: 0.82rem;
-    margin-bottom: 0.35rem;
-  }
-
-  .card-value {
-    font-size: 1.45rem;
-    line-height: 1.2;
-  }
-}
-
-.zbon-warning-text {
-  display: block;
-  margin-top: 0.75rem;
-  color: #b91c1c;
-  font-weight: 600;
-}
-
-.confirmation-buttons {
-  display: flex;
+  grid-template-columns: 1fr 1fr;
   gap: 1rem;
-  justify-content: center;
+  margin: 1rem 0;
 }
 
-.zbon-create-buttons {
-  flex-direction: column;
-  align-items: stretch;
-}
-
-.selection-group {
+.form-group {
   display: flex;
   flex-direction: column;
   gap: 0.5rem;
@@ -3324,32 +3387,62 @@ onBeforeUnmount(() => {
   align-items: center;
 }
 
-.member-select-btn {
-  padding: 0.75rem 0.9rem;
-  border: 1px solid #cbd5e1;
-  border-radius: 8px;
-  background: #f8fafc;
-  text-align: left;
-  font-weight: 600;
-  color: #1e293b;
-  cursor: pointer;
-  transition: all 0.2s;
+.balance-summary,
+.final-result {
+  background: #f1f5f9;
+  padding: 1rem;
+  border-radius: 10px;
+  margin: 1rem 0;
+}
 
-  &:hover {
-    background: #eef2f7;
-    border-color: #94a3b8;
+.balance-row,
+.result-row {
+  display: flex;
+  justify-content: space-between;
+  padding: 0.4rem 0;
+  font-size: 1.05rem;
+
+  &.error {
+    color: #b91c1c;
   }
 }
 
-.clear-selection-btn {
-  border: 1px solid #cbd5e1;
-  background: #fff;
-  color: #475569;
-  border-radius: 8px;
-  padding: 0.75rem 0.9rem;
-  cursor: pointer;
+.counted-input {
+  margin: 1rem 0;
+
+  label {
+    display: block;
+    margin-bottom: 0.5rem;
+    font-weight: 600;
+    font-size: 0.9rem;
+    text-align: left;
+  }
 }
 
+.zbon-warning-text {
+  display: block;
+  margin-top: 0.75rem;
+  color: #b91c1c;
+  font-weight: 600;
+  text-align: left;
+}
+
+.modal-actions {
+  display: flex;
+  gap: 0.75rem;
+  justify-content: flex-end;
+  flex-wrap: wrap;
+  padding-top: 1.25rem;
+  border-top: 1px solid #e2e8f0;
+}
+
+.confirmation-buttons {
+  display: flex;
+  gap: 1rem;
+  justify-content: center;
+}
+
+/* Member Picker Modal */
 .member-picker-overlay {
   z-index: 1600;
 }
@@ -3420,107 +3513,7 @@ onBeforeUnmount(() => {
   padding: 1rem 0;
 }
 
-@media (max-width: 900px) {
-  .zbon-create-layout {
-    grid-template-columns: 1fr;
-  }
-
-  .zbon-side-summary {
-    grid-template-columns: 1fr;
-  }
-
-  .selection-actions {
-    flex-direction: column;
-    align-items: stretch;
-  }
-}
-
-.transaction-row {
-  &:hover {
-    background: #f0f0f0;
-  }
-}
-
-.items-row {
-  background: #d8dde3;
-
-  td {
-    padding: 0 !important;
-  }
-}
-
-.items-cell {
-  background: #d8dde3 !important;
-  padding: 0.5rem 1rem !important;
-}
-
-.items-list {
-  display: flex;
-  flex-direction: column;
-  gap: 0.5rem;
-}
-
-.item-detail {
-  display: flex;
-  gap: 1rem;
-  padding: 0.5rem;
-  background: #eef1f4;
-  border-radius: 6px;
-  border-left: 3px solid #667eea;
-  font-size: 0.9rem;
-
-  .item-name {
-    font-weight: 600;
-    flex: 1;
-  }
-
-  .item-qty {
-    color: #666;
-    min-width: 40px;
-  }
-
-  .item-price {
-    color: #666;
-    min-width: 60px;
-    text-align: right;
-  }
-
-  .item-total {
-    font-weight: 600;
-    color: #667eea;
-    min-width: 70px;
-    text-align: right;
-  }
-}
-
-.internal-material-item-detail {
-  flex-wrap: wrap;
-}
-
-.item-detail-note {
-  width: 100%;
-  margin-top: 0.25rem;
-  color: #475569;
-  font-size: 0.85rem;
-  padding-top: 0.35rem;
-  border-top: 1px dashed #c3ced9;
-}
-
-.no-items {
-  padding: 1rem;
-  text-align: center;
-  color: #999;
-  font-style: italic;
-}
-
-.zbon-preview {
-  background: #f9f9f9;
-  border: 1px solid #ddd;
-  border-radius: 8px;
-  padding: 1.5rem;
-  margin-top: 2rem;
-}
-
+/* Z-Bon Preview Modal */
 .zbon-preview-dialog {
   width: min(96vw, 2200px);
   max-width: min(96vw, 2200px);
@@ -3541,7 +3534,29 @@ onBeforeUnmount(() => {
   display: block;
 }
 
-/* Z-Böns History Table Styles */
+/* ==================== PAGINATION ==================== */
+.pagination {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  gap: 1rem;
+  margin-top: 2rem;
+  flex-wrap: wrap;
+
+  span {
+    color: #666;
+    font-weight: 500;
+  }
+
+  button {
+    &:disabled {
+      opacity: 0.5;
+      cursor: not-allowed;
+    }
+  }
+}
+
+/* ==================== TABLE CONTAINER ==================== */
 .table-container {
   overflow-x: auto;
   border: 1px solid #ddd;
@@ -3564,93 +3579,68 @@ onBeforeUnmount(() => {
   font-size: 0.9rem;
 }
 
-.detail-table {
-  width: 100%;
-  border-collapse: collapse;
-  background: white;
-  border-radius: 8px;
+/* ==================== EMPTY / LOADING ==================== */
+.empty {
+  text-align: center;
+  padding: 2rem;
+  color: #999;
+}
 
-  tr {
-    border-bottom: 1px solid #eee;
+.loading {
+  text-align: center;
+  padding: 2rem;
+  color: #666;
+}
+
+/* ==================== RESPONSIVE ==================== */
+@media (max-width: 900px) {
+  .zbon-create-layout {
+    grid-template-columns: 1fr;
   }
 
-  td {
-    padding: 0.75rem;
-
-    &:first-child {
-      width: 200px;
-      font-weight: 500;
-      color: #333;
-      background: #f5f5f5;
-    }
-
-    &.currency {
-      text-align: right;
-      font-family: 'Courier New', monospace;
-      font-weight: 500;
-    }
-
-    &.positive {
-      color: #388e3c;
-    }
-
-    &.negative {
-      color: #d32f2f;
-    }
+  .form-grid {
+    grid-template-columns: 1fr;
   }
 
-  tr.section-row {
-    background: #f0f0f0;
+  .selection-actions {
+    flex-direction: column;
+    align-items: stretch;
   }
 }
 
-.pagination {
-  display: flex;
-  justify-content: center;
-  align-items: center;
-  gap: 1rem;
-  margin-top: 2rem;
-  flex-wrap: wrap;
-
-  span {
-    color: #666;
-    font-weight: 500;
+@media (max-width: 700px) {
+  .admin-finance {
+    padding: 0 1rem 1rem;
   }
 
-  button {
-    &:disabled {
-      opacity: 0.5;
-      cursor: not-allowed;
+  .page-header {
+    margin: 0 -1rem 1rem;
+    padding: 1rem;
+  }
+
+  .sticky-header {
+    padding: 1rem;
+  }
+
+  .action-bar {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .action-buttons {
+    justify-content: stretch;
+
+    .btn {
+      flex: 1;
     }
   }
-}
 
-.btn-success {
-  background: #4caf50;
-  color: white;
+  .modal-actions {
+    flex-direction: column;
 
-  &:hover {
-    background: #45a049;
+    .btn {
+      width: 100%;
+    }
   }
-}
-
-.btn-warning {
-  background: #ff9800;
-  color: white;
-
-  &:hover {
-    background: #e65100;
-  }
-}
-
-.btn-ready {
-  background: #2e7d32;
-  color: white;
-}
-
-.btn-disabled {
-  background: #9ca3af;
-  color: white;
-  cursor: not-allowed;
 }
 </style>
