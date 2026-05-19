@@ -137,7 +137,7 @@
               </div>
               <div class="form-group">
                 <label for="description">Beschreibung</label>
-                <textarea id="description" v-model="formData.description" rows="3"></textarea>
+                <textarea id="description" v-model="formData.description" rows="2"></textarea>
               </div>
             </section>
 
@@ -619,8 +619,8 @@ onMounted(() => {
 }
 
 .color-option {
-  width: 32px;
-  height: 32px;
+  width: 36px;
+  height: 36px;
   border-radius: 8px;
   border: 2px solid transparent;
   cursor: pointer;
@@ -752,7 +752,7 @@ onMounted(() => {
 .modal-card {
   background: white;
   width: 100%;
-  max-height: calc(100vh - 2rem);
+  max-height: 650px;
   border-radius: 16px;
   display: flex;
   flex-direction: column;
@@ -761,11 +761,11 @@ onMounted(() => {
 }
 
 .modal-compact {
-  max-width: 680px;
+  max-width: 650px;
 }
 
 .modal-header {
-  padding: 1.25rem 1.5rem;
+  padding: 0.9rem 1.2rem;
   border-bottom: 1px solid var(--border);
   display: flex;
   justify-content: space-between;
@@ -774,15 +774,13 @@ onMounted(() => {
 
   h3 {
     margin: 0;
-    font-size: 1.25rem;
+    font-size: 1.1rem;
     font-weight: 600;
     color: #1e293b;
   }
 
   .modal-subtitle {
-    margin: 0.15rem 0 0 0;
-    font-size: 0.85rem;
-    color: #64748b;
+    display: none;
   }
 }
 
@@ -793,12 +791,12 @@ onMounted(() => {
 }
 
 .modal-scroller {
-  padding: 1.5rem;
+  padding: 1rem 1.2rem;
   overflow-y: auto;
-  max-height: calc(85vh - 120px);
+  max-height: calc(650px - 110px);
   display: flex;
   flex-direction: column;
-  gap: 1.5rem;
+  gap: 1rem;
 }
 
 .form-section {
@@ -810,13 +808,13 @@ onMounted(() => {
     letter-spacing: 0.05em;
     color: #64748b;
     border-bottom: 1px solid var(--border);
-    padding-bottom: 0.5rem;
-    margin-bottom: 1rem;
+    padding-bottom: 0.35rem;
+    margin-bottom: 0.65rem;
   }
 
   &.highlight {
     background: #f0f7ff;
-    padding: 1rem;
+    padding: 0.65rem 0.9rem;
     border-radius: 12px;
     border: 1px solid #bae6fd;
   }
@@ -829,20 +827,20 @@ onMounted(() => {
 }
 
 .form-group {
-  margin-bottom: 1rem;
+  margin-bottom: 0.6rem;
 
   label {
     display: block;
     font-size: 0.85rem;
     font-weight: 600;
-    margin-bottom: 0.35rem;
+    margin-bottom: 0.25rem;
     color: #334155;
   }
 
   input,
   textarea {
     width: 100%;
-    padding: 0.55rem 0.75rem;
+    padding: 0.5rem 0.7rem;
     border: 1px solid var(--border);
     border-radius: 8px;
     font-size: 0.9rem;
@@ -859,11 +857,13 @@ onMounted(() => {
 .checkbox-card {
   display: flex;
   gap: 0.75rem;
-  padding: 0.9rem 1rem;
+  padding: 0.6rem 0.8rem;
   background: white;
   border: 1px solid var(--border);
   border-radius: 10px;
   cursor: pointer;
+  align-items: center;
+  min-height: 44px;
 }
 
 .checkbox-content {
@@ -888,6 +888,7 @@ onMounted(() => {
   cursor: pointer;
   border: none;
   font-size: 0.9rem;
+  min-height: 40px;
 }
 
 .btn-primary {
@@ -936,14 +937,19 @@ onMounted(() => {
   line-height: 1;
   cursor: pointer;
   color: #6b7280;
-  padding: 0;
+  padding: 0.25rem;
+  min-width: 36px;
+  min-height: 36px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
 }
 
 .modal-footer {
   display: flex;
   justify-content: flex-end;
   gap: 0.75rem;
-  padding: 1rem 1.5rem;
+  padding: 0.75rem 1.2rem;
   border-top: 1px solid var(--border);
   background: #f8fafc;
 }
