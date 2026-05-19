@@ -76,9 +76,9 @@
               <td class="text-right">
                 <div class="action-cell">
                   <button class="btn-action" @click="editMember(member)">Bearbeiten</button>
-                  <button 
-                    class="btn-action btn-action-danger" 
-                    :disabled="!authStore.isAdmin" 
+                  <button
+                    class="btn-action btn-action-danger"
+                    :disabled="!authStore.isAdmin"
                     @click="deleteMember(member.id)"
                   >Löschen</button>
                 </div>
@@ -189,7 +189,7 @@
               <h4>Zusatzangaben</h4>
               <div class="form-group">
                 <label>Interne Notizen</label>
-                <textarea v-model="formData.notes" rows="3" placeholder="Interne Bemerkungen..."></textarea>
+                <textarea v-model="formData.notes" rows="2" placeholder="Interne Bemerkungen..."></textarea>
               </div>
             </div>
 
@@ -522,7 +522,7 @@ onMounted(() => memberStore.getMembers())
 .modal-card {
   background: white;
   width: 100%;
-  max-height: calc(100vh - 2rem);
+  max-height: 650px;
   border-radius: 16px;
   display: flex;
   flex-direction: column;
@@ -531,18 +531,18 @@ onMounted(() => memberStore.getMembers())
 }
 
 .modal-compact {
-  max-width: 680px;
+  max-width: 650px;
 }
 
 .modal-header {
-  padding: 1.25rem 1.5rem;
+  padding: 0.9rem 1.2rem;
   border-bottom: 1px solid var(--border);
   display: flex;
   justify-content: space-between;
   align-items: flex-start;
   gap: 1rem;
-  h3 { margin: 0; font-size: 1.25rem; font-weight: 600; color: #1e293b; }
-  .modal-subtitle { margin: 0.15rem 0 0 0; font-size: 0.85rem; color: #64748b; }
+  h3 { margin: 0; font-size: 1.1rem; font-weight: 600; color: #1e293b; }
+  .modal-subtitle { display: none; }
 }
 
 .modal-compact-layout {
@@ -552,19 +552,19 @@ onMounted(() => memberStore.getMembers())
 }
 
 .modal-scroller {
-  padding: 1.5rem;
+  padding: 1rem 1.2rem;
   overflow-y: auto;
-  max-height: calc(85vh - 120px);
+  max-height: calc(650px - 110px);
   display: flex;
   flex-direction: column;
-  gap: 1.5rem;
+  gap: 1rem;
 }
 
 /* Bild + Kernfelder nebeneinander */
 .main-form-grid {
   display: grid;
   grid-template-columns: 160px 1fr;
-  gap: 1.5rem;
+  gap: 1rem;
   align-items: start;
 }
 
@@ -659,30 +659,31 @@ onMounted(() => memberStore.getMembers())
 /* Optionale Sektionen unterhalb des Haupt-Grids */
 .options-section {
   border-top: 1px dashed var(--border);
-  padding-top: 1.25rem;
+  padding-top: 0.9rem;
   h4 {
     font-size: 0.875rem;
     text-transform: uppercase;
     color: #64748b;
     border-bottom: 1px solid var(--border);
-    padding-bottom: 0.5rem;
-    margin-bottom: 1rem;
+    padding-bottom: 0.35rem;
+    margin-bottom: 0.65rem;
   }
-  &.highlight-box { background: #f0f7ff; padding: 1.25rem; border-radius: 12px; border: 1px solid #bae6fd; }
+  &.highlight-box { background: #f0f7ff; padding: 0.75rem 0.9rem; border-radius: 12px; border: 1px solid #bae6fd; }
 }
 
 .compact-cb {
   display: flex;
   gap: 0.6rem;
-  padding: 0.65rem 0.85rem;
+  padding: 0.6rem 0.8rem;
   background: #f8fafc;
   border: 1px solid var(--border);
   border-radius: 8px;
   cursor: pointer;
-  align-items: flex-start;
+  align-items: center;
+  min-height: 44px;
   transition: background-color 0.15s ease, border-color 0.15s ease;
   &:hover { background: #f1f5f9; border-color: #cbd5e1; }
-  input { margin-top: 0.2rem; }
+  input { margin-top: 0; }
   .label { display: block; font-size: 0.85rem; font-weight: 600; color: #1e293b; }
   .desc { display: block; font-size: 0.72rem; color: #64748b; line-height: 1.3; margin-top: 0.05rem; }
 }
@@ -690,10 +691,10 @@ onMounted(() => memberStore.getMembers())
 /* Formular */
 .form-row { display: grid; grid-template-columns: 1fr 1fr; gap: 0.75rem; }
 .form-group {
-  margin-bottom: 1rem;
-  label { display: block; font-size: 0.85rem; font-weight: 600; margin-bottom: 0.35rem; color: #334155; }
+  margin-bottom: 0.6rem;
+  label { display: block; font-size: 0.85rem; font-weight: 600; margin-bottom: 0.25rem; color: #334155; }
   input, select, textarea {
-    width: 100%; padding: 0.55rem 0.75rem; border: 1px solid var(--border); border-radius: 8px; font-size: 0.9rem; color: #0f172a;
+    width: 100%; padding: 0.5rem 0.7rem; border: 1px solid var(--border); border-radius: 8px; font-size: 0.9rem; color: #0f172a;
     &:focus { outline: none; border-color: var(--primary); box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1); }
   }
 }
@@ -703,7 +704,7 @@ onMounted(() => memberStore.getMembers())
 
 /* Modal Footer */
 .modal-footer {
-  padding: 1rem 1.5rem;
+  padding: 0.75rem 1.2rem;
   border-top: 1px solid var(--border);
   background: #f8fafc;
   display: flex;
@@ -712,7 +713,7 @@ onMounted(() => memberStore.getMembers())
 }
 
 /* Button & Action Styles */
-.btn { padding: 0.55rem 1.1rem; border-radius: 6px; font-weight: 600; cursor: pointer; border: none; font-size: 0.9rem; }
+.btn { padding: 0.55rem 1.1rem; border-radius: 6px; font-weight: 600; cursor: pointer; border: none; font-size: 0.9rem; min-height: 40px; }
 .btn-primary { background: var(--primary); color: white; }
 .btn-success { background: var(--success); color: white; }
 .btn-secondary { background: #e2e8f0; color: #475569; }
@@ -723,7 +724,7 @@ onMounted(() => memberStore.getMembers())
 }
 .btn-action-danger { border-color: #fecaca; color: #b91c1c; }
 
-.modal-close { border: none; background: transparent; font-size: 1.5rem; line-height: 1; cursor: pointer; color: #6b7280; padding: 0; }
+.modal-close { border: none; background: transparent; font-size: 1.5rem; line-height: 1; cursor: pointer; color: #6b7280; padding: 0.25rem; min-width: 36px; min-height: 36px; display: flex; align-items: center; justify-content: center; }
 
 .loading-state {
   display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 3rem; color: #64748b;
