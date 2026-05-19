@@ -1,0 +1,235 @@
+name: Release
+
+on:
+  pull_request:
+  push:
+    branches:
+      - main
+    tags:
+      - "v*.*.*"
+  workflow_dispatch:
+    inputs:
+      version:
+        description: "SemVer version to release (for example 1.0.0)"
+        required: true
+        type: string
+
+permissions:
+  contents: write
+
+jobs:
+  conventional-commits:
+    if: github.event_name == 'pull_request' || github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Validate commit messages
+        env:
+          EVENT_NAME: ${{ github.event_name }}
+          PR_BASE_SHA: ${{ github.event.pull_request.base.sha }}
+          PR_HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+          PUSH_BEFORE: ${{ github.event.before }}
+          PUSH_AFTER: ${{ github.event.after }}
+        run: |
+          set -euo pipefail
+
+          if [ "$EVENT_NAME" = "pull_request" ]; then
+            RANGE="${PR_BASE_SHA}..${PR_HEAD_SHA}"
+          elif [ -n "${PUSH_BEFORE:-}" ] && [ "${PUSH_BEFORE}" != "0000000000000000000000000000000000000000" ]; then
+            RANGE="${PUSH_BEFORE}..${PUSH_AFTER}"
+          else
+            RANGE="${PUSH_AFTER}"
+          fi
+
+          echo "Checking commits in range: $RANGE"
+          export RANGE
+          python - <<'PY'
+          import os
+          import re
+          import subprocess
+          import sys
+
+          range_expr = os.environ["RANGE"]
+          output = subprocess.check_output(
+              ["git", "log", "--format=%H%x09%s", range_expr],
+              text=True,
+          ).strip()
+
+          if not output:
+              print("No commits found in range.")
+              sys.exit(0)
+
+          allowed = re.compile(
+              r"^(feat|fix|refactor|docs|style|test|chore|build|ci|perf)(\([a-z0-9._/-]+\))?(!)?: [A-Za-z0-9].+"
+          )
+          forbidden_fragments = {
+              "add files via upload",
+              "update files",
+              "misc updates",
+              "initial plan",
+              "hotfixing",
+          }
+
+          invalid = []
+          for line in output.splitlines():
+              sha, subject = line.split("\t", 1)
+              normalized = subject.strip().lower()
+              if subject.startswith("Merge "):
+                  continue
+              if subject.startswith("Revert "):
+                  continue
+              if normalized in forbidden_fragments:
+                  invalid.append((sha, subject, "generic commit message"))
+                  continue
+              if not allowed.match(subject):
+                  invalid.append((sha, subject, "not a Conventional Commit"))
+
+          if invalid:
+              print("Invalid commit subjects detected:")
+              for sha, subject, reason in invalid:
+                  print(f"- {sha[:7]}: {subject} ({reason})")
+              sys.exit(1)
+
+          print("All commit subjects passed Conventional Commit validation.")
+          PY
+
+  release:
+    if: startsWith(github.ref, 'refs/tags/v') || github.event_name == 'workflow_dispatch'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: Resolve version
+        id: version
+        env:
+          EVENT_NAME: ${{ github.event_name }}
+          INPUT_VERSION: ${{ github.event.inputs.version }}
+          REF_NAME: ${{ github.ref_name }}
+        run: |
+          set -euo pipefail
+
+          if [ "$EVENT_NAME" = "workflow_dispatch" ]; then
+            VERSION="${INPUT_VERSION#v}"
+          else
+            VERSION="${REF_NAME#v}"
+          fi
+
+          if ! [[ "$VERSION" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+            echo "Invalid version: $VERSION" >&2
+            exit 1
+          fi
+
+          echo "version=$VERSION" >> "$GITHUB_OUTPUT"
+
+      - name: Validate VERSION and CHANGELOG
+        env:
+          VERSION: ${{ steps.version.outputs.version }}
+        run: |
+          set -euo pipefail
+
+          FILE_VERSION="$(tr -d '\n' < VERSION)"
+          if [ "$FILE_VERSION" != "$VERSION" ]; then
+            echo "VERSION file ($FILE_VERSION) does not match release version ($VERSION)." >&2
+            exit 1
+          fi
+
+          grep -q "^## \[$VERSION\] - " CHANGELOG.md || {
+            echo "Missing changelog section for version $VERSION." >&2
+            exit 1
+          }
+
+      - name: Create release tag from workflow dispatch
+        if: github.event_name == 'workflow_dispatch'
+        env:
+          VERSION: ${{ steps.version.outputs.version }}
+        run: |
+          set -euo pipefail
+
+          if git rev-parse "v$VERSION" >/dev/null 2>&1; then
+            echo "Tag v$VERSION already exists."
+            exit 0
+          fi
+
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git tag "v$VERSION"
+          git push origin "v$VERSION"
+
+      - name: Install frontend dependencies
+        working-directory: frontend
+        run: npm ci
+
+      - name: Build frontend
+        working-directory: frontend
+        run: npm run build
+
+      - name: Create release notes
+        env:
+          VERSION: ${{ steps.version.outputs.version }}
+        run: |
+          set -euo pipefail
+          python - <<'PY' > /tmp/release-notes.md
+          import os
+          import re
+
+          version = os.environ["VERSION"]
+          with open("CHANGELOG.md", encoding="utf-8") as handle:
+              changelog = handle.read()
+
+          pattern = re.compile(
+              rf"^## \[{re.escape(version)}\] - .*$([\s\S]*?)(?=^## \[|\Z)",
+              re.MULTILINE,
+          )
+          match = pattern.search(changelog)
+          if not match:
+              raise SystemExit(f"Missing changelog section for {version}")
+
+          print(match.group(0).strip())
+          PY
+
+      - name: Build release bundle
+        env:
+          VERSION: ${{ steps.version.outputs.version }}
+        run: |
+          set -euo pipefail
+
+          BUNDLE_DIR="dist/release/kickerkasse-$VERSION"
+          rm -rf "$BUNDLE_DIR"
+          mkdir -p "$BUNDLE_DIR"
+
+          cp CHANGELOG.md VERSION README.md .env.example docker-compose.yml "$BUNDLE_DIR"/
+          rsync -a \
+            --exclude '__pycache__' \
+            --exclude '.pytest_cache' \
+            --exclude 'venv' \
+            --exclude 'uploads' \
+            backend "$BUNDLE_DIR"/
+          mkdir -p "$BUNDLE_DIR/frontend"
+          cp frontend/package.json frontend/package-lock.json "$BUNDLE_DIR/frontend"/
+          cp -R frontend/dist "$BUNDLE_DIR/frontend"/
+
+          cd dist/release
+          zip -r "kickerkasse-$VERSION.zip" "kickerkasse-$VERSION"
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: kickerkasse-${{ steps.version.outputs.version }}
+          path: dist/release/kickerkasse-${{ steps.version.outputs.version }}.zip
+
+      - name: Publish GitHub release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: v${{ steps.version.outputs.version }}
+          body_path: /tmp/release-notes.md
+          files: dist/release/kickerkasse-${{ steps.version.outputs.version }}.zip
