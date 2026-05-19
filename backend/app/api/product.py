@@ -27,7 +27,7 @@ async def create_product(
     db: Session = Depends(get_db),
 ):
     """Create a new product"""
-    require_roles(request, db, UserRole.ADMIN)
+    require_roles(request, db, UserRole.ADMIN, UserRole.MANAGER)
     
     try:
         service = ProductService(db)

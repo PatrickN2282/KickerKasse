@@ -45,7 +45,7 @@ async def create_member(
     db: Session = Depends(get_db),
 ):
     """Create a new member"""
-    current_user = require_roles(request, db, UserRole.ADMIN)
+    current_user = require_roles(request, db, UserRole.ADMIN, UserRole.MANAGER)
     if member_data.role and not current_user.is_top_admin:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
@@ -211,7 +211,7 @@ async def update_member(
     db: Session = Depends(get_db),
 ):
     """Update member"""
-    current_user = require_roles(request, db, UserRole.ADMIN)
+    current_user = require_roles(request, db, UserRole.ADMIN, UserRole.MANAGER)
     if member_data.account_password is not None and not current_user.is_admin:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
@@ -262,7 +262,7 @@ async def recharge_member_balance(
     db: Session = Depends(get_db),
 ):
     """Recharge member balance"""
-    current_user = require_roles(request, db, UserRole.ADMIN)
+    current_user = require_roles(request, db, UserRole.ADMIN, UserRole.MANAGER)
     user_id = current_user.id
     require_password_confirmation(current_user, recharge_request.auth_password)
     
