@@ -101,10 +101,10 @@ class EmailService:
         Returns:
             True if successful, False otherwise
         """
-        subject = f"Z-Bon für {date}"
+        subject = f"Kassenbericht für {date}"
         
         body = f"""
-Anbei erhalten Sie den Z-Bon für {date}.
+Anbei erhalten Sie den Kassenbericht für {date}.
 
 ---
 {zbon_content}
@@ -116,7 +116,7 @@ Diese E-Mail wurde automatisch generiert.
         html_body = f"""
 <html>
   <body>
-    <p>Anbei erhalten Sie den Z-Bon für <strong>{date}</strong>.</p>
+    <p>Anbei erhalten Sie den Kassenbericht für <strong>{date}</strong>.</p>
     <pre style="background: #f5f5f5; padding: 1rem; border-radius: 4px; font-family: monospace;">
 {zbon_content}
     </pre>
@@ -126,7 +126,7 @@ Diese E-Mail wurde automatisch generiert.
 """
         
         attachments = [
-            (f"Z-Bon_{date}.txt", zbon_content, "text/plain")
+            (f"Kassenbericht_{date}.txt", zbon_content, "text/plain")
         ]
         
         return EmailService.send_email(
@@ -160,10 +160,10 @@ Diese E-Mail wurde automatisch generiert.
         Returns:
             True if successful, False otherwise
         """
-        subject = f"Z-Bon {seq_number or date} - {date}" if seq_number else f"Z-Bon für {date}"
+        subject = f"Kassenbericht {seq_number or date} - {date}" if seq_number else f"Kassenbericht für {date}"
         
         # Create responsive wrapper HTML with email-safe styles
-        body = f"Z-Bon für {date}"
+        body = f"Kassenbericht für {date}"
         
         # Use the provided HTML directly (already rendered from template)
         html_body = f"""
@@ -182,7 +182,7 @@ Diese E-Mail wurde automatisch generiert.
   <body>
     <div class="container">
       <div class="greeting">
-        <p>Anbei erhalten Sie den Z-Bon für <strong>{date}</strong>.</p>
+        <p>Anbei erhalten Sie den Kassenbericht für <strong>{date}</strong>.</p>
       </div>
       
       <div class="zbon-container">
@@ -190,7 +190,7 @@ Diese E-Mail wurde automatisch generiert.
       </div>
       
       <div class="footer">
-        <p>Diese E-Mail wurde automatisch generiert. Bitte speichern Sie diesen Z-Bon für Ihre Unterlagen.</p>
+        <p>Diese E-Mail wurde automatisch generiert. Bitte speichern Sie diesen Kassenbericht für Ihre Unterlagen.</p>
       </div>
     </div>
   </body>
@@ -201,7 +201,7 @@ Diese E-Mail wurde automatisch generiert.
         
         # Add PDF if provided
         if include_pdf:
-            filename = f"Z-Bon_{seq_number}_{date}.pdf" if seq_number else f"Z-Bon_{date}.pdf"
+            filename = f"Kassenbericht_{seq_number}_{date}.pdf" if seq_number else f"Kassenbericht_{date}.pdf"
             attachments.append((filename, include_pdf, "application/pdf"))
         
         return EmailService.send_email(

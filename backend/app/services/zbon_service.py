@@ -1052,7 +1052,7 @@ class ZBonService:
         
         next_seq = (last_zbon.sequence_number + 1) if last_zbon else 1
         lines.append(f"Endabrechnung {next_seq}")
-        lines.append("(Z-Bon)")
+        lines.append("(Kassenbericht)")
         
         lines.append("Erstellt am:")
         lines.append(f"{meta['report_generated_at']}")

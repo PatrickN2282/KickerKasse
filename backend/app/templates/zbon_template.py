@@ -6,7 +6,7 @@ ZBON_HTML_TEMPLATE = """
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Z-Bon {{ seq_number }} - {{ business_date }}</title>
+    <title>Kassenbericht {{ seq_number }} - {{ business_date }}</title>
     <style>
         * {
             margin: 0;
@@ -830,10 +830,10 @@ ZBON_HTML_TEMPLATE = """
         <!-- Footer -->
         <div class="footer">
             <div class="footer-text">Vielen Dank für Deinen Besuch!</div>
-            <div class="footer-text">Berichtstyp: {{ report_type_label|default("Z-BON") }} | Geschäftsjahr 2026</div>
+            <div class="footer-text">Berichtstyp: {{ report_type_label|default("KASSENBERICHT") }} | Geschäftsjahr 2026</div>
             <div class="footer-text">Erzeugt: {{ created_at }}</div>
             <div class="footer-text" style="margin-top: 15px; color: #999; font-size: 10px;">
-                Dieser Z-Bon wurde automatisch generiert und archiviert.
+                Dieser Kassenbericht wurde automatisch generiert und archiviert.
             </div>
         </div>
     </div>

@@ -38,6 +38,22 @@ img {
   max-width: 100%;
 }
 
+.admin-container table thead tr > th:nth-child(odd) {
+  background-color: color-mix(in srgb, var(--app-background-color) 70%, white);
+}
+
+.admin-container table thead tr > th:nth-child(even) {
+  background-color: color-mix(in srgb, var(--app-background-color) 82%, white);
+}
+
+.admin-container table tbody tr > td:nth-child(odd) {
+  background-color: color-mix(in srgb, var(--app-highlight-color) 10%, transparent);
+}
+
+.admin-container table tbody tr > td:nth-child(even) {
+  background-color: color-mix(in srgb, var(--app-banner-color) 4%, transparent);
+}
+
 ::-webkit-scrollbar {
   width: 8px;
   height: 8px;

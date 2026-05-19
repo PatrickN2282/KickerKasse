@@ -11,7 +11,7 @@
       <div class="title-row">
         <h2>Finanzen</h2>
         <span class="title-sep">|</span>
-        <span class="page-subtitle">Tagesabrechnungen, Z-Bons und Umsatzübersichten.</span>
+        <span class="page-subtitle">Tagesabrechnungen, Kassenberichte und Umsatzübersichten.</span>
       </div>
 
       <div class="finance-tabs">
@@ -52,7 +52,7 @@
             class="btn btn-info"
             @click="openZbonCreateModal"
           >
-            ✅ Z-Bon erstellen
+            ✅ Kassenbericht erstellen
           </button>
           <button
             v-if="authStore.isAdmin"
@@ -90,7 +90,7 @@
         <section class="zbon-section">
           <div class="zbon-section-header">
             <div>
-              <h4>Umsatz seit letztem Z-Bon</h4>
+              <h4>Umsatz seit letztem Kassenbericht</h4>
             </div>
           </div>
           <div class="summary-grid zbon-card-grid">
@@ -190,12 +190,12 @@
 
         <!-- Transaktionen -->
         <section class="daily-transactions zbon-section">
-          <h4>Transaktionen seit dem letzten Z-Bon</h4>
+          <h4>Transaktionen seit dem letzten Kassenbericht</h4>
           <div
             v-if="dailyStats.transactions.length === 0"
             class="empty"
           >
-            Keine Transaktionen im aktuellen Z-Bon-Zeitraum
+            Keine Transaktionen im aktuellen Kassenbericht-Zeitraum
           </div>
           <table
             v-else
@@ -310,7 +310,7 @@
             </div>
           </div>
           <p class="scheduler-info">
-            Der automatische Z-Bon-Versand muss in der .env-Datei konfiguriert werden:
+            Der automatische Kassenbericht-Versand muss in der .env-Datei konfiguriert werden:
           </p>
           <ul class="config-list">
             <li><code>SCHEDULED_ZBON_ENABLED=true</code></li>
@@ -328,7 +328,7 @@
       v-if="activeTab === 'zbons'"
       class="tab-content"
     >
-      <h3>📑 Z-Bons Verlauf</h3>
+      <h3>📑 Kassenberichte</h3>
 
       <div class="filter-section">
         <div class="filter-group">
@@ -369,7 +369,7 @@
         >
           <div class="summary-card">
             <div class="card-label">
-              Anzahl Z-Böns
+              Anzahl Kassenberichte
             </div>
             <div class="card-value">
               {{ zbonsList.length }}
@@ -464,7 +464,7 @@
             v-else
             class="empty"
           >
-            Keine Z-Böns für den ausgewählten Zeitraum
+            Keine Kassenberichte für den ausgewählten Zeitraum
           </div>
         </div>
 
@@ -1168,10 +1168,10 @@
       class="confirmation-overlay"
     >
       <div class="confirmation-dialog zbon-create-dialog">
-        <h3>🧾 Z-Bon erstellen</h3>
+        <h3>🧾 Kassenbericht erstellen</h3>
         <div class="modal-body">
           <div class="info-box">
-            Kassenprüfer wählen → Kasse zählen → ggf. Abschöpfung → Z-Bon erstellen
+            Kassenprüfer wählen → Kasse zählen → ggf. Abschöpfung → Kassenbericht erstellen
           </div>
 
           <div class="form-grid">
@@ -1284,7 +1284,7 @@
             :disabled="!canCreateZbon"
             @click="requestZBonCreate"
           >
-            ✓ Z-Bon erstellen
+            ✓ Kassenbericht erstellen
           </button>
         </div>
       </div>
@@ -1413,7 +1413,7 @@
           <iframe
             :srcdoc="zBonHtml"
             class="zbon-preview-frame"
-            title="Z-Bon Vorschau"
+            title="Kassenbericht-Vorschau"
           />
         </div>
         <div class="confirmation-buttons">
@@ -1436,10 +1436,10 @@
     <!-- Password Confirm Modal -->
     <PasswordConfirmModal
       :show="showPasswordModal"
-      title="Z-Bon erstellen"
+      title="Kassenbericht erstellen"
       message="Bitte Zugangsdaten des aktuell angemeldeten Benutzers bestätigen."
       :username="authStore.user?.username || ''"
-      confirm-label="Z-Bon erstellen"
+      confirm-label="Kassenbericht erstellen"
       @close="showPasswordModal = false"
       @confirm="createZBon"
     />
@@ -1490,7 +1490,7 @@ const showPasswordModal = ref(false)
 const memberPickerTarget = ref(null)
 const memberSearch = ref('')
 const financeUsers = ref([])
-const zbonHtmlModalTitle = ref('📋 Z-Bon Vorschau')
+const zbonHtmlModalTitle = ref('📋 Kassenbericht-Vorschau')
 const zbonHtmlDownloadMeta = ref(null)
 const clubAccount = ref({ balance_cents: 0, entries: [] })
 const materialAccount = ref({ total_quantity: 0, entries: [] })
@@ -1577,8 +1577,8 @@ const tabs = computed(() => (authStore.isManager
   : ['zbon', 'zbons', 'history', 'revenue', 'members', 'internalAccounts', ...(authStore.isAdmin ? ['corrections'] : [])]
 ))
 const tabLabels = {
-  zbon: '📊 Z-Bon',
-  zbons: '📑 Z-Bons Verlauf',
+  zbon: '📊 Kassenbericht',
+  zbons: '📑 Kassenberichte',
   history: '📜 Transaktionen',
   revenue: '📈 Umsatz',
   members: '👥 Mitglieder',
@@ -2224,7 +2224,7 @@ const handleDownloadZBon = async () => {
     }
 
     triggerHtmlDownload(zBonHtml.value, buildZbonHtmlFilename(zbonHtmlDownloadMeta.value))
-    notificationStore.success('Z-Bon HTML erfolgreich heruntergeladen')
+    notificationStore.success('Kassenbericht HTML erfolgreich heruntergeladen')
   } catch (error) {
     console.error('Error downloading Z-Bon HTML:', error)
     notificationStore.error(`Fehler beim Download: ${error.response?.data?.detail || error.message}`)
@@ -2255,7 +2255,7 @@ const closeZbonCreateModal = () => {
 const openPreviewModal = async () => {
   await loadDailyStats()
   if (zBonHtml.value) {
-    zbonHtmlModalTitle.value = '📋 Z-Bon Vorschau'
+    zbonHtmlModalTitle.value = '📋 Kassenbericht-Vorschau'
     zbonHtmlDownloadMeta.value = {
       period_end: dailyStats.value.period_end,
     }
@@ -2305,7 +2305,7 @@ const submitWithdrawal = async () => {
         amount_cents: Math.round(amount * 100),
         reason,
       })
-      notificationStore.success('Abschöpfung für den Z-Bon vorgemerkt')
+      notificationStore.success('Abschöpfung für den Kassenbericht vorgemerkt')
     } else {
       await apiService.post('/transactions/cash/withdrawal', {
         amount_cents: Math.round(amount * 100),
@@ -2363,7 +2363,7 @@ const createZBon = async (password) => {
       cash_count_total: zbonFinalCashValue.value,
       pending_withdrawals: pendingWithdrawals.value,
     })
-    notificationStore.success('Z-Bon erfolgreich erstellt')
+    notificationStore.success('Kassenbericht erfolgreich erstellt')
     closeZbonCreateModal()
     zbonForm.value = {
       createdByUserId: null,
@@ -2414,7 +2414,7 @@ const loadZbonsHistory = async () => {
   } catch (error) {
     console.error('[Finance] Error loading Z-Böns history:', error)
     console.error('[Finance] Error details:', error.response?.data || error.message)
-    notificationStore.error('Fehler beim Laden der Z-Bons Verlauf: ' + (error.message || 'Unbekannter Fehler'))
+    notificationStore.error('Fehler beim Laden der Kassenberichte: ' + (error.message || 'Unbekannter Fehler'))
   } finally {
     loadingZbons.value = false
   }
@@ -2436,7 +2436,7 @@ const formatDateForFilename = (value) => {
 
 const buildZbonHtmlFilename = (zbon) => {
   const datePart = formatDateForFilename(zbon?.business_date || zbon?.period_end)
-  const baseName = zbon?.sequence_number ? `Z-Bon-${zbon.sequence_number}` : 'Z-Bon-Vorschau'
+  const baseName = zbon?.sequence_number ? `Kassenbericht-${zbon.sequence_number}` : 'Kassenbericht-Vorschau'
   return `${baseName}_${datePart}.html`
 }
 
@@ -2462,12 +2462,12 @@ const openZbonHistoryModal = async (zbon) => {
       responseType: 'text',
     })
     zBonHtml.value = response.data
-    zbonHtmlModalTitle.value = `📑 Z-Bon #${zbon.sequence_number}`
+    zbonHtmlModalTitle.value = `📑 Kassenbericht #${zbon.sequence_number}`
     zbonHtmlDownloadMeta.value = zbon
     showZbonPreviewModal.value = true
   } catch (error) {
     console.error('[Finance] Error loading Z-Bon HTML detail:', error)
-    notificationStore.error('Fehler beim Laden der Z-Bon-Ansicht')
+    notificationStore.error('Fehler beim Laden der Kassenbericht-Ansicht')
   }
 }
 
