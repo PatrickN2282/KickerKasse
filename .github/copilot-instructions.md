@@ -211,3 +211,181 @@ Pflichtblöcke:
 * Kassenbestand: physisch vorhandenes Bargeld
 
 ---
+
+# 15. Entwicklungsrichtlinien und Release-Workflow
+
+## 15.1 Zielsetzung
+
+Das Projekt wird semantisch versioniert und releasefähig entwickelt.
+
+Ziel:
+
+* reproduzierbare Releases
+* nachvollziehbare Changelogs
+* automatisierte Versionierung
+* konsistente Commit-Historie
+* saubere Produktions-Releases
+
+---
+
+## 15.2 Semantic Versioning
+
+Das Projekt verwendet Semantic Versioning:
+
+MAJOR.MINOR.PATCH
+
+Beispiele:
+
+* 1.0.0 = erste stabile Produktivversion
+* 1.1.0 = neue Features ohne Breaking Changes
+* 1.1.1 = Bugfix Release
+* 2.0.0 = inkompatible Änderungen
+
+---
+
+## 15.3 Commit-Konventionen (Conventional Commits)
+
+Commit Messages müssen folgendem Schema folgen:
+
+type(scope): description
+
+Erlaubte Typen:
+
+* feat: neue Funktion
+* fix: Fehlerbehebung
+* refactor: interne Umstrukturierung
+* docs: Dokumentation
+* style: Formatierung / Layout
+* test: Tests
+* chore: technische Wartung
+* build: Buildsystem / CI
+* perf: Performanceverbesserung
+* ci: CI/CD Änderungen
+
+Breaking Changes:
+
+* feat!: Beschreibung
+* oder BREAKING CHANGE: im Commit Body
+
+Beispiele:
+
+feat(zbon): add aggregated payment statistics
+
+fix(receipt): correct VAT rounding issue
+
+refactor(storage): simplify transaction persistence
+
+---
+
+## 15.4 KI-gestützte Entwicklung
+
+GitHub Copilot und KI-Tools dürfen verwendet werden.
+
+Dabei gelten folgende Regeln:
+
+* keine generischen Commit Messages
+* keine Sammelcommits ohne Beschreibung
+* Commits müssen fachlich nachvollziehbar bleiben
+* neue Features müssen dokumentiert werden
+* Breaking Changes müssen explizit gekennzeichnet werden
+
+---
+
+## 15.5 Changelog
+
+Das Projekt verwendet ein strukturiertes CHANGELOG.md.
+
+Format:
+KEEP A CHANGELOG
+
+Kategorien:
+
+* Added
+* Changed
+* Fixed
+* Removed
+* Security
+
+Changelog-Einträge müssen aus Commits und Pull Requests ableitbar sein.
+
+---
+
+## 15.6 Release-Typen
+
+### Development / Beta Releases
+
+Dürfen enthalten:
+
+* experimentelle Features
+* Entwicklungsartefakte
+* Debugging-Komponenten
+* interne Strukturen
+
+Versionierung:
+
+* v0.x.x
+* beta
+* rc
+
+### Stable Releases
+
+Stable Releases müssen enthalten:
+
+* nur produktive Artefakte
+* keine Entwicklungsdateien
+* keine internen Testdaten
+* reproduzierbare Build-Ergebnisse
+
+Stable Releases werden als kontrollierte Release-Artefakte veröffentlicht.
+
+---
+
+## 15.7 Release-Prozess
+
+Releases erfolgen über Git Tags.
+
+Beispiele:
+
+* v1.0.0
+* v1.1.0
+* v1.1.1
+
+Regeln:
+
+* jeder Release muss reproduzierbar sein
+* Releases müssen auf einem stabilen Commit basieren
+* Changelog muss aktualisiert werden
+* Releases dürfen nicht manuell nachbearbeitet werden
+
+---
+
+## 15.8 GitHub Actions / CI-CD
+
+CI/CD darf automatisch:
+
+* Versionen erzeugen
+* Tags erstellen
+* Changelogs generieren
+* Release-Artefakte bauen
+* GitHub Releases veröffentlichen
+
+Empfohlen:
+
+* semantic-release
+* conventional commits
+* automatisierte Release-Pipelines
+
+---
+
+## 15.9 Produktions-Releases
+
+Produktions-Releases sollen bevorzugt als:
+
+* ZIP
+* Build-Artefakt
+* Installer
+* Docker Image
+
+veröffentlicht werden.
+
+Das GitHub Source-ZIP gilt nicht als finales Produktivartefakt.
