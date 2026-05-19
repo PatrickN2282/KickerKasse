@@ -63,7 +63,7 @@ jobs:
               sys.exit(0)
 
           allowed = re.compile(
-              r"^(feat|fix|refactor|docs|style|test|chore|build|ci|perf)(\([a-z0-9._/-]+\))?(!)?: [a-z0-9].+"
+              r"^(feat|fix|refactor|docs|style|test|chore|build|ci|perf)(\([a-z0-9._/-]+\))?(!)?: [A-Za-z0-9].+"
           )
           forbidden_fragments = {
               "add files via upload",
@@ -144,7 +144,10 @@ jobs:
             exit 1
           fi
 
-          grep -q "^## \[$VERSION\] - " CHANGELOG.md
+          grep -q "^## \[$VERSION\] - " CHANGELOG.md || {
+            echo "Missing changelog section for version $VERSION." >&2
+            exit 1
+          }
 
       - name: Create release tag from workflow dispatch
         if: github.event_name == 'workflow_dispatch'
