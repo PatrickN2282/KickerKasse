@@ -28,8 +28,6 @@ frontend/yarn-error.log*
 *.swo
 *~
 .DS_Store
-.github/
-
 # Logs
 *.log
 backend/backend.log

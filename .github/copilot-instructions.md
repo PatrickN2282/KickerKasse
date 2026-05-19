@@ -389,3 +389,17 @@ Produktions-Releases sollen bevorzugt als:
 veröffentlicht werden.
 
 Das GitHub Source-ZIP gilt nicht als finales Produktivartefakt.
+
+---
+
+## 15.10 Repository-Disziplin für Releases
+
+Ab sofort gelten zusätzlich folgende operative Regeln:
+
+* `VERSION` ist die führende Release-Version des Repositories
+* Git-Tags folgen dem Schema `vMAJOR.MINOR.PATCH`
+* jeder Release-Eintrag muss in `CHANGELOG.md` im KEEP-A-CHANGELOG-Format gepflegt werden
+* Commit Messages wie `update`, `fixes`, `Add files via upload`, `Initial plan` oder andere generische KI-Sammeltexte sind unzulässig
+* neue Pull Requests und Commits müssen Conventional Commits nutzen und den fachlichen Scope benennen
+* `feat` erhöht MINOR, `fix` erhöht PATCH, `feat!` oder `BREAKING CHANGE` erhöht MAJOR
+* Release-Automation darf nur auf Basis von `VERSION`, `CHANGELOG.md` und reproduzierbaren Build-Artefakten arbeiten
