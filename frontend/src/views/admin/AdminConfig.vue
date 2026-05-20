@@ -380,11 +380,11 @@
               <label for="bd-reg">Vereinsregister (optional)</label>
               <input id="bd-reg" v-model="businessData.registrationNumber" type="text" placeholder="z. B. VR 12345 Amtsgericht Musterstadt">
             </div>
-            <footer class="modal-footer">
-              <button type="button" class="btn btn-secondary" @click="showBusinessModal = false">Abbrechen</button>
-              <button type="submit" class="btn btn-success">Speichern</button>
-            </footer>
           </form>
+          <footer class="modal-footer">
+            <button type="button" class="btn btn-secondary" @click="showBusinessModal = false">Abbrechen</button>
+            <button type="button" class="btn btn-success" @click="saveBusinessData">Speichern</button>
+          </footer>
         </div>
       </div>
     </div>
@@ -1068,36 +1068,43 @@ onMounted(async () => {
 .modal-card {
   background: white;
   width: 100%;
-  max-width: 640px;
-  max-height: 90vh;
+  max-width: 650px;
+  max-height: 650px;
   border-radius: 16px;
   display: flex;
   flex-direction: column;
   box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25);
+  overflow: hidden;
 }
 
 .modal-header {
-  padding: 1.5rem;
+  padding: 0.9rem 1.2rem;
   border-bottom: 1px solid #e2e8f0;
   display: flex;
   justify-content: space-between;
+  align-items: flex-start;
   gap: 1rem;
+  flex-shrink: 0;
 
   h3 {
     margin: 0;
-    font-size: 1.25rem;
+    font-size: 1.1rem;
+    font-weight: 600;
+    color: #1e293b;
   }
 }
 
 .modal-subtitle {
-  color: #64748b;
-  margin-top: 0.25rem;
-  font-size: 0.875rem;
+  display: none;
 }
 
 .modal-form-content {
-  padding: 1.5rem;
+  padding: 1rem 1.2rem;
   overflow-y: auto;
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 0;
 }
 
 .form-row {
@@ -1107,22 +1114,23 @@ onMounted(async () => {
 }
 
 .modal-form-content .form-group {
-  margin-bottom: 1rem;
+  margin-bottom: 0.6rem;
 
   label {
     display: block;
-    font-size: 0.875rem;
-    font-weight: 500;
-    margin-bottom: 0.4rem;
-    color: #1e293b;
+    font-size: 0.85rem;
+    font-weight: 600;
+    margin-bottom: 0.25rem;
+    color: #334155;
   }
 
   input {
     width: 100%;
-    padding: 0.6rem 0.8rem;
+    padding: 0.5rem 0.7rem;
     border: 1px solid #e2e8f0;
     border-radius: 8px;
-    font-size: 0.95rem;
+    font-size: 0.9rem;
+    color: #0f172a;
 
     &:focus {
       outline: none;
@@ -1135,35 +1143,48 @@ onMounted(async () => {
 .modal-footer {
   display: flex;
   justify-content: flex-end;
-  gap: 1rem;
-  padding-top: 0.5rem;
+  gap: 0.75rem;
+  padding: 0.75rem 1.2rem;
+  border-top: 1px solid #e2e8f0;
+  background: #f8fafc;
+  flex-shrink: 0;
+  margin-top: auto;
 }
 
 .modal-close {
   border: none;
   background: transparent;
-  font-size: 1.6rem;
+  font-size: 1.5rem;
   line-height: 1;
   cursor: pointer;
   color: #6b7280;
+  padding: 0.25rem;
+  min-width: 36px;
+  min-height: 36px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
 }
 
 // ── Buttons ───────────────────────────────────────────
 .btn {
-  padding: 0.6rem 1.2rem;
+  padding: 0.55rem 1.1rem;
   border-radius: 8px;
   font-weight: 600;
   cursor: pointer;
   border: none;
+  font-size: 0.9rem;
+  min-height: 40px;
 }
 
 .btn-primary {
-  background: var(--app-highlight-color, #3b82f6);
+  background: #3b82f6;
   color: white;
 }
 
 .btn-success {
-  background: var(--app-banner-color, #10b981);
+  background: #10b981;
   color: white;
 }
 
