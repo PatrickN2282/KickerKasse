@@ -443,13 +443,15 @@ class ImportExportService:
         updated = 0
         skipped_fixed = 0
 
+        existing_category_ids = {c[0] for c in self.db.query(Category.id).all()}
+
         for row in rows:
             row_number = row["__row_number"]
             name = self._require_value(row, "name", row_number)
             category = None
 
             source_id = self._parse_optional_int(row.get("id"))
-            if source_id is not None:
+            if source_id is not None and source_id in existing_category_ids:
                 category = self.db.query(Category).filter(Category.id == source_id).first()
             if category is None:
                 category = self.db.query(Category).filter(Category.name == name).first()
@@ -484,13 +486,15 @@ class ImportExportService:
             for category in self.db.query(Category).all()
         }
 
+        existing_product_ids = {p[0] for p in self.db.query(Product.id).all()}
+
         for row in rows:
             row_number = row["__row_number"]
             name = self._require_value(row, "name", row_number)
             product = None
 
             source_id = self._parse_optional_int(row.get("id"))
-            if source_id is not None:
+            if source_id is not None and source_id in existing_product_ids:
                 product = self.db.query(Product).filter(Product.id == source_id).first()
             if product is None:
                 product = self.db.query(Product).filter(Product.name == name).first()
@@ -542,6 +546,8 @@ class ImportExportService:
             for member in self.db.query(Member).filter(Member.member_number.isnot(None)).all()
         }
 
+        existing_member_ids = {m[0] for m in self.db.query(Member.id).all()}
+
         for row in rows:
             row_number = row["__row_number"]
             first_name = self._require_value(row, "first_name", row_number)
@@ -549,7 +555,7 @@ class ImportExportService:
 
             member = None
             source_id = self._parse_optional_int(row.get("id"))
-            if source_id is not None:
+            if source_id is not None and source_id in existing_member_ids:
                 member = self.db.query(Member).filter(Member.id == source_id).first()
 
             member_number = self._parse_optional_int(row.get("member_number"))
