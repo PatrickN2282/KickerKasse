@@ -944,24 +944,29 @@ onUnmounted(() => {
   width: 100%;
   min-width: 760px;
   border-collapse: collapse;
+  font-size: 0.88rem;
+
+  thead {
+    background: color-mix(in srgb, var(--app-background-color) 75%, white);
+  }
 
   th {
-    background: color-mix(in srgb, var(--app-background-color) 75%, white);
-    padding: 0.55rem 0.75rem;
-    font-size: 0.78rem;
-    text-transform: uppercase;
-    color: #64748b;
+    padding: 0.5rem 0.75rem;
+    color: #475569;
     font-weight: 600;
+    font-size: 0.8rem;
     text-align: left;
-    letter-spacing: 0.05em;
   }
 
   td {
     padding: 0.5rem 0.75rem;
     border-bottom: 1px solid var(--border);
     color: #334155;
-    font-size: 0.9rem;
     vertical-align: middle;
+  }
+
+  tr:hover td {
+    background: color-mix(in srgb, var(--app-background-color) 60%, white);
   }
 
   tr:last-child td {

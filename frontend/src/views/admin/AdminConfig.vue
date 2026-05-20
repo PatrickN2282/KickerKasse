@@ -44,6 +44,18 @@
     <!-- ── Design ─────────────────────────────────────── -->
     <div v-if="activeSection === 'design'" class="section-content">
       <h2>Design &amp; Logo</h2>
+
+      <section class="settings-card preview-card">
+        <h3>Vorschau</h3>
+        <div class="preview-shell" :style="previewStyle">
+          <div class="preview-banner">
+            <img :src="previewLogoUrl" alt="Logo Vorschau" class="preview-logo" />
+            <span class="preview-title">{{ designForm.app_name }}</span>
+          </div>
+          <div class="preview-highlight">Highlight-Fläche</div>
+        </div>
+      </section>
+
       <div class="settings-grid">
         <section class="settings-card">
           <h3>Farben</h3>
@@ -174,17 +186,6 @@
           </button>
         </section>
       </div>
-
-      <section class="settings-card preview-card">
-        <h3>Vorschau</h3>
-        <div class="preview-shell" :style="previewStyle">
-          <div class="preview-banner">
-            <img :src="previewLogoUrl" alt="Logo Vorschau" class="preview-logo" />
-            <span class="preview-title">{{ designForm.app_name }}</span>
-          </div>
-          <div class="preview-highlight">Highlight-Fläche</div>
-        </div>
-      </section>
     </div>
 
     <!-- ── Datenpflege ────────────────────────────────── -->
@@ -896,46 +897,48 @@ onMounted(async () => {
 }
 
 .preview-card {
-  margin-top: 1.25rem;
+  margin-bottom: 1rem;
+  padding: 0.75rem 1rem;
 }
 
 .preview-shell {
   background: var(--preview-background);
-  border-radius: 12px;
-  padding: 1.5rem;
+  border-radius: 10px;
+  padding: 0.75rem;
 }
 
 .preview-banner {
   background: var(--preview-banner);
   color: var(--preview-banner-contrast);
-  border-bottom: 3px solid var(--preview-highlight);
-  border-radius: 8px;
-  padding: 1rem;
+  border-bottom: 2px solid var(--preview-highlight);
+  border-radius: 6px;
+  padding: 0.6rem 1rem;
   display: flex;
   align-items: center;
-  gap: 1rem;
+  gap: 0.75rem;
   justify-content: center;
   flex-wrap: wrap;
 }
 
 .preview-logo {
-  width: min(320px, 100%);
-  height: 84px;
+  width: min(200px, 100%);
+  height: 52px;
   object-fit: contain;
 }
 
 .preview-title {
-  font-size: clamp(1.1rem, 1.8vw, 1.5rem);
+  font-size: clamp(0.95rem, 1.4vw, 1.2rem);
   font-weight: 700;
 }
 
 .preview-highlight {
-  margin-top: 1rem;
+  margin-top: 0.6rem;
   background: var(--preview-highlight);
   color: var(--preview-highlight-contrast);
-  border-radius: 8px;
-  padding: 1rem;
+  border-radius: 6px;
+  padding: 0.5rem 0.75rem;
   font-weight: 600;
+  font-size: 0.88rem;
 }
 
 // ── Datenpflege ───────────────────────────────────────

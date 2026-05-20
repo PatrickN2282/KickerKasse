@@ -50,36 +50,9 @@
               <span v-else class="badge badge-light">✗ Nein</span>
             </td>
             <td>
-              <div class="assignment-cell">
-                <div class="assignment-controls">
-                  <select v-model="selectedProductByCategory[category.id]" class="form-input compact">
-                    <option value="">Artikel wählen...</option>
-                    <option
-                      v-for="product in unassignedProducts(category.id)"
-                      :key="`assign-${category.id}-${product.id}`"
-                      :value="product.id"
-                    >
-                      {{ product.name }}
-                    </option>
-                  </select>
-                  <button class="btn btn-primary btn-compact" :disabled="!selectedProductByCategory[category.id]" @click="assignProduct(category.id)">
-                    Hinzufügen
-                  </button>
-                </div>
-
-                <div v-if="assignedProducts(category.id).length > 0" class="product-tags">
-                  <span
-                    v-for="product in assignedProducts(category.id)"
-                    :key="`tag-${category.id}-${product.id}`"
-                    class="product-tag"
-                  >
-                    {{ product.name }}
-                    <button class="tag-remove" title="Zuordnung entfernen" @click="removeProduct(category.id, product.id)">
-                      ×
-                    </button>
-                  </span>
-                </div>
-                <div v-else class="small-muted">Noch kein Artikel zugeordnet</div>
+              <div class="product-count-cell">
+                <span class="product-count-badge">{{ assignedProducts(category.id).length }}</span>
+                <button class="btn-action" @click="openAssignModal(category)">Verwalten</button>
               </div>
             </td>
             <td class="text-right">
@@ -215,6 +188,63 @@
         </form>
       </div>
     </div>
+
+    <!-- ── Product Assignment Modal ────────────────────── -->
+    <div v-if="showAssignModal && assignModalCategory" class="modal-overlay" @click.self="closeAssignModal">
+      <div class="modal-card modal-compact">
+        <header class="modal-header">
+          <div>
+            <h3>Artikel zuordnen</h3>
+            <p class="modal-subtitle">{{ assignModalCategory.name }}</p>
+          </div>
+          <button class="modal-close" @click="closeAssignModal">×</button>
+        </header>
+
+        <div class="assign-modal-body">
+          <div class="assign-add-row">
+            <select v-model="selectedProductByCategory[assignModalCategory.id]" class="assign-select">
+              <option value="">Artikel wählen...</option>
+              <option
+                v-for="product in unassignedProducts(assignModalCategory.id)"
+                :key="`assign-${assignModalCategory.id}-${product.id}`"
+                :value="product.id"
+              >
+                {{ product.name }}
+              </option>
+            </select>
+            <button
+              class="btn btn-primary btn-compact"
+              :disabled="!selectedProductByCategory[assignModalCategory.id]"
+              @click="assignProduct(assignModalCategory.id)"
+            >
+              Hinzufügen
+            </button>
+          </div>
+
+          <div v-if="assignedProducts(assignModalCategory.id).length > 0" class="assign-product-list">
+            <div
+              v-for="product in assignedProducts(assignModalCategory.id)"
+              :key="`assign-row-${product.id}`"
+              class="assign-product-row"
+            >
+              <span class="assign-product-name">{{ product.name }}</span>
+              <button
+                class="btn-tag-remove"
+                title="Zuordnung entfernen"
+                @click="removeProduct(assignModalCategory.id, product.id)"
+              >
+                ×
+              </button>
+            </div>
+          </div>
+          <div v-else class="assign-empty">Noch kein Artikel zugeordnet</div>
+        </div>
+
+        <footer class="modal-footer">
+          <button class="btn btn-secondary" @click="closeAssignModal">Schließen</button>
+        </footer>
+      </div>
+    </div>
   </div>
 </template>
 
@@ -229,6 +259,8 @@ const categories = ref([])
 const products = ref([])
 const editingId = ref(null)
 const showCategoryModal = ref(false)
+const showAssignModal = ref(false)
+const assignModalCategory = ref(null)
 const selectedProductByCategory = ref({})
 const formData = ref({
   name: '',
@@ -388,6 +420,16 @@ const deleteCategory = async (categoryId) => {
   }
 }
 
+const openAssignModal = (category) => {
+  assignModalCategory.value = category
+  showAssignModal.value = true
+}
+
+const closeAssignModal = () => {
+  showAssignModal.value = false
+  assignModalCategory.value = null
+}
+
 onMounted(() => {
   loadCategories()
   loadProducts()
@@ -459,13 +501,17 @@ onMounted(() => {
   width: 100%;
   min-width: 1080px;
   border-collapse: collapse;
+  font-size: 0.88rem;
+
+  thead {
+    background: color-mix(in srgb, var(--app-background-color) 75%, white);
+  }
 
   th {
-    background: color-mix(in srgb, var(--app-background-color) 75%, white);
-    padding: 0.55rem 0.75rem;
-    font-size: 0.78rem;
-    text-transform: uppercase;
-    color: #64748b;
+    padding: 0.5rem 0.75rem;
+    color: #475569;
+    font-weight: 600;
+    font-size: 0.8rem;
     text-align: left;
   }
 
@@ -473,6 +519,14 @@ onMounted(() => {
     padding: 0.5rem 0.75rem;
     border-bottom: 1px solid var(--border);
     vertical-align: top;
+  }
+
+  tr:hover td {
+    background: color-mix(in srgb, var(--app-background-color) 60%, white);
+  }
+
+  tr:last-child td {
+    border-bottom: none;
   }
 }
 
@@ -780,7 +834,9 @@ onMounted(() => {
   }
 
   .modal-subtitle {
-    display: none;
+    margin: 0.15rem 0 0;
+    font-size: 0.85rem;
+    color: #64748b;
   }
 }
 
@@ -964,7 +1020,6 @@ onMounted(() => {
     align-items: stretch;
   }
 
-  .assignment-controls,
   .action-cell {
     flex-direction: column;
   }
@@ -974,5 +1029,98 @@ onMounted(() => {
   .btn-action {
     width: 100%;
   }
+}
+
+// ── Product count cell and assignment modal ──────────
+.product-count-cell {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  white-space: nowrap;
+}
+
+.product-count-badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 1.6rem;
+  padding: 0.15rem 0.5rem;
+  background: #e2e8f0;
+  color: #0f172a;
+  border-radius: 999px;
+  font-size: 0.8rem;
+  font-weight: 700;
+}
+
+.assign-modal-body {
+  padding: 1rem 1.2rem;
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+.assign-add-row {
+  display: flex;
+  gap: 0.5rem;
+  align-items: center;
+}
+
+.assign-select {
+  flex: 1;
+  padding: 0.5rem 0.7rem;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  font-size: 0.9rem;
+
+  &:focus {
+    outline: none;
+    border-color: var(--primary);
+    box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
+  }
+}
+
+.assign-product-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+  max-height: 280px;
+  overflow-y: auto;
+}
+
+.assign-product-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0.4rem 0.7rem;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: #f8fafc;
+  font-size: 0.88rem;
+}
+
+.assign-product-name {
+  font-weight: 500;
+  color: #1e293b;
+}
+
+.btn-tag-remove {
+  border: none;
+  background: transparent;
+  cursor: pointer;
+  color: #b91c1c;
+  font-size: 1.1rem;
+  line-height: 1;
+  padding: 0 0.2rem;
+
+  &:hover {
+    color: #7f1d1d;
+  }
+}
+
+.assign-empty {
+  text-align: center;
+  color: #64748b;
+  font-size: 0.88rem;
+  padding: 1rem 0;
 }
 </style>
