@@ -445,7 +445,11 @@ const runImport = async () => {
   --modal-size: 650px;
   width: min(var(--modal-size), calc(100vw - 2rem));
   max-width: var(--modal-size);
-  height: min(var(--modal-size), calc(100vh - 2rem));
+  max-height: var(--modal-size);
+  background: white;
+  border-radius: 16px;
+  box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04);
+  overflow: hidden;
   display: flex;
   flex-direction: column;
 }
@@ -460,7 +464,8 @@ const runImport = async () => {
 .tab-row {
   display: flex;
   gap: 0.5rem;
-  padding: 0 1.25rem 0.85rem;
+  padding: 0.75rem 1.2rem;
+  border-bottom: 1px solid #e2e8f0;
 }
 
 .tab-button {
@@ -472,16 +477,20 @@ const runImport = async () => {
   padding: 0.55rem 0.9rem;
   font-weight: 700;
   cursor: pointer;
+  min-height: 40px;
 
   &.active {
-    background: var(--app-highlight-color);
-    border-color: var(--app-highlight-color);
-    color: var(--app-highlight-contrast);
+    background: #3b82f6;
+    border-color: #3b82f6;
+    color: white;
   }
 }
 
 .import-export-scroller {
-  padding: 0 1.25rem;
+  padding: 0.9rem 1.2rem;
+  overflow-y: auto;
+  flex: 1;
+  min-height: 0;
 }
 
 .panel-stack {
@@ -538,10 +547,10 @@ const runImport = async () => {
 }
 
 .form-section.highlight {
-  padding: 0.85rem 0.95rem;
+  padding: 0.65rem 0.9rem;
   border-radius: 12px;
-  background: color-mix(in srgb, var(--app-highlight-color) 10%, white);
-  border: 1px solid color-mix(in srgb, var(--app-highlight-color) 35%, white);
+  background: #f0f7ff;
+  border: 1px solid #bae6fd;
 }
 
 .section-copy {
@@ -564,14 +573,17 @@ const runImport = async () => {
 .checkbox-card {
   display: flex;
   gap: 0.7rem;
-  align-items: flex-start;
-  padding: 0.8rem 0.9rem;
+  align-items: center;
+  min-height: 44px;
+  padding: 0.6rem 0.8rem;
   border-radius: 12px;
   background: #fff;
   border: 1px solid #dbe3ee;
+  cursor: pointer;
 
   input {
-    margin-top: 0.2rem;
+    margin-top: 0;
+    flex-shrink: 0;
   }
 }
 
@@ -634,7 +646,7 @@ const runImport = async () => {
 @media (max-width: 720px) {
   .import-export-modal {
     width: calc(100vw - 1rem);
-    height: calc(100vh - 1rem);
+    max-height: calc(100vh - 1rem);
   }
 
   .tab-row,
@@ -642,5 +654,96 @@ const runImport = async () => {
     padding-left: 1rem;
     padding-right: 1rem;
   }
+}
+
+// ── Modal Basis ───────────────────────────────────────
+.modal-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(15, 23, 42, 0.7);
+  backdrop-filter: blur(4px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+  padding: 1rem;
+}
+
+.modal-header {
+  padding: 0.9rem 1.2rem;
+  border-bottom: 1px solid #e2e8f0;
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 1rem;
+  flex-shrink: 0;
+
+  h3 {
+    margin: 0;
+    font-size: 1.1rem;
+    font-weight: 600;
+    color: #1e293b;
+  }
+
+  .modal-subtitle {
+    display: none;
+  }
+}
+
+.modal-close {
+  border: none;
+  background: transparent;
+  font-size: 1.5rem;
+  line-height: 1;
+  cursor: pointer;
+  color: #6b7280;
+  padding: 0.25rem;
+  min-width: 36px;
+  min-height: 36px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.modal-footer {
+  display: flex;
+  justify-content: flex-end;
+  gap: 0.75rem;
+  padding: 0.75rem 1.2rem;
+  border-top: 1px solid #e2e8f0;
+  background: #f8fafc;
+  flex-shrink: 0;
+}
+
+// ── Buttons ───────────────────────────────────────────
+.btn {
+  padding: 0.55rem 1.1rem;
+  border-radius: 8px;
+  font-weight: 600;
+  cursor: pointer;
+  border: none;
+  font-size: 0.9rem;
+  min-height: 40px;
+
+  &:disabled {
+    opacity: 0.55;
+    cursor: not-allowed;
+  }
+}
+
+.btn-primary {
+  background: #3b82f6;
+  color: white;
+}
+
+.btn-success {
+  background: #10b981;
+  color: white;
+}
+
+.btn-secondary {
+  background: #e2e8f0;
+  color: #475569;
 }
 </style>
