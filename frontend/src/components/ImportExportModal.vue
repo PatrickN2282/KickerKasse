@@ -441,9 +441,10 @@ const runImport = async () => {
 
 <style scoped lang="scss">
 .import-export-modal {
-  width: min(650px, calc(100vw - 2rem));
-  max-width: 650px;
-  height: min(650px, calc(100vh - 2rem));
+  --modal-size: 650px;
+  width: min(var(--modal-size), calc(100vw - 2rem));
+  max-width: var(--modal-size);
+  height: min(var(--modal-size), calc(100vh - 2rem));
   display: flex;
   flex-direction: column;
 }

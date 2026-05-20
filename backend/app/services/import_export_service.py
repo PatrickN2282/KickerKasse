@@ -698,7 +698,7 @@ class ImportExportService:
     def _safe_zip_path(name: str) -> PurePosixPath | None:
         try:
             path = PurePosixPath(name)
-        except Exception:
+        except TypeError:
             return None
         if path.is_absolute() or ".." in path.parts:
             return None
