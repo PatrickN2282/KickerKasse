@@ -265,7 +265,7 @@
         </div>
       </div>
 
-      <div class="deckel-section">
+      <div v-if="appSettingsStore.settings.deckel_enabled" class="deckel-section">
         <button @click="openDeckelOverview" class="btn-deckel" :disabled="cartStore.items.length === 0 && deckelList.length === 0" title="Bon als Deckel speichern oder vorhandenen Deckel öffnen">
           <span v-if="activeDeckelCount > 0" class="deckel-badge">{{ activeDeckelCount }}</span>
           <span>Deckel - Gastteam</span>
@@ -289,6 +289,7 @@
 <script setup>
 import { provide } from 'vue'
 import useKasse from './useKasse.js'
+import { useAppSettingsStore } from '@/stores/appSettings'
 import MemberModal from './modal/MemberModal.vue'
 import PaymentModal from './modal/PaymentModal.vue'
 import VoucherModal from './modal/VoucherModal.vue'
@@ -298,6 +299,7 @@ import DeckelDetailsModal from './modal/DeckelDetailsModal.vue'
 import InternalMaterialNoteModal from './modal/InternalMaterialNoteModal.vue'
 import VariablePriceModal from './modal/VariablePriceModal.vue'
 
+const appSettingsStore = useAppSettingsStore()
 const kasse = useKasse()
 provide('kasse', kasse)
 
