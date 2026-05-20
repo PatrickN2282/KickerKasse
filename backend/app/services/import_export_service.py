@@ -280,6 +280,7 @@ class ImportExportService:
 
         if suffix == ".zip":
             try:
+                duplicate_sections = set()
                 with zipfile.ZipFile(io.BytesIO(content)) as archive:
                     for info in archive.infolist():
                         if info.is_dir():
@@ -298,11 +299,16 @@ class ImportExportService:
                         entry_bytes = archive.read(info.filename)
                         entry_rows, section = self._read_csv_rows(entry_bytes, safe_path.name)
                         if section in rows_by_section:
-                            raise HTTPException(
-                                status_code=status.HTTP_400_BAD_REQUEST,
-                                detail=f"Bereich '{section}' ist mehrfach im Archiv enthalten",
-                            )
+                            duplicate_sections.add(section)
+                            continue
                         rows_by_section[section] = entry_rows
+
+                if duplicate_sections:
+                    duplicates = ", ".join(sorted(duplicate_sections))
+                    raise HTTPException(
+                        status_code=status.HTTP_400_BAD_REQUEST,
+                        detail=f"Diese Bereiche sind mehrfach im Archiv enthalten: {duplicates}",
+                    )
             except zipfile.BadZipFile as exc:
                 raise HTTPException(
                     status_code=status.HTTP_400_BAD_REQUEST,
@@ -421,7 +427,10 @@ class ImportExportService:
         if len(content) > MAX_MEDIA_SIZE:
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
-                detail=f"Mediendatei '{safe_path.name}' überschreitet 10 MB",
+                detail=(
+                    f"Mediendatei '{safe_path.name}' überschreitet "
+                    f"{MAX_MEDIA_SIZE / (1024 * 1024):.0f} MB"
+                ),
             )
 
         target[section][source_key] = {
@@ -432,6 +441,7 @@ class ImportExportService:
     def _import_categories(self, rows: list[dict]) -> dict:
         created = 0
         updated = 0
+        skipped_fixed = 0
 
         for row in rows:
             row_number = row["__row_number"]
@@ -445,6 +455,7 @@ class ImportExportService:
                 category = self.db.query(Category).filter(Category.name == name).first()
 
             if category is not None and category.is_fixed:
+                skipped_fixed += 1
                 continue
 
             if category is None:
@@ -461,7 +472,7 @@ class ImportExportService:
             category.is_active_in_kasse = self._parse_bool(row.get("is_active_in_kasse"), True)
 
         self.db.commit()
-        return {"created": created, "updated": updated}
+        return {"created": created, "updated": updated, "skipped_fixed": skipped_fixed}
 
     def _import_products(self, rows: list[dict], media_entries: dict[str, dict], import_media: bool) -> dict:
         created = 0
@@ -526,6 +537,10 @@ class ImportExportService:
         updated = 0
         media_imported = 0
         member_repo = MemberRepository(self.db)
+        members_by_number = {
+            member.member_number: member
+            for member in self.db.query(Member).filter(Member.member_number.isnot(None)).all()
+        }
 
         for row in rows:
             row_number = row["__row_number"]
@@ -541,7 +556,7 @@ class ImportExportService:
             membership_number = self._normalize_optional_string(row.get("membership_number"))
 
             if member is None and member_number is not None:
-                member = self.db.query(Member).filter(Member.member_number == member_number).first()
+                member = members_by_number.get(member_number)
             if member is None and membership_number:
                 member = self.db.query(Member).filter(Member.membership_number == membership_number).first()
 
@@ -581,9 +596,10 @@ class ImportExportService:
             member.balance_cents = balance_cents
 
             if member_number is not None:
-                existing_member_number = self.db.query(Member).filter(Member.member_number == member_number).first()
+                existing_member_number = members_by_number.get(member_number)
                 if existing_member_number is None or existing_member_number.id == member.id:
                     member.member_number = member_number
+                    members_by_number[member_number] = member
 
             self.db.flush()
 

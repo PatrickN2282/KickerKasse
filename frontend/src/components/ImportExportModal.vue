@@ -404,6 +404,7 @@ const buildImportSummary = (result) => {
     if (summary.created !== undefined) parts.push(`${summary.created} neu`)
     if (summary.updated !== undefined) parts.push(`${summary.updated} aktualisiert`)
     if (summary.media_imported !== undefined) parts.push(`${summary.media_imported} Bilder`)
+    if (summary.skipped_fixed !== undefined && summary.skipped_fixed > 0) parts.push(`${summary.skipped_fixed} feste übersprungen`)
     return `${sectionLabel(section)}: ${parts.join(', ')}`
   }).join(' · ')
 }
