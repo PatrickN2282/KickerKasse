@@ -330,7 +330,7 @@
           </div>
         </div>
 
-        <div class="ext-card">
+        <div v-if="authStore.isAdmin" class="ext-card">
           <div class="ext-card-header">
             <div class="ext-card-icon">🧾</div>
             <div>
