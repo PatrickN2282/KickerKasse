@@ -16,7 +16,9 @@ from app.models import (
     DeckelItem,
     MaterialAccountEntry,
     Member,
+    MemberBalanceCorrectionLog,
     Product,
+    ProductStockCorrectionLog,
     Transaction,
     TransactionItem,
     User,
@@ -43,6 +45,8 @@ _TABLES_WITH_SEQUENCES = [
     "deckel",
     "deckel_items",
     "zbon_history",
+    "product_stock_correction_logs",
+    "member_balance_correction_logs",
 ]
 
 
@@ -88,7 +92,9 @@ class DataMaintenanceService:
         self.db.query(Transaction).delete(synchronize_session=False)
         self.db.query(User).update({User.member_id: None}, synchronize_session=False)
         deleted_users = self.db.query(User).delete(synchronize_session=False)
+        self.db.query(MemberBalanceCorrectionLog).delete(synchronize_session=False)
         self.db.query(Member).delete(synchronize_session=False)
+        self.db.query(ProductStockCorrectionLog).delete(synchronize_session=False)
         self.db.query(Product).delete(synchronize_session=False)
         self.db.query(Category).delete(synchronize_session=False)
         self.db.add(self._build_fixed_internal_material_category())
