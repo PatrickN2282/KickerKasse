@@ -304,7 +304,7 @@
               <p>Automatischer Logout nach Inaktivität mit Rückkehr zum Login-Screen.</p>
             </div>
           </div>
-          <div class="session-timer-settings">
+          <div class="ext-card-controls">
             <button
               class="btn"
               :class="sessionTimer.enabled ? 'btn-success' : 'btn-secondary'"
@@ -338,7 +338,7 @@
               <p>Steuert, ob der Deckel-Button im Kassenbereich angezeigt wird.</p>
             </div>
           </div>
-          <div class="session-timer-settings">
+          <div class="ext-card-controls">
             <button
               class="btn"
               :class="deckelEnabled ? 'btn-success' : 'btn-secondary'"
@@ -545,7 +545,7 @@ const LAYOUT_STORAGE_KEY = 'kasseLayout'
 
 const showBusinessModal = ref(false)
 const sessionTimer = ref({ enabled: false, minutes: 15 })
-const deckelEnabled = ref(true)
+const deckelEnabled = ref(!!appSettingsStore.settings.deckel_enabled)
 
 const businessData = ref({
   name: '',
@@ -1079,7 +1079,7 @@ onMounted(async () => {
   flex-wrap: wrap;
 }
 
-.session-timer-settings {
+.ext-card-controls {
   display: flex;
   flex-direction: column;
   gap: 1rem;
