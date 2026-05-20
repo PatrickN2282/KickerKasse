@@ -324,7 +324,7 @@
                 inputmode="numeric"
               >
             </div>
-            <button class="btn btn-primary" type="button" @click="saveSessionTimer">
+            <button class="btn btn-primary" type="button" :disabled="appSettingsStore.isSaving" @click="saveSessionTimer">
               Session-Timer speichern
             </button>
           </div>
@@ -545,7 +545,7 @@ const LAYOUT_STORAGE_KEY = 'kasseLayout'
 
 const showBusinessModal = ref(false)
 const sessionTimer = ref({ enabled: false, minutes: 15 })
-const deckelEnabled = ref(!!appSettingsStore.settings.deckel_enabled)
+const deckelEnabled = ref(false)
 
 const businessData = ref({
   name: '',
@@ -621,7 +621,6 @@ const saveDeckelSettings = async () => {
     await appSettingsStore.saveAdminSettings({
       deckel_enabled: deckelEnabled.value,
     })
-    syncDeckelSetting()
     notificationStore.success('Deckel-Funktion gespeichert')
   } catch (error) {
     notificationStore.error(error.response?.data?.detail || 'Deckel-Funktion konnte nicht gespeichert werden')
