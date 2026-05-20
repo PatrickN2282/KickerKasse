@@ -239,13 +239,13 @@
         <div class="title-row">
           <h2>⚙️ Ext. Settings</h2>
           <span class="title-sep">|</span>
-          <span class="page-subtitle">Erweiterte Einstellungen für Admin und TopAdmin.</span>
+          <span class="page-subtitle">Bereich sichtbar für Admin und TopAdmin; erweiterte Systemkarten nur für TopAdmin.</span>
         </div>
       </div>
 
       <div class="ext-settings-grid">
         <!-- Business Data Card -->
-        <div class="ext-card">
+        <div v-if="authStore.isTopAdmin" class="ext-card">
           <div class="ext-card-header">
             <div class="ext-card-icon">🏢</div>
             <div>
@@ -259,7 +259,7 @@
         </div>
 
         <!-- Layout Chooser Card -->
-        <div class="ext-card">
+        <div v-if="authStore.isTopAdmin" class="ext-card">
           <div class="ext-card-header">
             <div class="ext-card-icon">🖥️</div>
             <div>
@@ -296,7 +296,7 @@
         </div>
 
         <!-- Session Timer Card -->
-        <div class="ext-card">
+        <div v-if="authStore.isTopAdmin" class="ext-card">
           <div class="ext-card-header">
             <div class="ext-card-icon">⏱️</div>
             <div>
@@ -339,14 +339,14 @@
             </div>
           </div>
           <div class="ext-card-controls">
-            <button
-              class="btn"
-              :class="deckelEnabled ? 'btn-success' : 'btn-secondary'"
-              type="button"
-              @click="deckelEnabled = !deckelEnabled"
-            >
-              {{ deckelEnabled ? 'Eingeschaltet' : 'Ausgeschaltet' }}
-            </button>
+            <label class="toggle-label">
+              <input
+                v-model="deckelEnabled"
+                type="checkbox"
+                class="toggle-checkbox"
+              >
+              <span>Deckel-Funktion aktivieren</span>
+            </label>
             <button class="btn btn-primary" type="button" :disabled="appSettingsStore.isSaving" @click="saveDeckelSettings">
               Deckel-Funktion speichern
             </button>
@@ -1091,6 +1091,20 @@ onMounted(async () => {
     border-radius: 8px;
     font-size: 0.95rem;
   }
+}
+
+.toggle-label {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  cursor: pointer;
+  font-weight: 500;
+}
+
+.toggle-checkbox {
+  width: 1.1rem;
+  height: 1.1rem;
+  cursor: pointer;
 }
 
 // ── Modal ─────────────────────────────────────────────
