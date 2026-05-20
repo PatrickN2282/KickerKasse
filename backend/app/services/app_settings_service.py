@@ -66,7 +66,7 @@ class AppSettingsService:
             "kasse_layout": settings.kasse_layout,
             "session_timer_enabled": settings.session_timer_enabled,
             "session_timer_minutes": settings.session_timer_minutes or DEFAULT_SESSION_TIMER_MINUTES,
-            "deckel_enabled": settings.deckel_enabled if settings.deckel_enabled is not None else DEFAULT_DECKEL_ENABLED,
+            "deckel_enabled": settings.deckel_enabled,
         }
 
     def to_private_payload(self, settings: AppSettings | None = None) -> dict:
