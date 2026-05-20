@@ -339,8 +339,9 @@
             </div>
           </div>
           <div class="ext-card-controls">
-            <label class="toggle-label">
+            <label class="toggle-label" for="deckel-enabled">
               <input
+                id="deckel-enabled"
                 v-model="deckelEnabled"
                 type="checkbox"
                 class="toggle-checkbox"
