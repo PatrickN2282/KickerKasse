@@ -13,6 +13,7 @@ class AppSettingsBase(BaseModel):
     kasse_layout: str | None = None
     session_timer_enabled: bool = False
     session_timer_minutes: int = Field(default=15, ge=1, le=MAX_SESSION_TIMER_MINUTES)
+    deckel_enabled: bool = True
 
 
 class AppSettingsUpdate(AppSettingsBase):

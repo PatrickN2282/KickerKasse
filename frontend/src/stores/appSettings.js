@@ -21,6 +21,7 @@ const fallbackSettings = {
   kasse_layout: null,
   session_timer_enabled: false,
   session_timer_minutes: 15,
+  deckel_enabled: true,
 }
 
 const setLinkTag = (id, rel, href, type = null, attributes = {}) => {
@@ -115,6 +116,7 @@ export const useAppSettingsStore = defineStore('app-settings', () => {
     kasse_layout: payload.kasse_layout ?? settings.value.kasse_layout,
     session_timer_enabled: payload.session_timer_enabled ?? settings.value.session_timer_enabled,
     session_timer_minutes: payload.session_timer_minutes ?? settings.value.session_timer_minutes,
+    deckel_enabled: payload.deckel_enabled ?? settings.value.deckel_enabled,
   })
 
   const saveAdminSettings = async (payload) => {

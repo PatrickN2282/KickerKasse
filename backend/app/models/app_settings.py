@@ -14,6 +14,7 @@ class AppSettings(BaseModel):
     kasse_layout = Column(String(50), nullable=True)
     session_timer_enabled = Column(Boolean, nullable=False, default=False)
     session_timer_minutes = Column(Integer, nullable=False, default=15)
+    deckel_enabled = Column(Boolean, nullable=False, default=True)
     created_at = Column(DateTime, default=func.now(), nullable=False)
     updated_at = Column(DateTime, default=func.now(), onupdate=func.now(), nullable=False)
 

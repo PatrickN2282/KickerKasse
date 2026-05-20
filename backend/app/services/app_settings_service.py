@@ -15,6 +15,7 @@ DEFAULT_HIGHLIGHT_COLOR = "#5c8f3a"
 DEFAULT_LOGO_RELATIVE_PATH = "app_settings/logo.png"
 DEFAULT_SESSION_TIMER_ENABLED = False
 DEFAULT_SESSION_TIMER_MINUTES = 15
+DEFAULT_DECKEL_ENABLED = True
 
 
 class AppSettingsService:
@@ -35,6 +36,7 @@ class AppSettingsService:
             logo_path=None,
             session_timer_enabled=DEFAULT_SESSION_TIMER_ENABLED,
             session_timer_minutes=DEFAULT_SESSION_TIMER_MINUTES,
+            deckel_enabled=DEFAULT_DECKEL_ENABLED,
         )
         self.db.add(settings)
         self.db.commit()
@@ -64,6 +66,7 @@ class AppSettingsService:
             "kasse_layout": settings.kasse_layout,
             "session_timer_enabled": settings.session_timer_enabled,
             "session_timer_minutes": settings.session_timer_minutes or DEFAULT_SESSION_TIMER_MINUTES,
+            "deckel_enabled": settings.deckel_enabled if settings.deckel_enabled is not None else DEFAULT_DECKEL_ENABLED,
         }
 
     def to_private_payload(self, settings: AppSettings | None = None) -> dict:
@@ -102,6 +105,9 @@ class AppSettingsService:
             if minutes < 1:
                 raise ValueError("Session timer minutes must be at least 1")
             settings.session_timer_minutes = minutes
+
+        if "deckel_enabled" in kwargs:
+            settings.deckel_enabled = bool(kwargs["deckel_enabled"])
 
         self.db.commit()
         self.db.refresh(settings)

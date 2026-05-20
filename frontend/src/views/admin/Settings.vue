@@ -48,6 +48,24 @@
         <div class="preview-highlight">Highlight-Fläche</div>
       </div>
     </section>
+
+    <h2 class="section-heading">Kassenfunktionen</h2>
+
+    <section class="settings-card">
+      <h3>Deckel-Funktion</h3>
+      <p class="settings-description">Steuert, ob der Deckel-Button im Kassenbereich angezeigt wird.</p>
+      <label class="toggle-label">
+        <input
+          v-model="form.deckel_enabled"
+          type="checkbox"
+          class="toggle-checkbox"
+        />
+        <span>Deckel-Funktion aktivieren</span>
+      </label>
+      <button class="btn btn-primary" :disabled="appSettingsStore.isSaving" @click="saveKasseSettings">
+        Kassenfunktionen speichern
+      </button>
+    </section>
   </div>
 </template>
 
@@ -65,6 +83,7 @@ const form = reactive({
   background_color: '#D7DCE2',
   banner_color: '#131820',
   highlight_color: '#5C8F3A',
+  deckel_enabled: true,
 })
 const selectedLogo = ref(null)
 const selectedLogoPreview = ref('')
@@ -74,6 +93,7 @@ const syncForm = () => {
   form.background_color = appSettingsStore.settings.background_color
   form.banner_color = appSettingsStore.settings.banner_color
   form.highlight_color = appSettingsStore.settings.highlight_color
+  form.deckel_enabled = appSettingsStore.settings.deckel_enabled
 }
 
 const previewStyle = computed(() => ({
@@ -100,6 +120,16 @@ const saveSettings = async () => {
     notificationStore.success('Einstellungen gespeichert')
   } catch (error) {
     notificationStore.error(error.response?.data?.detail || 'Fehler beim Speichern der Einstellungen')
+  }
+}
+
+const saveKasseSettings = async () => {
+  try {
+    await appSettingsStore.saveAdminSettings({ deckel_enabled: form.deckel_enabled })
+    syncForm()
+    notificationStore.success('Kassenfunktionen gespeichert')
+  } catch (error) {
+    notificationStore.error(error.response?.data?.detail || 'Fehler beim Speichern der Kassenfunktionen')
   }
 }
 
@@ -229,5 +259,30 @@ onMounted(async () => {
 .btn-success {
   background: var(--app-banner-color);
   color: white;
+}
+
+.section-heading {
+  margin-top: 1.5rem;
+  margin-bottom: 0.75rem;
+}
+
+.settings-description {
+  margin: 0;
+  color: #555;
+  font-size: 0.9rem;
+}
+
+.toggle-label {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  cursor: pointer;
+  font-weight: 500;
+}
+
+.toggle-checkbox {
+  width: 1.1rem;
+  height: 1.1rem;
+  cursor: pointer;
 }
 </style>

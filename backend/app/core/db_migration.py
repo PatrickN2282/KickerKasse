@@ -15,6 +15,7 @@ from app.constants import (
 from app.services.app_settings_service import (
     DEFAULT_APP_NAME,
     DEFAULT_SESSION_TIMER_MINUTES,
+    DEFAULT_DECKEL_ENABLED,
 )
 
 logger = logging.getLogger(__name__)
@@ -334,6 +335,22 @@ class DatabaseMigrator:
                         logger.info("✓ Added session_timer_minutes column to app_settings")
                     except Exception as e:
                         logger.warning(f"Could not add session_timer_minutes column: {str(e)}")
+                        try:
+                            conn.rollback()
+                        except:
+                            pass
+
+                if 'deckel_enabled' not in app_settings_columns:
+                    logger.info("Adding deckel_enabled column to app_settings table...")
+                    try:
+                        conn.execute(text(
+                            "ALTER TABLE app_settings "
+                            "ADD COLUMN deckel_enabled BOOLEAN DEFAULT :default_deckel_enabled NOT NULL"
+                        ), {"default_deckel_enabled": DEFAULT_DECKEL_ENABLED})
+                        conn.commit()
+                        logger.info("✓ Added deckel_enabled column to app_settings")
+                    except Exception as e:
+                        logger.warning(f"Could not add deckel_enabled column: {str(e)}")
                         try:
                             conn.rollback()
                         except:
