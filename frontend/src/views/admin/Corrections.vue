@@ -525,8 +525,8 @@ const closeCorrectionModal = () => {
   showCorrectionModal.value = false
   memberTargetBalanceEuro.value = selectedMember.value ? selectedMember.value.balance_cents / 100 : null
   memberCorrectionReason.value = ''
-  productTargetStock.value = selectedProduct.value && !selectedProduct.value.is_unlimited_stock
-    ? selectedProduct.value.stock_quantity
+  productTargetStock.value = selectedProduct.value?.is_unlimited_stock === false
+    ? (selectedProduct.value?.stock_quantity ?? null)
     : null
   productCorrectionReason.value = ''
 }
