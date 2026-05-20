@@ -1,25 +1,31 @@
 <template>
-  <div class="modal">
-    <div class="modal-content internal-material-note-modal">
-      <h3>Notiz für internes Material</h3>
-      <p class="info-text">
-        Optional können Sie eine Notiz für
-        <strong>{{ pendingInternalMaterialProduct.name }}</strong>
-        hinterlegen.
-      </p>
-      <textarea
-        v-model.trim="internalMaterialNote"
-        class="form-input"
-        rows="4"
-        maxlength="500"
-        placeholder="z. B. Einsatzort, Zweck oder Ansprechpartner"
-      ></textarea>
-      <div class="modal-actions">
+  <div class="modal-overlay">
+    <div class="modal-dialog">
+      <div class="modal-header">
+        <div>
+          <h3>Notiz für internes Material</h3>
+          <p class="subtitle">{{ pendingInternalMaterialProduct.name }}</p>
+        </div>
+        <button class="close-btn" @click="closeInternalMaterialNoteModal">✕</button>
+      </div>
+      <div class="modal-body">
+        <p class="info-text">
+          Optional können Sie eine Notiz für
+          <strong>{{ pendingInternalMaterialProduct.name }}</strong>
+          hinterlegen.
+        </p>
+        <textarea
+          v-model.trim="internalMaterialNote"
+          class="form-input"
+          rows="4"
+          maxlength="500"
+          placeholder="z. B. Einsatzort, Zweck oder Ansprechpartner"
+        ></textarea>
+      </div>
+      <div class="modal-footer">
+        <button @click="closeInternalMaterialNoteModal" class="btn btn-secondary">Abbrechen / Zurück</button>
         <button @click="confirmInternalMaterialSelection" class="btn btn-confirm-payment" :class="{ selected: true }">
           Artikel hinzufügen
-        </button>
-        <button @click="closeInternalMaterialNoteModal" class="btn btn-danger">
-          Abbrechen / Zurück
         </button>
       </div>
     </div>
@@ -35,121 +41,97 @@ const {
 </script>
 
 <style scoped lang="scss">
-.modal {
+.modal-overlay {
   position: fixed;
-  top: 0;
-  left: 0;
-  right: 0;
-  bottom: 0;
-  background: rgba(0, 0, 0, 0.5);
+  inset: 0;
+  background: rgba(15, 23, 42, 0.55);
+  backdrop-filter: blur(4px);
   display: flex;
   align-items: center;
   justify-content: center;
   z-index: 1000;
-
-  .modal-content {
-    background: white;
-    padding: 2rem;
-    border-radius: 8px;
-    width: 90%;
-    max-width: 400px;
-    max-height: 80vh;
-    overflow-y: auto;
-
-    h3 {
-      margin-top: 0;
-      color: #333;
-    }
-  }
+  padding: 1.25rem;
 }
-
-.modal-actions {
+.modal-dialog {
+  background: #ffffff;
+  border-radius: 16px;
+  width: 100%;
+  max-width: 460px;
   display: flex;
-  justify-content: flex-end;
-  gap: 0.75rem;
-  margin-top: 1rem;
+  flex-direction: column;
+  box-shadow: 0 24px 50px rgba(15, 23, 42, 0.35);
+  overflow: hidden;
 }
-
+.modal-header {
+  padding: 1rem 1.25rem;
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  background: linear-gradient(90deg, #0f766e 0%, #0ea5e9 100%);
+  flex-shrink: 0;
+  h3 { margin: 0; color: #ffffff; font-size: 1.1rem; }
+  .subtitle { margin: 0.35rem 0 0; color: rgba(255,255,255,0.9); font-size: 0.85rem; }
+}
+.close-btn {
+  width: 34px; height: 34px; border-radius: 50%;
+  border: 1px solid rgba(255,255,255,0.45);
+  background: rgba(255,255,255,0.18);
+  color: #ffffff; font-size: 1.1rem; cursor: pointer;
+  display: grid; place-items: center; flex-shrink: 0;
+  &:hover { background: rgba(255,255,255,0.3); }
+}
+.modal-body {
+  padding: 1rem 1.25rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+.modal-footer {
+  padding: 0.95rem 1.25rem;
+  border-top: 1px solid #e2e8f0;
+  display: flex;
+  gap: 0.75rem;
+  justify-content: flex-end;
+  background: #ffffff;
+  flex-shrink: 0;
+}
 .btn {
-  padding: 0.75rem;
-  border: none;
-  border-radius: 4px;
-  font-size: 1rem;
+  border-radius: 8px;
+  padding: 0.65rem 1rem;
   font-weight: 600;
   cursor: pointer;
-  transition: all 0.2s;
-
-  &:disabled {
-    opacity: 0.6;
-    cursor: not-allowed;
-  }
-
-  &:not(:disabled):hover {
-    transform: translateY(-2px);
-    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
-  }
+  font-size: 0.9rem;
+  border: none;
+  &:disabled { opacity: 0.6; cursor: not-allowed; }
 }
-
-.btn-danger {
-  background-color: #f44336;
-  color: white;
-
-  &:not(:disabled):hover {
-    background-color: #da190b;
-  }
+.btn-secondary {
+  background: #f8fafc;
+  color: #475569;
+  border: 1px solid #cbd5e1;
 }
-
 .form-input {
   width: 100%;
-  padding: 0.75rem;
-  border: 1px solid #ddd;
-  border-radius: 4px;
-  margin-bottom: 1rem;
-  font-size: 1rem;
+  padding: 0.65rem 0.8rem;
+  border: 1px solid #e2e8f0;
+  border-radius: 8px;
+  font-size: 0.9rem;
+  box-sizing: border-box;
+  &[rows] { resize: vertical; min-height: 110px; }
 }
-
 .info-text {
   font-size: 0.85rem;
-  color: #666;
+  color: #64748b;
   margin: 0;
-  padding: 0.5rem;
-  background: #f9f9f9;
-  border-radius: 4px;
-  margin-bottom: 1rem;
+  padding: 0.5rem 0.75rem;
+  background: #f8fafc;
+  border-radius: 8px;
+  border: 1px solid #e2e8f0;
 }
-
-.modal-content.internal-material-note-modal {
-  max-width: 460px;
-
-  textarea.form-input {
-    min-height: 110px;
-    resize: vertical;
-  }
-}
-
 .btn-confirm-payment {
   background: #2e7d32;
   color: #fff;
   box-shadow: 0 0 0 2px rgba(46, 125, 50, 0.2);
-
-  &.selected {
-    box-shadow: 0 0 0 3px rgba(46, 125, 50, 0.24), 0 0 16px rgba(46, 125, 50, 0.45);
-  }
-
-  &:not(:disabled):hover {
-    background: #256a29;
-  }
-}
-
-.form-input-label {
-  display: block;
-  font-weight: 600;
-  color: #334155;
-  margin-bottom: 1rem;
-
-  .form-input {
-    margin-top: 0.5rem;
-    width: 100%;
-  }
+  &.selected { box-shadow: 0 0 0 3px rgba(46, 125, 50, 0.24), 0 0 16px rgba(46, 125, 50, 0.45); }
+  &:not(:disabled):hover { background: #256a29; }
 }
 </style>

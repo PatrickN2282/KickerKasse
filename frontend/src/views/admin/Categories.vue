@@ -91,7 +91,7 @@
             <h3>{{ editingId ? 'Kategorie bearbeiten' : 'Neue Kategorie anlegen' }}</h3>
             <p class="modal-subtitle">Kategorie mit Namen, Beschreibung und Anzeigeeinstellungen verwalten.</p>
           </div>
-          <button class="modal-close" @click="closeCategoryModal">×</button>
+          <button class="close-btn" @click="closeCategoryModal">✕</button>
         </header>
 
         <form class="modal-compact-layout" @submit.prevent="submitForm">
@@ -197,28 +197,30 @@
             <h3>Artikel zuordnen</h3>
             <p class="modal-subtitle">{{ assignModalCategory.name }}</p>
           </div>
-          <button class="modal-close" @click="closeAssignModal">×</button>
+          <button class="close-btn" @click="closeAssignModal">✕</button>
         </header>
 
         <div class="assign-modal-body">
-          <div class="assign-add-row">
-            <select v-model="selectedProductByCategory[assignModalCategory.id]" class="assign-select">
-              <option value="">Artikel wählen...</option>
-              <option
+          <div class="assign-add-section">
+            <p class="assign-section-label">Nicht zugeordnete Artikel (klicken zum Hinzufügen):</p>
+            <div v-if="unassignedProducts(assignModalCategory.id).length > 0" class="product-pick-list">
+              <button
                 v-for="product in unassignedProducts(assignModalCategory.id)"
-                :key="`assign-${assignModalCategory.id}-${product.id}`"
-                :value="product.id"
+                :key="`pick-${assignModalCategory.id}-${product.id}`"
+                class="product-pick-item"
+                @click="assignProductDirect(assignModalCategory.id, product.id)"
               >
-                {{ product.name }}
-              </option>
-            </select>
-            <button
-              class="btn btn-primary btn-compact"
-              :disabled="!selectedProductByCategory[assignModalCategory.id]"
-              @click="assignProduct(assignModalCategory.id)"
-            >
-              Hinzufügen
-            </button>
+                <img
+                  v-if="product.image_path"
+                  :src="`/api/products/${product.id}/image`"
+                  :alt="product.name"
+                  class="product-pick-img"
+                />
+                <span v-else class="product-pick-img product-pick-img-placeholder">📦</span>
+                <span class="product-pick-name">{{ product.name }}</span>
+              </button>
+            </div>
+            <div v-else class="assign-empty">Alle Artikel sind bereits zugeordnet</div>
           </div>
 
           <div v-if="assignedProducts(assignModalCategory.id).length > 0" class="assign-product-list">
@@ -227,6 +229,8 @@
               :key="`assign-row-${product.id}`"
               class="assign-product-row"
             >
+              <img v-if="product.image_path" :src="`/api/products/${product.id}/image`" :alt="product.name" class="assign-product-thumb" />
+              <span v-else class="assign-product-thumb assign-product-thumb-placeholder">📦</span>
               <span class="assign-product-name">{{ product.name }}</span>
               <button
                 class="btn-tag-remove"
@@ -374,6 +378,16 @@ const removeProduct = async (categoryId, productId) => {
   } catch (error) {
     console.error('Error removing product assignment:', error)
     notificationStore.error(error.response?.data?.detail || 'Entfernen fehlgeschlagen')
+  }
+}
+
+const assignProductDirect = async (categoryId, productId) => {
+  try {
+    await apiService.post(`/categories/${categoryId}/products`, [productId])
+    await loadProducts()
+    notificationStore.success('Artikel zur Kategorie hinzugefügt')
+  } catch (error) {
+    notificationStore.error(error.response?.data?.detail || 'Zuordnung fehlgeschlagen')
   }
 }
 
@@ -825,18 +839,19 @@ onMounted(() => {
   justify-content: space-between;
   align-items: flex-start;
   gap: 1rem;
+  background: linear-gradient(90deg, #0f766e 0%, #0ea5e9 100%);
 
   h3 {
     margin: 0;
     font-size: 1.1rem;
     font-weight: 600;
-    color: #1e293b;
+    color: #ffffff;
   }
 
   .modal-subtitle {
     margin: 0.15rem 0 0;
     font-size: 0.85rem;
-    color: #64748b;
+    color: rgba(255,255,255,0.9);
   }
 }
 
@@ -986,19 +1001,13 @@ onMounted(() => {
   color: #b91c1c;
 }
 
-.modal-close {
-  border: none;
-  background: transparent;
-  font-size: 1.5rem;
-  line-height: 1;
-  cursor: pointer;
-  color: #6b7280;
-  padding: 0.25rem;
-  min-width: 36px;
-  min-height: 36px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
+.close-btn {
+  width: 34px; height: 34px; border-radius: 50%;
+  border: 1px solid rgba(255,255,255,0.45);
+  background: rgba(255,255,255,0.18);
+  color: #ffffff; font-size: 1.1rem; cursor: pointer;
+  display: grid; place-items: center; flex-shrink: 0;
+  &:hover { background: rgba(255,255,255,0.3); }
 }
 
 .modal-footer {
@@ -1091,6 +1100,7 @@ onMounted(() => {
   display: flex;
   align-items: center;
   justify-content: space-between;
+  gap: 0.5rem;
   padding: 0.4rem 0.7rem;
   border: 1px solid var(--border);
   border-radius: 8px;
@@ -1122,5 +1132,78 @@ onMounted(() => {
   color: #64748b;
   font-size: 0.88rem;
   padding: 1rem 0;
+}
+
+.assign-add-section {
+  margin-bottom: 1rem;
+}
+
+.assign-section-label {
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: #475569;
+  margin: 0 0 0.5rem;
+}
+
+.product-pick-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+  max-height: 200px;
+  overflow-y: auto;
+  border: 1px solid #e2e8f0;
+  border-radius: 8px;
+  padding: 0.4rem;
+}
+
+.product-pick-item {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  padding: 0.45rem 0.6rem;
+  border: 1px solid #e2e8f0;
+  border-radius: 8px;
+  background: white;
+  cursor: pointer;
+  text-align: left;
+  width: 100%;
+  &:hover { background: #f0f9ff; border-color: #0ea5e9; }
+}
+
+.product-pick-img {
+  width: 28px;
+  height: 28px;
+  border-radius: 5px;
+  object-fit: cover;
+  flex-shrink: 0;
+}
+
+.product-pick-img-placeholder {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: #e2e8f0;
+  font-size: 0.9rem;
+}
+
+.product-pick-name {
+  font-size: 0.9rem;
+  color: #1e293b;
+}
+
+.assign-product-thumb {
+  width: 24px;
+  height: 24px;
+  border-radius: 4px;
+  object-fit: cover;
+  flex-shrink: 0;
+}
+
+.assign-product-thumb-placeholder {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background: #e2e8f0;
+  font-size: 0.75rem;
 }
 </style>

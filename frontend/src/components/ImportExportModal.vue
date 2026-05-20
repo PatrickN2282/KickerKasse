@@ -6,7 +6,7 @@
           <h3>Import / Export</h3>
           <p class="modal-subtitle">Produkte, Mitglieder und Kategorien als CSV oder ZIP austauschen.</p>
         </div>
-        <button class="modal-close" @click="closeModal">×</button>
+        <button class="close-btn" @click="closeModal">✕</button>
       </header>
 
       <div class="modal-body">
@@ -677,33 +677,35 @@ const runImport = async () => {
   align-items: flex-start;
   gap: 1rem;
   flex-shrink: 0;
+  background: linear-gradient(90deg, #0f766e 0%, #0ea5e9 100%);
 
   h3 {
     margin: 0;
     font-size: 1.1rem;
     font-weight: 600;
-    color: #1e293b;
+    color: #ffffff;
   }
 
   .modal-subtitle {
-    display: none;
+    margin: 0.35rem 0 0;
+    color: rgba(255,255,255,0.9);
+    font-size: 0.85rem;
   }
 }
 
-.modal-close {
-  border: none;
-  background: transparent;
-  font-size: 1.5rem;
-  line-height: 1;
+.close-btn {
+  width: 34px;
+  height: 34px;
+  border-radius: 50%;
+  border: 1px solid rgba(255,255,255,0.45);
+  background: rgba(255,255,255,0.18);
+  color: #ffffff;
+  font-size: 1.1rem;
   cursor: pointer;
-  color: #6b7280;
-  padding: 0.25rem;
-  min-width: 36px;
-  min-height: 36px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
+  display: grid;
+  place-items: center;
   flex-shrink: 0;
+  &:hover { background: rgba(255,255,255,0.3); }
 }
 
 .modal-footer {

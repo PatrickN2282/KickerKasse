@@ -99,7 +99,7 @@
             <h3>{{ editingId ? 'Mitglied bearbeiten' : 'Neues Mitglied anlegen' }}</h3>
             <p class="modal-subtitle">Stammdaten und Berechtigungen verwalten.</p>
           </div>
-          <button class="modal-close" @click="closeMemberModal">×</button>
+          <button class="close-btn" @click="closeMemberModal">✕</button>
         </header>
 
         <form class="modal-compact-layout" @submit.prevent="handleSaveMember">
@@ -559,8 +559,9 @@ onMounted(() => memberStore.getMembers())
   justify-content: space-between;
   align-items: flex-start;
   gap: 1rem;
-  h3 { margin: 0; font-size: 1.1rem; font-weight: 600; color: #1e293b; }
-  .modal-subtitle { display: none; }
+  background: linear-gradient(90deg, #0f766e 0%, #0ea5e9 100%);
+  h3 { margin: 0; font-size: 1.1rem; font-weight: 600; color: #ffffff; }
+  .modal-subtitle { margin: 0.35rem 0 0; color: rgba(255,255,255,0.9); font-size: 0.85rem; }
 }
 
 .modal-compact-layout {
@@ -742,7 +743,14 @@ onMounted(() => memberStore.getMembers())
 }
 .btn-action-danger { border-color: #fecaca; color: #b91c1c; }
 
-.modal-close { border: none; background: transparent; font-size: 1.5rem; line-height: 1; cursor: pointer; color: #6b7280; padding: 0.25rem; min-width: 36px; min-height: 36px; display: flex; align-items: center; justify-content: center; }
+.close-btn {
+  width: 34px; height: 34px; border-radius: 50%;
+  border: 1px solid rgba(255,255,255,0.45);
+  background: rgba(255,255,255,0.18);
+  color: #ffffff; font-size: 1.1rem; cursor: pointer;
+  display: grid; place-items: center; flex-shrink: 0;
+  &:hover { background: rgba(255,255,255,0.3); }
+}
 
 .loading-state {
   display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 3rem; color: #64748b;
