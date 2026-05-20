@@ -28,6 +28,7 @@
     </div>
 
     <div class="correction-content">
+      <!-- ── Mitglieder ──────────────────────────────── -->
       <section
         v-if="activeTab === 'members'"
         class="panel-card"
@@ -35,92 +36,57 @@
         <div class="section-header">
           <div>
             <h3>Mitgliedsguthaben korrigieren</h3>
-            <p>Korrekturbuchung mit Altbestand, Neubestand, Zeitstempel und ausführendem Benutzer.</p>
+            <p>Zeile anklicken um eine Korrekturbuchung mit Altbestand, Neubestand und Zeitstempel zu erfassen.</p>
           </div>
         </div>
 
-        <div class="form-grid">
-          <div class="form-group form-group--full">
-            <span>Mitglied auswählen</span>
-            <input
-              v-model.trim="memberSearch"
-              type="text"
-              placeholder="Nach Name oder Nummer filtern..."
-            >
-            <div class="picker-list">
-              <button
+        <div class="table-toolbar">
+          <input
+            v-model.trim="memberSearch"
+            type="text"
+            placeholder="Nach Name oder Nummer filtern..."
+            class="search-input"
+          >
+        </div>
+
+        <div class="correction-table-wrapper">
+          <table class="correction-slim-table">
+            <thead>
+              <tr>
+                <th>Name</th>
+                <th>Nr.</th>
+                <th>Guthaben</th>
+                <th class="text-right">Korrektur</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr
                 v-for="member in filteredMembers"
                 :key="member.id"
-                type="button"
-                :class="['picker-item', { active: selectedMemberId === member.id }]"
-                @click="selectedMemberId = member.id"
               >
-                <strong>{{ getMemberFullName(member) }}</strong>
-                <span>#{{ member.member_number }} · {{ formatBalance(member.balance_cents) }}</span>
-              </button>
-              <div
-                v-if="filteredMembers.length === 0"
-                class="picker-empty"
-              >
-                Keine passenden Mitglieder gefunden
-              </div>
-            </div>
-          </div>
-
-          <label class="form-group">
-            <span>Aktueller Bestand</span>
-            <input
-              :value="selectedMember ? formatBalance(selectedMember.balance_cents) : '—'"
-              type="text"
-              disabled
-            >
-          </label>
-
-          <label class="form-group">
-            <span>Neuer Bestand (€)</span>
-            <input
-              v-model.number="memberTargetBalanceEuro"
-              type="number"
-              min="0"
-              step="0.01"
-              placeholder="0,00"
-            >
-          </label>
-
-          <label class="form-group form-group--full">
-            <span>Grund der Korrektur</span>
-            <input
-              v-model.trim="memberCorrectionReason"
-              type="text"
-              maxlength="255"
-              placeholder="z. B. Übertrag aus alter Kasse"
-            >
-          </label>
-        </div>
-
-        <div
-          v-if="selectedMember"
-          class="preview-card"
-        >
-          <div>
-            <span class="preview-label">Differenz</span>
-            <strong>{{ formatBalance(memberDeltaCents) }}</strong>
-          </div>
-          <div>
-            <span class="preview-label">Ausführender Benutzer</span>
-            <strong>{{ authStore.user?.username || '—' }}</strong>
-          </div>
-        </div>
-
-        <div class="action-row">
-          <button
-            class="btn btn-success"
-            type="button"
-            :disabled="!canSubmitMemberCorrection || isSubmitting"
-            @click="submitMemberCorrection"
-          >
-            Guthaben korrigieren
-          </button>
+                <td class="font-medium">{{ getMemberFullName(member) }}</td>
+                <td class="text-muted">#{{ member.member_number }}</td>
+                <td class="font-medium">{{ formatBalance(member.balance_cents) }}</td>
+                <td class="text-right">
+                  <button
+                    class="btn-small btn-edit-inline"
+                    type="button"
+                    @click="openMemberCorrectionModal(member.id)"
+                  >
+                    ✏️
+                  </button>
+                </td>
+              </tr>
+              <tr v-if="filteredMembers.length === 0">
+                <td
+                  colspan="4"
+                  class="empty-state-cell"
+                >
+                  Keine passenden Mitglieder gefunden
+                </td>
+              </tr>
+            </tbody>
+          </table>
         </div>
 
         <div class="history-block">
@@ -131,8 +97,8 @@
             </div>
           </div>
 
-          <div class="history-table-wrapper">
-            <table class="history-table">
+          <div class="correction-table-wrapper">
+            <table class="correction-slim-table">
               <thead>
                 <tr>
                   <th>Datum</th>
@@ -171,6 +137,7 @@
         </div>
       </section>
 
+      <!-- ── Produkte ────────────────────────────────── -->
       <section
         v-else
         class="panel-card"
@@ -178,100 +145,65 @@
         <div class="section-header">
           <div>
             <h3>Warenbestand korrigieren</h3>
-            <p>Bestandskorrektur mit Altbestand, Neubestand, Zeitstempel und ausführendem Benutzer.</p>
+            <p>Zeile anklicken um eine Bestandskorrektur mit Altbestand, Neubestand und Zeitstempel zu erfassen.</p>
           </div>
         </div>
 
-        <div class="form-grid">
-          <div class="form-group form-group--full">
-            <span>Produkt auswählen</span>
-            <input
-              v-model.trim="productSearch"
-              type="text"
-              placeholder="Nach Produktname oder Warengruppe filtern..."
-            >
-            <div class="picker-list">
-              <button
+        <div class="table-toolbar">
+          <input
+            v-model.trim="productSearch"
+            type="text"
+            placeholder="Nach Produktname oder Warengruppe filtern..."
+            class="search-input"
+          >
+        </div>
+
+        <div class="correction-table-wrapper">
+          <table class="correction-slim-table">
+            <thead>
+              <tr>
+                <th>Produkt</th>
+                <th>Warengruppe</th>
+                <th>Bestand</th>
+                <th class="text-right">Korrektur</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr
                 v-for="product in filteredProducts"
                 :key="product.id"
-                type="button"
-                :class="['picker-item', { active: selectedProductId === product.id }]"
-                @click="selectedProductId = product.id"
               >
-                <strong>{{ product.name }}</strong>
-                <span>{{ getProductMeta(product) }}</span>
-              </button>
-              <div
-                v-if="filteredProducts.length === 0"
-                class="picker-empty"
-              >
-                Keine passenden Produkte gefunden
-              </div>
-            </div>
-          </div>
-
-          <label class="form-group">
-            <span>Aktueller Bestand</span>
-            <input
-              :value="selectedProduct ? formatStockValue(selectedProduct) : '—'"
-              type="text"
-              disabled
-            >
-          </label>
-
-          <label class="form-group">
-            <span>Neuer Bestand</span>
-            <input
-              v-model.number="productTargetStock"
-              type="number"
-              min="0"
-              step="1"
-              :disabled="selectedProduct?.is_unlimited_stock"
-              placeholder="0"
-            >
-          </label>
-
-          <label class="form-group form-group--full">
-            <span>Grund der Korrektur</span>
-            <input
-              v-model.trim="productCorrectionReason"
-              type="text"
-              maxlength="255"
-              placeholder="z. B. Inventurkorrektur"
-            >
-          </label>
-        </div>
-
-        <div
-          v-if="selectedProduct"
-          class="preview-card"
-        >
-          <div>
-            <span class="preview-label">Differenz</span>
-            <strong>{{ productDelta }}</strong>
-          </div>
-          <div>
-            <span class="preview-label">Ausführender Benutzer</span>
-            <strong>{{ authStore.user?.username || '—' }}</strong>
-          </div>
-        </div>
-
-        <p
-          v-if="selectedProduct?.is_unlimited_stock"
-          class="inline-hint"
-        >
-          Produkte mit unendlichem Bestand benötigen keine Korrekturbuchung.
-        </p>
-
-        <div class="action-row">
-          <button
-            class="btn btn-success"
-            type="button"
-            :disabled="!canSubmitProductCorrection || isSubmitting"
-            @click="submitProductCorrection"
-          >
-            Bestand korrigieren
-          </button>
+                <td class="font-medium">{{ product.name }}</td>
+                <td class="text-muted">{{ product.warengruppe || '—' }}</td>
+                <td>
+                  <span
+                    v-if="product.is_unlimited_stock"
+                    class="badge-unlimited"
+                  >∞</span>
+                  <span v-else>{{ product.stock_quantity }}</span>
+                </td>
+                <td class="text-right">
+                  <button
+                    class="btn-small btn-edit-inline"
+                    type="button"
+                    :disabled="product.is_unlimited_stock"
+                    :title="product.is_unlimited_stock ? 'Kein Bestand für unbegrenzte Artikel' : ''"
+                    @click="openProductCorrectionModal(product.id)"
+                  >
+                    ✏️
+                  </button>
+                </td>
+              </tr>
+              <tr v-if="filteredProducts.length === 0">
+                <td
+                  colspan="4"
+                  class="empty-state-cell"
+                >
+                  Keine passenden Produkte gefunden
+                </td>
+              </tr>
+            </tbody>
+          </table>
         </div>
 
         <div class="history-block">
@@ -282,8 +214,8 @@
             </div>
           </div>
 
-          <div class="history-table-wrapper">
-            <table class="history-table">
+          <div class="correction-table-wrapper">
+            <table class="correction-slim-table">
               <thead>
                 <tr>
                   <th>Datum</th>
@@ -321,6 +253,133 @@
           </div>
         </div>
       </section>
+    </div>
+
+    <!-- ── Correction Modal ───────────────────────────── -->
+    <div
+      v-if="showCorrectionModal"
+      class="modal-overlay"
+      @click.self="closeCorrectionModal"
+    >
+      <div class="modal-card modal-compact">
+        <header class="modal-header">
+          <div>
+            <h3>{{ activeTab === 'members' ? 'Guthaben korrigieren' : 'Bestand korrigieren' }}</h3>
+            <p class="modal-subtitle">
+              {{ activeTab === 'members' && selectedMember
+                ? getMemberFullName(selectedMember)
+                : selectedProduct?.name || '—' }}
+            </p>
+          </div>
+          <button
+            class="modal-close"
+            type="button"
+            @click="closeCorrectionModal"
+          >
+            ×
+          </button>
+        </header>
+
+        <div class="modal-correction-body">
+          <!-- Member correction form -->
+          <template v-if="activeTab === 'members' && selectedMember">
+            <div class="corr-form-group">
+              <label>Aktueller Bestand</label>
+              <input
+                :value="formatBalance(selectedMember.balance_cents)"
+                type="text"
+                disabled
+              >
+            </div>
+            <div class="corr-form-group">
+              <label>Neuer Bestand (€)</label>
+              <input
+                v-model.number="memberTargetBalanceEuro"
+                type="number"
+                min="0"
+                step="0.01"
+                placeholder="0,00"
+              >
+            </div>
+            <div class="corr-form-group">
+              <label>Grund der Korrektur</label>
+              <input
+                v-model.trim="memberCorrectionReason"
+                type="text"
+                maxlength="255"
+                placeholder="z. B. Übertrag aus alter Kasse"
+              >
+            </div>
+            <div class="corr-preview-row">
+              <span>Differenz: <strong>{{ formatBalance(memberDeltaCents) }}</strong></span>
+              <span>von: <strong>{{ authStore.user?.username || '—' }}</strong></span>
+            </div>
+          </template>
+
+          <!-- Product correction form -->
+          <template v-else-if="activeTab === 'products' && selectedProduct">
+            <div class="corr-form-group">
+              <label>Aktueller Bestand</label>
+              <input
+                :value="formatStockValue(selectedProduct)"
+                type="text"
+                disabled
+              >
+            </div>
+            <div class="corr-form-group">
+              <label>Neuer Bestand</label>
+              <input
+                v-model.number="productTargetStock"
+                type="number"
+                min="0"
+                step="1"
+                placeholder="0"
+              >
+            </div>
+            <div class="corr-form-group">
+              <label>Grund der Korrektur</label>
+              <input
+                v-model.trim="productCorrectionReason"
+                type="text"
+                maxlength="255"
+                placeholder="z. B. Inventurkorrektur"
+              >
+            </div>
+            <div class="corr-preview-row">
+              <span>Differenz: <strong>{{ productDelta }}</strong></span>
+              <span>von: <strong>{{ authStore.user?.username || '—' }}</strong></span>
+            </div>
+          </template>
+        </div>
+
+        <footer class="modal-footer">
+          <button
+            class="btn btn-secondary"
+            type="button"
+            @click="closeCorrectionModal"
+          >
+            Abbrechen
+          </button>
+          <button
+            v-if="activeTab === 'members'"
+            class="btn btn-success"
+            type="button"
+            :disabled="!canSubmitMemberCorrection || isSubmitting"
+            @click="submitMemberCorrection"
+          >
+            {{ isSubmitting ? 'Wird gespeichert…' : 'Korrektur speichern' }}
+          </button>
+          <button
+            v-else
+            class="btn btn-success"
+            type="button"
+            :disabled="!canSubmitProductCorrection || isSubmitting"
+            @click="submitProductCorrection"
+          >
+            {{ isSubmitting ? 'Wird gespeichert…' : 'Korrektur speichern' }}
+          </button>
+        </footer>
+      </div>
     </div>
   </div>
 </template>
@@ -450,13 +509,26 @@ const getProductMeta = (product) => {
   return parts.join(' · ')
 }
 
-const ensureSelections = () => {
-  if (!selectedMember.value && memberStore.members.length > 0) {
-    selectedMemberId.value = memberStore.members[0].id
-  }
-  if (!selectedProduct.value && productStore.products.length > 0) {
-    selectedProductId.value = productStore.products[0].id
-  }
+const showCorrectionModal = ref(false)
+
+const openMemberCorrectionModal = (memberId) => {
+  selectedMemberId.value = memberId
+  showCorrectionModal.value = true
+}
+
+const openProductCorrectionModal = (productId) => {
+  selectedProductId.value = productId
+  showCorrectionModal.value = true
+}
+
+const closeCorrectionModal = () => {
+  showCorrectionModal.value = false
+  memberTargetBalanceEuro.value = selectedMember.value ? selectedMember.value.balance_cents / 100 : null
+  memberCorrectionReason.value = ''
+  productTargetStock.value = selectedProduct.value && !selectedProduct.value.is_unlimited_stock
+    ? selectedProduct.value.stock_quantity
+    : null
+  productCorrectionReason.value = ''
 }
 
 const loadLogs = async () => {
@@ -474,7 +546,6 @@ const initialize = async () => {
     productStore.getProducts(),
     loadLogs(),
   ])
-  ensureSelections()
 }
 
 const submitMemberCorrection = async () => {
@@ -487,9 +558,8 @@ const submitMemberCorrection = async () => {
       reason: memberCorrectionReason.value || null,
     })
     await Promise.all([memberStore.getMembers(), loadLogs()])
-    ensureSelections()
-    memberTargetBalanceEuro.value = selectedMember.value ? selectedMember.value.balance_cents / 100 : null
     memberCorrectionReason.value = ''
+    showCorrectionModal.value = false
     notificationStore.success('Guthaben erfolgreich korrigiert')
   } catch (error) {
     notificationStore.error(error.response?.data?.detail || 'Guthaben-Korrektur fehlgeschlagen')
@@ -508,9 +578,8 @@ const submitProductCorrection = async () => {
       reason: productCorrectionReason.value || null,
     })
     await Promise.all([productStore.getProducts(), loadLogs()])
-    ensureSelections()
-    productTargetStock.value = selectedProduct.value ? selectedProduct.value.stock_quantity : null
     productCorrectionReason.value = ''
+    showCorrectionModal.value = false
     notificationStore.success('Bestand erfolgreich korrigiert')
   } catch (error) {
     notificationStore.error(error.response?.data?.detail || 'Bestands-Korrektur fehlgeschlagen')
@@ -657,100 +726,105 @@ onMounted(() => {
   margin-bottom: 0.75rem;
 }
 
-.form-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
-  gap: 0.85rem;
+.table-toolbar {
+  margin-bottom: 0.6rem;
 }
 
-.form-group--full {
-  grid-column: 1 / -1;
-}
-
-.form-group {
-  display: flex;
-  flex-direction: column;
-  gap: 0.35rem;
-  color: #334155;
-  font-weight: 600;
-
-  input {
-    border: 1px solid var(--border);
-    border-radius: 10px;
-    padding: 0.75rem 0.9rem;
-    font-size: 0.95rem;
-  }
-}
-
-.picker-list {
-  display: grid;
-  gap: 0.5rem;
-  max-height: 240px;
-  overflow-y: auto;
-  padding: 0.35rem;
+.search-input {
+  width: 100%;
+  padding: 0.5rem 0.75rem;
   border: 1px solid var(--border);
   border-radius: 10px;
-  background: #f8fafc;
+  font-size: 0.9rem;
+  transition: border-color 0.2s ease, box-shadow 0.2s ease;
+
+  &:focus {
+    outline: none;
+    border-color: #3b82f6;
+    box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.12);
+  }
 }
 
-.picker-item {
-  display: flex;
-  flex-direction: column;
-  gap: 0.2rem;
-  align-items: flex-start;
-  padding: 0.75rem 0.85rem;
-  border: 1px solid transparent;
-  border-radius: 10px;
+.correction-table-wrapper {
+  background: color-mix(in srgb, var(--app-background-color) 30%, white);
+  border-radius: 12px;
+  border: 1px solid color-mix(in srgb, var(--app-background-color) 65%, #777);
+  overflow-x: auto;
+}
+
+.correction-slim-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.88rem;
+
+  thead {
+    background: color-mix(in srgb, var(--app-background-color) 75%, white);
+  }
+
+  th,
+  td {
+    padding: 0.5rem 0.75rem;
+    text-align: left;
+    border-bottom: 1px solid var(--border);
+  }
+
+  th {
+    color: #475569;
+    font-weight: 600;
+    font-size: 0.8rem;
+  }
+
+  tr:last-child td {
+    border-bottom: none;
+  }
+
+  tr:hover td {
+    background: color-mix(in srgb, var(--app-background-color) 60%, white);
+  }
+}
+
+.text-right {
+  text-align: right !important;
+}
+
+.text-muted {
+  color: #64748b;
+}
+
+.font-medium {
+  font-weight: 600;
+}
+
+.badge-unlimited {
+  background: #e2e8f0;
+  color: #0f172a;
+  padding: 0.2rem 0.5rem;
+  border-radius: 4px;
+  font-size: 0.88rem;
+  font-weight: 600;
+}
+
+.btn-small {
+  padding: 0.3rem 0.55rem;
+  border: 1px solid var(--border);
+  border-radius: 6px;
   background: white;
-  color: #1e293b;
-  text-align: left;
   cursor: pointer;
-  transition: all 0.2s ease;
+  font-size: 0.85rem;
+  transition: background 0.15s;
 
-  span {
-    color: #64748b;
-    font-size: 0.86rem;
+  &:hover:not(:disabled) {
+    background: #f1f5f9;
   }
 
-  &:hover,
-  &.active {
-    border-color: var(--app-highlight-color);
-    background: color-mix(in srgb, var(--app-highlight-color) 12%, white);
+  &:disabled {
+    opacity: 0.35;
+    cursor: not-allowed;
   }
 }
 
-.picker-empty {
-  padding: 0.9rem;
-  text-align: center;
-  color: #64748b;
-}
-
-.preview-card {
-  margin-top: 1rem;
-  padding: 0.85rem 1rem;
-  border-radius: 10px;
-  background: #f8fafc;
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
-  gap: 0.75rem;
-}
-
-.preview-label {
-  display: block;
-  font-size: 0.8rem;
-  color: #64748b;
-  margin-bottom: 0.2rem;
-}
-
-.inline-hint {
-  margin: 1rem 0 0;
-  color: #64748b;
-}
-
-.action-row {
-  display: flex;
-  justify-content: flex-end;
-  margin-top: 1rem;
+.btn-edit-inline {
+  border-color: #cbd5e1;
 }
 
 .history-block {
@@ -759,34 +833,133 @@ onMounted(() => {
   border-top: 1px solid var(--border);
 }
 
-.history-table-wrapper {
-  overflow: auto;
-  border: 1px solid var(--border);
-  border-radius: 10px;
-}
-
-.history-table {
-  width: 100%;
-  border-collapse: collapse;
-
-  th,
-  td {
-    padding: 0.8rem 0.85rem;
-    border-bottom: 1px solid var(--border);
-    text-align: left;
-  }
-
-  th {
-    background: #f8fafc;
-    color: #64748b;
-    font-size: 0.78rem;
-    text-transform: uppercase;
-  }
-}
-
 .empty-state-cell {
   text-align: center !important;
   color: #64748b;
+  padding: 2rem 1rem !important;
+}
+
+// ── Correction Modal ─────────────────────────────────
+.modal-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(15, 23, 42, 0.55);
+  backdrop-filter: blur(3px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+  padding: 1rem;
+}
+
+.modal-card {
+  background: color-mix(in srgb, var(--app-background-color) 55%, white);
+  width: 100%;
+  border-radius: 14px;
+  display: flex;
+  flex-direction: column;
+  box-shadow: 0 20px 40px rgba(0, 0, 0, 0.18);
+  overflow: hidden;
+}
+
+.modal-compact {
+  max-width: 480px;
+}
+
+.modal-header {
+  padding: 1.1rem 1.4rem;
+  border-bottom: 1px solid var(--border);
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 1rem;
+
+  h3 {
+    margin: 0;
+    font-size: 1.1rem;
+    font-weight: 600;
+    color: #1e293b;
+  }
+}
+
+.modal-subtitle {
+  margin: 0.15rem 0 0;
+  font-size: 0.85rem;
+  color: #64748b;
+}
+
+.modal-close {
+  background: none;
+  border: none;
+  font-size: 1.4rem;
+  color: #94a3b8;
+  cursor: pointer;
+  padding: 0;
+  line-height: 1;
+
+  &:hover {
+    color: #1e293b;
+  }
+}
+
+.modal-correction-body {
+  padding: 1.25rem 1.4rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.9rem;
+}
+
+.corr-form-group {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+
+  label {
+    font-size: 0.85rem;
+    font-weight: 600;
+    color: #334155;
+  }
+
+  input {
+    width: 100%;
+    padding: 0.55rem 0.75rem;
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    font-size: 0.9rem;
+    color: #0f172a;
+    background: white;
+
+    &:disabled {
+      background: #f8fafc;
+      color: #64748b;
+    }
+
+    &:focus {
+      outline: none;
+      border-color: #3b82f6;
+      box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
+    }
+  }
+}
+
+.corr-preview-row {
+  display: flex;
+  justify-content: space-between;
+  font-size: 0.85rem;
+  color: #475569;
+  padding: 0.5rem 0.75rem;
+  background: #f8fafc;
+  border-radius: 8px;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+}
+
+.modal-footer {
+  display: flex;
+  justify-content: flex-end;
+  gap: 0.75rem;
+  padding: 1rem 1.4rem;
+  border-top: 1px solid var(--border);
 }
 
 @media (max-width: 700px) {

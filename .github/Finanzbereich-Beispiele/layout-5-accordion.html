@@ -1,0 +1,331 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Layout 5 – Accordion-Ansicht</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body { font-family: system-ui, sans-serif; background: #f1f5f9; color: #1e293b; padding: 1.5rem; }
+    .concept-note {
+      background: #fce7f3; border: 1px solid #f9a8d4; border-radius: 8px;
+      padding: 0.6rem 1rem; font-size: 0.82rem; color: #831843; margin-bottom: 1.5rem;
+    }
+    .page { max-width: 960px; margin: 0 auto; }
+
+    .btn { padding: 0.35rem 0.85rem; border-radius: 6px; border: none; cursor: pointer; font-size: 0.8rem; font-weight: 600; }
+    .btn-primary { background: #3b82f6; color: white; }
+    .btn-success { background: #10b981; color: white; }
+    .btn-outline { background: white; border: 1px solid #cbd5e1; color: #475569; }
+    .btn-warning { background: #f59e0b; color: white; }
+    .btn-secondary { background: #e2e8f0; color: #475569; }
+
+    /* Header */
+    .report-header {
+      background: white; border-radius: 12px; border: 1px solid #e2e8f0;
+      padding: 0.85rem 1.25rem; margin-bottom: 0.75rem;
+      display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 0.5rem;
+    }
+    .report-title { font-size: 1.05rem; font-weight: 700; }
+    .report-meta { font-size: 0.78rem; color: #64748b; margin-top: 0.1rem; }
+    .header-actions { display: flex; gap: 0.5rem; flex-wrap: wrap; }
+
+    /* Summary strip (always visible at top) */
+    .summary-strip {
+      background: white; border-radius: 10px; border: 1px solid #e2e8f0;
+      display: grid; grid-template-columns: repeat(5, 1fr);
+      margin-bottom: 0.75rem; overflow: hidden;
+    }
+    .ss-item {
+      padding: 0.7rem 0.85rem; border-right: 1px solid #e2e8f0; text-align: center;
+    }
+    .ss-item:last-child { border-right: none; }
+    .ss-icon { font-size: 1.1rem; margin-bottom: 0.15rem; }
+    .ss-label { font-size: 0.68rem; color: #94a3b8; font-weight: 500; display: block; }
+    .ss-value { font-size: 0.95rem; font-weight: 800; display: block; }
+    .ss-value.g { color: #059669; }
+    .ss-value.b { color: #2563eb; }
+    .ss-value.o { color: #b45309; }
+    .ss-value.total { color: #1d4ed8; font-size: 1.05rem; }
+    .ss-item.total-item { background: #eff6ff; }
+
+    /* Accordion */
+    .accordion { display: flex; flex-direction: column; gap: 0.5rem; }
+    .acc-section { background: white; border-radius: 10px; border: 1px solid #e2e8f0; overflow: hidden; }
+    .acc-header {
+      display: flex; align-items: center; justify-content: space-between;
+      padding: 0.65rem 1rem; cursor: pointer; user-select: none;
+      transition: background 0.15s;
+    }
+    .acc-header:hover { background: #f8fafc; }
+    .acc-header-left { display: flex; align-items: center; gap: 0.5rem; }
+    .acc-icon { font-size: 1rem; }
+    .acc-title { font-size: 0.88rem; font-weight: 700; color: #1e293b; }
+    .acc-summary { font-size: 0.78rem; color: #64748b; margin-left: auto; margin-right: 0.75rem; }
+    .acc-chevron { font-size: 0.75rem; color: #94a3b8; transition: transform 0.2s; }
+    .acc-chevron.open { transform: rotate(180deg); }
+    .acc-body { border-top: 1px solid #e2e8f0; }
+
+    /* Stat rows in accordion body */
+    .acc-stat-rows { padding: 0.2rem 0; }
+    .acc-row {
+      display: flex; justify-content: space-between; align-items: center;
+      padding: 0.45rem 1rem; border-bottom: 1px solid #f8fafc; font-size: 0.85rem;
+    }
+    .acc-row:last-child { border-bottom: none; }
+    .acc-row-label { color: #475569; display: flex; align-items: center; gap: 0.35rem; }
+    .acc-row-value { font-weight: 700; }
+    .acc-row-value.green { color: #059669; }
+    .acc-row-value.blue { color: #2563eb; }
+    .acc-row-value.orange { color: #b45309; }
+    .acc-row-value.red { color: #dc2626; }
+    .acc-row-value.big { color: #1d4ed8; font-size: 0.95rem; }
+    .acc-total-row { background: #eff6ff; }
+    .acc-total-row .acc-row-label { font-weight: 700; color: #1e293b; }
+
+    /* Kasse calc in accordion */
+    .calc-table { width: 100%; border-collapse: collapse; font-size: 0.85rem; }
+    .calc-table td { padding: 0.45rem 1rem; border-bottom: 1px solid #f8fafc; }
+    .calc-table tr:last-child td { border-bottom: none; }
+    .calc-table .calc-op { color: #64748b; }
+    .calc-total { background: #eff6ff; font-weight: 700; color: #1d4ed8; }
+
+    /* Trans table */
+    table.trans-table { width: 100%; border-collapse: collapse; font-size: 0.82rem; }
+    table.trans-table th { padding: 0.4rem 1rem; color: #475569; font-weight: 600; text-align: left; border-bottom: 1px solid #e2e8f0; }
+    table.trans-table td { padding: 0.4rem 1rem; border-bottom: 1px solid #f8fafc; }
+    table.trans-table tr:last-child td { border-bottom: none; }
+    table.trans-table tr:hover td { background: #f8fafc; }
+    .badge { padding: 0.1rem 0.45rem; border-radius: 4px; font-size: 0.72rem; font-weight: 600; }
+    .badge-blue { background: #dbeafe; color: #1d4ed8; }
+    .badge-green { background: #dcfce7; color: #15803d; }
+    .badge-amber { background: #fef3c7; color: #92400e; }
+    .tr-amount { font-weight: 600; text-align: right; }
+
+    /* Toggle helper (CSS only simulation) */
+    .acc-section input[type="checkbox"] { display: none; }
+    .acc-section input[type="checkbox"]:checked ~ .acc-body { display: block; }
+    .acc-body { display: none; }
+    /* Default open states */
+    #sec1:checked ~ .acc-body,
+    #sec2:checked ~ .acc-body,
+    #sec4:checked ~ .acc-body { display: block; }
+    /* Chevron via CSS */
+    .acc-section input[type="checkbox"]:checked ~ .acc-header .acc-chevron::before { content: '▲'; }
+    .acc-chevron::before { content: '▼'; }
+  </style>
+</head>
+<body>
+<div class="page">
+  <div class="concept-note">
+    <strong>Konzept 5 – Accordion-Ansicht:</strong> Oben ein kompakter, immer sichtbarer Übersichtsstreifen (5 Werte).
+    Darunter auf- und zuklappbare Sektionen: Einnahmen, Kassensaldo, Offene Posten und Transaktionen.
+    Reduziert initialen Informations-Overload – Nutzer öffnen nur was sie brauchen.
+  </div>
+
+  <div class="report-header">
+    <div>
+      <div class="report-title">📊 Kassenbericht – Aktueller Zeitraum</div>
+      <div class="report-meta">Beleg #1014 – #1093 · 80 Transaktionen · 23.05.2025, 10:15 Uhr</div>
+    </div>
+    <div class="header-actions">
+      <button class="btn btn-outline">👁 Vorschau</button>
+      <button class="btn btn-primary">⬇ HTML</button>
+      <button class="btn btn-warning">💸 Abschöpfung</button>
+      <button class="btn btn-secondary">💰 Kasse zählen</button>
+      <button class="btn btn-success">✅ Erstellen</button>
+    </div>
+  </div>
+
+  <!-- Always visible summary strip -->
+  <div class="summary-strip">
+    <div class="ss-item">
+      <div class="ss-icon">💵</div>
+      <span class="ss-label">Bar-Einnahmen</span>
+      <span class="ss-value g">127,50 €</span>
+    </div>
+    <div class="ss-item">
+      <div class="ss-icon">🪙</div>
+      <span class="ss-label">Guthaben</span>
+      <span class="ss-value b">84,20 €</span>
+    </div>
+    <div class="ss-item">
+      <div class="ss-icon">🎟</div>
+      <span class="ss-label">Gutscheine</span>
+      <span class="ss-value o">12,00 €</span>
+    </div>
+    <div class="ss-item">
+      <div class="ss-icon">💳</div>
+      <span class="ss-label">Prepaid-Verkauf</span>
+      <span class="ss-value b">60,00 €</span>
+    </div>
+    <div class="ss-item total-item">
+      <div class="ss-icon">🧮</div>
+      <span class="ss-label">Gesamt</span>
+      <span class="ss-value total">283,70 €</span>
+    </div>
+  </div>
+
+  <!-- Accordion sections -->
+  <div class="accordion">
+
+    <!-- 1. Einnahmen (open by default via checked) -->
+    <div class="acc-section">
+      <input type="checkbox" id="sec1" checked>
+      <label class="acc-header" for="sec1">
+        <div class="acc-header-left">
+          <span class="acc-icon">💰</span>
+          <span class="acc-title">Einnahmen nach Zahlungsart</span>
+        </div>
+        <span class="acc-summary">Gesamt: 283,70 €</span>
+        <span class="acc-chevron"></span>
+      </label>
+      <div class="acc-body">
+        <div class="acc-stat-rows">
+          <div class="acc-row">
+            <span class="acc-row-label">💵 Bar-Einnahmen</span>
+            <span class="acc-row-value green">127,50 €</span>
+          </div>
+          <div class="acc-row">
+            <span class="acc-row-label">🪙 Guthaben eingelöst</span>
+            <span class="acc-row-value blue">84,20 €</span>
+          </div>
+          <div class="acc-row">
+            <span class="acc-row-label">🎟 Gutscheine (Gewinn)</span>
+            <span class="acc-row-value orange">12,00 €</span>
+          </div>
+          <div class="acc-row">
+            <span class="acc-row-label">💳 Prepaid-Kartenverkauf</span>
+            <span class="acc-row-value blue">60,00 €</span>
+          </div>
+          <div class="acc-row acc-total-row">
+            <span class="acc-row-label">Umsatz Gesamt</span>
+            <span class="acc-row-value big">283,70 €</span>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- 2. Kassensaldo (open) -->
+    <div class="acc-section">
+      <input type="checkbox" id="sec2" checked>
+      <label class="acc-header" for="sec2">
+        <div class="acc-header-left">
+          <span class="acc-icon">🏧</span>
+          <span class="acc-title">Kassensaldo (Soll-Berechnung)</span>
+        </div>
+        <span class="acc-summary">Soll: 137,50 €</span>
+        <span class="acc-chevron"></span>
+      </label>
+      <div class="acc-body">
+        <table class="calc-table">
+          <tbody>
+            <tr><td>Anfangsbestand</td><td style="text-align:right;font-weight:600">150,00 €</td></tr>
+            <tr><td class="calc-op">+ Bar-Einnahmen</td><td style="text-align:right;font-weight:600;color:#059669">+127,50 €</td></tr>
+            <tr><td class="calc-op">+ Prepaid-Verkäufe</td><td style="text-align:right;font-weight:600;color:#059669">+60,00 €</td></tr>
+            <tr><td class="calc-op">− Abschöpfungen</td><td style="text-align:right;font-weight:600;color:#dc2626">−200,00 €</td></tr>
+            <tr class="calc-total"><td><strong>= Soll-Bestand</strong></td><td style="text-align:right"><strong>137,50 €</strong></td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- 3. Offene Posten (closed by default) -->
+    <div class="acc-section">
+      <input type="checkbox" id="sec3">
+      <label class="acc-header" for="sec3">
+        <div class="acc-header-left">
+          <span class="acc-icon">📂</span>
+          <span class="acc-title">Offene Posten &amp; Konten</span>
+        </div>
+        <span class="acc-summary">Gutscheine: 36,00 € · Konto: 580,00 €</span>
+        <span class="acc-chevron"></span>
+      </label>
+      <div class="acc-body">
+        <div class="acc-stat-rows">
+          <div class="acc-row">
+            <span class="acc-row-label">🎫 Offene Gutscheine</span>
+            <span class="acc-row-value orange">36,00 €</span>
+          </div>
+          <div class="acc-row">
+            <span class="acc-row-label">🏦 Gutscheinkonto gesamt</span>
+            <span class="acc-row-value blue">580,00 €</span>
+          </div>
+          <div class="acc-row">
+            <span class="acc-row-label">💸 Abschöpfungen gesamt</span>
+            <span class="acc-row-value" style="color:#dc2626">200,00 €</span>
+          </div>
+          <div class="acc-row">
+            <span class="acc-row-label">🔢 Transaktionen im Zeitraum</span>
+            <span class="acc-row-value">80</span>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- 4. Transaktionen (open by default) -->
+    <div class="acc-section">
+      <input type="checkbox" id="sec4" checked>
+      <label class="acc-header" for="sec4">
+        <div class="acc-header-left">
+          <span class="acc-icon">📋</span>
+          <span class="acc-title">Transaktionen</span>
+        </div>
+        <span class="acc-summary">80 gesamt</span>
+        <span class="acc-chevron"></span>
+      </label>
+      <div class="acc-body">
+        <table class="trans-table">
+          <thead>
+            <tr>
+              <th>Datum/Zeit</th>
+              <th>Beleg #</th>
+              <th>Typ</th>
+              <th>Mitglied</th>
+              <th style="text-align:right">Betrag</th>
+              <th>Zahlungsart</th>
+              <th>Benutzer</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td>23.05.25, 09:12</td>
+              <td><strong>1093</strong></td>
+              <td><span class="badge badge-blue">Verkauf</span></td>
+              <td>Müller, Hans</td>
+              <td class="tr-amount">4,50 €</td>
+              <td>Bar</td>
+              <td>admin</td>
+            </tr>
+            <tr>
+              <td>23.05.25, 09:05</td>
+              <td><strong>1092</strong></td>
+              <td><span class="badge badge-green">Guthaben</span></td>
+              <td>Schmidt, Anna</td>
+              <td class="tr-amount">20,00 €</td>
+              <td>Guthaben</td>
+              <td>kasse</td>
+            </tr>
+            <tr>
+              <td>23.05.25, 08:55</td>
+              <td><strong>1091</strong></td>
+              <td><span class="badge badge-amber">Gutschein</span></td>
+              <td>—</td>
+              <td class="tr-amount">5,00 €</td>
+              <td>Gutschein</td>
+              <td>admin</td>
+            </tr>
+            <tr>
+              <td colspan="7" style="text-align:center;color:#94a3b8;padding:0.75rem;font-size:0.78rem">
+                … weitere 77 Transaktionen …
+              </td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+  </div>
+</div>
+</body>
+</html>

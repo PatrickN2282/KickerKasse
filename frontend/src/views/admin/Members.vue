@@ -468,18 +468,32 @@ onMounted(() => memberStore.getMembers())
 .members-table {
   width: 100%;
   border-collapse: collapse;
-  th {
+  font-size: 0.88rem;
+
+  thead {
     background: color-mix(in srgb, var(--app-background-color) 75%, white);
-    padding: 0.55rem 0.75rem;
-    font-size: 0.78rem;
-    text-transform: uppercase;
-    color: #64748b;
+  }
+
+  th {
+    padding: 0.5rem 0.75rem;
+    color: #475569;
+    font-weight: 600;
+    font-size: 0.8rem;
     text-align: left;
   }
+
   td {
     padding: 0.5rem 0.75rem;
     border-bottom: 1px solid var(--border);
     vertical-align: middle;
+  }
+
+  tr:hover td {
+    background: color-mix(in srgb, var(--app-background-color) 60%, white);
+  }
+
+  tr:last-child td {
+    border-bottom: none;
   }
 }
 

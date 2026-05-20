@@ -1,0 +1,289 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Layout 3 – Sidebar + Hauptbereich</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body { font-family: system-ui, sans-serif; background: #f1f5f9; color: #1e293b; padding: 1.5rem; }
+    .concept-note {
+      background: #fef3c7; border: 1px solid #fcd34d; border-radius: 8px;
+      padding: 0.6rem 1rem; font-size: 0.82rem; color: #78350f; margin-bottom: 1.5rem;
+    }
+    .page { max-width: 1100px; margin: 0 auto; }
+
+    /* Header */
+    .report-header {
+      background: white; border-radius: 12px; border: 1px solid #e2e8f0;
+      padding: 0.85rem 1.25rem; margin-bottom: 1rem;
+      display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 0.5rem;
+    }
+    .report-title { font-size: 1.05rem; font-weight: 700; }
+    .report-meta { font-size: 0.78rem; color: #64748b; margin-top: 0.15rem; }
+    .header-actions { display: flex; gap: 0.5rem; flex-wrap: wrap; }
+    .btn { padding: 0.35rem 0.85rem; border-radius: 6px; border: none; cursor: pointer; font-size: 0.8rem; font-weight: 600; }
+    .btn-primary { background: #3b82f6; color: white; }
+    .btn-success { background: #10b981; color: white; }
+    .btn-outline { background: white; border: 1px solid #cbd5e1; color: #475569; }
+    .btn-warning { background: #f59e0b; color: white; }
+    .btn-secondary { background: #e2e8f0; color: #475569; }
+
+    /* Sidebar layout */
+    .report-layout {
+      display: grid;
+      grid-template-columns: 240px 1fr;
+      gap: 1rem;
+      align-items: start;
+    }
+
+    /* Sidebar */
+    .sidebar { display: flex; flex-direction: column; gap: 0.75rem; }
+    .sidebar-card {
+      background: white; border-radius: 10px; border: 1px solid #e2e8f0; overflow: hidden;
+    }
+    .sidebar-card-header {
+      padding: 0.5rem 0.85rem; background: #f8fafc; border-bottom: 1px solid #e2e8f0;
+      font-size: 0.72rem; font-weight: 700; text-transform: uppercase; color: #64748b; letter-spacing: 0.05em;
+    }
+    .sidebar-row {
+      display: flex; justify-content: space-between; align-items: center;
+      padding: 0.45rem 0.85rem; border-bottom: 1px solid #f8fafc; font-size: 0.82rem;
+    }
+    .sidebar-row:last-child { border-bottom: none; }
+    .sl { color: #64748b; }
+    .sv { font-weight: 700; }
+    .sv.pos { color: #059669; }
+    .sv.neg { color: #dc2626; }
+    .sv.blue { color: #2563eb; }
+    .sv.orange { color: #b45309; }
+    .sv.big { font-size: 1rem; color: #1d4ed8; }
+    .sidebar-total-row {
+      background: #eff6ff; padding: 0.55rem 0.85rem; font-size: 0.85rem;
+      display: flex; justify-content: space-between;
+    }
+    /* Kasse-Rechnung in Sidebar */
+    .kasse-calc { padding: 0.5rem 0.85rem; font-size: 0.8rem; display: flex; flex-direction: column; gap: 0.3rem; }
+    .calc-line { display: flex; justify-content: space-between; }
+    .calc-op { color: #64748b; }
+    .calc-divider { border: none; border-top: 1px dashed #e2e8f0; margin: 0.2rem 0; }
+    .calc-result { font-size: 0.9rem; font-weight: 700; color: #1d4ed8; }
+
+    /* Main content */
+    .main-content { display: flex; flex-direction: column; gap: 0.75rem; }
+
+    /* Stat row (horizontal strip) */
+    .stat-strip {
+      background: white; border-radius: 10px; border: 1px solid #e2e8f0;
+      display: flex; gap: 0; overflow: hidden;
+    }
+    .strip-item {
+      flex: 1; padding: 0.8rem 1rem; border-right: 1px solid #f1f5f9;
+      display: flex; flex-direction: column; gap: 0.1rem;
+    }
+    .strip-item:last-child { border-right: none; }
+    .strip-label { font-size: 0.72rem; color: #94a3b8; font-weight: 500; }
+    .strip-value { font-size: 1.15rem; font-weight: 800; color: #0f172a; }
+    .strip-value.g { color: #059669; }
+    .strip-value.b { color: #2563eb; }
+    .strip-value.o { color: #b45309; }
+    .strip-value.total { color: #1d4ed8; font-size: 1.3rem; }
+
+    /* Transactions */
+    .trans-card {
+      background: white; border-radius: 10px; border: 1px solid #e2e8f0; overflow: hidden;
+    }
+    .trans-card-header {
+      display: flex; align-items: center; justify-content: space-between;
+      padding: 0.5rem 1rem; background: #f8fafc; border-bottom: 1px solid #e2e8f0;
+      font-size: 0.78rem; font-weight: 700; color: #475569; text-transform: uppercase;
+    }
+    .filter-chips { display: flex; gap: 0.3rem; }
+    .chip {
+      padding: 0.15rem 0.55rem; border-radius: 999px; font-size: 0.72rem;
+      font-weight: 600; cursor: pointer; border: 1px solid transparent;
+    }
+    .chip.active { background: #3b82f6; color: white; }
+    .chip.inactive { background: #f1f5f9; color: #64748b; }
+    table { width: 100%; border-collapse: collapse; font-size: 0.82rem; }
+    th { padding: 0.4rem 0.85rem; color: #475569; font-weight: 600; text-align: left; border-bottom: 1px solid #e2e8f0; }
+    td { padding: 0.4rem 0.85rem; border-bottom: 1px solid #f8fafc; }
+    tr:last-child td { border-bottom: none; }
+    tr:hover td { background: #f8fafc; }
+    .badge { padding: 0.1rem 0.45rem; border-radius: 4px; font-size: 0.72rem; font-weight: 600; }
+    .badge-blue { background: #dbeafe; color: #1d4ed8; }
+    .badge-green { background: #dcfce7; color: #15803d; }
+    .badge-amber { background: #fef3c7; color: #92400e; }
+    .amount { font-weight: 600; text-align: right; }
+  </style>
+</head>
+<body>
+<div class="page">
+  <div class="concept-note">
+    <strong>Konzept 3 – Sidebar + Hauptbereich:</strong> Schmale Seitenleiste mit kompakten Kennzahlen-Karten (Einnahmen, Kasse-Rechnung, Offene Posten).
+    Hauptbereich zeigt oben einen Übersichtsstreifen mit allen Zahlungsarten, darunter die Transaktions-Tabelle mit Filter-Chips.
+  </div>
+
+  <div class="report-header">
+    <div>
+      <div class="report-title">📊 Kassenbericht – Aktueller Zeitraum</div>
+      <div class="report-meta">Beleg #1014 – #1093 · 80 Transaktionen · 23.05.2025, 10:15 Uhr</div>
+    </div>
+    <div class="header-actions">
+      <button class="btn btn-outline">👁 Vorschau</button>
+      <button class="btn btn-primary">⬇ HTML</button>
+      <button class="btn btn-warning">💸 Abschöpfung</button>
+      <button class="btn btn-secondary">💰 Kasse zählen</button>
+      <button class="btn btn-success">✅ Erstellen</button>
+    </div>
+  </div>
+
+  <div class="report-layout">
+    <!-- Sidebar -->
+    <div class="sidebar">
+      <!-- Zahlungsarten -->
+      <div class="sidebar-card">
+        <div class="sidebar-card-header">💰 Einnahmen</div>
+        <div class="sidebar-row">
+          <span class="sl">Bar</span>
+          <span class="sv pos">127,50 €</span>
+        </div>
+        <div class="sidebar-row">
+          <span class="sl">Guthaben</span>
+          <span class="sv blue">84,20 €</span>
+        </div>
+        <div class="sidebar-row">
+          <span class="sl">Gutscheine</span>
+          <span class="sv orange">12,00 €</span>
+        </div>
+        <div class="sidebar-row">
+          <span class="sl">Prepaid-Verkauf</span>
+          <span class="sv blue">60,00 €</span>
+        </div>
+        <div class="sidebar-total-row">
+          <span><strong>Gesamt</strong></span>
+          <span class="sv big">283,70 €</span>
+        </div>
+      </div>
+
+      <!-- Kassensaldo -->
+      <div class="sidebar-card">
+        <div class="sidebar-card-header">🏧 Kassensaldo (Soll)</div>
+        <div class="kasse-calc">
+          <div class="calc-line"><span class="calc-op">Anfangsbestand</span><span>150,00 €</span></div>
+          <div class="calc-line"><span class="calc-op">+ Bar-Einnahmen</span><span style="color:#059669">+127,50 €</span></div>
+          <div class="calc-line"><span class="calc-op">+ Prepaid-Verkäufe</span><span style="color:#059669">+60,00 €</span></div>
+          <div class="calc-line"><span class="calc-op">− Abschöpfungen</span><span style="color:#dc2626">−200,00 €</span></div>
+          <hr class="calc-divider">
+          <div class="calc-line"><span class="calc-op"><strong>= Soll-Bestand</strong></span><span class="calc-result">137,50 €</span></div>
+        </div>
+      </div>
+
+      <!-- Offene Posten -->
+      <div class="sidebar-card">
+        <div class="sidebar-card-header">📂 Offene Posten</div>
+        <div class="sidebar-row">
+          <span class="sl">Offene Gutscheine</span>
+          <span class="sv orange">36,00 €</span>
+        </div>
+        <div class="sidebar-row">
+          <span class="sl">Gutscheinkonto</span>
+          <span class="sv blue">580,00 €</span>
+        </div>
+        <div class="sidebar-row">
+          <span class="sl">Transaktionen</span>
+          <span class="sv">80</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- Main content -->
+    <div class="main-content">
+      <!-- Zahlungsart-Übersicht (Streifen) -->
+      <div class="stat-strip">
+        <div class="strip-item">
+          <span class="strip-label">💵 Bar-Einnahmen</span>
+          <span class="strip-value g">127,50 €</span>
+        </div>
+        <div class="strip-item">
+          <span class="strip-label">🪙 Guthaben</span>
+          <span class="strip-value b">84,20 €</span>
+        </div>
+        <div class="strip-item">
+          <span class="strip-label">🎟 Gutscheine</span>
+          <span class="strip-value o">12,00 €</span>
+        </div>
+        <div class="strip-item">
+          <span class="strip-label">💳 Prepaid-Verkauf</span>
+          <span class="strip-value b">60,00 €</span>
+        </div>
+        <div class="strip-item" style="background:#eff6ff">
+          <span class="strip-label">🧮 Umsatz Gesamt</span>
+          <span class="strip-value total">283,70 €</span>
+        </div>
+      </div>
+
+      <!-- Transaktionen -->
+      <div class="trans-card">
+        <div class="trans-card-header">
+          <span>📋 Transaktionen (80)</span>
+          <div class="filter-chips">
+            <span class="chip active">Alle</span>
+            <span class="chip inactive">Bar</span>
+            <span class="chip inactive">Guthaben</span>
+            <span class="chip inactive">Gutschein</span>
+          </div>
+        </div>
+        <table>
+          <thead>
+            <tr>
+              <th>Zeit</th>
+              <th>Beleg #</th>
+              <th>Typ</th>
+              <th>Mitglied</th>
+              <th style="text-align:right">Betrag</th>
+              <th>Zahlungsart</th>
+              <th>Benutzer</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td style="color:#64748b;font-size:0.78rem">09:12</td>
+              <td><strong>1093</strong></td>
+              <td><span class="badge badge-blue">Verkauf</span></td>
+              <td>Müller, Hans</td>
+              <td class="amount">4,50 €</td>
+              <td>Bar</td>
+              <td>admin</td>
+            </tr>
+            <tr>
+              <td style="color:#64748b;font-size:0.78rem">09:05</td>
+              <td><strong>1092</strong></td>
+              <td><span class="badge badge-green">Guthaben</span></td>
+              <td>Schmidt, Anna</td>
+              <td class="amount">20,00 €</td>
+              <td>Guthaben</td>
+              <td>kasse</td>
+            </tr>
+            <tr>
+              <td style="color:#64748b;font-size:0.78rem">08:55</td>
+              <td><strong>1091</strong></td>
+              <td><span class="badge badge-amber">Gutschein</span></td>
+              <td>—</td>
+              <td class="amount">5,00 €</td>
+              <td>Gutschein</td>
+              <td>admin</td>
+            </tr>
+            <tr>
+              <td colspan="7" style="text-align:center;color:#94a3b8;padding:0.75rem;font-size:0.78rem">
+                … weitere 77 Transaktionen …
+              </td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+</div>
+</body>
+</html>
