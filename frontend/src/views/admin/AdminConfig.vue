@@ -31,7 +31,7 @@
           🔄 Import/Export
         </button>
         <button
-          v-if="authStore.isTopAdmin"
+          v-if="authStore.isAdmin"
           :class="['section-tab', { active: activeSection === 'extsettings' }]"
           type="button"
           @click="activeSection = 'extsettings'"
@@ -233,13 +233,13 @@
       </div>
     </div>
 
-    <!-- ── Ext. Settings (TOP_ADMIN only) ─────────────── -->
-    <div v-if="activeSection === 'extsettings' && authStore.isTopAdmin" class="section-content ext-settings-section">
+    <!-- ── Ext. Settings (ADMIN / TOP_ADMIN) ──────────── -->
+    <div v-if="activeSection === 'extsettings' && authStore.isAdmin" class="section-content ext-settings-section">
       <div class="page-header">
         <div class="title-row">
           <h2>⚙️ Ext. Settings</h2>
           <span class="title-sep">|</span>
-          <span class="page-subtitle">Erweiterte Einstellungen – nur für TopAdmin zugänglich.</span>
+          <span class="page-subtitle">Erweiterte Einstellungen für Admin und TopAdmin.</span>
         </div>
       </div>
 
@@ -326,6 +326,29 @@
             </div>
             <button class="btn btn-primary" type="button" @click="saveSessionTimer">
               Session-Timer speichern
+            </button>
+          </div>
+        </div>
+
+        <div class="ext-card">
+          <div class="ext-card-header">
+            <div class="ext-card-icon">🧾</div>
+            <div>
+              <h3>Deckel-Funktion</h3>
+              <p>Steuert, ob der Deckel-Button im Kassenbereich angezeigt wird.</p>
+            </div>
+          </div>
+          <div class="session-timer-settings">
+            <button
+              class="btn"
+              :class="deckelEnabled ? 'btn-success' : 'btn-secondary'"
+              type="button"
+              @click="deckelEnabled = !deckelEnabled"
+            >
+              {{ deckelEnabled ? 'Eingeschaltet' : 'Ausgeschaltet' }}
+            </button>
+            <button class="btn btn-primary" type="button" :disabled="appSettingsStore.isSaving" @click="saveDeckelSettings">
+              Deckel-Funktion speichern
             </button>
           </div>
         </div>
@@ -522,6 +545,7 @@ const LAYOUT_STORAGE_KEY = 'kasseLayout'
 
 const showBusinessModal = ref(false)
 const sessionTimer = ref({ enabled: false, minutes: 15 })
+const deckelEnabled = ref(true)
 
 const businessData = ref({
   name: '',
@@ -558,6 +582,10 @@ const syncSessionTimer = () => {
   sessionTimer.value.minutes = Number(appSettingsStore.settings.session_timer_minutes) || 15
 }
 
+const syncDeckelSetting = () => {
+  deckelEnabled.value = !!appSettingsStore.settings.deckel_enabled
+}
+
 const applyLayout = async () => {
   try {
     await appSettingsStore.saveAdminSettings({ kasse_layout: selectedLayout.value })
@@ -588,6 +616,18 @@ const saveSessionTimer = async () => {
   }
 }
 
+const saveDeckelSettings = async () => {
+  try {
+    await appSettingsStore.saveAdminSettings({
+      deckel_enabled: deckelEnabled.value,
+    })
+    syncDeckelSetting()
+    notificationStore.success('Deckel-Funktion gespeichert')
+  } catch (error) {
+    notificationStore.error(error.response?.data?.detail || 'Deckel-Funktion konnte nicht gespeichert werden')
+  }
+}
+
 const saveBusinessData = () => {
   localStorage.setItem('businessData', JSON.stringify(businessData.value))
   notificationStore.success('Geschäftsdaten gespeichert.')
@@ -598,6 +638,7 @@ onMounted(async () => {
   await appSettingsStore.loadAdminSettings()
   syncDesignForm()
   syncSessionTimer()
+  syncDeckelSetting()
 
   const serverLayout = appSettingsStore.settings.kasse_layout
   if (serverLayout) {
