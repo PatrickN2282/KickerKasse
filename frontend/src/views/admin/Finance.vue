@@ -37,22 +37,10 @@
         </div>
         <div class="action-buttons">
           <button
-            class="btn btn-primary"
-            @click="openPreviewModal"
+            class="btn btn-secondary"
+            @click="openCashCounterModal"
           >
-            👁️ Vorschau
-          </button>
-          <button
-            class="btn btn-success"
-            @click="handleDownloadZBon"
-          >
-            ⬇️ HTML
-          </button>
-          <button
-            class="btn btn-info"
-            @click="openZbonCreateModal"
-          >
-            ✅ Kassenbericht erstellen
+            💰 Kasse zählen
           </button>
           <button
             v-if="authStore.isAdmin"
@@ -62,10 +50,22 @@
             💸 Abschöpfung
           </button>
           <button
-            class="btn btn-secondary"
-            @click="openCashCounterModal"
+            class="btn btn-primary"
+            @click="openPreviewModal"
           >
-            💰 Kasse zählen
+            👁️ Vorschau
+          </button>
+          <button
+            class="btn btn-info"
+            @click="openZbonCreateModal"
+          >
+            ✅ Kassenbericht erstellen
+          </button>
+          <button
+            class="btn btn-success"
+            @click="handleDownloadZBon"
+          >
+            ⬇️ HTML
           </button>
         </div>
       </div>
@@ -86,201 +86,308 @@
         v-else
         class="zbon-layout"
       >
-        <!-- Umsatz Übersicht -->
-        <section class="zbon-section">
-          <div class="zbon-section-header">
-            <div>
-              <h4>Umsatz seit letztem Kassenbericht</h4>
+        <!-- Summary Strip -->
+        <div class="summary-strip">
+          <div class="ss-item">
+            <div class="ss-icon">
+              💵
             </div>
+            <span class="ss-label">Bar-Einnahmen</span>
+            <span class="ss-value ss-green">{{ formatPrice(dailyStats.cash_total) }}</span>
           </div>
-          <div class="summary-grid zbon-card-grid">
-            <div class="summary-card">
-              <div class="card-label">
-                Bar-Einnahmen
-              </div>
-              <div class="card-value">
-                {{ formatPrice(dailyStats.cash_total) }}
-              </div>
+          <div class="ss-item">
+            <div class="ss-icon">
+              🪙
             </div>
-            <div class="summary-card">
-              <div class="card-label">
-                Guthaben
-              </div>
-              <div class="card-value">
-                {{ formatPrice(dailyStats.balance_total) }}
-              </div>
-            </div>
-            <div class="summary-card">
-              <div class="card-label">
-                Gutscheine
-              </div>
-              <div class="card-value">
-                {{ formatPrice(dailyStats.voucher_total) }}
-              </div>
-            </div>
-            <div class="summary-card">
-              <div class="card-label">
-                Verzehrkarten
-              </div>
-              <div class="card-value">
-                {{ formatPrice(dailyStats.prepaid_voucher_sales_total) }}
-              </div>
-            </div>
-            <div class="summary-card highlight total">
-              <div class="card-label">
-                Umsatz GESAMT
-              </div>
-              <div class="card-value">
-                {{ formatPrice(dailyStats.total_amount) }}
-              </div>
-            </div>
+            <span class="ss-label">Guthaben eingelöst</span>
+            <span class="ss-value ss-blue">{{ formatPrice(dailyStats.balance_total) }}</span>
           </div>
-        </section>
+          <div class="ss-item">
+            <div class="ss-icon">
+              🎟
+            </div>
+            <span class="ss-label">Gutscheine</span>
+            <span class="ss-value ss-orange">{{ formatPrice(dailyStats.voucher_total) }}</span>
+          </div>
+          <div class="ss-item">
+            <div class="ss-icon">
+              💳
+            </div>
+            <span class="ss-label">Verzehrkarten</span>
+            <span class="ss-value ss-blue">{{ formatPrice(dailyStats.prepaid_voucher_sales_total) }}</span>
+          </div>
+          <div class="ss-item ss-total-item">
+            <div class="ss-icon">
+              🧮
+            </div>
+            <span class="ss-label">Gesamt</span>
+            <span class="ss-value ss-total">{{ formatPrice(dailyStats.total_amount) }}</span>
+          </div>
+        </div>
 
-        <!-- Konten & Bestand -->
-        <section class="zbon-section">
-          <div class="zbon-section-header">
-            <div>
-              <h4>Konten & Bestand</h4>
+        <!-- Accordion -->
+        <div class="accordion">
+          <!-- 1. Einnahmen nach Zahlungsart (open by default) -->
+          <div class="acc-section">
+            <div
+              class="acc-header"
+              @click="toggleAccSection('einnahmen')"
+            >
+              <div class="acc-header-left">
+                <span class="acc-icon">💰</span>
+                <span class="acc-title">Einnahmen nach Zahlungsart</span>
+              </div>
+              <span class="acc-summary">Gesamt: {{ formatPrice(dailyStats.total_amount) }}</span>
+              <span
+                class="acc-chevron"
+                :class="{ open: accSections.einnahmen }"
+              />
             </div>
-          </div>
-          <div class="summary-grid zbon-card-grid secondary">
-            <div class="summary-card">
-              <div class="card-label">
-                Soll-Bestand Kasse
-              </div>
-              <div class="card-value">
-                {{ formatEuroValue(dailyStats.cash_calculated) }}
-              </div>
-            </div>
-            <div class="summary-card warning">
-              <div class="card-label">
-                Abschöpfungen
-              </div>
-              <div class="card-value">
-                {{ formatPrice(dailyStats.withdrawal_total) }}
-              </div>
-            </div>
-            <div class="summary-card neutral">
-              <div class="card-label">
-                Offene Gutscheine
-              </div>
-              <div class="card-value">
-                {{ formatEuroValue(dailyStats.voucher_open_total) }}
-              </div>
-            </div>
-            <div class="summary-card neutral">
-              <div class="card-label">
-                Gutscheinkonto
-              </div>
-              <div class="card-value">
-                {{ formatEuroValue(dailyStats.club_account_total) }}
-              </div>
-            </div>
-            <div class="summary-card neutral">
-              <div class="card-label">
-                Transaktionen
-              </div>
-              <div class="card-value">
-                {{ dailyStats.transaction_count }}
+            <div
+              v-show="accSections.einnahmen"
+              class="acc-body"
+            >
+              <div class="acc-stat-rows">
+                <div class="acc-row">
+                  <span class="acc-row-label">💵 Bar-Einnahmen</span>
+                  <span class="acc-row-value green">{{ formatPrice(dailyStats.cash_total) }}</span>
+                </div>
+                <div class="acc-row">
+                  <span class="acc-row-label">🪙 Guthaben eingelöst</span>
+                  <span class="acc-row-value blue">{{ formatPrice(dailyStats.balance_total) }}</span>
+                </div>
+                <div class="acc-row">
+                  <span class="acc-row-label">🎟 Gutscheine (Gewinn)</span>
+                  <span class="acc-row-value orange">{{ formatPrice(dailyStats.voucher_total) }}</span>
+                </div>
+                <div class="acc-row">
+                  <span class="acc-row-label">💳 Prepaid-Kartenverkauf</span>
+                  <span class="acc-row-value blue">{{ formatPrice(dailyStats.prepaid_voucher_sales_total) }}</span>
+                </div>
+                <div class="acc-row acc-total-row">
+                  <span class="acc-row-label">Umsatz Gesamt</span>
+                  <span class="acc-row-value big">{{ formatPrice(dailyStats.total_amount) }}</span>
+                </div>
               </div>
             </div>
           </div>
-        </section>
 
-        <!-- Transaktionen -->
-        <section class="daily-transactions zbon-section">
-          <h4>Transaktionen seit dem letzten Kassenbericht</h4>
-          <div
-            v-if="dailyStats.transactions.length === 0"
-            class="empty"
-          >
-            Keine Transaktionen im aktuellen Kassenbericht-Zeitraum
+          <!-- 2. Kassensaldo (open by default) -->
+          <div class="acc-section">
+            <div
+              class="acc-header"
+              @click="toggleAccSection('saldo')"
+            >
+              <div class="acc-header-left">
+                <span class="acc-icon">🏧</span>
+                <span class="acc-title">Kassensaldo (Soll-Berechnung)</span>
+              </div>
+              <span class="acc-summary">Soll: {{ formatEuroValue(dailyStats.cash_calculated) }}</span>
+              <span
+                class="acc-chevron"
+                :class="{ open: accSections.saldo }"
+              />
+            </div>
+            <div
+              v-show="accSections.saldo"
+              class="acc-body"
+            >
+              <table class="calc-table">
+                <tbody>
+                  <tr>
+                    <td>Anfangsbestand</td>
+                    <td class="calc-right">
+                      {{ formatEuroValue(dailyStats.opening_balance) }}
+                    </td>
+                  </tr>
+                  <tr>
+                    <td class="calc-op">
+                      + Bar-Einnahmen
+                    </td>
+                    <td class="calc-right calc-plus">
+                      +{{ formatPrice(dailyStats.cash_total) }}
+                    </td>
+                  </tr>
+                  <tr>
+                    <td class="calc-op">
+                      + Prepaid-Verkäufe
+                    </td>
+                    <td class="calc-right calc-plus">
+                      +{{ formatPrice(dailyStats.prepaid_voucher_sales_total) }}
+                    </td>
+                  </tr>
+                  <tr>
+                    <td class="calc-op">
+                      − Abschöpfungen
+                    </td>
+                    <td class="calc-right calc-minus">
+                      −{{ formatPrice(dailyStats.withdrawal_total) }}
+                    </td>
+                  </tr>
+                  <tr class="calc-total-row">
+                    <td><strong>= Soll-Bestand</strong></td>
+                    <td class="calc-right">
+                      <strong>{{ formatEuroValue(dailyStats.cash_calculated) }}</strong>
+                    </td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
           </div>
-          <table
-            v-else
-            class="transactions-table"
-          >
-            <thead>
-              <tr>
-                <th>Datum</th>
-                <th>Zeit</th>
-                <th>Belegnummer</th>
-                <th>Typ</th>
-                <th>Mitglied / Konto</th>
-                <th>Betrag</th>
-                <th>Zahlungsart</th>
-                <th>Benutzer</th>
-              </tr>
-            </thead>
-            <tbody>
-              <template
-                v-for="transaction in dailyStats.transactions"
-                :key="transaction.id"
+
+          <!-- 3. Offene Posten & Konten (closed by default) -->
+          <div class="acc-section">
+            <div
+              class="acc-header"
+              @click="toggleAccSection('offene')"
+            >
+              <div class="acc-header-left">
+                <span class="acc-icon">📂</span>
+                <span class="acc-title">Offene Posten &amp; Konten</span>
+              </div>
+              <span class="acc-summary">
+                Gutscheine: {{ formatEuroValue(dailyStats.voucher_open_total) }} · Konto: {{ formatEuroValue(dailyStats.club_account_total) }}
+              </span>
+              <span
+                class="acc-chevron"
+                :class="{ open: accSections.offene }"
+              />
+            </div>
+            <div
+              v-show="accSections.offene"
+              class="acc-body"
+            >
+              <div class="acc-stat-rows">
+                <div class="acc-row">
+                  <span class="acc-row-label">🎫 Offene Gutscheine</span>
+                  <span class="acc-row-value orange">{{ formatEuroValue(dailyStats.voucher_open_total) }}</span>
+                </div>
+                <div class="acc-row">
+                  <span class="acc-row-label">🏦 Gutscheinkonto gesamt</span>
+                  <span class="acc-row-value blue">{{ formatEuroValue(dailyStats.club_account_total) }}</span>
+                </div>
+                <div class="acc-row">
+                  <span class="acc-row-label">💸 Abschöpfungen gesamt</span>
+                  <span class="acc-row-value red">{{ formatPrice(dailyStats.withdrawal_total) }}</span>
+                </div>
+                <div class="acc-row">
+                  <span class="acc-row-label">🔢 Transaktionen im Zeitraum</span>
+                  <span class="acc-row-value">{{ dailyStats.transaction_count }}</span>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- 4. Transaktionen (open by default) -->
+          <div class="acc-section">
+            <div
+              class="acc-header"
+              @click="toggleAccSection('transaktionen')"
+            >
+              <div class="acc-header-left">
+                <span class="acc-icon">📋</span>
+                <span class="acc-title">Transaktionen</span>
+              </div>
+              <span class="acc-summary">{{ dailyStats.transaction_count }} gesamt</span>
+              <span
+                class="acc-chevron"
+                :class="{ open: accSections.transaktionen }"
+              />
+            </div>
+            <div
+              v-show="accSections.transaktionen"
+              class="acc-body"
+            >
+              <div
+                v-if="dailyStats.transactions.length === 0"
+                class="empty"
               >
-                <tr
-                  class="transaction-row"
-                  style="cursor: pointer;"
-                  @click="toggleTransaction(transaction.id)"
-                >
-                  <td>{{ formatDate(transaction.created_at) }}</td>
-                  <td>{{ formatTime(transaction.created_at) }}</td>
-                  <td><strong>{{ transaction.receipt_number ?? '-' }}</strong></td>
-                  <td>{{ getTransactionTypeLabel(transaction) }}</td>
-                  <td>{{ getTransactionMemberLabel(transaction) }}</td>
-                  <td class="amount">
-                    {{ formatPrice(transaction.gross_amount_cents || transaction.total_amount_cents) }}
-                  </td>
-                  <td>
-                    <span
-                      :class="['payment-badge', getPaymentBadgeClass(transaction)]"
-                    >
-                      {{ getPaymentBadgeLabel(transaction) }}
-                    </span>
-                  </td>
-                  <td>{{ getTransactionUserLabel(transaction) }}</td>
-                </tr>
-                <tr
-                  v-if="expandedTransactions.has(transaction.id)"
-                  class="items-row"
-                >
-                  <td
-                    colspan="8"
-                    class="items-cell"
+                Keine Transaktionen im aktuellen Kassenbericht-Zeitraum
+              </div>
+              <table
+                v-else
+                class="transactions-table"
+              >
+                <thead>
+                  <tr>
+                    <th>Datum</th>
+                    <th>Zeit</th>
+                    <th>Belegnummer</th>
+                    <th>Typ</th>
+                    <th>Mitglied / Konto</th>
+                    <th>Betrag</th>
+                    <th>Zahlungsart</th>
+                    <th>Benutzer</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <template
+                    v-for="transaction in dailyStats.transactions"
+                    :key="transaction.id"
                   >
-                    <div class="items-list">
-                      <div
-                        v-if="transaction.reason"
-                        class="item-detail"
+                    <tr
+                      class="transaction-row"
+                      style="cursor: pointer;"
+                      @click="toggleTransaction(transaction.id)"
+                    >
+                      <td>{{ formatDate(transaction.created_at) }}</td>
+                      <td>{{ formatTime(transaction.created_at) }}</td>
+                      <td><strong>{{ transaction.receipt_number ?? '-' }}</strong></td>
+                      <td>{{ getTransactionTypeLabel(transaction) }}</td>
+                      <td>{{ getTransactionMemberLabel(transaction) }}</td>
+                      <td class="amount">
+                        {{ formatPrice(transaction.gross_amount_cents || transaction.total_amount_cents) }}
+                      </td>
+                      <td>
+                        <span :class="['payment-badge', getPaymentBadgeClass(transaction)]">
+                          {{ getPaymentBadgeLabel(transaction) }}
+                        </span>
+                      </td>
+                      <td>{{ getTransactionUserLabel(transaction) }}</td>
+                    </tr>
+                    <tr
+                      v-if="expandedTransactions.has(transaction.id)"
+                      class="items-row"
+                    >
+                      <td
+                        colspan="8"
+                        class="items-cell"
                       >
-                        <span class="item-name">Buchungsgrund</span>
-                        <span class="item-total">{{ transaction.reason }}</span>
-                      </div>
-                      <div v-if="transaction.items && transaction.items.length > 0">
-                        <div
-                          v-for="item in transaction.items"
-                          :key="item.id"
-                          class="item-detail"
-                        >
-                          <span class="item-name">{{ item.product?.name || item.id }}: </span>
-                          <span class="item-qty">{{ item.quantity }}×</span>
-                          <span class="item-price">{{ formatPrice(item.unit_price_cents) }}</span>
-                          <span class="item-total">= {{ formatPrice(item.total_price_cents) }}</span>
+                        <div class="items-list">
+                          <div
+                            v-if="transaction.reason"
+                            class="item-detail"
+                          >
+                            <span class="item-name">Buchungsgrund</span>
+                            <span class="item-total">{{ transaction.reason }}</span>
+                          </div>
+                          <div v-if="transaction.items && transaction.items.length > 0">
+                            <div
+                              v-for="item in transaction.items"
+                              :key="item.id"
+                              class="item-detail"
+                            >
+                              <span class="item-name">{{ item.product?.name || item.id }}: </span>
+                              <span class="item-qty">{{ item.quantity }}×</span>
+                              <span class="item-price">{{ formatPrice(item.unit_price_cents) }}</span>
+                              <span class="item-total">= {{ formatPrice(item.total_price_cents) }}</span>
+                            </div>
+                          </div>
+                          <div
+                            v-else-if="!transaction.reason"
+                            class="no-items"
+                          >
+                            Keine Artikel
+                          </div>
                         </div>
-                      </div>
-                      <div
-                        v-else-if="!transaction.reason"
-                        class="no-items"
-                      >
-                        Keine Artikel
-                      </div>
-                    </div>
-                  </td>
-                </tr>
-              </template>
-            </tbody>
-          </table>
-        </section>
+                      </td>
+                    </tr>
+                  </template>
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </div>
 
         <!-- Scheduler Info -->
         <section class="scheduler-section zbon-section">
@@ -1510,6 +1617,14 @@ const expandedTransactions = ref(new Set())
 const expandedInternalAccountEntries = ref(new Set())
 const expandedInternalAccountSections = ref(new Set())
 
+// Accordion section open/close state for zbon tab
+const accSections = ref({
+  einnahmen: true,
+  saldo: true,
+  offene: false,
+  transaktionen: true,
+})
+
 // Z-Bon HTML preview
 const zBonHtml = ref('')
 
@@ -2137,6 +2252,10 @@ const toggleTransaction = (transactionId) => {
   } else {
     expandedTransactions.value.add(transactionId)
   }
+}
+
+const toggleAccSection = (key) => {
+  accSections.value[key] = !accSections.value[key]
 }
 
 const buildInternalAccountEntryKey = (accountType, entryId) => `${accountType}:${entryId}`
@@ -3641,6 +3760,261 @@ onBeforeUnmount(() => {
     .btn {
       width: 100%;
     }
+  }
+}
+
+/* ==================== SUMMARY STRIP ==================== */
+.summary-strip {
+  background: white;
+  border-radius: 10px;
+  border: 1px solid #e2e8f0;
+  display: grid;
+  grid-template-columns: repeat(5, 1fr);
+  margin-bottom: 0.75rem;
+  overflow: hidden;
+}
+
+.ss-item {
+  padding: 0.7rem 0.85rem;
+  border-right: 1px solid #e2e8f0;
+  text-align: center;
+
+  &:last-child {
+    border-right: none;
+  }
+}
+
+.ss-total-item {
+  background: #eff6ff;
+}
+
+.ss-icon {
+  font-size: 1.1rem;
+  margin-bottom: 0.15rem;
+}
+
+.ss-label {
+  font-size: 0.68rem;
+  color: #94a3b8;
+  font-weight: 500;
+  display: block;
+}
+
+.ss-value {
+  font-size: 0.95rem;
+  font-weight: 800;
+  display: block;
+
+  &.ss-green {
+    color: #059669;
+  }
+
+  &.ss-blue {
+    color: #2563eb;
+  }
+
+  &.ss-orange {
+    color: #b45309;
+  }
+
+  &.ss-total {
+    color: #1d4ed8;
+    font-size: 1.05rem;
+  }
+}
+
+@media (max-width: 700px) {
+  .summary-strip {
+    grid-template-columns: repeat(2, 1fr);
+
+    .ss-item {
+      border-right: 1px solid #e2e8f0;
+      border-bottom: 1px solid #e2e8f0;
+
+      &:nth-child(even) {
+        border-right: none;
+      }
+
+      &:last-child {
+        grid-column: 1 / -1;
+        border-bottom: none;
+      }
+    }
+  }
+}
+
+/* ==================== ACCORDION ==================== */
+.accordion {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  margin-bottom: 0.75rem;
+}
+
+.acc-section {
+  background: white;
+  border-radius: 10px;
+  border: 1px solid #e2e8f0;
+  overflow: hidden;
+}
+
+.acc-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0.65rem 1rem;
+  cursor: pointer;
+  user-select: none;
+  transition: background 0.15s;
+  gap: 0.5rem;
+
+  &:hover {
+    background: #f8fafc;
+  }
+}
+
+.acc-header-left {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  flex-shrink: 0;
+}
+
+.acc-icon {
+  font-size: 1rem;
+}
+
+.acc-title {
+  font-size: 0.88rem;
+  font-weight: 700;
+  color: #1e293b;
+}
+
+.acc-summary {
+  font-size: 0.78rem;
+  color: #64748b;
+  margin-left: auto;
+  margin-right: 0.75rem;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.acc-chevron {
+  font-size: 0.75rem;
+  color: #94a3b8;
+  flex-shrink: 0;
+  transition: transform 0.2s;
+
+  &::before {
+    content: '▼';
+  }
+
+  &.open {
+    transform: rotate(180deg);
+  }
+}
+
+.acc-body {
+  border-top: 1px solid #e2e8f0;
+}
+
+.acc-stat-rows {
+  padding: 0.2rem 0;
+}
+
+.acc-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 0.45rem 1rem;
+  border-bottom: 1px solid #f8fafc;
+  font-size: 0.85rem;
+
+  &:last-child {
+    border-bottom: none;
+  }
+}
+
+.acc-total-row {
+  background: #eff6ff;
+
+  .acc-row-label {
+    font-weight: 700;
+    color: #1e293b;
+  }
+}
+
+.acc-row-label {
+  color: #475569;
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
+}
+
+.acc-row-value {
+  font-weight: 700;
+
+  &.green {
+    color: #059669;
+  }
+
+  &.blue {
+    color: #2563eb;
+  }
+
+  &.orange {
+    color: #b45309;
+  }
+
+  &.red {
+    color: #dc2626;
+  }
+
+  &.big {
+    color: #1d4ed8;
+    font-size: 0.95rem;
+  }
+}
+
+/* ==================== CALC TABLE (Kassensaldo) ==================== */
+.calc-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.85rem;
+
+  td {
+    padding: 0.45rem 1rem;
+    border-bottom: 1px solid #f8fafc;
+  }
+
+  tr:last-child td {
+    border-bottom: none;
+  }
+}
+
+.calc-op {
+  color: #64748b;
+}
+
+.calc-right {
+  text-align: right;
+  font-weight: 600;
+}
+
+.calc-plus {
+  color: #059669;
+}
+
+.calc-minus {
+  color: #dc2626;
+}
+
+.calc-total-row {
+  background: #eff6ff;
+
+  td {
+    color: #1d4ed8;
   }
 }
 </style>
