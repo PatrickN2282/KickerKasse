@@ -202,22 +202,27 @@
 
         <div class="assign-modal-body">
           <div class="assign-add-section">
-            <p class="assign-section-label">Nicht zugeordnete Artikel (klicken zum Hinzufügen):</p>
-            <div v-if="unassignedProducts(assignModalCategory.id).length > 0" class="product-pick-list">
-              <button
-                v-for="product in unassignedProducts(assignModalCategory.id)"
-                :key="`pick-${assignModalCategory.id}-${product.id}`"
-                class="product-pick-item"
-                @click="assignProductDirect(assignModalCategory.id, product.id)"
+            <p class="assign-section-label">Artikel hinzufügen:</p>
+            <div v-if="unassignedProducts(assignModalCategory.id).length > 0" class="assign-add-row">
+              <select
+                v-model="selectedProductByCategory[assignModalCategory.id]"
+                class="assign-select"
               >
-                <img
-                  v-if="product.image_path"
-                  :src="`/api/products/${product.id}/image`"
-                  :alt="product.name"
-                  class="product-pick-img"
-                />
-                <span v-else class="product-pick-img product-pick-img-placeholder">📦</span>
-                <span class="product-pick-name">{{ product.name }}</span>
+                <option value="">— Artikel auswählen —</option>
+                <option
+                  v-for="product in unassignedProducts(assignModalCategory.id)"
+                  :key="`pick-${assignModalCategory.id}-${product.id}`"
+                  :value="product.id"
+                >
+                  {{ product.name }}
+                </option>
+              </select>
+              <button
+                class="btn btn-primary btn-compact"
+                :disabled="!selectedProductByCategory[assignModalCategory.id]"
+                @click="assignProduct(assignModalCategory.id)"
+              >
+                Hinzufügen
               </button>
             </div>
             <div v-else class="assign-empty">Alle Artikel sind bereits zugeordnet</div>

@@ -1013,6 +1013,41 @@ onMounted(() => {
   border-top: 1px solid var(--border);
 }
 
+.btn {
+  padding: 0.6rem 1.2rem;
+  border-radius: 8px;
+  font-weight: 600;
+  cursor: pointer;
+  border: none;
+  font-size: 0.9rem;
+  transition: background 0.15s, opacity 0.15s;
+
+  &:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+  }
+}
+
+.btn-secondary {
+  background: #f1f5f9;
+  color: #475569;
+  border: 1px solid #e2e8f0;
+
+  &:hover:not(:disabled) {
+    background: #e2e8f0;
+  }
+}
+
+.btn-success {
+  background: linear-gradient(135deg, #10b981, #059669);
+  color: #fff;
+  box-shadow: 0 2px 6px rgba(16, 185, 129, 0.3);
+
+  &:hover:not(:disabled) {
+    background: linear-gradient(135deg, #059669, #047857);
+  }
+}
+
 @media (max-width: 700px) {
   .admin-corrections {
     padding: 0 1rem 1rem;

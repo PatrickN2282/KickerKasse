@@ -3478,14 +3478,14 @@ onBeforeUnmount(() => {
 
 /* Z-Bon Create Modal */
 .zbon-create-dialog {
-  max-width: 620px;
+  max-width: 650px;
   width: 100%;
   text-align: left;
   padding: 0;
 }
 
 .withdrawal-dialog {
-  max-width: 500px;
+  max-width: 650px;
   text-align: left;
   padding: 0;
 }
@@ -3612,10 +3612,14 @@ onBeforeUnmount(() => {
 .modal-actions {
   display: flex;
   gap: 0.75rem;
-  justify-content: flex-end;
+  justify-content: space-between;
   flex-wrap: wrap;
-  padding-top: 1.25rem;
+  padding: 1rem 1.25rem;
   border-top: 1px solid #e2e8f0;
+
+  .btn-secondary {
+    margin-right: auto;
+  }
 }
 
 .confirmation-buttons {
@@ -3819,6 +3823,10 @@ onBeforeUnmount(() => {
 
   .modal-actions {
     flex-direction: column;
+
+    .btn-secondary {
+      margin-right: 0;
+    }
 
     .btn {
       width: 100%;

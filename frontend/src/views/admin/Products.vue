@@ -1079,25 +1079,27 @@ onUnmounted(() => {
 }
 
 .modal-header {
-  padding: 1.25rem 1.5rem;
+  padding: 1rem 1.25rem;
   border-bottom: 1px solid var(--border);
   display: flex;
   justify-content: space-between;
   align-items: flex-start;
   gap: 1rem;
+  background: linear-gradient(90deg, #0369a1 0%, #0ea5e9 100%);
 
   h3 {
     margin: 0;
-    font-size: 1.25rem;
+    font-size: 1.1rem;
     font-weight: 600;
-    color: #1e293b;
+    color: #ffffff;
   }
-  
+
   .modal-subtitle {
-    margin: 0.15rem 0 0 0;
+    margin: 0.35rem 0 0;
     font-size: 0.85rem;
-    color: #64748b;
+    color: rgba(255,255,255,0.9);
   }
+}
 }
 
 .modal-compact-layout {
@@ -1365,17 +1367,18 @@ onUnmounted(() => {
 }
 
 .modal-close {
-  border: none;
-  background: transparent;
-  font-size: 1.5rem;
+  width: 34px;
+  height: 34px;
+  border-radius: 50%;
+  border: 1px solid rgba(255,255,255,0.45);
+  background: rgba(255,255,255,0.18);
+  color: #ffffff;
+  font-size: 1.1rem;
   cursor: pointer;
-  color: #6b7280;
-  padding: 0;
-  line-height: 1;
-
-  &:hover {
-    color: #1f2937;
-  }
+  display: grid;
+  place-items: center;
+  flex-shrink: 0;
+  &:hover { background: rgba(255,255,255,0.3); }
 }
 
 /* ── Live-Kassenkarten-Vorschau (Exakt wie im POS) ───────────────── */
