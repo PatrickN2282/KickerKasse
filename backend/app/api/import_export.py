@@ -37,6 +37,7 @@ def _parse_bool(value: str | None) -> bool:
 
 
 @router.post("/export")
+@router.post("/export/")
 async def export_data(
     payload: ExportRequest,
     request: Request,
@@ -56,6 +57,7 @@ async def export_data(
 
 
 @router.post("/analyze")
+@router.post("/analyze/")
 async def analyze_import(
     request: Request,
     data_file: UploadFile = File(...),
@@ -75,6 +77,7 @@ async def analyze_import(
 
 
 @router.post("/import")
+@router.post("/import/")
 async def import_data(
     request: Request,
     data_file: UploadFile = File(...),
