@@ -57,9 +57,9 @@ async def export_data(
 
 @router.post("/analyze")
 async def analyze_import(
+    request: Request,
     data_file: UploadFile = File(...),
     media_file: UploadFile | None = File(default=None),
-    request: Request = None,
     db: Session = Depends(get_db),
 ):
     require_roles(request, db, UserRole.ADMIN)

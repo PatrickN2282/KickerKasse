@@ -33,7 +33,7 @@
               <h4>Import vorbereiten</h4>
               <p>
                 Lade eine CSV- oder ZIP-Datei hoch. Der Datensatz wird automatisch erkannt und kann vor dem Import
-                noch geprüft werden.
+                zuvor geprüft werden.
               </p>
             </div>
 

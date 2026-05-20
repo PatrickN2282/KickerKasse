@@ -444,7 +444,7 @@ class ImportExportService:
             if category is None:
                 category = self.db.query(Category).filter(Category.name == name).first()
 
-            if category is not None and getattr(category, "is_fixed", False):
+            if category is not None and category.is_fixed:
                 continue
 
             if category is None:
@@ -498,7 +498,11 @@ class ImportExportService:
             product.member_price_cents = self._parse_optional_int(row.get("member_price_cents"))
             product.is_discountable = self._parse_bool(row.get("is_discountable"), True)
             product.is_unlimited_stock = self._parse_bool(row.get("is_unlimited_stock"), False)
-            product.stock_quantity = 0 if product.is_unlimited_stock else self._parse_int(row.get("stock_quantity"), 0, row_number, "stock_quantity")
+            product.stock_quantity = (
+                0
+                if product.is_unlimited_stock
+                else self._parse_int(row.get("stock_quantity"), 0, row_number, "stock_quantity")
+            )
             product.is_variable_price = self._parse_bool(row.get("is_variable_price"), False)
             product.is_active = self._parse_bool(row.get("is_active"), True)
             product.tax_rate = self._parse_float(row.get("tax_rate"), 0.0, row_number, "tax_rate")
@@ -550,7 +554,7 @@ class ImportExportService:
             if member is None:
                 member = Member(
                     member_number=member_number or member_repo.get_next_member_number(),
-                    name=member_repo._compose_name(first_name, last_name),
+                    name=self._compose_member_name(first_name, last_name),
                     first_name=first_name,
                     last_name=last_name,
                     membership_number=membership_number,
@@ -568,7 +572,7 @@ class ImportExportService:
 
             member.first_name = first_name
             member.last_name = last_name
-            member.name = member_repo._compose_name(first_name, last_name)
+            member.name = self._compose_member_name(first_name, last_name)
             member.membership_number = membership_number
             member.email = email
             member.phone = phone
@@ -676,6 +680,10 @@ class ImportExportService:
         if value is None or str(value).strip() == "":
             return []
         return [name.strip() for name in str(value).split("|") if name.strip()]
+
+    @staticmethod
+    def _compose_member_name(first_name: str, last_name: str) -> str:
+        return " ".join(part for part in [first_name.strip(), last_name.strip()] if part)
 
     def _require_value(self, row: dict, field_name: str, row_number: int) -> str:
         value = self._normalize_optional_string(row.get(field_name))
