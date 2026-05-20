@@ -23,6 +23,14 @@
           🧹 Datenpflege
         </button>
         <button
+          v-if="authStore.isAdmin"
+          :class="['section-tab', { active: activeSection === 'importexport' }]"
+          type="button"
+          @click="activeSection = 'importexport'"
+        >
+          🔄 Import/Export
+        </button>
+        <button
           v-if="authStore.isTopAdmin"
           :class="['section-tab', { active: activeSection === 'extsettings' }]"
           type="button"
@@ -212,6 +220,19 @@
       />
     </div>
 
+    <div v-if="activeSection === 'importexport' && authStore.isAdmin" class="section-content">
+      <h2>Import / Export</h2>
+      <div class="settings-card">
+        <h3>Datenübernahme und Sicherung</h3>
+        <p class="section-description">
+          Produkte, Mitglieder und Kategorien können gesammelt exportiert oder aus CSV-/ZIP-Dateien wieder importiert werden.
+        </p>
+        <button class="btn btn-primary" type="button" @click="showImportExportModal = true">
+          Import / Export öffnen
+        </button>
+      </div>
+    </div>
+
     <!-- ── Ext. Settings (TOP_ADMIN only) ─────────────── -->
     <div v-if="activeSection === 'extsettings' && authStore.isTopAdmin" class="section-content ext-settings-section">
       <div class="page-header">
@@ -367,11 +388,17 @@
         </div>
       </div>
     </div>
+
+    <ImportExportModal
+      :show="showImportExportModal"
+      @close="showImportExportModal = false"
+    />
   </div>
 </template>
 
 <script setup>
 import { computed, onMounted, reactive, ref } from 'vue'
+import ImportExportModal from '@/components/ImportExportModal.vue'
 import { useAppSettingsStore } from '@/stores/appSettings'
 import { useNotificationStore } from '@/stores/notification'
 import { useAuthStore } from '@/stores/auth'
@@ -473,6 +500,7 @@ const uploadLogo = async () => {
 
 // ── Datenpflege ───────────────────────────────────────
 const showResetModal = ref(false)
+const showImportExportModal = ref(false)
 
 const handleHardReset = async ({ password, confirmationText }) => {
   showResetModal.value = false
@@ -675,6 +703,12 @@ onMounted(async () => {
     color: #1e293b;
     margin: 0 0 0.75rem;
   }
+}
+
+.section-description {
+  margin: 0;
+  color: #64748b;
+  font-size: 0.9rem;
 }
 
 // ── Design ────────────────────────────────────────────

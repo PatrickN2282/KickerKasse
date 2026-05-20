@@ -8,6 +8,7 @@ from .deckel import router as deckel_router
 from .voucher import admin_router as voucher_admin_router, kasse_router as voucher_kasse_router
 from .app_settings import router as app_settings_router
 from .data_maintenance import router as data_maintenance_router
+from .import_export import router as import_export_router
 
 __all__ = [
     "auth_router",
@@ -21,4 +22,5 @@ __all__ = [
     "voucher_kasse_router",
     "app_settings_router",
     "data_maintenance_router",
+    "import_export_router",
 ]
