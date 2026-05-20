@@ -10,6 +10,7 @@ from .voucher_service import VoucherService
 from .data_maintenance_service import DataMaintenanceService
 from .material_account_service import MaterialAccountService
 from .deckel_service import DeckelService
+from .import_export_service import ImportExportService
 
 from .scheduler_service import SchedulerService
 __all__ = [
@@ -25,5 +26,6 @@ __all__ = [
     "DataMaintenanceService",
     "MaterialAccountService",
     "DeckelService",
+    "ImportExportService",
     "SchedulerService",
 ]
