@@ -1,105 +1,115 @@
 <template>
-  <div class="modal">
-    <div class="modal-content payment-modal">
-      <template v-if="paymentResult">
-        <h3>Verkauf abgeschlossen</h3>
-        <p class="info-text">Der Verkauf wurde erfolgreich gebucht.</p>
-        <div v-if="paymentResult.issued_prepaid_voucher_numbers?.length" class="issued-voucher-panel">
-          <h4>💳 Verzehrkarten ausgegeben</h4>
-          <div class="issued-voucher-box">
-            <div v-for="voucherNumber in paymentResult.issued_prepaid_voucher_numbers" :key="voucherNumber" class="issued-voucher-number">
-              {{ voucherNumber }}
+  <div class="modal-overlay">
+    <div class="modal-dialog">
+      <div class="modal-header">
+        <div>
+          <h3>
+            <template v-if="paymentResult">Verkauf abgeschlossen</template>
+            <template v-else>{{ paymentSource === 'deckel' ? 'Deckel abrechnen' : 'Zahlung bestätigen' }}</template>
+          </h3>
+          <p class="subtitle">
+            <template v-if="!paymentResult">{{ getPaymentMethodLabel(pendingPaymentMethod) }}</template>
+            <template v-else>Buchung erfolgreich gespeichert</template>
+          </p>
+        </div>
+        <button class="close-btn" @click="closePaymentConfirmation">✕</button>
+      </div>
+      <div class="modal-body">
+        <template v-if="paymentResult">
+          <p class="info-text">Der Verkauf wurde erfolgreich gebucht.</p>
+          <div v-if="paymentResult.issued_prepaid_voucher_numbers?.length" class="issued-voucher-panel">
+            <h4>💳 Verzehrkarten ausgegeben</h4>
+            <div class="issued-voucher-box">
+              <div v-for="voucherNumber in paymentResult.issued_prepaid_voucher_numbers" :key="voucherNumber" class="issued-voucher-number">
+                {{ voucherNumber }}
+              </div>
+            </div>
+            <div class="issued-voucher-alert">
+              <p class="issued-voucher-note">
+                Nummer auf der Verzehrkarte notieren - Einlösung ohne Nummer nicht möglich
+              </p>
             </div>
           </div>
-          <div class="issued-voucher-alert">
-            <p class="issued-voucher-note">
-              Nummer auf der Verzehrkarte notieren - Einlösung ohne Nummer nicht möglich
-            </p>
+        </template>
+        <template v-else>
+          <div class="payment-summary-list">
+            <div v-for="item in paymentSummaryItems" :key="item.line_id || `${paymentSource}-${item.product_id}-${item.unit_price_cents}-${item.is_internal_material ? 'internal' : 'regular'}`" class="payment-summary-item">
+              <div class="payment-summary-copy">
+                <span>{{ item.quantity }}× {{ item.product_name }}</span>
+                <small v-if="item.note">{{ item.note }}</small>
+              </div>
+              <strong>{{ formatPrice(item.total_price_cents) }}</strong>
+            </div>
           </div>
-        </div>
-        <div class="modal-actions">
-          <button @click="closePaymentConfirmation" class="btn btn-confirm-payment" :class="{ selected: true }">
-            Fertig
+          <div class="payment-summary-totals">
+            <div class="total-row">
+              <span>Zwischensumme</span>
+              <strong>{{ formatPrice(paymentSubtotal) }}</strong>
+            </div>
+            <div v-if="paymentSource === 'cart' && hasAppliedVoucher" class="total-row">
+              <span>Gutscheine</span>
+              <strong>-{{ formatPrice(voucherAppliedAmount) }}</strong>
+            </div>
+            <div v-if="paymentSource === 'cart' && hasAppliedBalance" class="total-row">
+              <span>Mitgliedsguthaben</span>
+              <strong>-{{ formatPrice(balanceAppliedAmount) }}</strong>
+            </div>
+            <div v-if="paymentSource === 'cart' && pendingPaymentMethod === 'BALANCE'" class="total-row">
+              <span>Mitglied</span>
+              <strong>{{ selectedMemberName }}</strong>
+            </div>
+            <div v-if="paymentSource === 'deckel'" class="total-row">
+              <span>Deckel</span>
+              <strong>{{ activePaymentDeckel?.name }}</strong>
+            </div>
+            <div class="total-row grand-total modal-grand-total">
+              <span>Zu zahlen</span>
+              <strong>{{ formatPrice(paymentTotal) }}</strong>
+            </div>
+          </div>
+          <div v-if="pendingPaymentMethod === 'CASH'" class="cash-payment-fields">
+            <label>
+              Bar gegeben
+              <input
+                ref="cashGivenInput"
+                v-model="cashGiven"
+                type="number"
+                min="0"
+                step="0.01"
+                class="form-input"
+                @keyup.enter="confirmPayment"
+              />
+            </label>
+            <label>
+              Rückgeld
+              <input :value="cashChangeDisplay" type="text" class="form-input" readonly />
+            </label>
+            <div v-if="cashChangeCents > 0" class="tip-donate-row">
+              <button
+                type="button"
+                class="btn btn-tip-donate"
+                @click="confirmPaymentWithTip"
+                :disabled="processingPayment"
+              >
+                💝 Rückgeld spenden ({{ formatPrice(cashChangeCents) }})
+              </button>
+            </div>
+          </div>
+        </template>
+      </div>
+      <div class="modal-footer">
+        <template v-if="paymentResult">
+          <button @click="closePaymentConfirmation" class="btn btn-primary">Fertig</button>
+        </template>
+        <template v-else>
+          <button @click="closePaymentConfirmation" class="btn btn-secondary" :disabled="processingPayment">
+            Abbrechen / Zurück
           </button>
-        </div>
-      </template>
-      <template v-else>
-        <h3>{{ paymentSource === 'deckel' ? 'Deckel abrechnen' : 'Zahlung bestätigen' }}</h3>
-        <div class="payment-method-chip">
-          {{ getPaymentMethodLabel(pendingPaymentMethod) }}
-        </div>
-        <div class="payment-summary-list">
-          <div v-for="item in paymentSummaryItems" :key="item.line_id || `${paymentSource}-${item.product_id}-${item.unit_price_cents}-${item.is_internal_material ? 'internal' : 'regular'}`" class="payment-summary-item">
-            <div class="payment-summary-copy">
-              <span>{{ item.quantity }}× {{ item.product_name }}</span>
-              <small v-if="item.note">{{ item.note }}</small>
-            </div>
-            <strong>{{ formatPrice(item.total_price_cents) }}</strong>
-          </div>
-        </div>
-        <div class="payment-summary-totals">
-          <div class="total-row">
-            <span>Zwischensumme</span>
-            <strong>{{ formatPrice(paymentSubtotal) }}</strong>
-          </div>
-          <div v-if="paymentSource === 'cart' && hasAppliedVoucher" class="total-row">
-            <span>Gutscheine</span>
-            <strong>-{{ formatPrice(voucherAppliedAmount) }}</strong>
-          </div>
-          <div v-if="paymentSource === 'cart' && hasAppliedBalance" class="total-row">
-            <span>Mitgliedsguthaben</span>
-            <strong>-{{ formatPrice(balanceAppliedAmount) }}</strong>
-          </div>
-          <div v-if="paymentSource === 'cart' && pendingPaymentMethod === 'BALANCE'" class="total-row">
-            <span>Mitglied</span>
-            <strong>{{ selectedMemberName }}</strong>
-          </div>
-          <div v-if="paymentSource === 'deckel'" class="total-row">
-            <span>Deckel</span>
-            <strong>{{ activePaymentDeckel?.name }}</strong>
-          </div>
-          <div class="total-row grand-total modal-grand-total">
-            <span>Zu zahlen</span>
-            <strong>{{ formatPrice(paymentTotal) }}</strong>
-          </div>
-        </div>
-        <div v-if="pendingPaymentMethod === 'CASH'" class="cash-payment-fields">
-          <label>
-            Bar gegeben
-            <input
-              ref="cashGivenInput"
-              v-model="cashGiven"
-              type="number"
-              min="0"
-              step="0.01"
-              class="form-input"
-              @keyup.enter="confirmPayment"
-            />
-          </label>
-          <label>
-            Rückgeld
-            <input :value="cashChangeDisplay" type="text" class="form-input" readonly />
-          </label>
-          <div v-if="cashChangeCents > 0" class="tip-donate-row">
-            <button
-              type="button"
-              class="btn btn-tip-donate"
-              @click="confirmPaymentWithTip"
-              :disabled="processingPayment"
-            >
-              💝 Rückgeld spenden ({{ formatPrice(cashChangeCents) }})
-            </button>
-          </div>
-        </div>
-        <div class="modal-actions">
           <button @click="confirmPayment" class="btn btn-confirm-payment" :class="{ selected: true }" :disabled="processingPayment">
             {{ processingPayment ? '⏳ Wird verarbeitet...' : 'Bestätigen' }}
           </button>
-          <button @click="closePaymentConfirmation" class="btn btn-danger" :disabled="processingPayment">
-            Abbrechen / Zurück
-          </button>
-        </div>
-      </template>
+        </template>
+      </div>
     </div>
   </div>
 </template>
@@ -129,187 +139,146 @@ watch(() => kasse.showPaymentConfirmModal.value, (val) => {
 </script>
 
 <style scoped lang="scss">
-.modal {
+.modal-overlay {
   position: fixed;
-  top: 0;
-  left: 0;
-  right: 0;
-  bottom: 0;
-  background: rgba(0, 0, 0, 0.5);
+  inset: 0;
+  background: rgba(15, 23, 42, 0.55);
+  backdrop-filter: blur(4px);
   display: flex;
   align-items: center;
   justify-content: center;
   z-index: 1000;
-
-  .modal-content {
-    background: white;
-    padding: 2rem;
-    border-radius: 8px;
-    width: 90%;
-    max-width: 400px;
-    max-height: 80vh;
-    overflow-y: auto;
-
-    h3 {
-      margin-top: 0;
-      color: #333;
-    }
-
-    .form-input {
-      width: 100%;
-      padding: 0.75rem;
-      border: 1px solid #ddd;
-      border-radius: 4px;
-      margin-bottom: 1rem;
-      font-size: 1rem;
-    }
-  }
+  padding: 1.25rem;
 }
-
-.modal-actions {
+.modal-dialog {
+  background: #ffffff;
+  border-radius: 16px;
+  width: 100%;
+  max-width: 560px;
+  max-height: 85vh;
   display: flex;
-  justify-content: flex-end;
-  gap: 0.75rem;
-  margin-top: 1rem;
+  flex-direction: column;
+  box-shadow: 0 24px 50px rgba(15, 23, 42, 0.35);
+  overflow: hidden;
 }
-
+.modal-header {
+  padding: 1rem 1.25rem;
+  border-bottom: 1px solid #e2e8f0;
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  background: linear-gradient(90deg, #0f766e 0%, #0ea5e9 100%);
+  flex-shrink: 0;
+  h3 { margin: 0; color: #ffffff; font-size: 1.1rem; }
+  .subtitle { margin: 0.35rem 0 0; color: rgba(255,255,255,0.9); font-size: 0.85rem; }
+}
+.close-btn {
+  width: 34px; height: 34px; border-radius: 50%;
+  border: 1px solid rgba(255,255,255,0.45);
+  background: rgba(255,255,255,0.18);
+  color: #ffffff; font-size: 1.1rem; cursor: pointer;
+  display: grid; place-items: center; flex-shrink: 0;
+  &:hover { background: rgba(255,255,255,0.3); }
+}
+.modal-body {
+  padding: 1rem 1.25rem;
+  overflow-y: auto;
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+.modal-footer {
+  padding: 0.95rem 1.25rem;
+  border-top: 1px solid #e2e8f0;
+  display: flex;
+  gap: 0.75rem;
+  justify-content: flex-end;
+  background: #ffffff;
+  flex-shrink: 0;
+}
 .btn {
-  padding: 0.75rem;
-  border: none;
-  border-radius: 4px;
-  font-size: 1rem;
+  border-radius: 8px;
+  padding: 0.65rem 1rem;
   font-weight: 600;
   cursor: pointer;
-  transition: all 0.2s;
-
-  &:disabled {
-    opacity: 0.6;
-    cursor: not-allowed;
-  }
-
-  &:not(:disabled):hover {
-    transform: translateY(-2px);
-    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
-  }
+  font-size: 0.9rem;
+  border: none;
+  &:disabled { opacity: 0.6; cursor: not-allowed; }
 }
-
-.btn-danger {
-  background-color: #f44336;
-  color: white;
-
-  &:not(:disabled):hover {
-    background-color: #da190b;
-  }
+.btn-primary {
+  background: linear-gradient(90deg, #0f766e 0%, #0ea5e9 100%);
+  color: #fff;
 }
-
+.btn-secondary {
+  background: #f8fafc;
+  color: #475569;
+  border: 1px solid #cbd5e1;
+}
 .form-input {
   width: 100%;
-  padding: 0.75rem;
-  border: 1px solid #ddd;
-  border-radius: 4px;
-  margin-bottom: 1rem;
-  font-size: 1rem;
+  padding: 0.65rem 0.8rem;
+  border: 1px solid #e2e8f0;
+  border-radius: 8px;
+  font-size: 0.9rem;
+  box-sizing: border-box;
+  margin-top: 0.4rem;
 }
-
 .info-text {
   font-size: 0.85rem;
-  color: #666;
+  color: #64748b;
   margin: 0;
-  padding: 0.5rem;
-  background: #f9f9f9;
-  border-radius: 4px;
+  padding: 0.5rem 0.75rem;
+  background: #f8fafc;
+  border-radius: 8px;
+  border: 1px solid #e2e8f0;
 }
-
-.modal-content.payment-modal {
-  max-width: 560px;
-
-  .cash-payment-fields {
-    display: grid;
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-    gap: 1rem;
-    margin-bottom: 1rem;
-
-    label {
-      font-weight: 600;
-      color: #334155;
-    }
-
-    .form-input {
-      margin-bottom: 0;
-      margin-top: 0.5rem;
-    }
-
-    .tip-donate-row {
-      grid-column: 1 / -1;
-    }
+.cash-payment-fields {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 1rem;
+  label {
+    font-weight: 600;
+    color: #334155;
+    font-size: 0.9rem;
   }
+  .tip-donate-row { grid-column: 1 / -1; }
 }
-
-.payment-method-chip {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  margin-bottom: 1rem;
-  padding: 0.45rem 0.85rem;
-  border-radius: 999px;
-  background: color-mix(in srgb, var(--app-banner-color) 12%, white 88%);
-  color: var(--app-banner-color);
-  font-weight: 600;
-}
-
 .payment-summary-list {
   display: flex;
   flex-direction: column;
   gap: 0.5rem;
-  max-height: 280px;
+  max-height: 200px;
   overflow-y: auto;
-  margin-bottom: 1rem;
 }
-
-.payment-summary-item,
-.payment-summary-totals .total-row {
+.payment-summary-item {
+  padding: 0.6rem 0.75rem;
+  border-radius: 8px;
+  background: #f8fafc;
+  border: 1px solid #e2e8f0;
   display: flex;
   justify-content: space-between;
   gap: 1rem;
-}
-
-.payment-summary-item {
-  padding: 0.65rem 0.75rem;
-  border-radius: 6px;
-  background: #f5f5f5;
-
   .payment-summary-copy {
-    display: flex;
-    flex-direction: column;
-    gap: 0.2rem;
-    min-width: 0;
-
-    small {
-      color: #5b6470;
-      font-size: 0.75rem;
-      white-space: normal;
-    }
+    display: flex; flex-direction: column; gap: 0.15rem; min-width: 0;
+    small { color: #64748b; font-size: 0.75rem; }
   }
 }
-
 .payment-summary-totals {
   display: flex;
   flex-direction: column;
   gap: 0.5rem;
 }
-
 .total-row {
   display: flex;
   justify-content: space-between;
   gap: 1rem;
   width: 100%;
 }
-
 .grand-total {
   padding-top: 0.55rem;
-  border-top: 1px solid color-mix(in srgb, var(--app-banner-color) 25%, white 75%);
+  border-top: 1px solid #e2e8f0;
 }
-
 .payment-summary-totals .modal-grand-total {
   margin-top: 0.35rem;
   padding: 0.95rem 1rem;
@@ -318,39 +287,17 @@ watch(() => kasse.showPaymentConfirmModal.value, (val) => {
   border-radius: 10px;
   background: color-mix(in srgb, var(--app-highlight-color) 10%, white 90%);
   box-shadow: 0 8px 18px rgba(15, 23, 42, 0.08);
-
-  span,
-  strong {
-    color: var(--app-banner-color);
-  }
-
-  span {
-    font-size: 1rem;
-    font-weight: 700;
-    text-transform: uppercase;
-    letter-spacing: 0.03em;
-  }
-
-  strong {
-    font-size: 1.7rem;
-    font-weight: 800;
-  }
+  span, strong { color: var(--app-banner-color); }
+  span { font-size: 1rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.03em; }
+  strong { font-size: 1.7rem; font-weight: 800; }
 }
-
 .btn-confirm-payment {
   background: #2e7d32;
   color: #fff;
   box-shadow: 0 0 0 2px rgba(46, 125, 50, 0.2);
-
-  &.selected {
-    box-shadow: 0 0 0 3px rgba(46, 125, 50, 0.24), 0 0 16px rgba(46, 125, 50, 0.45);
-  }
-
-  &:not(:disabled):hover {
-    background: #256a29;
-  }
+  &.selected { box-shadow: 0 0 0 3px rgba(46, 125, 50, 0.24), 0 0 16px rgba(46, 125, 50, 0.45); }
+  &:not(:disabled):hover { background: #256a29; }
 }
-
 .btn-tip-donate {
   width: 100%;
   padding: 0.5rem 1rem;
@@ -362,25 +309,12 @@ watch(() => kasse.showPaymentConfirmModal.value, (val) => {
   cursor: pointer;
   font-size: 0.9rem;
   transition: background 0.15s;
-
-  &:not(:disabled):hover {
-    background: #bf360c;
-  }
-
-  &:disabled {
-    background: #bdbdbd;
-    cursor: not-allowed;
-  }
+  &:not(:disabled):hover { background: #bf360c; }
+  &:disabled { background: #bdbdbd; cursor: not-allowed; }
 }
-
 .issued-voucher-panel {
-  margin-top: 1rem;
-
-  h4 {
-    margin-bottom: 0.75rem;
-  }
+  h4 { margin: 0 0 0.75rem; }
 }
-
 .issued-voucher-box {
   display: flex;
   flex-direction: column;
@@ -391,7 +325,6 @@ watch(() => kasse.showPaymentConfirmModal.value, (val) => {
   border: 1px solid #22c55e;
   box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.4);
 }
-
 .issued-voucher-number {
   font-size: 1.25rem;
   font-weight: 800;
@@ -399,7 +332,6 @@ watch(() => kasse.showPaymentConfirmModal.value, (val) => {
   text-align: center;
   font-family: monospace;
 }
-
 .issued-voucher-alert {
   margin-top: 0.75rem;
   padding: 0.9rem 1rem;
@@ -407,7 +339,6 @@ watch(() => kasse.showPaymentConfirmModal.value, (val) => {
   border: 2px solid #ef4444;
   background: linear-gradient(135deg, #fef2f2, #fee2e2);
 }
-
 .issued-voucher-note {
   margin: 0;
   color: #991b1b;

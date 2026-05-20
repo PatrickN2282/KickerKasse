@@ -272,15 +272,49 @@
             </p>
           </div>
           <button
-            class="modal-close"
+            class="close-btn"
             type="button"
             @click="closeCorrectionModal"
           >
-            ×
+            ✕
           </button>
         </header>
 
         <div class="modal-correction-body">
+          <div class="correction-subject-row">
+            <template v-if="activeTab === 'members' && selectedMember">
+              <div class="subject-avatar">
+                <img
+                  v-if="selectedMember.photo_path"
+                  :src="`/api/members/${selectedMember.id}/photo`"
+                  :alt="getMemberFullName(selectedMember)"
+                  class="subject-photo"
+                />
+                <div v-else class="subject-initials">
+                  {{ selectedMember.first_name[0] }}{{ selectedMember.last_name[0] }}
+                </div>
+              </div>
+              <div class="subject-meta">
+                <div class="subject-name">{{ getMemberFullName(selectedMember) }}</div>
+                <div class="subject-detail">Guthaben: {{ formatBalance(selectedMember.balance_cents) }}</div>
+              </div>
+            </template>
+            <template v-else-if="activeTab === 'products' && selectedProduct">
+              <div class="subject-avatar">
+                <img
+                  v-if="selectedProduct.image_path"
+                  :src="`/api/products/${selectedProduct.id}/image`"
+                  :alt="selectedProduct.name"
+                  class="subject-photo"
+                />
+                <div v-else class="subject-initials product-icon">📦</div>
+              </div>
+              <div class="subject-meta">
+                <div class="subject-name">{{ selectedProduct.name }}</div>
+                <div class="subject-detail">{{ getProductMeta(selectedProduct) }}</div>
+              </div>
+            </template>
+          </div>
           <!-- Member correction form -->
           <template v-if="activeTab === 'members' && selectedMember">
             <div class="corr-form-group">
@@ -873,34 +907,51 @@ onMounted(() => {
   justify-content: space-between;
   align-items: flex-start;
   gap: 1rem;
+  background: linear-gradient(90deg, #0f766e 0%, #0ea5e9 100%);
 
   h3 {
     margin: 0;
     font-size: 1.1rem;
     font-weight: 600;
-    color: #1e293b;
+    color: #ffffff;
   }
 }
 
 .modal-subtitle {
   margin: 0.15rem 0 0;
   font-size: 0.85rem;
-  color: #64748b;
+  color: rgba(255,255,255,0.9);
 }
 
-.modal-close {
-  background: none;
-  border: none;
-  font-size: 1.4rem;
-  color: #94a3b8;
-  cursor: pointer;
-  padding: 0;
-  line-height: 1;
-
-  &:hover {
-    color: #1e293b;
-  }
+.close-btn {
+  width: 34px; height: 34px; border-radius: 50%;
+  border: 1px solid rgba(255,255,255,0.45);
+  background: rgba(255,255,255,0.18);
+  color: #ffffff; font-size: 1.1rem; cursor: pointer;
+  display: grid; place-items: center; flex-shrink: 0;
+  &:hover { background: rgba(255,255,255,0.3); }
 }
+
+.correction-subject-row {
+  display: flex;
+  gap: 0.75rem;
+  align-items: center;
+  padding: 0.75rem;
+  background: #f8fafc;
+  border-radius: 10px;
+  border: 1px solid #e2e8f0;
+}
+.subject-avatar {
+  width: 52px; height: 52px; border-radius: 10px; overflow: hidden;
+  flex-shrink: 0; background: #e2e8f0;
+  display: flex; align-items: center; justify-content: center;
+}
+.subject-photo { width: 100%; height: 100%; object-fit: cover; }
+.subject-initials { font-weight: 700; color: #475569; font-size: 1rem; }
+.product-icon { font-size: 1.5rem; }
+.subject-meta { display: flex; flex-direction: column; gap: 0.2rem; }
+.subject-name { font-weight: 700; color: #1e293b; }
+.subject-detail { font-size: 0.85rem; color: #64748b; }
 
 .modal-correction-body {
   padding: 1.25rem 1.4rem;

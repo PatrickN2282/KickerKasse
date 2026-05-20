@@ -1,35 +1,46 @@
 <template>
-  <div class="modal">
-    <div class="modal-content member-modal">
-      <h3>Mitglied auswählen</h3>
-      <input
-        v-model="memberSearch"
-        type="text"
-        placeholder="Nach Name oder Nummer suchen..."
-        class="form-input"
-      />
-      <div v-if="filteredMembers.length > 0" class="member-grid">
-        <button
-          v-for="member in filteredMembers"
-          :key="member.id"
-          @click="selectMember(member)"
-          class="member-item"
-        >
-          <div v-if="member.photo_path" class="member-photo">
-            <img :src="`/api/members/${member.id}/photo`" :alt="getMemberFullName(member)" />
-          </div>
-          <div v-else class="member-photo member-photo-placeholder">👤</div>
-          <div class="member-info-box">
-            <div class="member-number-badge">Nr. {{ member.member_number }}</div>
-            <div class="member-name-modal">{{ getMemberShortName(member) }}</div>
-            <div class="balance">{{ formatBalance(member.balance_cents) }}</div>
-          </div>
-        </button>
+  <div class="modal-overlay">
+    <div class="modal-dialog">
+      <div class="modal-header">
+        <div>
+          <h3>Mitglied auswählen</h3>
+          <p class="subtitle">Mitglied für die Buchung auswählen</p>
+        </div>
+        <button class="close-btn" @click="showMemberModal = false">✕</button>
       </div>
-      <div v-else class="empty-bon">Keine Mitglieder gefunden</div>
-      <div class="modal-actions">
-        <button @click="showMemberModal = false" class="btn btn-danger">
-          Abbrechen / Zurück
+      <div class="modal-body">
+        <input
+          v-model="memberSearch"
+          type="text"
+          placeholder="Nach Name oder Nummer suchen..."
+          class="member-search-input"
+        />
+        <div v-if="filteredMembers.length > 0" class="member-grid">
+          <button
+            v-for="member in filteredMembers"
+            :key="member.id"
+            @click="selectMember(member)"
+            class="member-card"
+          >
+            <div class="member-card-img">
+              <img
+                v-if="member.photo_path"
+                :src="`/api/members/${member.id}/photo`"
+                :alt="getMemberFullName(member)"
+              />
+              <div v-else class="member-card-img-placeholder">👤</div>
+            </div>
+            <div class="member-card-body">
+              <div class="member-card-name">{{ getMemberShortName(member) }}</div>
+              <div class="member-card-balance">{{ formatBalance(member.balance_cents) }}</div>
+            </div>
+          </button>
+        </div>
+        <div v-else class="empty-state">Keine Mitglieder gefunden</div>
+      </div>
+      <div class="modal-footer">
+        <button @click="showMemberModal = false" class="btn btn-secondary">
+          Abbrechen
         </button>
       </div>
     </div>
@@ -42,179 +53,145 @@ const { memberSearch, filteredMembers, selectMember, showMemberModal, getMemberF
 </script>
 
 <style scoped lang="scss">
-.modal {
+.modal-overlay {
   position: fixed;
-  top: 0;
-  left: 0;
-  right: 0;
-  bottom: 0;
-  background: rgba(0, 0, 0, 0.5);
+  inset: 0;
+  background: rgba(15, 23, 42, 0.55);
+  backdrop-filter: blur(4px);
   display: flex;
   align-items: center;
   justify-content: center;
   z-index: 1000;
-
-  .modal-content {
-    background: white;
-    padding: 2rem;
-    border-radius: 8px;
-    width: 90%;
-    max-width: 400px;
-    max-height: 80vh;
-    overflow-y: auto;
-
-    h3 {
-      margin-top: 0;
-      color: #333;
-    }
-
-    .form-input {
-      width: 100%;
-      padding: 0.75rem;
-      border: 1px solid #ddd;
-      border-radius: 4px;
-      margin-bottom: 1rem;
-      font-size: 1rem;
-    }
-  }
+  padding: 1.25rem;
 }
-
-.modal-actions {
-  display: flex;
-  justify-content: flex-end;
-  gap: 0.75rem;
-  margin-top: 1rem;
-}
-
-.btn {
-  padding: 0.75rem;
-  border: none;
-  border-radius: 4px;
-  font-size: 1rem;
-  font-weight: 600;
-  cursor: pointer;
-  transition: all 0.2s;
-
-  &:disabled {
-    opacity: 0.6;
-    cursor: not-allowed;
-  }
-
-  &:not(:disabled):hover {
-    transform: translateY(-2px);
-    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
-  }
-}
-
-.btn-danger {
-  background-color: #f44336;
-  color: white;
-
-  &:not(:disabled):hover {
-    background-color: #da190b;
-  }
-}
-
-.form-input {
+.modal-dialog {
+  background: #ffffff;
+  border-radius: 16px;
   width: 100%;
-  padding: 0.75rem;
-  border: 1px solid #ddd;
-  border-radius: 4px;
-  margin-bottom: 1rem;
-  font-size: 1rem;
+  max-width: 650px;
+  max-height: 650px;
+  display: flex;
+  flex-direction: column;
+  box-shadow: 0 24px 50px rgba(15, 23, 42, 0.35);
+  overflow: hidden;
 }
-
-.empty-bon {
-  text-align: center;
-  color: #999;
-  padding: 2rem 1rem;
-  font-size: 0.95rem;
+.modal-header {
+  padding: 1rem 1.25rem;
+  border-bottom: 1px solid #e2e8f0;
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  background: linear-gradient(90deg, #0f766e 0%, #0ea5e9 100%);
+  flex-shrink: 0;
+  h3 { margin: 0; color: #ffffff; font-size: 1.1rem; }
+  .subtitle { margin: 0.35rem 0 0; color: rgba(255,255,255,0.9); font-size: 0.85rem; }
 }
-
-.member-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
-  gap: 0.75rem;
-  margin-bottom: 1rem;
-  max-height: 60vh;
+.close-btn {
+  width: 34px; height: 34px; border-radius: 50%;
+  border: 1px solid rgba(255,255,255,0.45);
+  background: rgba(255,255,255,0.18);
+  color: #ffffff; font-size: 1.1rem; cursor: pointer;
+  display: grid; place-items: center; flex-shrink: 0;
+  &:hover { background: rgba(255,255,255,0.3); }
+}
+.modal-body {
+  padding: 1rem 1.25rem;
   overflow-y: auto;
-}
-
-.member-item {
-  background: white;
-  border: 2px solid #ddd;
-  padding: 0.75rem;
-  border-radius: 8px;
-  cursor: pointer;
-  transition: all 0.2s;
+  flex: 1;
   display: flex;
   flex-direction: column;
   gap: 0.75rem;
-  align-items: center;
-  text-align: left;
-
+}
+.modal-footer {
+  padding: 0.95rem 1.25rem;
+  border-top: 1px solid #e2e8f0;
+  display: flex;
+  gap: 0.75rem;
+  justify-content: flex-end;
+  background: #ffffff;
+  flex-shrink: 0;
+}
+.btn {
+  border-radius: 8px;
+  padding: 0.65rem 1rem;
+  font-weight: 600;
+  cursor: pointer;
+  font-size: 0.9rem;
+  border: none;
+}
+.btn-secondary {
+  background: #f8fafc;
+  color: #475569;
+  border: 1px solid #cbd5e1;
+}
+.member-search-input {
+  width: 100%;
+  padding: 0.6rem 0.8rem;
+  border: 1px solid #e2e8f0;
+  border-radius: 10px;
+  font-size: 0.9rem;
+  box-sizing: border-box;
+}
+.member-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(130px, 1fr));
+  gap: 0.6rem;
+  overflow-y: auto;
+  flex: 1;
+}
+.member-card {
+  background: white;
+  border: 1px solid #e2e8f0;
+  border-radius: 10px;
+  cursor: pointer;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  padding: 0;
+  transition: border-color 0.15s, box-shadow 0.15s;
   &:hover {
-    background: #f0f0f0;
-    border-color: var(--app-banner-color);
-    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
-  }
-
-  .member-photo {
-    width: 84px;
-    height: 84px;
-    border-radius: 50%;
-    overflow: hidden;
-    background: #e0e0e0;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    flex-shrink: 0;
-
-    img {
-      width: 100%;
-      height: 100%;
-      object-fit: cover;
-    }
-  }
-
-  .member-photo-placeholder {
-    font-size: 2rem;
-  }
-
-  .member-info-box {
-    display: flex;
-    flex-direction: column;
-    gap: 0.25rem;
-    width: 100%;
-    align-items: center;
-
-    .member-number-badge {
-      font-size: 0.8rem;
-      color: var(--app-banner-color);
-      font-weight: 600;
-    }
-
-    .member-name-modal {
-      font-weight: 600;
-      color: #333;
-      text-align: center;
-    }
-
-    .balance {
-      font-size: 0.85rem;
-      color: #666;
-    }
-  }
-
-  .balance {
-    color: var(--app-highlight-color);
-    font-weight: 600;
+    border-color: #0ea5e9;
+    box-shadow: 0 2px 8px rgba(14, 165, 233, 0.15);
   }
 }
-
-.modal-content.member-modal {
-  width: min(75vw, 1200px);
-  max-width: 1200px;
-  max-height: 75vh;
+.member-card-img {
+  width: 100%;
+  aspect-ratio: 1 / 1;
+  background: #e2e8f0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+  img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+  }
+}
+.member-card-img-placeholder { font-size: 2rem; }
+.member-card-body {
+  padding: 0.4rem 0.5rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.15rem;
+}
+.member-card-name {
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: #1e293b;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.member-card-balance {
+  font-size: 0.85rem;
+  font-weight: 700;
+  color: #059669;
+}
+.empty-state {
+  text-align: center;
+  color: #94a3b8;
+  padding: 2rem;
+  font-size: 0.95rem;
 }
 </style>

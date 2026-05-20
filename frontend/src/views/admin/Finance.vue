@@ -1275,7 +1275,13 @@
       class="confirmation-overlay"
     >
       <div class="confirmation-dialog zbon-create-dialog">
-        <h3>🧾 Kassenbericht erstellen</h3>
+        <div class="zbon-modal-header">
+          <div>
+            <h3>🧾 Kassenbericht erstellen</h3>
+            <p class="zbon-subtitle">Kassenabschluss durchführen und Z-Bon erstellen</p>
+          </div>
+          <button class="close-btn" @click="closeZbonCreateModal">✕</button>
+        </div>
         <div class="modal-body">
           <div class="info-box">
             Kassenprüfer wählen → Kasse zählen → ggf. Abschöpfung → Kassenbericht erstellen
@@ -1402,8 +1408,14 @@
       v-if="showWithdrawalModal"
       class="confirmation-overlay"
     >
-      <div class="confirmation-dialog">
-        <h3>💸 Abschöpfung durchführen</h3>
+      <div class="confirmation-dialog withdrawal-dialog">
+        <div class="zbon-modal-header">
+          <div>
+            <h3>💸 Abschöpfung durchführen</h3>
+            <p class="zbon-subtitle">Barbetrag aus der Kasse entnehmen</p>
+          </div>
+          <button class="close-btn" @click="closeWithdrawalModal">✕</button>
+        </div>
         <div class="modal-body">
           <div class="form-group">
             <label>Betrag (€)</label>
@@ -1458,7 +1470,13 @@
       class="confirmation-overlay member-picker-overlay"
     >
       <div class="confirmation-dialog member-picker-dialog">
-        <h3>{{ pickerTitle }}</h3>
+        <div class="zbon-modal-header">
+          <div>
+            <h3>{{ pickerTitle }}</h3>
+            <p class="zbon-subtitle">{{ pickerSearchPlaceholder }}</p>
+          </div>
+          <button class="close-btn" @click="closeMemberPicker">✕</button>
+        </div>
         <input
           v-model="memberSearch"
           type="text"
@@ -3463,11 +3481,56 @@ onBeforeUnmount(() => {
   max-width: 620px;
   width: 100%;
   text-align: left;
-  padding: 1.25rem;
+  padding: 0;
+}
+
+.withdrawal-dialog {
+  max-width: 500px;
+  text-align: left;
+  padding: 0;
+}
+
+.zbon-modal-header {
+  padding: 1rem 1.25rem;
+  border-bottom: 1px solid #e2e8f0;
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  background: linear-gradient(90deg, #0f766e 0%, #0ea5e9 100%);
+  border-radius: 16px 16px 0 0;
+
+  h3 {
+    margin: 0;
+    color: #ffffff;
+    font-size: 1.1rem;
+    padding-bottom: 0;
+    border-bottom: none;
+  }
+}
+
+.zbon-subtitle {
+  margin: 0.35rem 0 0;
+  color: rgba(255,255,255,0.9);
+  font-size: 0.85rem;
+}
+
+.close-btn {
+  width: 34px;
+  height: 34px;
+  border-radius: 50%;
+  border: 1px solid rgba(255,255,255,0.45);
+  background: rgba(255,255,255,0.18);
+  color: #ffffff;
+  font-size: 1.1rem;
+  cursor: pointer;
+  display: grid;
+  place-items: center;
+  flex-shrink: 0;
+  &:hover { background: rgba(255,255,255,0.3); }
 }
 
 .modal-body {
-  padding: 1.25rem 0;
+  padding: 1.25rem;
 }
 
 .info-box {
