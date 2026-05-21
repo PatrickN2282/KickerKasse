@@ -99,8 +99,8 @@ class ProductService:
                         "change_quantity": quantity,
                     },
                 )
-                self.db.commit()
-                self.db.refresh(product)
+            self.db.commit()
+            self.db.refresh(product)
             return product
         else:
             if not self.repo.deduct_stock(product_id, abs(quantity)):
