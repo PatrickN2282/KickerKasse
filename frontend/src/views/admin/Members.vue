@@ -484,7 +484,10 @@ const deleteMember = async (id) => {
       await apiService.delete(`/members/${id}`)
       notificationStore.success('Mitglied gelöscht')
       await memberStore.getMembers()
-    } catch { notificationStore.error('Fehler beim Löschen') }
+    } catch (error) {
+      console.error('Member delete error:', error)
+      notificationStore.error('Fehler beim Löschen')
+    }
   }
 }
 

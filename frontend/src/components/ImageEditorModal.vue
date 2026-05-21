@@ -369,15 +369,6 @@ watch(
   { immediate: true }
 )
 
-watch(
-  () => props.show,
-  (show) => {
-    if (!show) {
-      resetState()
-    }
-  }
-)
-
 onUnmounted(() => {
   removeMouseListeners()
 })

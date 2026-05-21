@@ -30,6 +30,17 @@ def ensure_upload_directories():
     APP_SETTINGS_DIR.mkdir(parents=True, exist_ok=True)
 
 
+def _resolve_entity_directory(base_dir: Path, entity_id: int) -> Path:
+    normalized_id = int(entity_id)
+    if normalized_id < 0:
+        raise ValueError("Entity ID must be non-negative")
+
+    base_path = base_dir.resolve()
+    entity_path = (base_path / str(normalized_id)).resolve()
+    entity_path.relative_to(base_path)
+    return entity_path
+
+
 def get_file_extension(filename: str) -> str:
     """Extract file extension from filename."""
     if "." in filename:
@@ -40,7 +51,7 @@ def get_file_extension(filename: str) -> str:
 async def save_product_image(file: UploadFile, product_id: int) -> str:
     ensure_upload_directories()
 
-    product_folder = PRODUCTS_DIR / str(product_id)
+    product_folder = _resolve_entity_directory(PRODUCTS_DIR, product_id)
     product_folder.mkdir(parents=True, exist_ok=True)
 
     ext = get_file_extension(file.filename or "image.jpg")
@@ -57,7 +68,7 @@ async def save_product_image(file: UploadFile, product_id: int) -> str:
 async def save_product_original_image(file: UploadFile, product_id: int) -> str:
     ensure_upload_directories()
 
-    product_folder = PRODUCTS_DIR / str(product_id)
+    product_folder = _resolve_entity_directory(PRODUCTS_DIR, product_id)
     product_folder.mkdir(parents=True, exist_ok=True)
 
     ext = get_file_extension(file.filename or "image.jpg")
@@ -73,7 +84,7 @@ async def save_product_original_image(file: UploadFile, product_id: int) -> str:
 
 def get_product_original_image_path(product_id: int) -> Path | None:
     """Return path to original image if it exists (any extension)."""
-    product_folder = PRODUCTS_DIR / str(product_id)
+    product_folder = _resolve_entity_directory(PRODUCTS_DIR, product_id)
     if not product_folder.exists():
         return None
     for ext in (".jpg", ".jpeg", ".png", ".webp", ".gif"):
@@ -87,7 +98,7 @@ def get_product_original_image_path(product_id: int) -> Path | None:
 async def save_member_photo(file: UploadFile, member_id: int) -> str:
     ensure_upload_directories()
 
-    member_folder = MEMBERS_DIR / str(member_id)
+    member_folder = _resolve_entity_directory(MEMBERS_DIR, member_id)
     member_folder.mkdir(parents=True, exist_ok=True)
 
     ext = get_file_extension(file.filename or "photo.jpg")
@@ -134,14 +145,14 @@ async def save_app_logo(file: UploadFile) -> str:
 
 
 def delete_product_image(product_id: int) -> None:
-    product_folder = PRODUCTS_DIR / str(product_id)
+    product_folder = _resolve_entity_directory(PRODUCTS_DIR, product_id)
     if product_folder.exists():
         import shutil
         shutil.rmtree(product_folder, ignore_errors=True)
 
 
 def delete_member_photo(member_id: int) -> None:
-    member_folder = MEMBERS_DIR / str(member_id)
+    member_folder = _resolve_entity_directory(MEMBERS_DIR, member_id)
     if member_folder.exists():
         import shutil
         shutil.rmtree(member_folder, ignore_errors=True)
