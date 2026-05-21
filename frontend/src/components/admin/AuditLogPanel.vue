@@ -105,6 +105,10 @@ const auditActionLabel = (action) => {
     DELETED: 'Gelöscht',
     RECHARGED: 'Guthaben +',
     RESTOCKED: 'Bestand +',
+    BALANCE_CORRECTION: 'Guthaben korrigiert',
+    STOCK_CORRECTION: 'Bestand korrigiert',
+    CLUB_ACCOUNT_TOPUP: 'Konto aufgeladen',
+    IMAGE_UPDATED: 'Bild geändert',
   }
   return map[action] || action
 }
@@ -256,6 +260,26 @@ onMounted(() => {
   &--restocked {
     background: #e0e7ff;
     color: #4338ca;
+  }
+
+  &--balance_correction {
+    background: #fde8d8;
+    color: #c2410c;
+  }
+
+  &--stock_correction {
+    background: #fde8d8;
+    color: #c2410c;
+  }
+
+  &--club_account_topup {
+    background: #dbeafe;
+    color: #1d4ed8;
+  }
+
+  &--image_updated {
+    background: #f3e8ff;
+    color: #7e22ce;
   }
 }
 

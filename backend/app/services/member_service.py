@@ -260,6 +260,17 @@ class MemberService:
             reason=correction_reason,
         )
         self.db.add(log)
+        self._audit(
+            "BALANCE_CORRECTION",
+            member,
+            executed_by_username,
+            old_value={"balance_cents": old_balance},
+            new_value={
+                "balance_cents": new_balance_cents,
+                "change_cents": new_balance_cents - old_balance,
+                "reason": correction_reason,
+            },
+        )
         self.db.commit()
         self.db.refresh(member)
         self.db.refresh(log)

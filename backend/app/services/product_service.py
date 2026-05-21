@@ -133,6 +133,17 @@ class ProductService:
             reason=correction_reason,
         )
         self.db.add(log)
+        self._audit(
+            "STOCK_CORRECTION",
+            product,
+            executed_by_username,
+            old_value={"stock_quantity": old_stock_quantity},
+            new_value={
+                "stock_quantity": new_stock_quantity,
+                "change_quantity": new_stock_quantity - old_stock_quantity,
+                "reason": correction_reason,
+            },
+        )
         self.db.commit()
         self.db.refresh(product)
         self.db.refresh(log)

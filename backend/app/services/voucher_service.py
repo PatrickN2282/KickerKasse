@@ -616,6 +616,15 @@ class VoucherService:
         self.db.add(entry)
         self.db.commit()
         self.db.refresh(entry)
+        self._audit_voucher(
+            "CLUB_ACCOUNT_TOPUP",
+            voucher_reference="Gutscheinkonto",
+            created_by_user_id=user_id,
+            new_value={
+                "amount_cents": amount_cents,
+                "transaction_id": transaction.id,
+            },
+        )
         return {
             "entry_id": entry.id,
             "transaction_id": transaction.id,
