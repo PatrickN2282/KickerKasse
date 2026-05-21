@@ -8,12 +8,32 @@ from pathlib import Path, PurePosixPath
 from fastapi import HTTPException, status
 from sqlalchemy.orm import Session
 
-from app.models import Category, Member, Product
+from app.models import (
+    BalanceLog,
+    Category,
+    DeckelItem,
+    Member,
+    MemberBalanceCorrectionLog,
+    Product,
+    ProductStockCorrectionLog,
+    Transaction,
+    TransactionItem,
+    User,
+    product_category,
+)
 from app.repositories import MemberRepository
-from app.services.file_service import MEMBERS_DIR, PRODUCTS_DIR, ensure_upload_directories, get_full_path
+from app.services.file_service import (
+    MEMBERS_DIR,
+    PRODUCTS_DIR,
+    delete_member_photo,
+    delete_product_image,
+    ensure_upload_directories,
+    get_full_path,
+)
 
 
 SECTION_ORDER = ("categories", "products", "members")
+REPLACE_ORDER = ("members", "products", "categories")
 MEDIA_SECTIONS = {"products", "members"}
 IMAGE_EXTENSIONS = {".jpg", ".jpeg", ".png", ".webp", ".gif", ".bmp"}
 MAX_MEDIA_SIZE = 10 * 1024 * 1024
@@ -140,6 +160,7 @@ class ImportExportService:
         content: bytes,
         sections: list[str] | None = None,
         *,
+        replace_sections: list[str] | None = None,
         import_media: bool = False,
         media_file_name: str | None = None,
         media_content: bytes | None = None,
@@ -161,23 +182,52 @@ class ImportExportService:
                 detail=f"Diese Bereiche sind in der Datei nicht enthalten: {', '.join(invalid_sections)}",
             )
 
+        normalized_replace_sections = self._normalize_sections(replace_sections or [])
+        invalid_replace_sections = [section for section in normalized_replace_sections if section not in selected_sections]
+        if invalid_replace_sections:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail=(
+                    "Diese Bereiche können nur ersetzend importiert werden, "
+                    f"wenn sie auch ausgewählt sind: {', '.join(invalid_replace_sections)}"
+                ),
+            )
+
         media_entries = self._merge_media_entries(
             parsed_data["embedded_media"],
             self._parse_external_media_bundle(media_file_name, media_content),
         ) if import_media else {}
 
-        results = {}
-        for section in SECTION_ORDER:
-            if section not in selected_sections:
-                continue
+        deleted_media_ids = {"products": [], "members": []}
 
-            rows = parsed_data["rows"].get(section, [])
-            if section == "categories":
-                results[section] = self._import_categories(rows)
-            elif section == "products":
-                results[section] = self._import_products(rows, media_entries.get("products", {}), import_media)
-            elif section == "members":
-                results[section] = self._import_members(rows, media_entries.get("members", {}), import_media)
+        try:
+            replaced_counts = self._replace_selected_sections(normalized_replace_sections, deleted_media_ids)
+
+            results = {}
+            for section in SECTION_ORDER:
+                if section not in selected_sections:
+                    continue
+
+                rows = parsed_data["rows"].get(section, [])
+                if section == "categories":
+                    results[section] = self._import_categories(rows)
+                elif section == "products":
+                    results[section] = self._import_products(rows, media_entries.get("products", {}), import_media)
+                elif section == "members":
+                    results[section] = self._import_members(rows, media_entries.get("members", {}), import_media)
+
+                if section in replaced_counts:
+                    results[section]["replaced_deleted"] = replaced_counts[section]
+
+            self.db.commit()
+        except Exception:
+            self.db.rollback()
+            raise
+
+        for product_id in deleted_media_ids["products"]:
+            delete_product_image(product_id)
+        for member_id in deleted_media_ids["members"]:
+            delete_member_photo(member_id)
 
         return {
             "imported_sections": selected_sections,
@@ -473,7 +523,7 @@ class ImportExportService:
             category.display_order = self._parse_int(row.get("display_order"), 0, row_number, "display_order")
             category.is_active_in_kasse = self._parse_bool(row.get("is_active_in_kasse"), True)
 
-        self.db.commit()
+        self.db.flush()
         return {"created": created, "updated": updated, "skipped_fixed": skipped_fixed}
 
     def _import_products(self, rows: list[dict], media_entries: dict[str, dict], import_media: bool) -> dict:
@@ -533,7 +583,7 @@ class ImportExportService:
                     product.image_path = self._store_media_file("products", product.id, media_entry)
                     media_imported += 1
 
-        self.db.commit()
+        self.db.flush()
         return {"created": created, "updated": updated, "media_imported": media_imported}
 
     def _import_members(self, rows: list[dict], media_entries: dict[str, dict], import_media: bool) -> dict:
@@ -615,8 +665,109 @@ class ImportExportService:
                     member.photo_path = self._store_media_file("members", member.id, media_entry)
                     media_imported += 1
 
-        self.db.commit()
+        self.db.flush()
         return {"created": created, "updated": updated, "media_imported": media_imported}
+
+    def _replace_selected_sections(self, sections: list[str], deleted_media_ids: dict[str, list[int]]) -> dict[str, int]:
+        replaced_counts = {}
+        for section in REPLACE_ORDER:
+            if section not in sections:
+                continue
+            if section == "categories":
+                replaced_counts[section] = self._replace_categories()
+            elif section == "products":
+                replaced_counts[section] = self._replace_products(deleted_media_ids["products"])
+            elif section == "members":
+                replaced_counts[section] = self._replace_members(deleted_media_ids["members"])
+        return replaced_counts
+
+    def _replace_categories(self) -> int:
+        categories = self.db.query(Category).all()
+        replaceable_ids = [category.id for category in categories if not category.is_fixed]
+        if not replaceable_ids:
+            return 0
+
+        self.db.execute(
+            product_category.delete().where(product_category.c.category_id.in_(replaceable_ids))
+        )
+        deleted_count = (
+            self.db.query(Category)
+            .filter(Category.id.in_(replaceable_ids))
+            .delete(synchronize_session=False)
+        )
+        self.db.flush()
+        return deleted_count
+
+    def _replace_products(self, deleted_media_ids: list[int]) -> int:
+        product_ids = [product_id for (product_id,) in self.db.query(Product.id).all()]
+        if not product_ids:
+            return 0
+
+        referenced_transaction = (
+            self.db.query(TransactionItem.id)
+            .filter(TransactionItem.product_id.in_(product_ids))
+            .first()
+        )
+        if referenced_transaction is not None:
+            raise HTTPException(
+                status_code=status.HTTP_409_CONFLICT,
+                detail=(
+                    "Produkte können nicht ersetzend importiert werden, "
+                    "solange Verkaufs- oder Buchungshistorie darauf verweist."
+                ),
+            )
+
+        self.db.execute(
+            product_category.delete().where(product_category.c.product_id.in_(product_ids))
+        )
+        self.db.query(DeckelItem).filter(DeckelItem.product_id.in_(product_ids)).delete(synchronize_session=False)
+        self.db.query(ProductStockCorrectionLog).filter(
+            ProductStockCorrectionLog.product_id.in_(product_ids)
+        ).delete(synchronize_session=False)
+        deleted_count = (
+            self.db.query(Product)
+            .filter(Product.id.in_(product_ids))
+            .delete(synchronize_session=False)
+        )
+        deleted_media_ids.extend(product_ids)
+        self.db.flush()
+        return deleted_count
+
+    def _replace_members(self, deleted_media_ids: list[int]) -> int:
+        member_ids = [member_id for (member_id,) in self.db.query(Member.id).all()]
+        if not member_ids:
+            return 0
+
+        referenced_transaction = (
+            self.db.query(Transaction.id)
+            .filter(Transaction.member_id.in_(member_ids))
+            .first()
+        )
+        if referenced_transaction is not None:
+            raise HTTPException(
+                status_code=status.HTTP_409_CONFLICT,
+                detail=(
+                    "Mitglieder können nicht ersetzend importiert werden, "
+                    "solange Buchungen oder Verkäufe auf sie verweisen."
+                ),
+            )
+
+        self.db.query(User).filter(User.member_id.in_(member_ids)).update(
+            {User.member_id: None},
+            synchronize_session=False,
+        )
+        self.db.query(BalanceLog).filter(BalanceLog.member_id.in_(member_ids)).delete(synchronize_session=False)
+        self.db.query(MemberBalanceCorrectionLog).filter(
+            MemberBalanceCorrectionLog.member_id.in_(member_ids)
+        ).delete(synchronize_session=False)
+        deleted_count = (
+            self.db.query(Member)
+            .filter(Member.id.in_(member_ids))
+            .delete(synchronize_session=False)
+        )
+        deleted_media_ids.extend(member_ids)
+        self.db.flush()
+        return deleted_count
 
     def _store_media_file(self, section: str, target_id: int, media_entry: dict) -> str:
         ensure_upload_directories()

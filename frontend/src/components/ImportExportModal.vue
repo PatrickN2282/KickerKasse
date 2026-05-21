@@ -74,8 +74,39 @@
               </div>
             </section>
 
+            <section v-if="detectedImportSections.length" class="form-section">
+              <h4>3. Importmodus</h4>
+              <p class="section-copy">
+                Wähle je erkanntem Bereich, ob additiv importiert oder der bestehende Bereich vorher ersetzt werden soll.
+              </p>
+              <div class="section-grid">
+                <label
+                  v-for="section in detectedImportSections"
+                  :key="`replace-${section.key}`"
+                  class="checkbox-card section-card"
+                  :class="{ disabled: !importForm.selectedSections[section.key] }"
+                >
+                  <input
+                    v-model="importForm.replaceSections[section.key]"
+                    type="checkbox"
+                    :disabled="!importForm.selectedSections[section.key]"
+                  >
+                  <div class="checkbox-content">
+                    <span class="label">{{ section.label }} ersetzend importieren</span>
+                    <span class="desc">
+                      {{
+                        importForm.selectedSections[section.key]
+                          ? `Vorhandene ${section.label.toLowerCase()} vor dem Import löschen.`
+                          : 'Nur relevant, wenn dieser Bereich importiert wird.'
+                      }}
+                    </span>
+                  </div>
+                </label>
+              </div>
+            </section>
+
             <section v-if="shouldShowImportMedia" class="form-section highlight">
-              <h4>3. Mediadaten</h4>
+              <h4>4. Mediadaten</h4>
               <p class="section-copy">
                 Für erkannte Produkt- oder Mitgliederdaten können optional Bilder übernommen werden.
               </p>
@@ -213,6 +244,11 @@ const importForm = reactive({
     members: false,
     categories: false,
   },
+  replaceSections: {
+    products: false,
+    members: false,
+    categories: false,
+  },
   importMedia: false,
 })
 
@@ -224,6 +260,7 @@ const resetImportState = () => {
   importError.value = ''
   Object.keys(importForm.selectedSections).forEach((key) => {
     importForm.selectedSections[key] = false
+    importForm.replaceSections[key] = false
   })
 }
 
@@ -250,6 +287,10 @@ const selectedExportSections = computed(() => Object.entries(exportForm.sections
 const selectedImportSections = computed(() => Object.entries(importForm.selectedSections)
   .filter(([, enabled]) => enabled)
   .map(([key]) => key))
+const selectedReplaceSections = computed(() => Object.entries(importForm.replaceSections)
+  .filter(([key, enabled]) => enabled && importForm.selectedSections[key])
+  .map(([key]) => key))
+const detectedImportSections = computed(() => sectionOptions.filter(section => isDetected(section.key)))
 
 const exportMediaAvailable = computed(() => selectedExportSections.value.some(section => ['products', 'members'].includes(section)))
 const canExport = computed(() => selectedExportSections.value.length > 0)
@@ -289,6 +330,14 @@ watch(exportMediaAvailable, (available) => {
   if (!available) {
     exportForm.includeMedia = false
   }
+})
+
+watch(selectedImportSections, (sections) => {
+  Object.keys(importForm.replaceSections).forEach((key) => {
+    if (!sections.includes(key)) {
+      importForm.replaceSections[key] = false
+    }
+  })
 })
 
 const sectionLabel = (key) => sectionOptions.find(section => section.key === key)?.label || key
@@ -401,6 +450,7 @@ const buildImportSummary = (result) => {
 
   return entries.map(([section, summary]) => {
     const parts = []
+    if (summary.replaced_deleted !== undefined && summary.replaced_deleted > 0) parts.push(`${summary.replaced_deleted} ersetzt`)
     if (summary.created !== undefined) parts.push(`${summary.created} neu`)
     if (summary.updated !== undefined) parts.push(`${summary.updated} aktualisiert`)
     if (summary.media_imported !== undefined) parts.push(`${summary.media_imported} Bilder`)
@@ -419,6 +469,7 @@ const runImport = async () => {
     const formData = new FormData()
     formData.append('data_file', importForm.dataFile)
     formData.append('selected_sections', JSON.stringify(selectedImportSections.value))
+    formData.append('replace_sections', JSON.stringify(selectedReplaceSections.value))
     formData.append('import_media', String(importForm.importMedia))
     if (importForm.mediaFile) {
       formData.append('media_file', importForm.mediaFile)
