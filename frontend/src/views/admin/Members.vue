@@ -304,7 +304,7 @@ const rechargeModalMessage = computed(() => {
 
 const memberPhotoAlt = computed(() => {
   const fullName = [formData.first_name, formData.last_name].filter(Boolean).join(' ').trim()
-  return fullName ? `Foto von ${fullName}` : 'Mitgliederfoto'
+  return fullName ? `Foto von ${fullName}` : 'Profilbild ohne Namen'
 })
 
 const filteredMembers = computed(() => {
@@ -761,6 +761,7 @@ onMounted(() => memberStore.getMembers())
 }
 
 .interactive-image-frame {
+  position: relative;
   transition: transform 0.15s ease, box-shadow 0.15s ease, border-color 0.15s ease;
 }
 

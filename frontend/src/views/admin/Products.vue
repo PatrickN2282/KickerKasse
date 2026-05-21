@@ -120,9 +120,9 @@
                         <span v-if="formData.memberPrice !== null && formData.memberPrice !== ''" class="card-badge discount-badge">Rabatt</span>
                         <img
                           :src="imagePreviewSrc"
+                          :alt="productPreviewAlt"
                           class="preview-crop-img preview-static-img"
                           draggable="false"
-                          alt=""
                         >
                         <span class="image-preview-overlay">Anpassen</span>
                       </div>
@@ -280,6 +280,10 @@ const formData = reactive({
 const previewPriceText = computed(() => {
   const cents = formData.price ? Math.round(formData.price * 100) : 0
   return `${(cents / 100).toFixed(2).replace('.', ',')} €`
+})
+
+const productPreviewAlt = computed(() => {
+  return formData.name?.trim() ? `Produktbild von ${formData.name.trim()}` : 'Produktbild-Vorschau'
 })
 
 const hasMemberPrice = (product) => {
@@ -962,10 +966,10 @@ onMounted(async () => {
 
 .interactive-image-card {
   transition: transform 0.15s ease, box-shadow 0.15s ease, border-color 0.15s ease;
+}
 
-  .card-img {
-    position: relative;
-  }
+.card-img {
+  position: relative;
 }
 
 .image-preview-overlay {
