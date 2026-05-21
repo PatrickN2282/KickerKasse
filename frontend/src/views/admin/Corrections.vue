@@ -422,12 +422,14 @@
 <script setup>
 import { computed, onMounted, ref, watch } from 'vue'
 import apiService from '@/services/api'
+import { useAuthStore } from '@/stores/auth'
 import { useMemberStore } from '@/stores/member'
 import { useNotificationStore } from '@/stores/notification'
 import { useProductStore } from '@/stores/product'
 import { formatBalance } from '@/services/utils'
 import { getMemberFullName, getMemberSearchText } from '@/services/member'
 
+const authStore = useAuthStore()
 const memberStore = useMemberStore()
 const productStore = useProductStore()
 const notificationStore = useNotificationStore()
