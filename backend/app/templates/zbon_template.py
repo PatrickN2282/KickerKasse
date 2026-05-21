@@ -311,8 +311,8 @@ ZBON_HTML_TEMPLATE = """
         <!-- Header -->
         <div class="header">
             <h1>KGB Zentrale</h1>
-            <div class="subtitle">Kassensoftware - Tagesabschluss</div>
-            <div class="zbon-number">Endabrechnung {{ seq_number }}</div>
+            <div class="subtitle">KickerKasse - Tagesabschluss</div>
+            <div class="zbon-number">Kassenbericht {{ seq_number }}</div>
             <div class="business-info">
                 <div>Krökel Gemeinschaft Badenstedt – Hannover e.V.</div>
                 <div>Davenstedter Str. 115 | 30453 Hannover</div>
