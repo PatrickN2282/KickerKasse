@@ -58,6 +58,14 @@
           >
             🔄 {{ restoreLabel }}
           </button>
+          <button
+            v-if="canDelete"
+            type="button"
+            class="btn-action btn-action-danger"
+            @click="deleteImage"
+          >
+            🗑 {{ deleteLabel }}
+          </button>
         </div>
       </div>
 
@@ -117,9 +125,17 @@ const props = defineProps({
     type: String,
     default: 'Originalbild wiederherstellen',
   },
+  canDelete: {
+    type: Boolean,
+    default: false,
+  },
+  deleteLabel: {
+    type: String,
+    default: 'Bild löschen',
+  },
 })
 
-const emit = defineEmits(['close', 'apply'])
+const emit = defineEmits(['close', 'apply', 'delete'])
 
 const cropFrameEl = ref(null)
 const localImageSrc = ref(null)
@@ -366,6 +382,10 @@ const closeModal = () => {
   emit('close')
 }
 
+const deleteImage = () => {
+  emit('delete')
+}
+
 watch(
   () => [props.show, props.imageSrc],
   async ([show, imageSrc]) => {
@@ -549,6 +569,16 @@ onUnmounted(() => {
 
   &:hover:not(:disabled) {
     background: #fef3c7;
+  }
+}
+
+.btn-action-danger {
+  border-color: #fecaca;
+  color: #b91c1c;
+  background: #fff5f5;
+
+  &:hover:not(:disabled) {
+    background: #fef2f2;
   }
 }
 

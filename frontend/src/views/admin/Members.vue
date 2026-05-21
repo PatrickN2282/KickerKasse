@@ -109,19 +109,28 @@
               <!-- LINKE SEITE: Foto & Rabatt-Checkbox -->
               <div class="image-upload-section">
                 <span class="section-label">Foto</span>
-                <div class="avatar-display compact-avatar">
-                  <img v-if="photoPreview" :src="photoPreview" class="profile-img">
-                  <div v-else class="photo-placeholder">
+                <button
+                  v-if="photoPreview"
+                  type="button"
+                  class="image-preview-trigger"
+                  aria-label="Foto anpassen"
+                  @click="openPhotoEditor"
+                >
+                  <div class="avatar-display compact-avatar interactive-image-frame">
+                    <img :src="photoPreview" :alt="memberPhotoAlt" class="profile-img">
+                    <span class="image-preview-overlay">Anpassen</span>
+                  </div>
+                </button>
+                <div v-else class="avatar-display compact-avatar">
+                  <div class="photo-placeholder">
                     <span>Kein Bild ausgewählt</span>
                   </div>
                 </div>
-                <div class="image-action-buttons">
-                  <button v-if="photoPreview" type="button" class="btn-action" @click="openPhotoEditor">✂ Zuschneiden</button>
+                <div v-if="!photoPreview" class="image-action-buttons">
                   <label class="upload-button btn-action">
-                    {{ photoPreview ? 'Ändern' : 'Bild auswählen' }}
+                    Bild auswählen
                     <input ref="fileInput" type="file" hidden @change="handlePhotoUpload" accept="image/*">
                   </label>
-                  <button v-if="photoPreview" type="button" class="btn-action btn-action-danger" @click="requestPhotoRemoval">🗑 Löschen</button>
                 </div>
 
                 <!-- Hierher verschoben: Rabattberechtigt-Checkbox -->
@@ -235,8 +244,11 @@
       :output-width="560"
       :can-restore="Boolean(photoOriginalSrc || photoPreview)"
       restore-label="Ausgangsbild wiederherstellen"
+      :can-delete="Boolean(photoPreview || persistedPhotoExists)"
+      delete-label="Foto löschen"
       @close="closePhotoEditor"
       @apply="handlePhotoCropApply"
+      @delete="handlePhotoDelete"
     />
   </div>
 </template>
@@ -288,6 +300,11 @@ const rechargeModalMessage = computed(() => {
   const amountCents = Math.round(Number(rechargeAmount.value || 0) * 100)
   const current = Number(currentMemberBalance.value || 0)
   return `Möchtest du ${formatBalance(amountCents)} aufladen?\nNeuer Kontostand: ${formatBalance(current + amountCents)}`
+})
+
+const memberPhotoAlt = computed(() => {
+  const fullName = [formData.first_name, formData.last_name].filter(Boolean).join(' ').trim()
+  return fullName ? `Foto von ${fullName}` : 'Mitgliederfoto-Vorschau'
 })
 
 const filteredMembers = computed(() => {
@@ -370,6 +387,11 @@ const requestPhotoRemoval = () => {
   pendingPhotoOriginalSrc.value = null
   showPhotoCropModal.value = false
   photoDeleteRequested.value = Boolean(editingId.value && persistedPhotoExists.value)
+}
+
+const handlePhotoDelete = () => {
+  requestPhotoRemoval()
+  closePhotoEditor()
 }
 
 const syncMemberPhoto = async (memberId) => {
@@ -732,6 +754,53 @@ onMounted(() => memberStore.getMembers())
     justify-content: center;
     text-align: center;
   }
+}
+
+.image-preview-trigger {
+  display: block;
+  width: 100%;
+  padding: 0;
+  border: none;
+  background: transparent;
+  cursor: pointer;
+}
+
+.interactive-image-frame {
+  position: relative;
+  transition: transform 0.15s ease, box-shadow 0.15s ease, border-color 0.15s ease;
+}
+
+.image-preview-overlay {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(15, 23, 42, 0.58);
+  color: #fff;
+  font-size: 0.9rem;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  opacity: 0;
+  transition: opacity 0.15s ease;
+}
+
+.image-preview-trigger:hover .interactive-image-frame,
+.image-preview-trigger:focus-visible .interactive-image-frame {
+  transform: translateY(-1px);
+  border-color: #93c5fd;
+  box-shadow: 0 8px 18px rgba(14, 165, 233, 0.18);
+}
+
+.image-preview-trigger:hover .image-preview-overlay,
+.image-preview-trigger:focus-visible .image-preview-overlay {
+  opacity: 1;
+}
+
+.image-preview-trigger:focus-visible {
+  outline: 2px solid #38bdf8;
+  outline-offset: 4px;
+  border-radius: 12px;
 }
 
 .avatar-display {
