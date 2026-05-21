@@ -248,7 +248,7 @@
       delete-label="Foto löschen"
       @close="closePhotoEditor"
       @apply="handlePhotoCropApply"
-      @delete="requestPhotoRemoval"
+      @delete="handlePhotoDelete"
     />
   </div>
 </template>
@@ -304,7 +304,7 @@ const rechargeModalMessage = computed(() => {
 
 const memberPhotoAlt = computed(() => {
   const fullName = [formData.first_name, formData.last_name].filter(Boolean).join(' ').trim()
-  return fullName ? `Foto von ${fullName}` : 'Profilbild ohne Namen'
+  return fullName ? `Foto von ${fullName}` : 'Mitgliederfoto-Vorschau'
 })
 
 const filteredMembers = computed(() => {
@@ -387,6 +387,11 @@ const requestPhotoRemoval = () => {
   pendingPhotoOriginalSrc.value = null
   showPhotoCropModal.value = false
   photoDeleteRequested.value = Boolean(editingId.value && persistedPhotoExists.value)
+}
+
+const handlePhotoDelete = () => {
+  requestPhotoRemoval()
+  closePhotoEditor()
 }
 
 const syncMemberPhoto = async (memberId) => {

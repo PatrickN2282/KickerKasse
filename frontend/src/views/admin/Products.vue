@@ -239,7 +239,7 @@
     delete-label="Bild löschen"
     @close="handleCropClose"
     @apply="handleCropApply"
-    @delete="requestImageRemoval"
+    @delete="handleCropDelete"
   />
 </template>
 
@@ -283,7 +283,8 @@ const previewPriceText = computed(() => {
 })
 
 const productPreviewAlt = computed(() => {
-  return formData.name?.trim() ? `Produktbild von ${formData.name.trim()}` : 'Produktbild-Vorschau'
+  const trimmedName = formData.name?.trim()
+  return trimmedName ? `Produktbild von ${trimmedName}` : 'Produktbild-Vorschau'
 })
 
 const hasMemberPrice = (product) => {
@@ -385,6 +386,11 @@ const handleCropApply = ({ blob, dataUrl }) => {
   pendingOriginalImageSrc.value = null
 }
 
+const handleCropDelete = () => {
+  requestImageRemoval()
+  handleCropClose()
+}
+
 const handleImageUpload = async (event) => {
   const [file] = event.target.files || []
   event.target.value = ''
@@ -412,7 +418,6 @@ const requestImageRemoval = () => {
   cropModalImageSrc.value = null
   pendingOriginalImageSrc.value = null
   imagePendingOriginalUpload.value = false
-  showCropModal.value = false
   imageDeleteRequested.value = Boolean(editingId.value && persistedImageExists.value)
 }
 
