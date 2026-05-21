@@ -14,6 +14,7 @@ from app.models import (
     Transaction,
     TransactionItem,
     TransactionType,
+    User,
     Voucher,
     VoucherReason,
     VoucherStatus,
@@ -41,6 +42,38 @@ class VoucherService:
         return self.db.query(ClubAccountEntry).filter(
             ~ClubAccountEntry.reason.like(f"{INTERNAL_MATERIAL_CLUB_ACCOUNT_REASON_PREFIX}%")
         )
+
+    def _resolve_username(self, user_id: int | None) -> str | None:
+        if not user_id:
+            return None
+        user = self.db.query(User).filter(User.id == user_id).first()
+        return user.username if user else None
+
+    def _audit_voucher(
+        self,
+        action: str,
+        *,
+        voucher: Voucher | None = None,
+        voucher_reference: str | None = None,
+        created_by_user_id: int | None = None,
+        old_value: dict | None = None,
+        new_value: dict | None = None,
+    ) -> None:
+        try:
+            from app.services.audit_log_service import AuditLogService
+
+            AuditLogService(self.db).log(
+                entity_type="voucher",
+                action=action,
+                user_username=self._resolve_username(created_by_user_id),
+                entity_id=voucher.id if voucher else None,
+                entity_name=voucher_reference or self.format_voucher_identifier(voucher),
+                old_value=old_value,
+                new_value=new_value,
+            )
+            self.db.commit()
+        except Exception:
+            self.db.rollback()
 
     @classmethod
     def build_prepaid_product_name(cls, value_cents: int) -> str:
@@ -166,6 +199,18 @@ class VoucherService:
         ))
         self.db.commit()
         self.db.refresh(voucher)
+        self._audit_voucher(
+            "CREATED",
+            voucher=voucher,
+            created_by_user_id=created_by_user_id,
+            new_value={
+                "voucher_type": voucher.voucher_type.value,
+                "voucher_code": self._format_voucher_identifier(voucher),
+                "value_cents": voucher.value_cents,
+                "reason": voucher.reason.value if voucher.reason else None,
+                "description": voucher.description,
+            },
+        )
 
         logger.info("Created GIFT voucher #%s: %.2f€ (%s)", voucher.voucher_number, value_cents / 100, reason)
         return voucher
@@ -201,6 +246,23 @@ class VoucherService:
         self.db.refresh(prepaid_product)
         for voucher in created_vouchers:
             self.db.refresh(voucher)
+        self._audit_voucher(
+            "CREATED",
+            voucher_reference=self._format_voucher_reference(created_vouchers),
+            created_by_user_id=created_by_user_id,
+            new_value={
+                "voucher_type": VoucherType.PREPAID.value,
+                "quantity": len(created_vouchers),
+                "value_cents": value_cents,
+                "product_id": prepaid_product.id,
+                "product_name": prepaid_product.name,
+                "voucher_codes": [
+                    self.format_voucher_identifier(voucher)
+                    for voucher in created_vouchers
+                ],
+                "description": description,
+            },
+        )
 
         logger.info(
             "Created %s PREPAID vouchers with %.2f€ and increased stock of %s",

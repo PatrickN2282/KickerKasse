@@ -38,6 +38,14 @@
         >
           ⚙️ Ext. Settings
         </button>
+        <button
+          v-if="authStore.isTopAdmin"
+          :class="['section-tab', { active: activeSection === 'auditlog' }]"
+          type="button"
+          @click="activeSection = 'auditlog'"
+        >
+          🔍 Audit-Log
+        </button>
       </div>
     </div>
 
@@ -241,6 +249,11 @@
       </div>
     </div>
 
+    <div v-if="activeSection === 'auditlog' && authStore.isTopAdmin" class="section-content">
+      <h2>Audit-Log</h2>
+      <AuditLogPanel />
+    </div>
+
     <!-- ── Ext. Settings (ADMIN / TOP_ADMIN) ──────────── -->
     <div v-if="activeSection === 'extsettings' && authStore.isAdmin" class="section-content ext-settings-section">
       <div class="page-header">
@@ -430,6 +443,7 @@
 
 <script setup>
 import { computed, onMounted, reactive, ref } from 'vue'
+import AuditLogPanel from '@/components/admin/AuditLogPanel.vue'
 import ImportExportModal from '@/components/ImportExportModal.vue'
 import { useAppSettingsStore } from '@/stores/appSettings'
 import { useNotificationStore } from '@/stores/notification'

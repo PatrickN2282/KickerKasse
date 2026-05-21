@@ -19,8 +19,51 @@ class UserService:
     def __init__(self, db: Session):
         self.db = db
         self.repo = UserRepository(db)
+
+    @staticmethod
+    def _snapshot_user(user) -> dict:
+        return {
+            "username": user.username,
+            "email": user.email,
+            "role": getattr(user.role, "value", user.role),
+            "is_active": user.is_active,
+            "member_id": user.member_id,
+        }
+
+    def _audit(
+        self,
+        action: str,
+        user,
+        performed_by_username: str | None,
+        *,
+        old_value: dict | None = None,
+        new_value: dict | None = None,
+    ) -> None:
+        try:
+            from app.services.audit_log_service import AuditLogService
+
+            AuditLogService(self.db).log(
+                entity_type="user",
+                action=action,
+                user_username=performed_by_username,
+                entity_id=user.id,
+                entity_name=user.username,
+                old_value=old_value,
+                new_value=new_value,
+            )
+            self.db.commit()
+        except Exception:
+            self.db.rollback()
     
-    def create_user(self, username: str, email: str | None, password: str, role: str = "VERKAUF"):
+    def create_user(
+        self,
+        username: str,
+        email: str | None,
+        password: str,
+        role: str = "VERKAUF",
+        *,
+        performed_by_username: str | None = None,
+    ):
         """Create a new user"""
         normalized_role = getattr(role, "value", role)
         if normalized_role == UserRole.TOP_ADMIN.value:
@@ -31,8 +74,10 @@ class UserService:
             raise ValueError(f"User {username} already exists")
         if email and self.repo.get_by_email(email):
             raise ValueError(f"Email {email} already in use")
-        
-        return self.repo.create(username, email, password, role)
+
+        user = self.repo.create(username, email, password, role)
+        self._audit("CREATED", user, performed_by_username, new_value=self._snapshot_user(user))
+        return user
 
     def create_top_admin(self, username: str, email: str | None, password: str):
         """Create the single top admin account during initial setup."""
@@ -107,7 +152,7 @@ class UserService:
             is_active=True,
         )
     
-    def update_user(self, user_id: int, **kwargs):
+    def update_user(self, user_id: int, *, performed_by_username: str | None = None, **kwargs):
         """Update user"""
         user = self.repo.get_by_id(user_id)
         if not user:
@@ -115,6 +160,8 @@ class UserService:
 
         if user.role == UserRole.TOP_ADMIN:
             raise ValueError("Top-Admin kann nicht über die Benutzerverwaltung geändert werden")
+
+        old_snapshot = self._snapshot_user(user)
 
         username = kwargs.get("username")
         if username:
@@ -131,15 +178,26 @@ class UserService:
             if existing_user and existing_user.id != user_id:
                 raise ValueError(f"Email {kwargs['email']} already in use")
 
-        return self.repo.update(user_id, **kwargs)
+        updated_user = self.repo.update(user_id, **kwargs)
+        if updated_user:
+            self._audit(
+                "UPDATED",
+                updated_user,
+                performed_by_username,
+                old_value=old_snapshot,
+                new_value=self._snapshot_user(updated_user),
+            )
+        return updated_user
     
-    def delete_user(self, user_id: int):
+    def delete_user(self, user_id: int, *, performed_by_username: str | None = None):
         """Soft-delete a user when historical references exist."""
         user = self.repo.get_by_id(user_id)
         if not user:
             return False
         if user.role == UserRole.TOP_ADMIN:
             raise ValueError("Top-Admin kann nicht gelöscht werden")
+
+        old_snapshot = self._snapshot_user(user)
 
         has_references = any([
             self.db.query(Transaction.id).filter(Transaction.user_id == user.id).first(),
@@ -152,7 +210,23 @@ class UserService:
         ])
 
         if has_references:
-            self.repo.update(user.id, is_active=False, email=None)
+            updated_user = self.repo.update(user.id, is_active=False, email=None)
+            if updated_user:
+                self._audit(
+                    "UPDATED",
+                    updated_user,
+                    performed_by_username,
+                    old_value=old_snapshot,
+                    new_value=self._snapshot_user(updated_user),
+                )
             return True
 
-        return self.repo.delete(user_id)
+        deleted = self.repo.delete(user_id)
+        if deleted:
+            self._audit(
+                "DELETED",
+                user,
+                performed_by_username,
+                old_value=old_snapshot,
+            )
+        return deleted

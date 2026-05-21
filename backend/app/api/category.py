@@ -6,6 +6,7 @@ from app.core import get_db
 from app.schemas import CategoryCreate, CategoryUpdate, CategoryResponse
 from app.repositories import CategoryRepository, UserRepository
 from app.models import UserRole
+from app.services.audit_log_service import AuditLogService
 
 router = APIRouter(prefix="/api/categories", tags=["Categories"])
 
@@ -30,6 +31,41 @@ def _require_admin(request: Request, db: Session):
 
 def _is_fixed_category(category) -> bool:
     return category and (getattr(category, "name", None) or "").strip() == INTERNAL_MATERIAL_CATEGORY_NAME
+
+
+def _serialize_category(category) -> dict:
+    return {
+        "name": category.name,
+        "description": category.description,
+        "color": category.color,
+        "is_active_in_kasse": category.is_active_in_kasse,
+        "display_order": category.display_order,
+    }
+
+
+def _log_category_change(
+    db: Session,
+    *,
+    action: str,
+    user_username: str | None,
+    entity_id: int | None,
+    entity_name: str | None,
+    old_value: dict | None = None,
+    new_value: dict | None = None,
+) -> None:
+    try:
+        AuditLogService(db).log(
+            entity_type="category",
+            action=action,
+            user_username=user_username,
+            entity_id=entity_id,
+            entity_name=entity_name,
+            old_value=old_value,
+            new_value=new_value,
+        )
+        db.commit()
+    except Exception:
+        db.rollback()
 
 
 @router.get("/", response_model=list[CategoryResponse])
@@ -83,7 +119,7 @@ async def create_category(
     db: Session = Depends(get_db),
 ):
     """Create a new category (admin only)"""
-    _require_admin(request, db)
+    current_user = _require_admin(request, db)
     
     try:
         repo = CategoryRepository(db)
@@ -93,6 +129,14 @@ async def create_category(
             color=category_data.color,
             is_active_in_kasse=category_data.is_active_in_kasse,
             display_order=category_data.display_order,
+        )
+        _log_category_change(
+            db,
+            action="CREATED",
+            user_username=current_user.username,
+            entity_id=category.id,
+            entity_name=category.name,
+            new_value=_serialize_category(category),
         )
         return category
     except IntegrityError as e:
@@ -112,7 +156,7 @@ async def update_category(
     db: Session = Depends(get_db),
 ):
     """Update category (admin only)"""
-    _require_admin(request, db)
+    current_user = _require_admin(request, db)
     
     try:
         repo = CategoryRepository(db)
@@ -122,6 +166,7 @@ async def update_category(
                 status_code=status.HTTP_400_BAD_REQUEST,
                 detail="Diese feste Kategorie kann nicht bearbeitet werden",
             )
+        old_snapshot = _serialize_category(existing_category) if existing_category else None
         category = repo.update(
             category_id,
             name=category_data.name,
@@ -135,6 +180,15 @@ async def update_category(
                 status_code=status.HTTP_404_NOT_FOUND,
                 detail="Category not found",
             )
+        _log_category_change(
+            db,
+            action="UPDATED",
+            user_username=current_user.username,
+            entity_id=category.id,
+            entity_name=category.name,
+            old_value=old_snapshot,
+            new_value=_serialize_category(category),
+        )
         return category
     except IntegrityError as e:
         db.rollback()
@@ -152,7 +206,7 @@ async def delete_category(
     db: Session = Depends(get_db),
 ):
     """Delete category (admin only)"""
-    _require_admin(request, db)
+    current_user = _require_admin(request, db)
     
     repo = CategoryRepository(db)
     category = repo.get_by_id(category_id)
@@ -161,11 +215,20 @@ async def delete_category(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="Diese feste Kategorie kann nicht gelöscht werden",
         )
+    old_snapshot = _serialize_category(category) if category else None
     if not repo.delete(category_id):
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="Category not found",
         )
+    _log_category_change(
+        db,
+        action="DELETED",
+        user_username=current_user.username,
+        entity_id=category_id,
+        entity_name=category.name if category else None,
+        old_value=old_snapshot,
+    )
 
 
 @router.post("/{category_id}/products")
@@ -177,7 +240,7 @@ async def assign_products_to_category(
     db: Session = Depends(get_db),
 ):
     """Assign multiple products to a category (admin only)."""
-    _require_admin(request, db)
+    current_user = _require_admin(request, db)
 
     from app.models import Category, Product
 
@@ -198,6 +261,19 @@ async def assign_products_to_category(
             assigned += 1
 
     db.commit()
+    if assigned:
+        _log_category_change(
+            db,
+            action="UPDATED",
+            user_username=current_user.username,
+            entity_id=category.id,
+            entity_name=category.name,
+            new_value={
+                "operation": "assign_products",
+                "assigned_product_ids": sorted(set(product_ids)),
+                "assigned_count": assigned,
+            },
+        )
     return {"status": "success", "assigned": assigned, "category_id": category_id}
 
 
@@ -210,7 +286,7 @@ async def remove_product_from_category(
     db: Session = Depends(get_db),
 ):
     """Remove one product from a category (admin only)."""
-    _require_admin(request, db)
+    current_user = _require_admin(request, db)
 
     from app.models import Category, Product
 
@@ -231,5 +307,17 @@ async def remove_product_from_category(
     if category in product.categories:
         product.categories.remove(category)
         db.commit()
+        _log_category_change(
+            db,
+            action="UPDATED",
+            user_username=current_user.username,
+            entity_id=category.id,
+            entity_name=category.name,
+            new_value={
+                "operation": "remove_product",
+                "product_id": product.id,
+                "product_name": product.name,
+            },
+        )
 
     return {"status": "success", "category_id": category_id, "product_id": product_id}

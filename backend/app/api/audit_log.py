@@ -31,7 +31,7 @@ async def get_audit_log(
     limit: int = 200,
     db: Session = Depends(get_db),
 ):
-    """Return audit log entries (admin only), newest first."""
-    require_roles(request, db, UserRole.ADMIN)
+    """Return audit log entries (top admin only), newest first."""
+    require_roles(request, db, UserRole.TOP_ADMIN)
     entries = AuditLogService(db).get_all(skip=skip, limit=limit)
     return [_serialize_entry(e) for e in entries]

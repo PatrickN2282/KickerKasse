@@ -38,7 +38,7 @@ async def create_user(
     request: Request,
     db: Session = Depends(get_db),
 ):
-    require_roles(request, db, UserRole.ADMIN)
+    current_user = require_roles(request, db, UserRole.ADMIN)
     service = UserService(db)
     try:
         return service.create_user(
@@ -46,6 +46,7 @@ async def create_user(
             user_data.email,
             user_data.password,
             user_data.role,
+            performed_by_username=current_user.username,
         )
     except IntegrityError as exc:
         db.rollback()
@@ -79,9 +80,13 @@ async def update_user(
     request: Request,
     db: Session = Depends(get_db),
 ):
-    require_roles(request, db, UserRole.ADMIN)
+    current_user = require_roles(request, db, UserRole.ADMIN)
     try:
-        user = UserService(db).update_user(user_id, **user_data.model_dump(exclude_unset=True))
+        user = UserService(db).update_user(
+            user_id,
+            performed_by_username=current_user.username,
+            **user_data.model_dump(exclude_unset=True),
+        )
         if not user:
             raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="User not found")
         return user
@@ -102,9 +107,9 @@ async def delete_user(
     request: Request,
     db: Session = Depends(get_db),
 ):
-    require_roles(request, db, UserRole.ADMIN)
+    current_user = require_roles(request, db, UserRole.ADMIN)
     try:
-        deleted = UserService(db).delete_user(user_id)
+        deleted = UserService(db).delete_user(user_id, performed_by_username=current_user.username)
     except IntegrityError as exc:
         db.rollback()
         raise HTTPException(
