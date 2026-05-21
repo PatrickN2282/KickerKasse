@@ -99,7 +99,13 @@ const formatTimestamp = (value) => new Date(value).toLocaleString('de-DE', {
 })
 
 const auditActionLabel = (action) => {
-  const map = { CREATED: 'Erstellt', UPDATED: 'Geändert', DELETED: 'Gelöscht' }
+  const map = {
+    CREATED: 'Erstellt',
+    UPDATED: 'Geändert',
+    DELETED: 'Gelöscht',
+    RECHARGED: 'Guthaben +',
+    RESTOCKED: 'Bestand +',
+  }
   return map[action] || action
 }
 
@@ -240,6 +246,16 @@ onMounted(() => {
   &--deleted {
     background: #fee2e2;
     color: #991b1b;
+  }
+
+  &--recharged {
+    background: #dbeafe;
+    color: #1d4ed8;
+  }
+
+  &--restocked {
+    background: #e0e7ff;
+    color: #4338ca;
   }
 }
 
