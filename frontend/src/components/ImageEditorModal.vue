@@ -302,7 +302,16 @@ const onCropTouchMove = (event) => {
     const dy = event.touches[0].clientY - event.touches[1].clientY
     const dist = Math.hypot(dx, dy)
     const newScale = Math.max(cropMinScale.value, Math.min(cropMinScale.value * 5, cropScale.value * (dist / cropLastPinchDist.value)))
-    const frameRect = cropFrameEl.value?.getBoundingClientRect() || { left: 0, top: 0 }
+    const frameRect = cropFrameEl.value?.getBoundingClientRect() || {
+      left: 0,
+      top: 0,
+      right: 0,
+      bottom: 0,
+      width: 0,
+      height: 0,
+      x: 0,
+      y: 0,
+    }
     const midX = (event.touches[0].clientX + event.touches[1].clientX) / 2 - frameRect.left
     const midY = (event.touches[0].clientY + event.touches[1].clientY) / 2 - frameRect.top
     zoomAroundPoint(newScale, midX, midY)

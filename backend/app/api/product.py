@@ -268,7 +268,7 @@ async def upload_product_image(
 @router.delete("/{product_id}/image/")
 async def delete_product_image_file(
     product_id: int,
-    request: Request = None,
+    request: Request,
     db: Session = Depends(get_db),
 ):
     """Delete product image and reset stored image path."""

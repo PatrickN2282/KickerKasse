@@ -434,7 +434,7 @@ async def upload_member_photo(
 @router.delete("/{member_id}/photo/")
 async def delete_member_photo_file(
     member_id: int,
-    request: Request = None,
+    request: Request,
     db: Session = Depends(get_db),
 ):
     """Delete member photo and reset stored photo path."""

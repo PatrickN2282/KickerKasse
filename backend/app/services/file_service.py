@@ -37,7 +37,7 @@ def _resolve_entity_directory(base_dir: Path, entity_id: int) -> Path:
 
     base_path = base_dir.resolve()
     entity_path = (base_path / str(normalized_id)).resolve()
-    entity_path.relative_to(base_path)
+    _ = entity_path.relative_to(base_path)
     return entity_path
 
 
