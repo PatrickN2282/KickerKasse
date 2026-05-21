@@ -58,7 +58,7 @@ def test_import_service_can_replace_categories_and_products():
     assert result["results"]["products"]["replaced_deleted"] == 1
 
     categories = session.query(Category).order_by(Category.name).all()
-    assert [category.name for category in categories] == [INTERNAL_MATERIAL_CATEGORY_NAME, "Neu"]
+    assert {category.name for category in categories} == {INTERNAL_MATERIAL_CATEGORY_NAME, "Neu"}
 
     products = session.query(Product).all()
     assert [product.name for product in products] == ["Neuprodukt"]

@@ -202,6 +202,8 @@ class ImportExportService:
 
         try:
             replaced_counts = self._replace_selected_sections(normalized_replace_sections, deleted_media_ids)
+            if normalized_replace_sections:
+                self.db.expunge_all()
 
             results = {}
             for section in SECTION_ORDER:
