@@ -441,7 +441,7 @@ async def upload_member_photo(
 async def upload_member_original_photo(
     member_id: int,
     file: UploadFile = File(...),
-    request: Request = None,
+    request: Request,
     db: Session = Depends(get_db),
 ):
     require_roles(request, db, UserRole.ADMIN, UserRole.MANAGER)

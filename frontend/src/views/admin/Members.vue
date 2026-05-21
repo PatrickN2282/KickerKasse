@@ -436,7 +436,7 @@ const syncMemberPhoto = async (memberId) => {
         credentials: 'include'
       })
     } catch (error) {
-      console.error('Failed to back up original member photo raw payload:', error)
+      console.error('Failed to upload original member photo:', error)
     }
   }
 
@@ -473,10 +473,9 @@ const dataUrlToBlob = (dataUrl) => {
     }
     const mime = mimeMatch[1]
     const bStr = atob(parts[1])
-    let n = bStr.length
-    const u8arr = new Uint8Array(n)
-    while (n--) {
-      u8arr[n] = bStr.charCodeAt(n)
+    const u8arr = new Uint8Array(bStr.length)
+    for (let index = 0; index < bStr.length; index += 1) {
+      u8arr[index] = bStr.charCodeAt(index)
     }
     resolve(new Blob([u8arr], { type: mime }))
   })
