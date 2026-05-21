@@ -109,33 +109,27 @@
                 <span class="section-label">Produktbild Vorschau</span>
                 
                 <template v-if="imagePreviewSrc">
-                  <div class="kasse-card-preview">
-                    <div class="card-img">
-                      <span v-if="formData.memberPrice !== null && formData.memberPrice !== ''" class="card-badge discount-badge">Rabatt</span>
-                      <img
-                        :src="imagePreviewSrc"
-                        class="preview-crop-img preview-static-img"
-                        draggable="false"
-                        alt=""
-                      >
-                    </div>
-                    <div class="card-body">
-                      <div class="card-name">{{ formData.name || 'Produktname' }}</div>
-                      <div class="card-bottom">
-                        <span class="card-price">{{ previewPriceText }}</span>
-                        <span class="card-stock">{{ formData.isUnlimitedStock ? '∞' : formData.stock }}</span>
+                  <button type="button" class="image-preview-trigger" @click="openCropModalFromCurrentImage">
+                    <div class="kasse-card-preview interactive-image-card">
+                      <div class="card-img">
+                        <span v-if="formData.memberPrice !== null && formData.memberPrice !== ''" class="card-badge discount-badge">Rabatt</span>
+                        <img
+                          :src="imagePreviewSrc"
+                          class="preview-crop-img preview-static-img"
+                          draggable="false"
+                          alt=""
+                        >
+                        <span class="image-preview-overlay">Anpassen</span>
+                      </div>
+                      <div class="card-body">
+                        <div class="card-name">{{ formData.name || 'Produktname' }}</div>
+                        <div class="card-bottom">
+                          <span class="card-price">{{ previewPriceText }}</span>
+                          <span class="card-stock">{{ formData.isUnlimitedStock ? '∞' : formData.stock }}</span>
+                        </div>
                       </div>
                     </div>
-                  </div>
-                  
-                  <div class="image-action-buttons">
-                    <button type="button" class="btn-action btn-sm" @click="openCropModalFromCurrentImage">✂ Zuschneiden</button>
-                    <label class="upload-button btn-sm">
-                      Ändern
-                      <input type="file" accept="image/*" hidden @change="handleImageUpload">
-                    </label>
-                    <button type="button" class="btn-action btn-sm btn-action-danger" @click="requestImageRemoval">🗑 Löschen</button>
-                  </div>
+                  </button>
                 </template>
 
                 <template v-else>
@@ -236,8 +230,11 @@
     :output-width="600"
     :can-restore="Boolean(imageOriginalSrc || imagePreviewSrc)"
     restore-label="Ausgangsbild wiederherstellen"
+    :can-delete="Boolean(imagePreviewSrc || persistedImageExists)"
+    delete-label="Bild löschen"
     @close="handleCropClose"
     @apply="handleCropApply"
+    @delete="requestImageRemoval"
   />
 </template>
 
@@ -406,6 +403,7 @@ const requestImageRemoval = () => {
   cropModalImageSrc.value = null
   pendingOriginalImageSrc.value = null
   imagePendingOriginalUpload.value = false
+  showCropModal.value = false
   imageDeleteRequested.value = Boolean(editingId.value && persistedImageExists.value)
 }
 
@@ -945,6 +943,57 @@ onMounted(async () => {
 .btn-sm {
   padding: 0.4rem 0.6rem;
   font-size: 0.8rem;
+}
+
+.image-preview-trigger {
+  display: block;
+  width: 100%;
+  padding: 0;
+  border: none;
+  background: transparent;
+  text-align: left;
+  cursor: pointer;
+}
+
+.interactive-image-card {
+  transition: transform 0.15s ease, box-shadow 0.15s ease, border-color 0.15s ease;
+
+  .card-img {
+    position: relative;
+  }
+}
+
+.image-preview-overlay {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(15, 23, 42, 0.58);
+  color: #fff;
+  font-size: 0.9rem;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  opacity: 0;
+  transition: opacity 0.15s ease;
+}
+
+.image-preview-trigger:hover .interactive-image-card,
+.image-preview-trigger:focus-visible .interactive-image-card {
+  transform: translateY(-1px);
+  border-color: #93c5fd;
+  box-shadow: 0 8px 18px rgba(14, 165, 233, 0.18);
+}
+
+.image-preview-trigger:hover .image-preview-overlay,
+.image-preview-trigger:focus-visible .image-preview-overlay {
+  opacity: 1;
+}
+
+.image-preview-trigger:focus-visible {
+  outline: 2px solid #38bdf8;
+  outline-offset: 4px;
+  border-radius: 12px;
 }
 
 .hint-upload {

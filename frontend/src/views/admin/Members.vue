@@ -109,19 +109,27 @@
               <!-- LINKE SEITE: Foto & Rabatt-Checkbox -->
               <div class="image-upload-section">
                 <span class="section-label">Foto</span>
-                <div class="avatar-display compact-avatar">
-                  <img v-if="photoPreview" :src="photoPreview" class="profile-img">
-                  <div v-else class="photo-placeholder">
+                <button
+                  v-if="photoPreview"
+                  type="button"
+                  class="image-preview-trigger"
+                  @click="openPhotoEditor"
+                >
+                  <div class="avatar-display compact-avatar interactive-image-frame">
+                    <img :src="photoPreview" class="profile-img">
+                    <span class="image-preview-overlay">Anpassen</span>
+                  </div>
+                </button>
+                <div v-else class="avatar-display compact-avatar">
+                  <div class="photo-placeholder">
                     <span>Kein Bild ausgewählt</span>
                   </div>
                 </div>
-                <div class="image-action-buttons">
-                  <button v-if="photoPreview" type="button" class="btn-action" @click="openPhotoEditor">✂ Zuschneiden</button>
+                <div v-if="!photoPreview" class="image-action-buttons">
                   <label class="upload-button btn-action">
-                    {{ photoPreview ? 'Ändern' : 'Bild auswählen' }}
+                    Bild auswählen
                     <input ref="fileInput" type="file" hidden @change="handlePhotoUpload" accept="image/*">
                   </label>
-                  <button v-if="photoPreview" type="button" class="btn-action btn-action-danger" @click="requestPhotoRemoval">🗑 Löschen</button>
                 </div>
 
                 <!-- Hierher verschoben: Rabattberechtigt-Checkbox -->
@@ -235,8 +243,11 @@
       :output-width="560"
       :can-restore="Boolean(photoOriginalSrc || photoPreview)"
       restore-label="Ausgangsbild wiederherstellen"
+      :can-delete="Boolean(photoPreview || persistedPhotoExists)"
+      delete-label="Foto löschen"
       @close="closePhotoEditor"
       @apply="handlePhotoCropApply"
+      @delete="requestPhotoRemoval"
     />
   </div>
 </template>
@@ -732,6 +743,52 @@ onMounted(() => memberStore.getMembers())
     justify-content: center;
     text-align: center;
   }
+}
+
+.image-preview-trigger {
+  display: block;
+  width: 100%;
+  padding: 0;
+  border: none;
+  background: transparent;
+  cursor: pointer;
+}
+
+.interactive-image-frame {
+  transition: transform 0.15s ease, box-shadow 0.15s ease, border-color 0.15s ease;
+}
+
+.image-preview-overlay {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(15, 23, 42, 0.58);
+  color: #fff;
+  font-size: 0.9rem;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  opacity: 0;
+  transition: opacity 0.15s ease;
+}
+
+.image-preview-trigger:hover .interactive-image-frame,
+.image-preview-trigger:focus-visible .interactive-image-frame {
+  transform: translateY(-1px);
+  border-color: #93c5fd;
+  box-shadow: 0 8px 18px rgba(14, 165, 233, 0.18);
+}
+
+.image-preview-trigger:hover .image-preview-overlay,
+.image-preview-trigger:focus-visible .image-preview-overlay {
+  opacity: 1;
+}
+
+.image-preview-trigger:focus-visible {
+  outline: 2px solid #38bdf8;
+  outline-offset: 4px;
+  border-radius: 14px;
 }
 
 .avatar-display {
