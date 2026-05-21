@@ -112,6 +112,34 @@ async def save_member_photo(file: UploadFile, member_id: int) -> str:
     return f"members/{member_id}/photo{ext}"
 
 
+async def save_member_original_photo(file: UploadFile, member_id: int) -> str:
+    ensure_upload_directories()
+
+    member_folder = _resolve_entity_directory(MEMBERS_DIR, member_id)
+    member_folder.mkdir(parents=True, exist_ok=True)
+
+    ext = get_file_extension(file.filename or "photo.jpg")
+    filename = f"original{ext}"
+    filepath = member_folder / filename
+
+    content = await file.read()
+    with open(filepath, "wb") as f:
+        f.write(content)
+
+    return f"members/{member_id}/original{ext}"
+
+
+def get_member_original_photo_path(member_id: int) -> Path | None:
+    member_folder = _resolve_entity_directory(MEMBERS_DIR, member_id)
+    if not member_folder.exists():
+        return None
+    for ext in (".jpg", ".jpeg", ".png", ".webp", ".gif"):
+        candidate = member_folder / f"original{ext}"
+        if candidate.exists():
+            return candidate
+    return None
+
+
 async def save_app_logo(file: UploadFile) -> str:
     ensure_upload_directories()
 

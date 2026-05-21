@@ -227,13 +227,13 @@
   <ImageEditorModal
     :show="showCropModal"
     :image-src="cropModalImageSrc"
-    :restore-source="imageOriginalSrc || imagePreviewSrc"
+    :restore-source="productRestoreSrc"
     title="Produktbild bearbeiten"
     subtitle="Verschieben und zoomen, um den Ausschnitt für die Kassenkarte festzulegen."
     :aspect-ratio="3 / 2"
     :frame-width="320"
     :output-width="600"
-    :can-restore="Boolean(imageOriginalSrc || imagePreviewSrc)"
+    :can-restore="Boolean(productRestoreSrc)"
     restore-label="Ausgangsbild wiederherstellen"
     :can-delete="Boolean(imagePreviewSrc || persistedImageExists)"
     delete-label="Bild löschen"
@@ -266,6 +266,8 @@ const imagePendingOriginalUpload = ref(false)
 const persistedImageExists = ref(false)
 const lastFiniteStock = ref(0)
 const productSearch = ref('')
+
+const productRestoreSrc = computed(() => pendingOriginalImageSrc.value || imageOriginalSrc.value)
 
 const formData = reactive({
   name: '',
@@ -353,6 +355,8 @@ const readFileAsDataUrl = (file) => {
   })
 }
 
+const withCacheBust = (url, token = Date.now()) => `${url}?t=${token}`
+
 const checkImageExists = async (url) => {
   try {
     const response = await fetch(url, { credentials: 'include' })
@@ -378,7 +382,7 @@ const handleCropClose = () => {
 const handleCropApply = ({ blob, dataUrl }) => {
   imageFile.value = new File([blob], 'product-image.jpg', { type: 'image/jpeg' })
   imagePreviewSrc.value = dataUrl
-  imageOriginalSrc.value = pendingOriginalImageSrc.value || imageOriginalSrc.value || imagePreviewSrc.value
+  imageOriginalSrc.value = pendingOriginalImageSrc.value || imageOriginalSrc.value
   imagePendingOriginalUpload.value = Boolean(pendingOriginalImageSrc.value)
   imageDeleteRequested.value = false
   showCropModal.value = false
@@ -600,11 +604,12 @@ const editProduct = async (product) => {
   showProductModal.value = true
 
   if (product.image_path) {
-    const previewUrl = `/api/products/${product.id}/image`
+    const cacheBust = Date.now()
+    const previewUrl = withCacheBust(`/api/products/${product.id}/image`, cacheBust)
     imagePreviewSrc.value = previewUrl
-    imageOriginalSrc.value = previewUrl
+    imageOriginalSrc.value = null
     try {
-      const originalUrl = `/api/products/${product.id}/original-image`
+      const originalUrl = withCacheBust(`/api/products/${product.id}/original-image`, cacheBust)
       if (await checkImageExists(originalUrl)) {
         imageOriginalSrc.value = originalUrl
       }
