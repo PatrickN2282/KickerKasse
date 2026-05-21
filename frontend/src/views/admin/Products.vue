@@ -109,7 +109,12 @@
                 <span class="section-label">Produktbild Vorschau</span>
                 
                 <template v-if="imagePreviewSrc">
-                  <button type="button" class="image-preview-trigger" @click="openCropModalFromCurrentImage">
+                  <button
+                    type="button"
+                    class="image-preview-trigger"
+                    aria-label="Produktbild anpassen"
+                    @click="openCropModalFromCurrentImage"
+                  >
                     <div class="kasse-card-preview interactive-image-card">
                       <div class="card-img">
                         <span v-if="formData.memberPrice !== null && formData.memberPrice !== ''" class="card-badge discount-badge">Rabatt</span>

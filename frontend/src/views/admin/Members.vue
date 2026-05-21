@@ -113,6 +113,7 @@
                   v-if="photoPreview"
                   type="button"
                   class="image-preview-trigger"
+                  aria-label="Foto anpassen"
                   @click="openPhotoEditor"
                 >
                   <div class="avatar-display compact-avatar interactive-image-frame">
@@ -788,7 +789,7 @@ onMounted(() => memberStore.getMembers())
 .image-preview-trigger:focus-visible {
   outline: 2px solid #38bdf8;
   outline-offset: 4px;
-  border-radius: 14px;
+  border-radius: 12px;
 }
 
 .avatar-display {
