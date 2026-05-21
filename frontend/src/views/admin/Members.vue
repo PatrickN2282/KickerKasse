@@ -474,8 +474,8 @@ const dataUrlToBlob = (dataUrl) => {
     const mime = mimeMatch[1]
     const bStr = atob(parts[1])
     const u8arr = new Uint8Array(bStr.length)
-    for (let index = 0; index < bStr.length; index += 1) {
-      u8arr[index] = bStr.charCodeAt(index)
+    for (let i = 0; i < bStr.length; i += 1) {
+      u8arr[i] = bStr.charCodeAt(i)
     }
     resolve(new Blob([u8arr], { type: mime }))
   })
@@ -543,8 +543,6 @@ const editMember = async (member) => {
     const originalUrl = withCacheBust(`/api/members/${member.id}/original-photo`, cacheBust)
     if (await checkImageExists(originalUrl)) {
       photoOriginalSrc.value = originalUrl
-    } else {
-      photoOriginalSrc.value = null
     }
   }
 }

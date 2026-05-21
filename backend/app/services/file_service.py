@@ -1,5 +1,6 @@
 """File handling service for product images, member photos and branding assets."""
 from io import BytesIO
+from mimetypes import guess_type
 from pathlib import Path
 
 from fastapi import UploadFile
@@ -190,3 +191,9 @@ def get_full_path(relative_path: str) -> Path | None:
     if not relative_path:
         return None
     return UPLOADS_DIR / relative_path
+
+
+def get_media_type(file_path: Path) -> str:
+    """Return the detected MIME type for a stored file path."""
+    media_type, _ = guess_type(file_path.name)
+    return media_type or "application/octet-stream"

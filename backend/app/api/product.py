@@ -17,6 +17,7 @@ from app.services.file_service import (
     save_product_original_image,
     get_full_path,
     get_product_original_image_path,
+    get_media_type,
     delete_product_image,
 )
 from app.repositories import ProductRepository, UserRepository
@@ -313,7 +314,7 @@ async def get_product_image(
             detail="Image file not found",
         )
     
-    return FileResponse(file_path, media_type="image/jpeg")
+    return FileResponse(file_path, media_type=get_media_type(file_path))
 
 
 @router.post("/{product_id}/original-image")
@@ -365,7 +366,7 @@ async def get_product_original_image(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="Original image not found",
         )
-    return FileResponse(file_path, media_type="image/jpeg")
+    return FileResponse(file_path, media_type=get_media_type(file_path))
 
 
 @router.post("/{product_id}/categories")

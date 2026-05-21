@@ -18,12 +18,14 @@ from app.services.file_service import (
     save_member_original_photo,
     get_full_path,
     get_member_original_photo_path,
+    get_media_type,
     delete_member_photo,
 )
 from app.repositories import MemberRepository, UserRepository
 from app.models import UserRole
 
 router = APIRouter(prefix="/api/members", tags=["Members"])
+MAX_PHOTO_SIZE_BYTES = 5 * 1024 * 1024
 
 
 class MemberRechargeRequest(BaseModel):
@@ -418,7 +420,7 @@ async def upload_member_photo(
         )
     
     # Limit file size to 5MB
-    if len(image_data) > 5 * 1024 * 1024:
+    if len(image_data) > MAX_PHOTO_SIZE_BYTES:
         raise HTTPException(
             status_code=status.HTTP_413_REQUEST_ENTITY_TOO_LARGE,
             detail="File too large (max 5MB)",
@@ -461,7 +463,7 @@ async def upload_member_original_photo(
             detail="Empty file",
         )
 
-    if len(image_data) > 5 * 1024 * 1024:
+    if len(image_data) > MAX_PHOTO_SIZE_BYTES:
         raise HTTPException(
             status_code=status.HTTP_413_REQUEST_ENTITY_TOO_LARGE,
             detail="File too large (max 5MB)",
@@ -521,7 +523,7 @@ async def get_member_photo(
             detail="Photo file not found",
         )
     
-    return FileResponse(file_path, media_type="image/jpeg")
+    return FileResponse(file_path, media_type=get_media_type(file_path))
 
 
 @router.get("/{member_id}/original-photo")
@@ -545,4 +547,4 @@ async def get_member_original_photo(
             detail="Original photo not found",
         )
 
-    return FileResponse(file_path, media_type="image/jpeg")
+    return FileResponse(file_path, media_type=get_media_type(file_path))
