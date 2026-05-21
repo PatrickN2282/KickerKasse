@@ -701,7 +701,7 @@ class ImportExportService:
         return deleted_count
 
     def _replace_products(self, deleted_media_ids: list[int]) -> int:
-        product_ids = [product_id for (product_id,) in self.db.query(Product.id).all()]
+        product_ids = [row[0] for row in self.db.query(Product.id).all()]
         if not product_ids:
             return 0
 
@@ -736,7 +736,7 @@ class ImportExportService:
         return deleted_count
 
     def _replace_members(self, deleted_media_ids: list[int]) -> int:
-        member_ids = [member_id for (member_id,) in self.db.query(Member.id).all()]
+        member_ids = [row[0] for row in self.db.query(Member.id).all()]
         if not member_ids:
             return 0
 
