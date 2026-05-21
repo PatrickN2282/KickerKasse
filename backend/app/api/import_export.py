@@ -83,6 +83,7 @@ async def import_data(
     data_file: UploadFile = File(...),
     media_file: UploadFile | None = File(default=None),
     selected_sections: str | None = Form(default=None),
+    replace_sections: str | None = Form(default=None),
     import_media: str | None = Form(default=None),
     db: Session = Depends(get_db),
 ):
@@ -90,6 +91,7 @@ async def import_data(
 
     try:
         sections = _parse_sections(selected_sections)
+        replace = _parse_sections(replace_sections)
     except ValueError as exc:
         raise HTTPException(status_code=400, detail=str(exc)) from exc
 
@@ -98,6 +100,7 @@ async def import_data(
         data_file.filename or "import.csv",
         await data_file.read(),
         sections,
+        replace_sections=replace,
         import_media=_parse_bool(import_media),
         media_file_name=media_file.filename if media_file else None,
         media_content=await media_file.read() if media_file else None,

@@ -13,6 +13,7 @@ def anyio_backend():
 class DummyImportExportService:
     def __init__(self, db):
         self.db = db
+        self.last_replace_sections = None
 
     def export_sections(self, sections, include_media):
         return b"zip-content", "application/zip", "import-export.zip"
@@ -34,10 +35,12 @@ class DummyImportExportService:
         content,
         sections=None,
         *,
+        replace_sections=None,
         import_media=False,
         media_file_name=None,
         media_content=None,
     ):
+        self.last_replace_sections = replace_sections
         return {
             "imported_sections": sections or ["products"],
             "results": {
@@ -55,15 +58,16 @@ def create_app(monkeypatch):
     app.include_router(import_export_api.router)
     app.dependency_overrides[import_export_api.get_db] = lambda: None
 
+    service = DummyImportExportService(None)
     monkeypatch.setattr(import_export_api, "require_roles", lambda *args, **kwargs: None)
-    monkeypatch.setattr(import_export_api, "ImportExportService", DummyImportExportService)
+    monkeypatch.setattr(import_export_api, "ImportExportService", lambda db: service)
 
-    return app
+    return app, service
 
 
 @pytest.mark.anyio
 async def test_export_endpoint_accepts_both_trailing_slash_variants(monkeypatch):
-    app = create_app(monkeypatch)
+    app, _ = create_app(monkeypatch)
 
     async with httpx.AsyncClient(transport=httpx.ASGITransport(app=app), base_url="http://testserver") as client:
         for path in (
@@ -79,7 +83,7 @@ async def test_export_endpoint_accepts_both_trailing_slash_variants(monkeypatch)
 
 @pytest.mark.anyio
 async def test_analyze_endpoint_accepts_both_trailing_slash_variants(monkeypatch):
-    app = create_app(monkeypatch)
+    app, _ = create_app(monkeypatch)
 
     async with httpx.AsyncClient(transport=httpx.ASGITransport(app=app), base_url="http://testserver") as client:
         for path in (
@@ -97,7 +101,7 @@ async def test_analyze_endpoint_accepts_both_trailing_slash_variants(monkeypatch
 
 @pytest.mark.anyio
 async def test_import_endpoint_accepts_both_trailing_slash_variants(monkeypatch):
-    app = create_app(monkeypatch)
+    app, _ = create_app(monkeypatch)
 
     async with httpx.AsyncClient(transport=httpx.ASGITransport(app=app), base_url="http://testserver") as client:
         for path in (
@@ -115,3 +119,22 @@ async def test_import_endpoint_accepts_both_trailing_slash_variants(monkeypatch)
 
             assert response.status_code == 200
             assert response.json()["imported_sections"] == ["products"]
+
+
+@pytest.mark.anyio
+async def test_import_endpoint_passes_replace_sections(monkeypatch):
+    app, service = create_app(monkeypatch)
+
+    async with httpx.AsyncClient(transport=httpx.ASGITransport(app=app), base_url="http://testserver") as client:
+        response = await client.post(
+            "/api/admin/import-export/import",
+            data={
+                "selected_sections": '["products"]',
+                "replace_sections": '["products"]',
+                "import_media": "false",
+            },
+            files={"data_file": ("products.csv", b"dataset,name\nproducts,Test\n", "text/csv")},
+        )
+
+    assert response.status_code == 200
+    assert service.last_replace_sections == ["products"]
