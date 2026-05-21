@@ -392,7 +392,7 @@ async def upload_member_photo(
     db: Session = Depends(get_db),
 ):
     """Upload member photo"""
-    require_roles(request, db, UserRole.ADMIN, UserRole.MANAGER)
+    current_user = require_roles(request, db, UserRole.ADMIN, UserRole.MANAGER)
     
     # Check if member exists
     member_repo = MemberRepository(db)
@@ -424,6 +424,17 @@ async def upload_member_photo(
     
     # Update member with photo path
     member.photo_path = photo_path
+
+    from app.services.audit_log_service import AuditLogService
+    AuditLogService(db).log(
+        entity_type="member",
+        action="IMAGE_UPDATED",
+        user_username=current_user.username,
+        entity_id=member_id,
+        entity_name=member.name,
+        new_value={"photo_path": photo_path},
+    )
+
     db.commit()
     db.refresh(member)
     

@@ -228,7 +228,7 @@ async def upload_product_image(
     db: Session = Depends(get_db),
 ):
     """Upload product image"""
-    require_roles(request, db, UserRole.ADMIN, UserRole.MANAGER)
+    current_user = require_roles(request, db, UserRole.ADMIN, UserRole.MANAGER)
     
     # Check if product exists
     product_repo = ProductRepository(db)
@@ -260,6 +260,17 @@ async def upload_product_image(
     
     # Update product with image path
     product.image_path = image_path
+
+    from app.services.audit_log_service import AuditLogService
+    AuditLogService(db).log(
+        entity_type="product",
+        action="IMAGE_UPDATED",
+        user_username=current_user.username,
+        entity_id=product_id,
+        entity_name=product.name,
+        new_value={"image_path": image_path},
+    )
+
     db.commit()
     db.refresh(product)
     
