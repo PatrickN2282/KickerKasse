@@ -8,6 +8,7 @@ from .category import Category, product_category
 from .transaction import Transaction, TransactionItem, TransactionType, PaymentMethod
 from .balance_log import BalanceLog
 from .member_balance_correction_log import MemberBalanceCorrectionLog
+from .audit_log import AuditLog
 from .zbon_history import ZBonHistory
 from .cash_management import CashBalance, CashEntry, CashEntryType
 from .voucher import Voucher, VoucherType, VoucherStatus, VoucherReason
@@ -31,6 +32,7 @@ __all__ = [
     "PaymentMethod",
     "BalanceLog",
     "MemberBalanceCorrectionLog",
+    "AuditLog",
     "ZBonHistory",
     "CashBalance",
     "CashEntry",

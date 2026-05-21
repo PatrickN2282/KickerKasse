@@ -34,7 +34,7 @@ async def create_product(
     db: Session = Depends(get_db),
 ):
     """Create a new product"""
-    require_roles(request, db, UserRole.ADMIN, UserRole.MANAGER)
+    current_user = require_roles(request, db, UserRole.ADMIN, UserRole.MANAGER)
     
     try:
         service = ProductService(db)
@@ -48,9 +48,10 @@ async def create_product(
             product_data.is_unlimited_stock,
             product_data.warengruppe,
             product_data.is_variable_price,
+            performed_by_username=current_user.username,
         )
         return product
-    except IntegrityError as e:
+    except IntegrityError:
         db.rollback()
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
@@ -122,12 +123,12 @@ async def update_product(
     db: Session = Depends(get_db),
 ):
     """Update product"""
-    require_roles(request, db, UserRole.ADMIN, UserRole.MANAGER)
+    current_user = require_roles(request, db, UserRole.ADMIN, UserRole.MANAGER)
     
     try:
         service = ProductService(db)
         update_dict = product_data.dict(exclude_unset=True)
-        product = service.update_product(product_id, **update_dict)
+        product = service.update_product(product_id, performed_by_username=current_user.username, **update_dict)
         if not product:
             raise HTTPException(
                 status_code=status.HTTP_404_NOT_FOUND,
@@ -208,10 +209,10 @@ async def delete_product(
     db: Session = Depends(get_db),
 ):
     """Delete product (soft delete)"""
-    require_roles(request, db, UserRole.ADMIN, UserRole.MANAGER)
+    current_user = require_roles(request, db, UserRole.ADMIN, UserRole.MANAGER)
     
     service = ProductService(db)
-    if not service.delete_product(product_id):
+    if not service.delete_product(product_id, performed_by_username=current_user.username):
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="Product not found",

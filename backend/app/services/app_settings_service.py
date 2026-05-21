@@ -79,8 +79,19 @@ class AppSettingsService:
         })
         return payload
 
-    def update_settings(self, **kwargs) -> AppSettings:
+    def update_settings(self, performed_by_username: str | None = None, **kwargs) -> AppSettings:
         settings = self.get_or_create_settings()
+        old_snapshot = {
+            "app_name": settings.app_name,
+            "background_color": settings.background_color,
+            "banner_color": settings.banner_color,
+            "highlight_color": settings.highlight_color,
+            "kasse_layout": settings.kasse_layout,
+            "session_timer_enabled": settings.session_timer_enabled,
+            "session_timer_minutes": settings.session_timer_minutes,
+            "deckel_enabled": settings.deckel_enabled,
+        }
+
         if "app_name" in kwargs and kwargs["app_name"] is not None:
             app_name = kwargs["app_name"].strip()
             if not app_name:
@@ -111,6 +122,26 @@ class AppSettingsService:
 
         self.db.commit()
         self.db.refresh(settings)
+
+        # Write audit log entry (non-fatal)
+        try:
+            from app.services.audit_log_service import AuditLogService
+            new_snapshot = {k: getattr(settings, k, None) for k in old_snapshot}
+            changed = {k: v for k, v in new_snapshot.items() if old_snapshot.get(k) != v}
+            if changed:
+                AuditLogService(self.db).log(
+                    entity_type="settings",
+                    action="UPDATED",
+                    user_username=performed_by_username,
+                    entity_id=settings.id,
+                    entity_name="AppSettings",
+                    old_value={k: old_snapshot[k] for k in changed},
+                    new_value=changed,
+                )
+                self.db.commit()
+        except Exception:
+            pass
+
         return settings
 
     async def update_logo(self, file) -> AppSettings:

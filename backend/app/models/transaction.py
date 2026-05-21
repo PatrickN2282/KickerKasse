@@ -34,6 +34,10 @@ class Transaction(BaseModel):
     balance_applied_cents = Column(Integer, nullable=False, default=0)
     tip_cents = Column(Integer, nullable=False, default=0)  # Trinkgeld-Spende
     
+    # Snapshot-Felder (unveränderlich nach Erstellung)
+    member_name = Column(String(160), nullable=True)          # Name zum Kaufzeitpunkt
+    performed_by_username = Column(String(50), nullable=True) # Benutzername des Kassierers
+
     # Referenzen
     user_id = Column(Integer, ForeignKey("users.id"), nullable=False)  # Kassierer/Admin
     member_id = Column(Integer, ForeignKey("members.id"), nullable=True)  # Kunde (wenn Mitglied)
@@ -63,6 +67,7 @@ class TransactionItem(BaseModel):
 
     transaction_id = Column(Integer, ForeignKey("transactions.id"), nullable=False)
     product_id = Column(Integer, ForeignKey("products.id"), nullable=False)
+    product_name = Column(String(120), nullable=True)  # Snapshot des Produktnamens zum Kaufzeitpunkt
     
     quantity = Column(Integer, nullable=False)
     unit_price_cents = Column(Integer, nullable=False)  # Preis zum Zeitpunkt des Verkaufs

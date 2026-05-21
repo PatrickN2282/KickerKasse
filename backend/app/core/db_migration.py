@@ -722,6 +722,14 @@ class DatabaseMigrator:
                         'tip_cents',
                         "ALTER TABLE transactions ADD COLUMN tip_cents INTEGER DEFAULT 0 NOT NULL"
                     ),
+                    (
+                        'member_name',
+                        "ALTER TABLE transactions ADD COLUMN member_name VARCHAR(160)"
+                    ),
+                    (
+                        'performed_by_username',
+                        "ALTER TABLE transactions ADD COLUMN performed_by_username VARCHAR(50)"
+                    ),
                 ]
 
                 for column_name, sql in missing_transaction_columns:
@@ -739,6 +747,31 @@ class DatabaseMigrator:
                             conn.rollback()
                         except:
                             pass
+
+                # Backfill snapshot columns for existing transactions
+                try:
+                    conn.execute(text("""
+                        UPDATE transactions t
+                        SET member_name = m.name
+                        FROM members m
+                        WHERE t.member_id = m.id
+                          AND t.member_name IS NULL
+                    """))
+                    conn.execute(text("""
+                        UPDATE transactions t
+                        SET performed_by_username = u.username
+                        FROM users u
+                        WHERE t.user_id = u.id
+                          AND t.performed_by_username IS NULL
+                    """))
+                    conn.commit()
+                    logger.info("✓ Backfilled snapshot columns for existing transactions")
+                except Exception as e:
+                    logger.warning(f"Could not backfill transaction snapshot columns: {str(e)}")
+                    try:
+                        conn.rollback()
+                    except:
+                        pass
 
             if 'transaction_items' in inspector.get_table_names():
                 transaction_item_columns = {col['name'] for col in inspector.get_columns('transaction_items')}
@@ -770,6 +803,28 @@ class DatabaseMigrator:
                         logger.info("✓ Added note column to transaction_items")
                     except Exception as e:
                         logger.warning(f"Could not add note to transaction_items: {str(e)}")
+                        try:
+                            conn.rollback()
+                        except:
+                            pass
+
+                if 'product_name' not in transaction_item_columns:
+                    logger.info("Adding product_name snapshot column to transaction_items table...")
+                    try:
+                        conn.execute(text(
+                            "ALTER TABLE transaction_items ADD COLUMN product_name VARCHAR(120)"
+                        ))
+                        conn.execute(text("""
+                            UPDATE transaction_items ti
+                            SET product_name = p.name
+                            FROM products p
+                            WHERE ti.product_id = p.id
+                              AND ti.product_name IS NULL
+                        """))
+                        conn.commit()
+                        logger.info("✓ Added product_name snapshot column to transaction_items")
+                    except Exception as e:
+                        logger.warning(f"Could not add product_name to transaction_items: {str(e)}")
                         try:
                             conn.rollback()
                         except:

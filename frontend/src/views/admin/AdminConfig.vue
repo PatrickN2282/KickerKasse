@@ -225,6 +225,13 @@
       <h2>Import / Export</h2>
       <div class="settings-card">
         <h3>Datenübernahme und Sicherung</h3>
+        <div class="import-warning-box">
+          <span class="import-warning-icon">⚠️</span>
+          <div>
+            <strong>Hinweis:</strong> Der Import ist ausschließlich für frische oder leere Datenbanken vorgesehen.
+            Auf einer bestehenden Datenbank mit Transaktionen kann der Import zu Inkonsistenzen führen.
+          </div>
+        </div>
         <p class="section-description">
           Produkte, Mitglieder und Kategorien können gesammelt exportiert oder aus CSV-/ZIP-Dateien wieder importiert werden.
         </p>
@@ -751,6 +758,24 @@ onMounted(async () => {
   margin: 0;
   color: #64748b;
   font-size: 0.9rem;
+}
+
+.import-warning-box {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.6rem;
+  background: #fff7ed;
+  border: 1px solid #fdba74;
+  border-radius: 8px;
+  padding: 0.75rem 1rem;
+  font-size: 0.9rem;
+  color: #92400e;
+
+  .import-warning-icon {
+    font-size: 1.1rem;
+    flex-shrink: 0;
+    margin-top: 0.05rem;
+  }
 }
 
 // ── Design ────────────────────────────────────────────

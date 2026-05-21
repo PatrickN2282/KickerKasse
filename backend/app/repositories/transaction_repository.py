@@ -17,6 +17,8 @@ class TransactionRepository:
         total_amount_cents: int,
         user_id: int,
         member_id: int = None,
+        member_name: str = None,
+        performed_by_username: str = None,
         items: list = None,
         reference_transaction_id: int = None,
         voucher_code: str = None,
@@ -32,6 +34,8 @@ class TransactionRepository:
             total_amount_cents=total_amount_cents,
             user_id=user_id,
             member_id=member_id,
+            member_name=member_name,
+            performed_by_username=performed_by_username,
             reference_transaction_id=reference_transaction_id,
             voucher_code=voucher_code,
             voucher_type=voucher_type,
@@ -44,6 +48,7 @@ class TransactionRepository:
             for item_data in items:
                 item = TransactionItem(
                     product_id=item_data["product_id"],
+                    product_name=item_data.get("product_name"),
                     quantity=item_data["quantity"],
                     unit_price_cents=item_data["unit_price_cents"],
                     total_price_cents=item_data["quantity"] * item_data["unit_price_cents"],
