@@ -13,7 +13,7 @@ from app.schemas import (
     MemberBalanceCorrectionLogResponse,
 )
 from app.services import MemberService
-from app.services.file_service import save_member_photo, get_full_path
+from app.services.file_service import save_member_photo, get_full_path, delete_member_photo
 from app.repositories import MemberRepository, UserRepository
 from app.models import UserRole
 
@@ -428,6 +428,32 @@ async def upload_member_photo(
     db.refresh(member)
     
     return {"status": "success", "member_id": member_id, "photo_path": photo_path}
+
+
+@router.delete("/{member_id}/photo")
+@router.delete("/{member_id}/photo/")
+async def delete_member_photo_file(
+    member_id: int,
+    request: Request,
+    db: Session = Depends(get_db),
+):
+    """Delete member photo and reset stored photo path."""
+    require_roles(request, db, UserRole.ADMIN, UserRole.MANAGER)
+
+    member_repo = MemberRepository(db)
+    member = member_repo.get_by_id(member_id)
+    if not member:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Member not found",
+        )
+
+    delete_member_photo(member_id)
+    member.photo_path = None
+    db.commit()
+    db.refresh(member)
+
+    return {"status": "success", "member_id": member_id}
 
 
 @router.get("/{member_id}/photo")

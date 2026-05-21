@@ -97,7 +97,7 @@
             <h3>{{ editingId ? 'Produkt bearbeiten' : 'Neues Produkt anlegen' }}</h3>
             <p class="modal-subtitle">Preise, Bild und Bestände verwalten.</p>
           </div>
-          <button class="modal-close" @click="closeProductModal">×</button>
+          <button type="button" class="close-btn" @click="closeProductModal">✕</button>
         </header>
 
         <form class="modal-compact-layout" @submit.prevent="handleSaveProduct">
@@ -108,14 +108,13 @@
               <div class="image-upload-section">
                 <span class="section-label">Produktbild Vorschau</span>
                 
-                <template v-if="cropImageSrc">
+                <template v-if="imagePreviewSrc">
                   <div class="kasse-card-preview">
                     <div class="card-img">
                       <span v-if="formData.memberPrice !== null && formData.memberPrice !== ''" class="card-badge discount-badge">Rabatt</span>
                       <img
-                        :src="cropImageSrc"
-                        class="preview-crop-img"
-                        :style="cropPreviewImgStyle"
+                        :src="imagePreviewSrc"
+                        class="preview-crop-img preview-static-img"
                         draggable="false"
                         alt=""
                       >
@@ -130,11 +129,12 @@
                   </div>
                   
                   <div class="image-action-buttons">
-                    <button type="button" class="btn-action btn-sm" @click="showCropModal = true">✂ Zuschneiden</button>
+                    <button type="button" class="btn-action btn-sm" @click="openCropModalFromCurrentImage">✂ Zuschneiden</button>
                     <label class="upload-button btn-sm">
                       Ändern
                       <input type="file" accept="image/*" hidden @change="handleImageUpload">
                     </label>
+                    <button type="button" class="btn-action btn-sm btn-action-danger" @click="requestImageRemoval">🗑 Löschen</button>
                   </div>
                 </template>
 
@@ -225,63 +225,28 @@
     </div>
   </div>
 
-  <div v-if="showCropModal" class="modal-overlay crop-modal-overlay" @click.self="showCropModal = false">
-    <div class="crop-modal-card">
-      <header class="modal-header">
-        <div>
-          <h3>Bildausschnitt anpassen</h3>
-          <p class="modal-subtitle">Verschieben und zoomen, um den Ausschnitt für die Kassenkarte festzulegen.</p>
-        </div>
-        <button class="modal-close" @click="showCropModal = false">×</button>
-      </header>
-
-      <div class="crop-modal-body">
-        <div
-          ref="cropFrameEl"
-          class="crop-frame"
-          :style="{ cursor: cropIsDragging ? 'grabbing' : 'grab' }"
-          @mousedown.prevent="onCropDragStart"
-          @wheel.prevent="onCropWheel"
-          @touchstart.prevent="onCropTouchStart"
-          @touchmove.prevent="onCropTouchMove"
-          @touchend="onCropTouchEnd"
-        >
-          <img :src="cropImageSrc" class="crop-source-img" :style="cropImgStyle" draggable="false" alt="">
-        </div>
-
-        <div class="crop-zoom-row">
-          <span class="zoom-icon">−</span>
-          <input
-            :value="cropScale"
-            type="range"
-            :min="cropMinScale"
-            :max="cropMinScale * 5"
-            :step="0.005"
-            class="zoom-slider"
-            @input="onZoomSliderInput"
-          >
-          <span class="zoom-icon">+</span>
-          <span class="zoom-pct">{{ cropMinScale > 0 ? Math.round(cropScale / cropMinScale * 100) : 100 }}%</span>
-        </div>
-
-        <div class="crop-file-actions">
-          <button type="button" class="btn-crop-reset" @click="resetCrop">↺ Ausrichtung zurücksetzen</button>
-          <button v-if="cropOriginalSrc" type="button" class="btn-crop-reset btn-crop-restore" @click="restoreOriginalImage">🔄 Originalbild wiederherstellen</button>
-        </div>
-      </div>
-
-      <footer class="crop-modal-footer">
-        <button type="button" class="btn btn-success" @click="showCropModal = false">Ausschnitt übernehmen</button>
-      </footer>
-    </div>
-  </div>
+  <ImageEditorModal
+    :show="showCropModal"
+    :image-src="cropModalImageSrc"
+    :restore-source="imageOriginalSrc || imagePreviewSrc"
+    title="Produktbild bearbeiten"
+    subtitle="Verschieben und zoomen, um den Ausschnitt für die Kassenkarte festzulegen."
+    :aspect-ratio="3 / 2"
+    :frame-width="320"
+    :output-width="600"
+    :can-restore="Boolean(imageOriginalSrc || imagePreviewSrc)"
+    restore-label="Ausgangsbild wiederherstellen"
+    @close="handleCropClose"
+    @apply="handleCropApply"
+  />
 </template>
 
 <script setup>
-import { ref, reactive, onMounted, onUnmounted, computed } from 'vue'
+import { ref, reactive, onMounted, computed } from 'vue'
 import { useProductStore } from '@/stores/product'
 import { useNotificationStore } from '@/stores/notification'
 import { formatPrice } from '@/services/utils'
+import ImageEditorModal from '@/components/ImageEditorModal.vue'
 
 const productStore = useProductStore()
 const notificationStore = useNotificationStore()
@@ -289,8 +254,14 @@ const notificationStore = useNotificationStore()
 const showProductModal = ref(false)
 const showCropModal = ref(false)
 const editingId = ref(null)
-const imagePreview = ref(null)
+const imagePreviewSrc = ref(null)
 const imageFile = ref(null)
+const imageOriginalSrc = ref(null)
+const cropModalImageSrc = ref(null)
+const pendingOriginalImageSrc = ref(null)
+const imageDeleteRequested = ref(false)
+const imagePendingOriginalUpload = ref(false)
+const persistedImageExists = ref(false)
 const lastFiniteStock = ref(0)
 const productSearch = ref('')
 
@@ -302,61 +273,6 @@ const formData = reactive({
   stock: 0,
   isUnlimitedStock: false,
   isVariablePrice: false,
-})
-
-// ── Image crop editor configuration & states ─────────────────────────────────
-const CROP_ASPECT = 3 / 2
-const CROP_W = 320
-const CROP_H = Math.round(CROP_W / CROP_ASPECT)   // 213 px
-const OUTPUT_W = 600
-const OUTPUT_H = Math.round(OUTPUT_W / CROP_ASPECT) // 400 px
-const JPEG_QUALITY = 0.92
-
-const PREVIEW_W = 180
-const PREVIEW_H = Math.round(PREVIEW_W / CROP_ASPECT)  // ~120 px
-const PREVIEW_SCALE = PREVIEW_W / CROP_W
-
-const cropImageSrc = ref(null)     
-const cropOriginalSrc = ref(null)  
-const cropIsNewUpload = ref(false) 
-
-const cropNaturalW = ref(0)
-const cropNaturalH = ref(0)
-const cropScale = ref(1)
-const cropMinScale = ref(0.1)
-const cropPanX = ref(0)
-const cropPanY = ref(0)
-
-const cropIsDragging = ref(false)
-const cropDragLastX = ref(0)
-const cropDragLastY = ref(0)
-const cropLastPinchDist = ref(0)
-const cropModified = ref(false)
-
-const cropFrameEl = ref(null)   
-
-// Computed Styles für den Crop Editor und die Kassenkarten-Vorschau
-const cropImgStyle = computed(() => ({
-  position: 'absolute',
-  left: `${cropPanX.value}px`,
-  top: `${cropPanY.value}px`,
-  width: `${cropNaturalW.value * cropScale.value}px`,
-  height: `${cropNaturalH.value * cropScale.value}px`,
-  userSelect: 'none',
-  pointerEvents: 'none',
-}))
-
-const cropPreviewImgStyle = computed(() => {
-  if (!cropNaturalW.value) return {}
-  return {
-    position: 'absolute',
-    left: `${cropPanX.value * PREVIEW_SCALE}px`,
-    top: `${cropPanY.value * PREVIEW_SCALE}px`,
-    width: `${cropNaturalW.value * cropScale.value * PREVIEW_SCALE}px`,
-    height: `${cropNaturalH.value * cropScale.value * PREVIEW_SCALE}px`,
-    userSelect: 'none',
-    pointerEvents: 'none',
-  }
 })
 
 const previewPriceText = computed(() => {
@@ -421,21 +337,82 @@ const closeProductModal = () => {
   resetForm()
 }
 
-const handleSaveProduct = async () => {
-  if (cropImageSrc.value && cropModified.value) {
-    try {
-      const blob = await getCroppedBlob()
-      imageFile.value = new File([blob], 'product-image.jpg', { type: 'image/jpeg' })
-    } catch (err) {
-      console.error('Failed to bake cropped canvas to file blob:', err)
-      notificationStore.error('Fehler beim Verarbeiten des zugeschnittenen Bildes')
-      return
-    }
+const readFileAsDataUrl = (file) => {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader()
+    reader.onload = (event) => resolve(event.target.result)
+    reader.onerror = () => reject(new Error('Datei konnte nicht gelesen werden'))
+    reader.readAsDataURL(file)
+  })
+}
+
+const checkImageExists = async (url) => {
+  try {
+    const response = await fetch(url, { credentials: 'include' })
+    return response.ok
+  } catch {
+    return false
+  }
+}
+
+const openCropModalFromCurrentImage = () => {
+  if (!imagePreviewSrc.value) return
+  cropModalImageSrc.value = imagePreviewSrc.value
+  pendingOriginalImageSrc.value = null
+  showCropModal.value = true
+}
+
+const handleCropClose = () => {
+  showCropModal.value = false
+  cropModalImageSrc.value = null
+  pendingOriginalImageSrc.value = null
+}
+
+const handleCropApply = ({ blob, dataUrl }) => {
+  imageFile.value = new File([blob], 'product-image.jpg', { type: 'image/jpeg' })
+  imagePreviewSrc.value = dataUrl
+  imageOriginalSrc.value = pendingOriginalImageSrc.value || imageOriginalSrc.value || imagePreviewSrc.value
+  imagePendingOriginalUpload.value = Boolean(pendingOriginalImageSrc.value)
+  imageDeleteRequested.value = false
+  showCropModal.value = false
+  cropModalImageSrc.value = null
+  pendingOriginalImageSrc.value = null
+}
+
+const handleImageUpload = async (event) => {
+  const [file] = event.target.files || []
+  event.target.value = ''
+  if (!file) return
+  if (file.size > 5 * 1024 * 1024) {
+    notificationStore.error('Bild ist zu groß (max 5MB)')
+    return
   }
 
+  try {
+    const dataUrl = await readFileAsDataUrl(file)
+    cropModalImageSrc.value = dataUrl
+    pendingOriginalImageSrc.value = dataUrl
+    showCropModal.value = true
+  } catch (error) {
+    console.error('Image file read error:', error)
+    notificationStore.error('Das ausgewählte Bild konnte nicht gelesen werden')
+  }
+}
+
+const requestImageRemoval = () => {
+  imagePreviewSrc.value = null
+  imageFile.value = null
+  imageOriginalSrc.value = null
+  cropModalImageSrc.value = null
+  pendingOriginalImageSrc.value = null
+  imagePendingOriginalUpload.value = false
+  imageDeleteRequested.value = Boolean(editingId.value && persistedImageExists.value)
+}
+
+const handleSaveProduct = async () => {
   if (editingId.value) {
-    const imageUploadSuccess = await uploadImageToProduct(editingId.value)
-    if (!imageUploadSuccess && imageFile.value) {
+    const imageUploadSuccess = await syncProductImage(editingId.value)
+    if (!imageUploadSuccess) {
       return
     }
 
@@ -455,41 +432,61 @@ const handleSaveProduct = async () => {
     } else {
       notificationStore.error(productStore.error)
     }
-  } else {
-    const result = await productStore.createProduct({
-      name: formData.name,
-      warengruppe: formData.warengruppe || null,
-      price_cents: Math.round(formData.price * 100),
-      member_price_cents: toMemberPriceCents(),
-      stock_quantity: formData.isUnlimitedStock ? 0 : formData.stock,
-      is_unlimited_stock: formData.isUnlimitedStock,
-      is_variable_price: formData.isVariablePrice,
-    })
+    return
+  }
 
-    if (result) {
-      if (imageFile.value) {
-        const imageUploadSuccess = await uploadImageToProduct(result.id)
-        if (!imageUploadSuccess) {
-          notificationStore.warning('Produkt wurde erstellt, aber der Bild-Upload ist fehlgeschlagen.')
-        } else {
-          notificationStore.success('Produkt mit Bild erfolgreich erstellt')
-        }
+  const result = await productStore.createProduct({
+    name: formData.name,
+    warengruppe: formData.warengruppe || null,
+    price_cents: Math.round(formData.price * 100),
+    member_price_cents: toMemberPriceCents(),
+    stock_quantity: formData.isUnlimitedStock ? 0 : formData.stock,
+    is_unlimited_stock: formData.isUnlimitedStock,
+    is_variable_price: formData.isVariablePrice,
+  })
+
+  if (result) {
+    if (imageFile.value) {
+      const imageUploadSuccess = await syncProductImage(result.id)
+      if (!imageUploadSuccess) {
+        notificationStore.warning('Produkt wurde erstellt, aber der Bild-Upload ist fehlgeschlagen.')
       } else {
-        notificationStore.success('Produkt erfolgreich erstellt')
+        notificationStore.success('Produkt mit Bild erfolgreich erstellt')
       }
-      resetForm()
     } else {
-      notificationStore.error(productStore.error)
+      notificationStore.success('Produkt erfolgreich erstellt')
     }
+    resetForm()
+  } else {
+    notificationStore.error(productStore.error)
   }
 }
 
-const uploadImageToProduct = async (productId) => {
+const syncProductImage = async (productId) => {
+  if (imageDeleteRequested.value) {
+    try {
+      const response = await fetch(`/api/products/${productId}/image`, {
+        method: 'DELETE',
+        credentials: 'include',
+      })
+      if (!response.ok) {
+        notificationStore.error('Vorhandenes Produktbild konnte nicht gelöscht werden')
+        return false
+      }
+      imageDeleteRequested.value = false
+      persistedImageExists.value = false
+    } catch (error) {
+      console.error('Product image delete error:', error)
+      notificationStore.error('Fehler beim Löschen des Produktbildes')
+      return false
+    }
+  }
+
   if (!imageFile.value) return true
 
-  if (cropIsNewUpload.value && cropOriginalSrc.value) {
+  if (imagePendingOriginalUpload.value && imageOriginalSrc.value) {
     try {
-      const origBlob = await dataUrlToBlob(cropOriginalSrc.value)
+      const origBlob = await dataUrlToBlob(imageOriginalSrc.value)
       const origFormData = new FormData()
       origFormData.append('file', new File([origBlob], 'original.jpg', { type: 'image/jpeg' }))
       await fetch(`/api/products/${productId}/original-image`, {
@@ -514,12 +511,14 @@ const uploadImageToProduct = async (productId) => {
 
     if (response.ok) {
       imageFile.value = null
-      cropIsNewUpload.value = false
+      imagePendingOriginalUpload.value = false
+      imageDeleteRequested.value = false
+      persistedImageExists.value = true
       return true
-    } else {
-      notificationStore.error('Bild-Upload fehlgeschlagen')
-      return false
     }
+
+    notificationStore.error('Bild-Upload fehlgeschlagen')
+    return false
   } catch (error) {
     console.error('Image upload connection error:', error)
     notificationStore.error('Fehler beim Übertragen des Bildes')
@@ -556,22 +555,16 @@ const resetForm = () => {
   formData.isVariablePrice = false
   lastFiniteStock.value = 0
   imageFile.value = null
-  imagePreview.value = null
+  imagePreviewSrc.value = null
+  imageOriginalSrc.value = null
+  cropModalImageSrc.value = null
+  pendingOriginalImageSrc.value = null
+  imageDeleteRequested.value = false
+  imagePendingOriginalUpload.value = false
+  persistedImageExists.value = false
   editingId.value = null
   showProductModal.value = false
   showCropModal.value = false
-
-  cropImageSrc.value = null
-  cropOriginalSrc.value = null
-  cropIsNewUpload.value = false
-  cropNaturalW.value = 0
-  cropNaturalH.value = 0
-  cropScale.value = 1
-  cropMinScale.value = 0.1
-  cropPanX.value = 0
-  cropPanY.value = 0
-  cropIsDragging.value = false
-  cropModified.value = false
 }
 
 const editProduct = async (product) => {
@@ -585,239 +578,30 @@ const editProduct = async (product) => {
   formData.isVariablePrice = !!product.is_variable_price
   lastFiniteStock.value = product.stock_quantity
   imageFile.value = null
-  imagePreview.value = null
-  cropModified.value = false
-  cropIsNewUpload.value = false
+  imagePreviewSrc.value = null
+  imageOriginalSrc.value = null
+  cropModalImageSrc.value = null
+  pendingOriginalImageSrc.value = null
+  imageDeleteRequested.value = false
+  imagePendingOriginalUpload.value = false
+  persistedImageExists.value = !!product.image_path
   showProductModal.value = true
 
   if (product.image_path) {
+    const previewUrl = `/api/products/${product.id}/image`
+    imagePreviewSrc.value = previewUrl
+    imageOriginalSrc.value = previewUrl
     try {
-      const resp = await fetch(`/api/products/${product.id}/image`, { credentials: 'include' })
-      if (!resp.ok) throw new Error(`Status ${resp.status}`)
-      const blob = await resp.blob()
-      const dataUrl = await new Promise((resolve) => {
-        const reader = new FileReader()
-        reader.onload = (e) => resolve(e.target.result)
-        reader.readAsDataURL(blob)
-      })
-      cropImageSrc.value = dataUrl
-      await loadCropImageDimensions(dataUrl)
-
-      try {
-        const origResp = await fetch(`/api/products/${product.id}/original-image`, { credentials: 'include' })
-        if (origResp.ok) {
-          const origBlob = await origResp.blob()
-          cropOriginalSrc.value = await new Promise((resolve) => {
-            const reader = new FileReader()
-            reader.onload = (e) => resolve(e.target.result)
-            reader.readAsDataURL(origBlob)
-          })
-        } else {
-          cropOriginalSrc.value = null
-        }
-      } catch {
-        cropOriginalSrc.value = null
+      const originalUrl = `/api/products/${product.id}/original-image`
+      if (await checkImageExists(originalUrl)) {
+        imageOriginalSrc.value = originalUrl
       }
     } catch {
-      cropImageSrc.value = null
-      cropOriginalSrc.value = null
+      imagePreviewSrc.value = null
+      imageOriginalSrc.value = null
       notificationStore.warning('Das bestehende Produktbild konnte nicht geladen werden.')
     }
-  } else {
-    cropImageSrc.value = null
-    cropOriginalSrc.value = null
   }
-}
-
-const handleImageUpload = (event) => {
-  const file = event.target.files[0]
-  if (!file) return
-  const reader = new FileReader()
-  reader.onload = (e) => {
-    cropImageSrc.value = e.target.result
-    cropOriginalSrc.value = e.target.result  
-    cropIsNewUpload.value = true
-    loadCropImageDimensions(e.target.result)
-    cropModified.value = true
-  }
-  reader.readAsDataURL(file)
-  event.target.value = ''
-}
-
-const loadCropImageDimensions = (dataUrl) => {
-  return new Promise((resolve) => {
-    const img = new Image()
-    img.onload = () => {
-      cropNaturalW.value = img.naturalWidth
-      cropNaturalH.value = img.naturalHeight
-      const scaleToFitW = CROP_W / img.naturalWidth
-      const scaleToFitH = CROP_H / img.naturalHeight
-      cropMinScale.value = Math.max(scaleToFitW, scaleToFitH)
-      cropScale.value = cropMinScale.value
-      centerCrop()
-      resolve()
-    }
-    img.onerror = () => {
-      notificationStore.error('Das ausgewählte Bild ist fehlerhaft oder beschädigt.')
-      resolve()
-    }
-    img.src = dataUrl
-  })
-}
-
-const clampPan = () => {
-  const scaledW = cropNaturalW.value * cropScale.value
-  const scaledH = cropNaturalH.value * cropScale.value
-  cropPanX.value = Math.min(0, Math.max(CROP_W - scaledW, cropPanX.value))
-  cropPanY.value = Math.min(0, Math.max(CROP_H - scaledH, cropPanY.value))
-}
-
-const centerCrop = () => {
-  const scaledW = cropNaturalW.value * cropScale.value
-  const scaledH = cropNaturalH.value * cropScale.value
-  cropPanX.value = (CROP_W - scaledW) / 2
-  cropPanY.value = (CROP_H - scaledH) / 2
-}
-
-const resetCrop = () => {
-  cropScale.value = cropMinScale.value
-  centerCrop()
-  if (cropIsNewUpload.value) {
-    cropModified.value = true
-  }
-}
-
-const restoreOriginalImage = async () => {
-  if (!cropOriginalSrc.value) return
-  cropImageSrc.value = cropOriginalSrc.value
-  await loadCropImageDimensions(cropOriginalSrc.value)
-  cropModified.value = true
-}
-
-const onCropDragStart = (event) => {
-  cropIsDragging.value = true
-  cropDragLastX.value = event.clientX
-  cropDragLastY.value = event.clientY
-  document.addEventListener('mousemove', onDocCropMouseMove)
-  document.addEventListener('mouseup', onDocCropMouseUp)
-}
-
-const onDocCropMouseMove = (event) => {
-  if (!cropIsDragging.value) return
-  const dx = event.clientX - cropDragLastX.value
-  const dy = event.clientY - cropDragLastY.value
-  cropPanX.value += dx
-  cropPanY.value += dy
-  cropDragLastX.value = event.clientX
-  cropDragLastY.value = event.clientY
-  clampPan()
-  cropModified.value = true
-}
-
-const onDocCropMouseUp = () => {
-  cropIsDragging.value = false
-  document.removeEventListener('mousemove', onDocCropMouseMove)
-  document.removeEventListener('mouseup', onDocCropMouseUp)
-}
-
-const onCropWheel = (event) => {
-  const direction = event.deltaY > 0 ? -1 : 1
-  const delta = direction * 0.08 * cropScale.value
-  const newScale = Math.max(cropMinScale.value, Math.min(cropMinScale.value * 5, cropScale.value + delta))
-  const zoomCenterX = CROP_W / 2
-  const zoomCenterY = CROP_H / 2
-  const factor = newScale / cropScale.value
-  cropPanX.value = zoomCenterX - (zoomCenterX - cropPanX.value) * factor
-  cropPanY.value = zoomCenterY - (zoomCenterY - cropPanY.value) * factor
-  cropScale.value = newScale
-  clampPan()
-  cropModified.value = true
-}
-
-const onZoomSliderInput = (event) => {
-  const newScale = parseFloat(event.target.value)
-  const oldScale = cropScale.value
-  if (oldScale > 0) {
-    const factor = newScale / oldScale
-    const zoomCenterX = CROP_W / 2
-    const zoomCenterY = CROP_H / 2
-    cropPanX.value = zoomCenterX - (zoomCenterX - cropPanX.value) * factor
-    cropPanY.value = zoomCenterY - (zoomCenterY - cropPanY.value) * factor
-  }
-  cropScale.value = newScale
-  clampPan()
-  cropModified.value = true
-}
-
-const onCropTouchStart = (event) => {
-  if (event.touches.length === 1) {
-    cropIsDragging.value = true
-    cropDragLastX.value = event.touches[0].clientX
-    cropDragLastY.value = event.touches[0].clientY
-    cropLastPinchDist.value = 0
-  } else if (event.touches.length === 2) {
-    cropIsDragging.value = false
-    const dx = event.touches[0].clientX - event.touches[1].clientX
-    const dy = event.touches[0].clientY - event.touches[1].clientY
-    cropLastPinchDist.value = Math.hypot(dx, dy)
-  }
-}
-
-const onCropTouchMove = (event) => {
-  if (event.touches.length === 1 && cropIsDragging.value) {
-    const dx = event.touches[0].clientX - cropDragLastX.value
-    const dy = event.touches[0].clientY - cropDragLastY.value
-    cropPanX.value += dx
-    cropPanY.value += dy
-    cropDragLastX.value = event.touches[0].clientX
-    cropDragLastY.value = event.touches[0].clientY
-    clampPan()
-    cropModified.value = true
-  } else if (event.touches.length === 2 && cropLastPinchDist.value > 0) {
-    const dx = event.touches[0].clientX - event.touches[1].clientX
-    const dy = event.touches[0].clientY - event.touches[1].clientY
-    const dist = Math.hypot(dx, dy)
-    const factor = dist / cropLastPinchDist.value
-    const newScale = Math.max(cropMinScale.value, Math.min(cropMinScale.value * 5, cropScale.value * factor))
-    const frameRect = cropFrameEl.value ? cropFrameEl.value.getBoundingClientRect() : { left: 0, top: 0 }
-    const midX = (event.touches[0].clientX + event.touches[1].clientX) / 2 - frameRect.left
-    const midY = (event.touches[0].clientY + event.touches[1].clientY) / 2 - frameRect.top
-    const f = newScale / cropScale.value
-    cropPanX.value = midX - (midX - cropPanX.value) * f
-    cropPanY.value = midY - (midY - cropPanY.value) * f
-    cropScale.value = newScale
-    clampPan()
-    cropLastPinchDist.value = dist
-    cropModified.value = true
-  }
-}
-
-const onCropTouchEnd = () => {
-  cropIsDragging.value = false
-  cropLastPinchDist.value = 0
-}
-
-const getCroppedBlob = () => {
-  return new Promise((resolve, reject) => {
-    const canvas = document.createElement('canvas')
-    canvas.width = OUTPUT_W
-    canvas.height = OUTPUT_H
-    const ctx = canvas.getContext('2d')
-    const img = new Image()
-    img.onload = () => {
-      const sx = Math.max(0, -cropPanX.value / cropScale.value)
-      const sy = Math.max(0, -cropPanY.value / cropScale.value)
-      const sw = Math.min(CROP_W / cropScale.value, img.naturalWidth - sx)
-      const sh = Math.min(CROP_H / cropScale.value, img.naturalHeight - sy)
-      ctx.drawImage(img, sx, sy, sw, sh, 0, 0, OUTPUT_W, OUTPUT_H)
-      canvas.toBlob((blob) => {
-        if (blob) resolve(blob)
-        else reject(new Error('Canvas toBlob empty'))
-      }, 'image/jpeg', JPEG_QUALITY)
-    }
-    img.onerror = reject
-    img.src = cropImageSrc.value
-  })
 }
 
 const deleteProduct = async (productId) => {
@@ -834,11 +618,6 @@ const deleteProduct = async (productId) => {
 
 onMounted(async () => {
   await productStore.getProducts()
-})
-
-onUnmounted(() => {
-  document.removeEventListener('mousemove', onDocCropMouseMove)
-  document.removeEventListener('mouseup', onDocCropMouseUp)
 })
 </script>
 
@@ -1067,6 +846,7 @@ onUnmounted(() => {
 .modal-card {
   background: white;
   width: 100%;
+  max-height: 650px;
   border-radius: 16px;
   display: flex;
   flex-direction: column;
@@ -1075,28 +855,29 @@ onUnmounted(() => {
 }
 
 .modal-compact {
-  max-width: 680px;
+  max-width: 650px;
 }
 
 .modal-header {
-  padding: 1.25rem 1.5rem;
+  padding: 0.9rem 1.2rem;
   border-bottom: 1px solid var(--border);
   display: flex;
   justify-content: space-between;
   align-items: flex-start;
   gap: 1rem;
+  background: linear-gradient(90deg, #0f766e 0%, #0ea5e9 100%);
 
   h3 {
     margin: 0;
-    font-size: 1.25rem;
+    font-size: 1.1rem;
     font-weight: 600;
-    color: #1e293b;
+    color: #ffffff;
   }
   
   .modal-subtitle {
-    margin: 0.15rem 0 0 0;
+    margin: 0.35rem 0 0 0;
     font-size: 0.85rem;
-    color: #64748b;
+    color: rgba(255,255,255,0.9);
   }
 }
 
@@ -1107,12 +888,12 @@ onUnmounted(() => {
 }
 
 .modal-scroller {
-  padding: 1.5rem;
+  padding: 1rem 1.2rem;
   overflow-y: auto;
-  max-height: calc(85vh - 120px);
+  max-height: calc(650px - 110px);
   display: flex;
   flex-direction: column;
-  gap: 1.5rem;
+  gap: 1rem;
 }
 
 /* Sektion 1: Bild und Standardfelder nebeneinander */
@@ -1364,17 +1145,21 @@ onUnmounted(() => {
   }
 }
 
-.modal-close {
-  border: none;
-  background: transparent;
-  font-size: 1.5rem;
+.close-btn {
+  width: 34px;
+  height: 34px;
+  border-radius: 50%;
+  border: 1px solid rgba(255,255,255,0.45);
+  background: rgba(255,255,255,0.18);
+  color: #ffffff;
+  font-size: 1.1rem;
   cursor: pointer;
-  color: #6b7280;
-  padding: 0;
-  line-height: 1;
+  display: grid;
+  place-items: center;
+  flex-shrink: 0;
 
   &:hover {
-    color: #1f2937;
+    background: rgba(255,255,255,0.3);
   }
 }
 
@@ -1398,8 +1183,9 @@ onUnmounted(() => {
 
   .preview-crop-img {
     display: block;
-    max-width: none;
-    max-height: none;
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
   }
 
   .card-badge {
@@ -1509,116 +1295,6 @@ onUnmounted(() => {
     flex-direction: column-reverse;
     .btn { width: 100%; justify-content: center; }
   }
-}
-
-/* ── Crop Sub-Modal Styles ───────────────────────────────────────── */
-.crop-modal-overlay {
-  z-index: 1001;
-}
-
-.crop-modal-card {
-  background: white;
-  width: 100%;
-  max-width: 400px;
-  border-radius: 12px;
-  display: flex;
-  flex-direction: column;
-  box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.35);
-}
-
-.crop-modal-body {
-  padding: 1.25rem;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 1rem;
-}
-
-.crop-frame {
-  width: 320px;
-  height: 213px;
-  position: relative;
-  overflow: hidden;
-  border-radius: 8px;
-  border: 2px solid var(--primary);
-  background: #e2e8f0;
-  touch-action: none;
-}
-
-.crop-source-img {
-  display: block;
-  max-width: none;
-  max-height: none;
-}
-
-.crop-zoom-row {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  width: 100%;
-
-  .zoom-icon {
-    font-size: 1.1rem;
-    color: #64748b;
-    font-weight: 700;
-    user-select: none;
-  }
-
-  .zoom-pct {
-    font-size: 0.75rem;
-    color: #64748b;
-    min-width: 2.5rem;
-    text-align: right;
-    font-weight: 600;
-  }
-}
-
-.zoom-slider {
-  flex: 1;
-  cursor: pointer;
-  accent-color: var(--primary);
-  height: 6px;
-  background: #e2e8f0;
-  border-radius: 3px;
-}
-
-.crop-file-actions {
-  display: flex;
-  gap: 0.5rem;
-  flex-wrap: wrap;
-  justify-content: center;
-}
-
-.btn-crop-reset {
-  padding: 0.4rem 0.75rem;
-  border-radius: 6px;
-  border: 1px solid var(--border);
-  background: white;
-  font-size: 0.78rem;
-  font-weight: 600;
-  cursor: pointer;
-  transition: background-color 0.15s ease;
-
-  &:hover {
-    background: #f8fafc;
-  }
-}
-
-.btn-crop-restore {
-  border-color: #fcd34d;
-  color: #92400e;
-  background: #fffbeb;
-
-  &:hover {
-    background: #fef3c7;
-  }
-}
-
-.crop-modal-footer {
-  padding: 0.75rem 1.25rem;
-  border-top: 1px solid var(--border);
-  display: flex;
-  justify-content: flex-end;
 }
 
 @keyframes spin {
