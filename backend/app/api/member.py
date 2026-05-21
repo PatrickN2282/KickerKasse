@@ -13,11 +13,19 @@ from app.schemas import (
     MemberBalanceCorrectionLogResponse,
 )
 from app.services import MemberService
-from app.services.file_service import save_member_photo, get_full_path, delete_member_photo
+from app.services.file_service import (
+    save_member_photo,
+    save_member_original_photo,
+    get_full_path,
+    get_member_original_photo_path,
+    get_media_type,
+    delete_member_photo,
+)
 from app.repositories import MemberRepository, UserRepository
 from app.models import UserRole
 
 router = APIRouter(prefix="/api/members", tags=["Members"])
+MAX_PHOTO_SIZE_BYTES = 5 * 1024 * 1024
 
 
 class MemberRechargeRequest(BaseModel):
@@ -412,7 +420,7 @@ async def upload_member_photo(
         )
     
     # Limit file size to 5MB
-    if len(image_data) > 5 * 1024 * 1024:
+    if len(image_data) > MAX_PHOTO_SIZE_BYTES:
         raise HTTPException(
             status_code=status.HTTP_413_REQUEST_ENTITY_TOO_LARGE,
             detail="File too large (max 5MB)",
@@ -428,6 +436,42 @@ async def upload_member_photo(
     db.refresh(member)
     
     return {"status": "success", "member_id": member_id, "photo_path": photo_path}
+
+
+@router.post("/{member_id}/original-photo")
+@router.post("/{member_id}/original-photo/")
+async def upload_member_original_photo(
+    member_id: int,
+    file: UploadFile = File(...),
+    request: Request,
+    db: Session = Depends(get_db),
+):
+    require_roles(request, db, UserRole.ADMIN, UserRole.MANAGER)
+
+    member_repo = MemberRepository(db)
+    member = member_repo.get_by_id(member_id)
+    if not member:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Member not found",
+        )
+
+    image_data = await file.read()
+    if not image_data:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Empty file",
+        )
+
+    if len(image_data) > MAX_PHOTO_SIZE_BYTES:
+        raise HTTPException(
+            status_code=status.HTTP_413_REQUEST_ENTITY_TOO_LARGE,
+            detail="File too large (max 5MB)",
+        )
+
+    await file.seek(0)
+    await save_member_original_photo(file, member_id)
+    return {"status": "success", "member_id": member_id}
 
 
 @router.delete("/{member_id}/photo")
@@ -479,4 +523,28 @@ async def get_member_photo(
             detail="Photo file not found",
         )
     
-    return FileResponse(file_path, media_type="image/jpeg")
+    return FileResponse(file_path, media_type=get_media_type(file_path))
+
+
+@router.get("/{member_id}/original-photo")
+@router.get("/{member_id}/original-photo/")
+async def get_member_original_photo(
+    member_id: int,
+    db: Session = Depends(get_db),
+):
+    member_repo = MemberRepository(db)
+    member = member_repo.get_by_id(member_id)
+    if not member or not member.photo_path:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Member or photo not found",
+        )
+
+    file_path = get_member_original_photo_path(member_id)
+    if not file_path or not file_path.exists():
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Original photo not found",
+        )
+
+    return FileResponse(file_path, media_type=get_media_type(file_path))

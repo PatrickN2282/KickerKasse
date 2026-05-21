@@ -236,13 +236,13 @@
     <ImageEditorModal
       :show="showPhotoCropModal"
       :image-src="photoCropSource"
-      :restore-source="photoOriginalSrc || photoPreview"
+      :restore-source="photoRestoreSrc"
       title="Mitgliederbild bearbeiten"
       subtitle="Verschieben und zoomen, um den gewünschten Bildausschnitt festzulegen."
       :aspect-ratio="1"
       :frame-width="280"
       :output-width="560"
-      :can-restore="Boolean(photoOriginalSrc || photoPreview)"
+      :can-restore="Boolean(photoRestoreSrc)"
       restore-label="Ausgangsbild wiederherstellen"
       :can-delete="Boolean(photoPreview || persistedPhotoExists)"
       delete-label="Foto löschen"
@@ -277,6 +277,7 @@ const photoCropSource = ref(null)
 const pendingPhotoOriginalSrc = ref(null)
 const showPhotoCropModal = ref(false)
 const photoDeleteRequested = ref(false)
+const photoPendingOriginalUpload = ref(false)
 const persistedPhotoExists = ref(false)
 const rechargeAmount = ref(null)
 const currentMemberBalance = ref(null)
@@ -307,6 +308,8 @@ const memberPhotoAlt = computed(() => {
   return fullName ? `Foto von ${fullName}` : 'Mitgliederfoto-Vorschau'
 })
 
+const photoRestoreSrc = computed(() => pendingPhotoOriginalSrc.value || photoOriginalSrc.value)
+
 const filteredMembers = computed(() => {
   const search = memberSearch.value.trim().toLowerCase()
 
@@ -335,6 +338,17 @@ const readFileAsDataUrl = (file) => {
     reader.readAsDataURL(file)
   })
 }
+
+const checkImageExists = async (url) => {
+  try {
+    const response = await fetch(url, { credentials: 'include' })
+    return response.ok
+  } catch {
+    return false
+  }
+}
+
+const withCacheBust = (url, token = Date.now()) => `${url}?t=${token}`
 
 const handlePhotoUpload = async (event) => {
   const [file] = event.target.files || []
@@ -372,7 +386,8 @@ const closePhotoEditor = () => {
 const handlePhotoCropApply = ({ blob, dataUrl }) => {
   photoFile.value = new File([blob], 'member-photo.jpg', { type: 'image/jpeg' })
   photoPreview.value = dataUrl
-  photoOriginalSrc.value = pendingPhotoOriginalSrc.value || photoOriginalSrc.value || photoPreview.value
+  photoOriginalSrc.value = pendingPhotoOriginalSrc.value || photoOriginalSrc.value
+  photoPendingOriginalUpload.value = Boolean(pendingPhotoOriginalSrc.value)
   photoDeleteRequested.value = false
   showPhotoCropModal.value = false
   photoCropSource.value = null
@@ -386,6 +401,7 @@ const requestPhotoRemoval = () => {
   photoCropSource.value = null
   pendingPhotoOriginalSrc.value = null
   showPhotoCropModal.value = false
+  photoPendingOriginalUpload.value = false
   photoDeleteRequested.value = Boolean(editingId.value && persistedPhotoExists.value)
 }
 
@@ -408,6 +424,22 @@ const syncMemberPhoto = async (memberId) => {
   }
 
   if (!photoFile.value) return true
+
+  if (photoPendingOriginalUpload.value && photoOriginalSrc.value) {
+    try {
+      const originalBlob = await dataUrlToBlob(photoOriginalSrc.value)
+      const originalFormData = new FormData()
+      originalFormData.append('file', new File([originalBlob], 'original.jpg', { type: 'image/jpeg' }))
+      await fetch(`/api/members/${memberId}/original-photo`, {
+        method: 'POST',
+        body: originalFormData,
+        credentials: 'include'
+      })
+    } catch (error) {
+      console.error('Failed to upload original member photo:', error)
+    }
+  }
+
   try {
     const fd = new FormData()
     fd.append('file', photoFile.value)
@@ -418,6 +450,7 @@ const syncMemberPhoto = async (memberId) => {
     })
     if (response.ok) {
       photoFile.value = null
+      photoPendingOriginalUpload.value = false
       persistedPhotoExists.value = true
       return true
     }
@@ -428,6 +461,24 @@ const syncMemberPhoto = async (memberId) => {
     notificationStore.error('Fehler beim Übertragen des Bildes')
     return false
   }
+}
+
+const dataUrlToBlob = (dataUrl) => {
+  return new Promise((resolve, reject) => {
+    const parts = dataUrl.split(',')
+    const mimeMatch = parts[0].match(/:(.*?);/)
+    if (!mimeMatch) {
+      reject(new Error('Invalid data URL'))
+      return
+    }
+    const mime = mimeMatch[1]
+    const bStr = atob(parts[1])
+    const u8arr = new Uint8Array(bStr.length)
+    for (let i = 0; i < bStr.length; i += 1) {
+      u8arr[i] = bStr.charCodeAt(i)
+    }
+    resolve(new Blob([u8arr], { type: mime }))
+  })
 }
 
 const handleSaveMember = async () => {
@@ -462,7 +513,7 @@ const handleSaveMember = async () => {
   }
 }
 
-const editMember = (member) => {
+const editMember = async (member) => {
   editingId.value = member.id
   Object.assign(formData, {
     first_name: member.first_name || '',
@@ -475,8 +526,10 @@ const editMember = (member) => {
     role: member.role || '',
     account_password: ''
   })
-  photoPreview.value = member.photo_path ? `/api/members/${member.id}/photo` : null
-  photoOriginalSrc.value = photoPreview.value
+  const cacheBust = Date.now()
+  photoPreview.value = member.photo_path ? withCacheBust(`/api/members/${member.id}/photo`, cacheBust) : null
+  photoOriginalSrc.value = null
+  photoPendingOriginalUpload.value = false
   photoCropSource.value = null
   pendingPhotoOriginalSrc.value = null
   photoFile.value = null
@@ -485,6 +538,13 @@ const editMember = (member) => {
   currentMemberBalance.value = member.balance_cents
   hasExistingUserAccount.value = !!member.has_user_account
   showMemberModal.value = true
+
+  if (member.photo_path) {
+    const originalUrl = withCacheBust(`/api/members/${member.id}/original-photo`, cacheBust)
+    if (await checkImageExists(originalUrl)) {
+      photoOriginalSrc.value = originalUrl
+    }
+  }
 }
 
 const openRechargeModal = () => { showRechargeModal.value = true }
@@ -522,6 +582,7 @@ const resetForm = () => {
   pendingPhotoOriginalSrc.value = null
   showPhotoCropModal.value = false
   photoDeleteRequested.value = false
+  photoPendingOriginalUpload.value = false
   persistedPhotoExists.value = false
   rechargeAmount.value = null
   Object.keys(formData).forEach(key => {
