@@ -109,14 +109,20 @@
               <!-- LINKE SEITE: Foto & Rabatt-Checkbox -->
               <div class="image-upload-section">
                 <span class="section-label">Foto</span>
-                <div class="avatar-display compact-avatar" @click="$refs.fileInput.click()">
+                <div class="avatar-display compact-avatar">
                   <img v-if="photoPreview" :src="photoPreview" class="profile-img">
                   <div v-else class="photo-placeholder">
-                    <span>Bild hochladen</span>
+                    <span>Kein Bild ausgewählt</span>
                   </div>
-                  <div class="hover-overlay">Ändern</div>
                 </div>
-                <input type="file" ref="fileInput" hidden @change="handlePhotoUpload" accept="image/*">
+                <div class="image-action-buttons">
+                  <button v-if="photoPreview" type="button" class="btn-action" @click="openPhotoEditor">✂ Zuschneiden</button>
+                  <label class="upload-button btn-action">
+                    {{ photoPreview ? 'Ändern' : 'Bild auswählen' }}
+                    <input ref="fileInput" type="file" hidden @change="handlePhotoUpload" accept="image/*">
+                  </label>
+                  <button v-if="photoPreview" type="button" class="btn-action btn-action-danger" @click="requestPhotoRemoval">🗑 Löschen</button>
+                </div>
 
                 <!-- Hierher verschoben: Rabattberechtigt-Checkbox -->
                 <label class="checkbox-card compact-cb">
@@ -218,6 +224,20 @@
       @close="showRechargeModal = false"
       @confirm="handleRecharge"
     />
+    <ImageEditorModal
+      :show="showPhotoCropModal"
+      :image-src="photoCropSource"
+      :restore-source="photoOriginalSrc || photoPreview"
+      title="Mitgliederbild bearbeiten"
+      subtitle="Verschieben und zoomen, um den gewünschten Bildausschnitt festzulegen."
+      :aspect-ratio="1"
+      :frame-width="280"
+      :output-width="560"
+      :can-restore="Boolean(photoOriginalSrc || photoPreview)"
+      restore-label="Ausgangsbild wiederherstellen"
+      @close="closePhotoEditor"
+      @apply="handlePhotoCropApply"
+    />
   </div>
 </template>
 
@@ -228,6 +248,7 @@ import { useMemberStore } from '@/stores/member'
 import { useNotificationStore } from '@/stores/notification'
 import { formatBalance } from '@/services/utils'
 import { getMemberFullName, getMemberSearchText, getRoleLabel } from '@/services/member'
+import ImageEditorModal from '@/components/ImageEditorModal.vue'
 import PasswordConfirmModal from '@/components/PasswordConfirmModal.vue'
 import apiService from '@/services/api'
 
@@ -239,6 +260,12 @@ const showMemberModal = ref(false)
 const editingId = ref(null)
 const photoFile = ref(null)
 const photoPreview = ref(null)
+const photoOriginalSrc = ref(null)
+const photoCropSource = ref(null)
+const pendingPhotoOriginalSrc = ref(null)
+const showPhotoCropModal = ref(false)
+const photoDeleteRequested = ref(false)
+const persistedPhotoExists = ref(false)
 const rechargeAmount = ref(null)
 const currentMemberBalance = ref(null)
 const showRechargeModal = ref(false)
@@ -283,21 +310,81 @@ const closeMemberModal = () => {
   resetForm()
 }
 
-const handlePhotoUpload = (event) => {
-  const file = event.target.files[0]
-  if (file) {
-    if (file.size > 2 * 1024 * 1024) {
-      notificationStore.error('Bild ist zu groß (max 2MB)')
-      return
-    }
-    photoFile.value = file
+const readFileAsDataUrl = (file) => {
+  return new Promise((resolve, reject) => {
     const reader = new FileReader()
-    reader.onload = (e) => photoPreview.value = e.target.result
+    reader.onload = (event) => resolve(event.target.result)
+    reader.onerror = () => reject(new Error('Datei konnte nicht gelesen werden'))
     reader.readAsDataURL(file)
+  })
+}
+
+const handlePhotoUpload = async (event) => {
+  const [file] = event.target.files || []
+  event.target.value = ''
+  if (!file) return
+  if (file.size > 5 * 1024 * 1024) {
+    notificationStore.error('Bild ist zu groß (max 5MB)')
+    return
+  }
+
+  try {
+    const dataUrl = await readFileAsDataUrl(file)
+    photoCropSource.value = dataUrl
+    pendingPhotoOriginalSrc.value = dataUrl
+    showPhotoCropModal.value = true
+  } catch (error) {
+    console.error('Member image file read error:', error)
+    notificationStore.error('Das ausgewählte Bild konnte nicht gelesen werden')
   }
 }
 
-const uploadPhotoToMember = async (memberId) => {
+const openPhotoEditor = () => {
+  if (!photoPreview.value) return
+  photoCropSource.value = photoPreview.value
+  pendingPhotoOriginalSrc.value = null
+  showPhotoCropModal.value = true
+}
+
+const closePhotoEditor = () => {
+  showPhotoCropModal.value = false
+  photoCropSource.value = null
+  pendingPhotoOriginalSrc.value = null
+}
+
+const handlePhotoCropApply = ({ blob, dataUrl }) => {
+  photoFile.value = new File([blob], 'member-photo.jpg', { type: 'image/jpeg' })
+  photoPreview.value = dataUrl
+  photoOriginalSrc.value = pendingPhotoOriginalSrc.value || photoOriginalSrc.value || photoPreview.value
+  photoDeleteRequested.value = false
+  showPhotoCropModal.value = false
+  photoCropSource.value = null
+  pendingPhotoOriginalSrc.value = null
+}
+
+const requestPhotoRemoval = () => {
+  photoPreview.value = null
+  photoFile.value = null
+  photoOriginalSrc.value = null
+  photoCropSource.value = null
+  pendingPhotoOriginalSrc.value = null
+  showPhotoCropModal.value = false
+  photoDeleteRequested.value = Boolean(editingId.value && persistedPhotoExists.value)
+}
+
+const syncMemberPhoto = async (memberId) => {
+  if (photoDeleteRequested.value) {
+    try {
+      await apiService.delete(`/members/${memberId}/photo`)
+      photoDeleteRequested.value = false
+      persistedPhotoExists.value = false
+    } catch (error) {
+      console.error('Member photo delete error:', error)
+      notificationStore.error('Vorhandenes Mitgliederbild konnte nicht gelöscht werden')
+      return false
+    }
+  }
+
   if (!photoFile.value) return true
   try {
     const fd = new FormData()
@@ -307,8 +394,18 @@ const uploadPhotoToMember = async (memberId) => {
       body: fd,
       credentials: 'include'
     })
-    return response.ok
-  } catch (e) { return false }
+    if (response.ok) {
+      photoFile.value = null
+      persistedPhotoExists.value = true
+      return true
+    }
+    notificationStore.error('Bild-Upload fehlgeschlagen')
+    return false
+  } catch (e) {
+    console.error('Member photo upload error:', e)
+    notificationStore.error('Fehler beim Übertragen des Bildes')
+    return false
+  }
 }
 
 const handleSaveMember = async () => {
@@ -323,14 +420,20 @@ const handleSaveMember = async () => {
   if (editingId.value) {
     const success = await memberStore.updateMember(editingId.value, payload)
     if (success) {
-      await uploadPhotoToMember(editingId.value)
+      const photoSynced = await syncMemberPhoto(editingId.value)
+      if (!photoSynced) return
       notificationStore.success('Mitglied aktualisiert')
       closeMemberModal()
     }
   } else {
     const result = await memberStore.createMember(payload)
     if (result) {
-      await uploadPhotoToMember(result.id)
+      const photoSynced = await syncMemberPhoto(result.id)
+      if (!photoSynced && photoFile.value) {
+        notificationStore.warning('Mitglied wurde erstellt, aber der Bild-Upload ist fehlgeschlagen.')
+      } else if (!photoSynced && photoPreview.value) {
+        notificationStore.warning('Mitglied wurde erstellt, aber das bisherige Bild konnte nicht übernommen werden.')
+      }
       notificationStore.success('Mitglied erstellt')
       closeMemberModal()
     }
@@ -351,6 +454,12 @@ const editMember = (member) => {
     account_password: ''
   })
   photoPreview.value = member.photo_path ? `/api/members/${member.id}/photo` : null
+  photoOriginalSrc.value = photoPreview.value
+  photoCropSource.value = null
+  pendingPhotoOriginalSrc.value = null
+  photoFile.value = null
+  photoDeleteRequested.value = false
+  persistedPhotoExists.value = !!member.photo_path
   currentMemberBalance.value = member.balance_cents
   hasExistingUserAccount.value = !!member.has_user_account
   showMemberModal.value = true
@@ -383,6 +492,12 @@ const resetForm = () => {
   editingId.value = null
   photoFile.value = null
   photoPreview.value = null
+  photoOriginalSrc.value = null
+  photoCropSource.value = null
+  pendingPhotoOriginalSrc.value = null
+  showPhotoCropModal.value = false
+  photoDeleteRequested.value = false
+  persistedPhotoExists.value = false
   rechargeAmount.value = null
   Object.keys(formData).forEach(key => {
     formData[key] = key === 'has_discount' ? true : ''
@@ -604,6 +719,18 @@ onMounted(() => memberStore.getMembers())
   gap: 0.5rem;
 }
 
+.image-action-buttons {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+
+  .btn-action {
+    flex: 1 1 100%;
+    justify-content: center;
+    text-align: center;
+  }
+}
+
 .avatar-display {
   width: 100%;
   height: 120px;
@@ -612,11 +739,9 @@ onMounted(() => memberStore.getMembers())
   border: 2px dashed #cbd5e1;
   position: relative;
   overflow: hidden;
-  cursor: pointer;
   display: flex;
   align-items: center;
   justify-content: center;
-  &:hover .hover-overlay { opacity: 1; }
 }
 
 .compact-avatar {
@@ -625,10 +750,6 @@ onMounted(() => memberStore.getMembers())
 
 .profile-img { width: 100%; height: 100%; object-fit: cover; }
 .photo-placeholder { height: 100%; display: flex; align-items: center; justify-content: center; color: #94a3b8; font-size: 0.8rem; text-align: center; }
-.hover-overlay {
-  position: absolute; inset: 0; background: rgba(0,0,0,0.4);
-  color: white; display: flex; align-items: center; justify-content: center; opacity: 0; transition: 0.2s;
-}
 
 .compact-summary {
   background: #ecfdf5;
@@ -740,8 +861,10 @@ onMounted(() => memberStore.getMembers())
 .btn-action {
   border: 1px solid var(--border); background: white; color: #334155;
   padding: 0.45rem 0.75rem; border-radius: 8px; cursor: pointer; font-weight: 600;
+  display: inline-flex; align-items: center; justify-content: center;
 }
 .btn-action-danger { border-color: #fecaca; color: #b91c1c; }
+.upload-button { overflow: hidden; }
 
 .close-btn {
   width: 34px; height: 34px; border-radius: 50%;

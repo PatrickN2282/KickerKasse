@@ -12,7 +12,13 @@ from app.schemas import (
     ProductStockCorrectionLogResponse,
 )
 from app.services import ProductService
-from app.services.file_service import save_product_image, save_product_original_image, get_full_path, get_product_original_image_path
+from app.services.file_service import (
+    save_product_image,
+    save_product_original_image,
+    get_full_path,
+    get_product_original_image_path,
+    delete_product_image,
+)
 from app.repositories import ProductRepository, UserRepository
 from app.models import UserRole
 
@@ -256,6 +262,32 @@ async def upload_product_image(
     db.refresh(product)
     
     return {"status": "success", "product_id": product_id, "image_path": image_path}
+
+
+@router.delete("/{product_id}/image")
+@router.delete("/{product_id}/image/")
+async def delete_product_image_file(
+    product_id: int,
+    request: Request = None,
+    db: Session = Depends(get_db),
+):
+    """Delete product image and reset stored image path."""
+    require_roles(request, db, UserRole.ADMIN, UserRole.MANAGER)
+
+    product_repo = ProductRepository(db)
+    product = product_repo.get_by_id(product_id)
+    if not product:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Product not found",
+        )
+
+    delete_product_image(product_id)
+    product.image_path = None
+    db.commit()
+    db.refresh(product)
+
+    return {"status": "success", "product_id": product_id}
 
 
 @router.get("/{product_id}/image")
