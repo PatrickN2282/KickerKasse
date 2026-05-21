@@ -12,6 +12,7 @@ from app.schemas import (
     ProductStockCorrectionLogResponse,
 )
 from app.services import ProductService
+from app.services.audit_log_service import AuditLogService
 from app.services.file_service import (
     save_product_image,
     save_product_original_image,
@@ -261,7 +262,6 @@ async def upload_product_image(
     # Update product with image path
     product.image_path = image_path
 
-    from app.services.audit_log_service import AuditLogService
     AuditLogService(db).log(
         entity_type="product",
         action="IMAGE_UPDATED",

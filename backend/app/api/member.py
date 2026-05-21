@@ -13,6 +13,7 @@ from app.schemas import (
     MemberBalanceCorrectionLogResponse,
 )
 from app.services import MemberService
+from app.services.audit_log_service import AuditLogService
 from app.services.file_service import (
     save_member_photo,
     save_member_original_photo,
@@ -425,7 +426,6 @@ async def upload_member_photo(
     # Update member with photo path
     member.photo_path = photo_path
 
-    from app.services.audit_log_service import AuditLogService
     AuditLogService(db).log(
         entity_type="member",
         action="IMAGE_UPDATED",

@@ -108,7 +108,7 @@ const auditActionLabel = (action) => {
     BALANCE_CORRECTION: 'Guthaben korrigiert',
     STOCK_CORRECTION: 'Bestand korrigiert',
     CLUB_ACCOUNT_TOPUP: 'Konto aufgeladen',
-    IMAGE_UPDATED: 'Geändert | Bild angepasst',
+    IMAGE_UPDATED: 'Bild geändert',
   }
   return map[action] || action
 }
