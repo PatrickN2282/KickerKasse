@@ -153,10 +153,10 @@ async def adjust_stock(
     db: Session = Depends(get_db),
 ):
     """Adjust product stock"""
-    require_roles(request, db, UserRole.ADMIN, UserRole.MANAGER)
+    current_user = require_roles(request, db, UserRole.ADMIN, UserRole.MANAGER)
     
     service = ProductService(db)
-    product = service.adjust_stock(product_id, quantity)
+    product = service.adjust_stock(product_id, quantity, current_user.username)
     if not product:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,

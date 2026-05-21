@@ -77,14 +77,31 @@ class ProductService:
         product = self.repo.get_by_id(product_id)
         return bool(product and (product.is_unlimited_stock or product.stock_quantity >= quantity))
     
-    def adjust_stock(self, product_id: int, quantity: int):
+    def adjust_stock(self, product_id: int, quantity: int, executed_by_username: str | None = None):
         """Adjust product stock (positive or negative)"""
         product = self.repo.get_by_id(product_id)
         if not product:
             return None
         
         if quantity > 0:
-            return self.repo.add_stock(product_id, quantity)
+            old_stock_quantity = product.stock_quantity
+            product = self.repo.add_stock(product_id, quantity)
+            if not product:
+                return None
+            if not product.is_unlimited_stock:
+                self._audit(
+                    "RESTOCKED",
+                    product,
+                    executed_by_username,
+                    old_value={"stock_quantity": old_stock_quantity},
+                    new_value={
+                        "stock_quantity": product.stock_quantity,
+                        "change_quantity": quantity,
+                    },
+                )
+            self.db.commit()
+            self.db.refresh(product)
+            return product
         else:
             if not self.repo.deduct_stock(product_id, abs(quantity)):
                 return None

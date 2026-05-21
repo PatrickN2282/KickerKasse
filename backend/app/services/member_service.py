@@ -195,7 +195,13 @@ class MemberService:
         self.db.refresh(member)
         return member
     
-    def recharge_balance(self, member_id: int, amount_cents: int, reason: str = "RECHARGE"):
+    def recharge_balance(
+        self,
+        member_id: int,
+        amount_cents: int,
+        reason: str = "RECHARGE",
+        executed_by_username: str | None = None,
+    ):
         """Recharge member balance"""
         member = self.repo.get_by_id(member_id)
         if not member:
@@ -211,6 +217,20 @@ class MemberService:
             new_balance_cents=member.balance_cents,
             reason=reason,
         )
+
+        self._audit(
+            "RECHARGED",
+            member,
+            executed_by_username,
+            old_value={"balance_cents": old_balance},
+            new_value={
+                "balance_cents": member.balance_cents,
+                "change_cents": amount_cents,
+                "reason": reason,
+            },
+        )
+        self.db.commit()
+        self.db.refresh(member)
         
         return member
 

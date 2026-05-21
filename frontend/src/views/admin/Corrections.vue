@@ -393,7 +393,7 @@
             type="button"
             @click="closeCorrectionModal"
           >
-            Abbrechen
+            Abbrechen / Zurück
           </button>
           <button
             v-if="activeTab === 'members'"
@@ -402,7 +402,7 @@
             :disabled="!canSubmitMemberCorrection || isSubmitting"
             @click="submitMemberCorrection"
           >
-            {{ isSubmitting ? 'Wird gespeichert…' : 'Korrektur speichern' }}
+            {{ isSubmitting ? '⏳ Speichert...' : '✓ Speichern' }}
           </button>
           <button
             v-else
@@ -411,7 +411,7 @@
             :disabled="!canSubmitProductCorrection || isSubmitting"
             @click="submitProductCorrection"
           >
-            {{ isSubmitting ? 'Wird gespeichert…' : 'Korrektur speichern' }}
+            {{ isSubmitting ? '⏳ Speichert...' : '✓ Speichern' }}
           </button>
         </footer>
       </div>

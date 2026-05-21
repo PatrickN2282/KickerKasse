@@ -286,7 +286,12 @@ async def recharge_member_balance(
     
     try:
         service = MemberService(db)
-        member = service.recharge_balance(member_id, recharge_request.amount_cents, "RECHARGE")
+        member = service.recharge_balance(
+            member_id,
+            recharge_request.amount_cents,
+            "RECHARGE",
+            current_user.username,
+        )
         
         if not member:
             raise HTTPException(
