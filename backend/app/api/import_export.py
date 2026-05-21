@@ -87,6 +87,12 @@ async def import_data(
     import_media: str | None = Form(default=None),
     db: Session = Depends(get_db),
 ):
+    """
+    Import data from a CSV or ZIP file.
+
+    ⚠️ Hinweis: Der Import ist ausschließlich für frische oder leere Datenbanken vorgesehen.
+    Auf einer bestehenden Datenbank mit Transaktionen kann der Import zu Inkonsistenzen führen.
+    """
     require_roles(request, db, UserRole.ADMIN)
 
     try:

@@ -26,7 +26,7 @@ from app.services import (
     ZBonService,
 )
 from app.services.zbon_html_exporter import ZBonHTMLExporter
-from app.repositories import MemberRepository, ProductRepository
+from app.repositories import MemberRepository, ProductRepository, UserRepository
 from app.models import CashEntryType, PaymentMethod, Transaction, ZBonHistory, UserRole
 
 from app.services import SchedulerService
@@ -127,8 +127,16 @@ async def create_sale(
     
     print(f"[API] Creating sale transaction for user {user_id}: payment_method={transaction_data.payment_method}, member_id={transaction_data.member_id}, items={len(transaction_data.items)}")
     
+    # Load cashier username for snapshot
+    performed_by_username = None
+    user_repo = UserRepository(db)
+    cashier = user_repo.get_by_id(user_id)
+    if cashier:
+        performed_by_username = cashier.username
+
     # Validate items exist and have stock
     product_repo = ProductRepository(db)
+    product_names: dict[int, str] = {}
     reserved_quantities = DeckelService(db).get_reserved_quantities()
     sold_prepaid_quantities_by_value: dict[int, int] = {}
     voucher_service = VoucherService(db)
@@ -139,6 +147,7 @@ async def create_sale(
                 status_code=status.HTTP_404_NOT_FOUND,
                 detail=f"Product {item.product_id} not found",
             )
+        product_names[product.id] = product.name
         if not product.is_unlimited_stock:
             available_quantity = max(product.stock_quantity - reserved_quantities.get(product.id, 0), 0)
             if available_quantity < item.quantity:
@@ -231,13 +240,26 @@ async def create_sale(
 
     service = TransactionService(db)
     
-    # Create transaction
-    items_data = [item.dict() for item in transaction_data.items]
+    # Collect member name snapshot
+    member_name_snapshot = None
+    if transaction_data.member_id:
+        member_repo_for_snapshot = MemberRepository(db)
+        m = member_repo_for_snapshot.get_by_id(transaction_data.member_id)
+        if m:
+            member_name_snapshot = m.name
+
+    # Create transaction with snapshot fields
+    items_data = [
+        {**item.dict(), "product_name": product_names.get(item.product_id)}
+        for item in transaction_data.items
+    ]
     transaction = service.create_sale_transaction(
         user_id=user_id,
         total_amount_cents=payable_amount_cents,
         payment_method=transaction_data.payment_method,
         member_id=transaction_data.member_id,
+        member_name=member_name_snapshot,
+        performed_by_username=performed_by_username,
         items=items_data,
         voucher_code=", ".join(voucher.voucher_code for voucher, _ in vouchers) if vouchers else None,
         voucher_type=_get_combined_voucher_type(vouchers),
@@ -333,11 +355,18 @@ async def create_storno(
         )
     
     service = TransactionService(db)
+
+    # Load cashier username for snapshot
+    performed_by_username_storno = None
+    storno_user = UserRepository(db).get_by_id(user_id)
+    if storno_user:
+        performed_by_username_storno = storno_user.username
     
     try:
         storno = service.create_storno_transaction(
             storno_data.transaction_id,
             user_id,
+            performed_by_username=performed_by_username_storno,
         )
     except ValueError as e:
         raise HTTPException(

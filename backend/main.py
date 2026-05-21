@@ -27,6 +27,7 @@ from app.api import (
     app_settings_router,
     data_maintenance_router,
     import_export_router,
+    audit_log_router,
 )
 
 import logging
@@ -104,6 +105,7 @@ app.include_router(voucher_kasse_router)
 app.include_router(app_settings_router)
 app.include_router(data_maintenance_router)
 app.include_router(import_export_router)
+app.include_router(audit_log_router)
 
 
 @app.get("/api/health")

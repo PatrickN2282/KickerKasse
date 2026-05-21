@@ -72,6 +72,7 @@ async def create_member(
             member_data.has_discount,
             member_data.role,
             member_data.account_password,
+            performed_by_username=current_user.username,
         )
         return member
     except IntegrityError as e:
@@ -235,7 +236,7 @@ async def update_member(
         service = MemberService(db)
         update_dict = member_data.model_dump(exclude_unset=True)
         account_password = update_dict.pop("account_password", None)
-        member = service.update_member(member_id, account_password=account_password, **update_dict)
+        member = service.update_member(member_id, account_password=account_password, performed_by_username=current_user.username, **update_dict)
         if not member:
             raise HTTPException(
                 status_code=status.HTTP_404_NOT_FOUND,
@@ -301,6 +302,8 @@ async def recharge_member_balance(
             total_amount_cents=recharge_request.amount_cents,
             user_id=user_id,
             member_id=member_id,
+            member_name=member.name,
+            performed_by_username=current_user.username,
             items=[],  # No items for recharge
         )
         
@@ -365,26 +368,10 @@ async def delete_member(
     db: Session = Depends(get_db),
 ):
     """Delete member"""
-    from app.repositories import UserRepository
-    from app.models import UserRole
-    
-    user_id = request.session.get("user_id")
-    if not user_id:
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Not authenticated",
-        )
-    
-    # Check if admin
-    current_user = UserRepository(db).get_by_id(user_id)
-    if not current_user or not current_user.is_admin:
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail="Insufficient permissions"
-        )
-    
+    current_user = require_roles(request, db, UserRole.ADMIN)
+
     service = MemberService(db)
-    if not service.delete_member(member_id):
+    if not service.delete_member(member_id, performed_by_username=current_user.username):
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="Member not found",

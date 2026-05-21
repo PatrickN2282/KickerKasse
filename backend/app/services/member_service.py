@@ -25,6 +25,22 @@ class MemberService:
         self.balance_log_repo = BalanceLogRepository(db)
         self.user_repo = UserRepository(db)
 
+    def _audit(self, action: str, member: Member, user_username: str | None, old_value: dict | None = None, new_value: dict | None = None):
+        """Write an audit log entry for a member action."""
+        try:
+            from app.services.audit_log_service import AuditLogService
+            AuditLogService(self.db).log(
+                entity_type="member",
+                action=action,
+                user_username=user_username,
+                entity_id=member.id,
+                entity_name=member.name,
+                old_value=old_value,
+                new_value=new_value,
+            )
+        except Exception:
+            pass  # Audit failures must never break the main operation
+
     def _generate_member_username(self, member: Member) -> str:
         first_name = ".".join((member.first_name or "").split()).strip(".")
         last_name = ".".join((member.last_name or "").split()).strip(".")
@@ -104,6 +120,7 @@ class MemberService:
         has_discount: bool = True,
         role: str | None = None,
         account_password: str | None = None,
+        performed_by_username: str | None = None,
     ):
         """Create a new member"""
         self._validate_linked_user_state(
@@ -115,6 +132,20 @@ class MemberService:
         member = self.repo.create(first_name, last_name, membership_number, email, phone, notes, has_discount, role)
         try:
             self._sync_linked_user(member, account_password)
+            self.db.refresh(member)
+            self._audit(
+                "CREATED",
+                member,
+                performed_by_username,
+                new_value={
+                    "first_name": first_name,
+                    "last_name": last_name,
+                    "membership_number": membership_number,
+                    "email": email,
+                    "has_discount": has_discount,
+                },
+            )
+            self.db.commit()
             self.db.refresh(member)
             return member
         except Exception:
@@ -131,11 +162,19 @@ class MemberService:
         """Get all members"""
         return self.repo.get_all()
     
-    def update_member(self, member_id: int, account_password: str | None = None, **kwargs):
+    def update_member(self, member_id: int, account_password: str | None = None, performed_by_username: str | None = None, **kwargs):
         """Update member"""
         existing_member = self.repo.get_by_id(member_id)
         if not existing_member:
             return None
+
+        old_snapshot = {
+            "name": existing_member.name,
+            "email": existing_member.email,
+            "membership_number": existing_member.membership_number,
+            "has_discount": existing_member.has_discount,
+            "notes": existing_member.notes,
+        }
 
         linked_user = self.user_repo.get_by_member_id(member_id)
         self._validate_linked_user_state(
@@ -150,6 +189,9 @@ class MemberService:
             return None
 
         self._sync_linked_user(member, account_password)
+        self.db.refresh(member)
+        self._audit("UPDATED", member, performed_by_username, old_value=old_snapshot, new_value=kwargs)
+        self.db.commit()
         self.db.refresh(member)
         return member
     
@@ -216,12 +258,13 @@ class MemberService:
         member = self.repo.get_by_id(member_id)
         return member and member.balance_cents >= amount_cents
     
-    def delete_member(self, member_id: int):
+    def delete_member(self, member_id: int, performed_by_username: str | None = None):
         """Delete member"""
         member = self.repo.get_by_id(member_id)
         if not member:
             return False
 
+        member_snapshot = {"name": member.name, "email": member.email}
         linked_user = self.user_repo.get_by_member_id(member_id)
 
         # Keep historical transaction amounts, timestamps, and receipt metadata for statistics/audits while
@@ -254,4 +297,19 @@ class MemberService:
                 self.user_repo.delete(linked_user.id)
 
         delete_member_photo(member_id)
-        return self.repo.delete(member_id)
+        result = self.repo.delete(member_id)
+        if result:
+            try:
+                from app.services.audit_log_service import AuditLogService
+                AuditLogService(self.db).log(
+                    entity_type="member",
+                    action="DELETED",
+                    user_username=performed_by_username,
+                    entity_id=member_id,
+                    entity_name=member_snapshot["name"],
+                    old_value=member_snapshot,
+                )
+                self.db.commit()
+            except Exception:
+                pass
+        return result

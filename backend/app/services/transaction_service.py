@@ -32,6 +32,8 @@ class TransactionService:
         total_amount_cents: int,
         payment_method: str,
         member_id: int = None,
+        member_name: str = None,
+        performed_by_username: str = None,
         items: list = None,
         voucher_code: str = None,
         voucher_type: str = None,
@@ -48,6 +50,8 @@ class TransactionService:
             total_amount_cents=total_amount_cents,
             user_id=user_id,
             member_id=member_id,
+            member_name=member_name,
+            performed_by_username=performed_by_username,
             items=items or [],
             voucher_code=voucher_code,
             voucher_type=voucher_type,
@@ -83,6 +87,7 @@ class TransactionService:
         self,
         original_transaction_id: int,
         user_id: int,
+        performed_by_username: str = None,
     ) -> Transaction:
         """Create a storno (reversal) transaction"""
         original = self.transaction_repo.get_by_id(original_transaction_id)
@@ -96,6 +101,8 @@ class TransactionService:
             total_amount_cents=original.total_amount_cents,
             user_id=user_id,
             member_id=original.member_id,
+            member_name=original.member_name,
+            performed_by_username=performed_by_username,
             reference_transaction_id=original_transaction_id,
             voucher_code=original.voucher_code,
             voucher_type=original.voucher_type,
@@ -220,15 +227,25 @@ class TransactionService:
             "balance_applied_cents": transaction.balance_applied_cents,
             "created_at": transaction.created_at,
             "reason": reason,
-            "performed_by": transaction.user.username if transaction.user else None,
+            # Snapshot fields with fallback to relationship for legacy entries
+            "performed_by": (
+                transaction.performed_by_username
+                or (transaction.user.username if transaction.user else None)
+            ),
             "user": {
-                "id": transaction.user.id,
-                "username": transaction.user.username,
-            } if transaction.user else None,
+                "id": transaction.user_id,
+                "username": (
+                    transaction.performed_by_username
+                    or (transaction.user.username if transaction.user else None)
+                ),
+            },
             "member": {
-                "id": transaction.member.id,
-                "name": transaction.member.name,
-            } if transaction.member else None,
+                "id": transaction.member_id,
+                "name": (
+                    transaction.member_name
+                    or (transaction.member.name if transaction.member else None)
+                ),
+            } if transaction.member_id else None,
             "items": [
                 {
                     "id": item.id,
@@ -238,9 +255,12 @@ class TransactionService:
                     "is_internal_material": item.is_internal_material,
                     "note": item.note,
                     "product": {
-                        "id": item.product.id,
-                        "name": item.product.name,
-                    } if item.product else None,
+                        "id": item.product_id,
+                        "name": (
+                            item.product_name
+                            or (item.product.name if item.product else None)
+                        ),
+                    } if item.product_id else None,
                 }
                 for item in transaction.items
             ],
@@ -353,9 +373,12 @@ class TransactionService:
                          "balance_applied_cents": t.balance_applied_cents,
                     "created_at": t.created_at,
                     "member": {
-                        "id": t.member.id,
-                        "name": t.member.name,
-                    } if t.member else None,
+                        "id": t.member_id,
+                        "name": (
+                            t.member_name
+                            or (t.member.name if t.member else None)
+                        ),
+                    } if t.member_id else None,
                     "items": [
                         {
                             "id": item.id,
@@ -365,8 +388,11 @@ class TransactionService:
                             "is_internal_material": item.is_internal_material,
                             "note": item.note,
                             "product": {
-                                "id": item.product.id,
-                                "name": item.product.name,
+                                "id": item.product_id,
+                                "name": (
+                                    item.product_name
+                                    or (item.product.name if item.product else None)
+                                ),
                             }
                         }
                         for item in t.items
