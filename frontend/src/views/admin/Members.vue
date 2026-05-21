@@ -117,7 +117,7 @@
                   @click="openPhotoEditor"
                 >
                   <div class="avatar-display compact-avatar interactive-image-frame">
-                    <img :src="photoPreview" class="profile-img">
+                    <img :src="photoPreview" :alt="memberPhotoAlt" class="profile-img">
                     <span class="image-preview-overlay">Anpassen</span>
                   </div>
                 </button>
@@ -300,6 +300,11 @@ const rechargeModalMessage = computed(() => {
   const amountCents = Math.round(Number(rechargeAmount.value || 0) * 100)
   const current = Number(currentMemberBalance.value || 0)
   return `Möchtest du ${formatBalance(amountCents)} aufladen?\nNeuer Kontostand: ${formatBalance(current + amountCents)}`
+})
+
+const memberPhotoAlt = computed(() => {
+  const fullName = [formData.first_name, formData.last_name].filter(Boolean).join(' ').trim()
+  return fullName ? `Foto von ${fullName}` : 'Mitgliederfoto'
 })
 
 const filteredMembers = computed(() => {
