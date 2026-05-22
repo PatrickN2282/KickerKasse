@@ -100,10 +100,10 @@ const { memberSearch, filteredMembers, selectMember, showMemberModal, getMemberF
 .modal-dialog {
   background: #ffffff;
   border-radius: 16px;
-  width: 650px;
-  height: 650px;
-  max-width: 650px;
-  max-height: 650px;
+  width: 700px;
+  height: 700px;
+  max-width: 700px;
+  max-height: 700px;
   display: flex;
   flex-direction: column;
   box-shadow: 0 24px 50px rgba(15, 23, 42, 0.35);
@@ -176,19 +176,9 @@ const { memberSearch, filteredMembers, selectMember, showMemberModal, getMemberF
 }
 .member-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+  grid-template-columns: repeat(5, 1fr);
   gap: 0.75rem;
   align-content: start;
-}
-@media (max-width: 1200px) {
-  .member-grid {
-    grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
-  }
-}
-@media (max-width: 900px) {
-  .member-grid {
-    grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
-  }
 }
 @media (max-width: 640px) {
   .modal-overlay {
@@ -199,9 +189,10 @@ const { memberSearch, filteredMembers, selectMember, showMemberModal, getMemberF
     width: 100%;
     height: auto;
     max-height: calc(100vh - 1.5rem);
+    max-width: 100%;
   }
   .member-grid {
-    grid-template-columns: repeat(auto-fill, minmax(130px, 1fr));
+    grid-template-columns: repeat(auto-fill, minmax(110px, 1fr));
   }
 }
 .member-card {
