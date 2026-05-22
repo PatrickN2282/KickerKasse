@@ -402,7 +402,7 @@ const {
   background-size: var(--kasse-products-background-size, 100%);
   background-repeat: no-repeat;
   background-position: center;
-  border-radius: 10px;
+  border-radius: 12px;
   padding: var(--kasse-spacing-panels);
   box-shadow: 0 8px 20px rgba(24, 28, 34, 0.1);
   overflow-y: auto;
