@@ -14,6 +14,7 @@ class AppSettingsBase(BaseModel):
     session_timer_enabled: bool = False
     session_timer_minutes: int = Field(default=15, ge=1, le=MAX_SESSION_TIMER_MINUTES)
     deckel_enabled: bool = True
+    kasse_products_background_scale: int = Field(default=100, ge=10, le=300)
 
 
 class AppSettingsUpdate(AppSettingsBase):
@@ -23,6 +24,7 @@ class AppSettingsUpdate(AppSettingsBase):
 class AppSettingsResponse(AppSettingsBase):
     id: int
     logo_url: str
+    kasse_products_background_url: str
     favicon_ico_url: str
     favicon_16_url: str
     favicon_32_url: str
@@ -41,6 +43,7 @@ class AppSettingsResponse(AppSettingsBase):
 
 class PublicAppSettingsResponse(AppSettingsBase):
     logo_url: str
+    kasse_products_background_url: str
     favicon_ico_url: str
     favicon_16_url: str
     favicon_32_url: str

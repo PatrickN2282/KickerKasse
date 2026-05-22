@@ -4,7 +4,7 @@ import re
 from sqlalchemy.orm import Session
 
 from app.models import AppSettings
-from app.services.file_service import APP_SETTINGS_DIR, get_full_path, save_app_logo
+from app.services.file_service import APP_SETTINGS_DIR, get_full_path, save_app_logo, save_kasse_products_background
 
 
 HEX_COLOR_RE = re.compile(r"^#[0-9A-Fa-f]{6}$")
@@ -16,6 +16,7 @@ DEFAULT_LOGO_RELATIVE_PATH = "app_settings/logo.png"
 DEFAULT_SESSION_TIMER_ENABLED = False
 DEFAULT_SESSION_TIMER_MINUTES = 15
 DEFAULT_DECKEL_ENABLED = True
+DEFAULT_KASSE_PRODUCTS_BACKGROUND_SCALE = 100
 
 
 class AppSettingsService:
@@ -37,6 +38,8 @@ class AppSettingsService:
             session_timer_enabled=DEFAULT_SESSION_TIMER_ENABLED,
             session_timer_minutes=DEFAULT_SESSION_TIMER_MINUTES,
             deckel_enabled=DEFAULT_DECKEL_ENABLED,
+            kasse_products_background_path=None,
+            kasse_products_background_scale=DEFAULT_KASSE_PRODUCTS_BACKGROUND_SCALE,
         )
         self.db.add(settings)
         self.db.commit()
@@ -54,6 +57,7 @@ class AppSettingsService:
             "banner_color": settings.banner_color,
             "highlight_color": settings.highlight_color,
             "logo_url": "/api/app-settings/logo",
+            "kasse_products_background_url": "/api/app-settings/kasse-products-background" if settings.kasse_products_background_path else "",
             "favicon_ico_url": "/api/app-settings/favicon.ico",
             "favicon_16_url": "/api/app-settings/favicon-16x16.png",
             "favicon_32_url": "/api/app-settings/favicon-32x32.png",
@@ -67,6 +71,7 @@ class AppSettingsService:
             "session_timer_enabled": settings.session_timer_enabled,
             "session_timer_minutes": settings.session_timer_minutes or DEFAULT_SESSION_TIMER_MINUTES,
             "deckel_enabled": settings.deckel_enabled,
+            "kasse_products_background_scale": settings.kasse_products_background_scale or DEFAULT_KASSE_PRODUCTS_BACKGROUND_SCALE,
         }
 
     def to_private_payload(self, settings: AppSettings | None = None) -> dict:
@@ -90,6 +95,7 @@ class AppSettingsService:
             "session_timer_enabled": settings.session_timer_enabled,
             "session_timer_minutes": settings.session_timer_minutes,
             "deckel_enabled": settings.deckel_enabled,
+            "kasse_products_background_scale": settings.kasse_products_background_scale or DEFAULT_KASSE_PRODUCTS_BACKGROUND_SCALE,
         }
 
         if "app_name" in kwargs and kwargs["app_name"] is not None:
@@ -119,6 +125,12 @@ class AppSettingsService:
 
         if "deckel_enabled" in kwargs:
             settings.deckel_enabled = bool(kwargs["deckel_enabled"])
+
+        if "kasse_products_background_scale" in kwargs and kwargs["kasse_products_background_scale"] is not None:
+            scale = int(kwargs["kasse_products_background_scale"])
+            if scale < 10 or scale > 300:
+                raise ValueError("Kasse products background scale must be between 10 and 300")
+            settings.kasse_products_background_scale = scale
 
         self.db.commit()
         self.db.refresh(settings)
@@ -151,6 +163,13 @@ class AppSettingsService:
         self.db.refresh(settings)
         return settings
 
+    async def update_kasse_products_background(self, file) -> AppSettings:
+        settings = self.get_or_create_settings()
+        settings.kasse_products_background_path = await save_kasse_products_background(file)
+        self.db.commit()
+        self.db.refresh(settings)
+        return settings
+
     def get_logo_file_path(self) -> Path:
         settings = self.get_or_create_settings()
         logo_path = get_full_path(settings.logo_path) if settings.logo_path else None
@@ -163,3 +182,10 @@ class AppSettingsService:
         if uploaded_icon.exists():
             return uploaded_icon
         return self.assets_dir / filename
+
+    def get_kasse_products_background_file_path(self) -> Path | None:
+        settings = self.get_or_create_settings()
+        background_path = get_full_path(settings.kasse_products_background_path) if settings.kasse_products_background_path else None
+        if background_path and background_path.exists():
+            return background_path
+        return None

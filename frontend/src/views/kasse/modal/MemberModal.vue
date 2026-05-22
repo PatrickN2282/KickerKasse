@@ -134,10 +134,26 @@ const { memberSearch, filteredMembers, selectMember, showMemberModal, getMemberF
 }
 .member-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(130px, 1fr));
+  grid-template-columns: repeat(5, minmax(0, 1fr));
   gap: 0.6rem;
   overflow-y: auto;
   flex: 1;
+  max-height: 55vh;
+}
+@media (max-width: 1200px) {
+  .member-grid {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+  }
+}
+@media (max-width: 900px) {
+  .member-grid {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+}
+@media (max-width: 640px) {
+  .member-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
 }
 .member-card {
   background: white;

@@ -18,6 +18,8 @@ const fallbackSettings = {
   icon_512_url: '/api/app-settings/icon-512.png',
   manifest_url: '/api/app-settings/manifest.webmanifest',
   asset_version: '1',
+  kasse_products_background_url: '',
+  kasse_products_background_scale: 100,
   kasse_layout: null,
   session_timer_enabled: false,
   session_timer_minutes: 15,
@@ -64,6 +66,11 @@ export const useAppSettingsStore = defineStore('app-settings', () => {
     document.documentElement.style.setProperty('--app-banner-contrast', getContrastColor(settings.value.banner_color))
     document.documentElement.style.setProperty('--app-highlight-contrast', getContrastColor(settings.value.highlight_color))
     document.documentElement.style.setProperty('--app-background-contrast', getContrastColor(settings.value.background_color))
+    const backgroundImageUrl = settings.value.kasse_products_background_url
+      ? `url(${versionedUrl(settings.value.kasse_products_background_url)})`
+      : 'none'
+    document.documentElement.style.setProperty('--kasse-products-background-image', backgroundImageUrl)
+    document.documentElement.style.setProperty('--kasse-products-background-size', `${settings.value.kasse_products_background_scale || 100}%`)
     document.title = settings.value.app_name
 
     const themeMeta = document.getElementById('theme-color-meta')
@@ -117,6 +124,7 @@ export const useAppSettingsStore = defineStore('app-settings', () => {
     session_timer_enabled: payload.session_timer_enabled ?? settings.value.session_timer_enabled,
     session_timer_minutes: payload.session_timer_minutes ?? settings.value.session_timer_minutes,
     deckel_enabled: payload.deckel_enabled ?? settings.value.deckel_enabled,
+    kasse_products_background_scale: payload.kasse_products_background_scale ?? settings.value.kasse_products_background_scale,
   })
 
   const saveAdminSettings = async (payload) => {
@@ -145,6 +153,23 @@ export const useAppSettingsStore = defineStore('app-settings', () => {
     }
   }
 
+
+  const uploadKasseProductsBackground = async (file) => {
+    isSaving.value = true
+    try {
+      const formData = new FormData()
+      formData.append('file', file)
+      const response = await apiService.post('/app-settings/kasse-products-background', formData, {
+        headers: {
+          'Content-Type': 'multipart/form-data',
+        },
+      })
+      return mergeAndApply(response.data)
+    } finally {
+      isSaving.value = false
+    }
+  }
+
   const logoUrl = computed(() => versionedUrl(settings.value.logo_url))
 
   return {
@@ -157,5 +182,6 @@ export const useAppSettingsStore = defineStore('app-settings', () => {
     loadAdminSettings,
     saveAdminSettings,
     uploadLogo,
+    uploadKasseProductsBackground,
   }
 })

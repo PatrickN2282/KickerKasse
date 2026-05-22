@@ -3,12 +3,11 @@
     <div class="admin-header">
       <div class="admin-header-row">
         <h1>Admin Panel</h1>
-        <a
-          href="https://www.paypal.com/donate/?hosted_button_id=64BS2U8G43M5U"
-          target="_blank"
-          rel="noopener noreferrer"
+        <button
+          type="button"
           class="admin-donate-link"
-        >💛 Spenden</a>
+          @click="showDonationModal = true"
+        >💛 Spenden</button>
       </div>
 
       <div class="admin-tabs">
@@ -27,16 +26,23 @@
     <div class="tab-content">
       <router-view />
     </div>
+
+    <DonationModal
+      :show="showDonationModal"
+      @close="showDonationModal = false"
+    />
   </div>
 </template>
 
 <script setup>
-import { computed } from 'vue'
+import { computed, ref } from 'vue'
 import { useRoute } from 'vue-router'
 import { useAuthStore } from '@/stores/auth'
+import DonationModal from '@/components/DonationModal.vue'
 
 const route = useRoute()
 const authStore = useAuthStore()
+const showDonationModal = ref(false)
 
 const tabs = [
   { path: '/admin/members', label: 'Mitglieder', icon: '👥', roles: ['TOP_ADMIN', 'ADMIN', 'MANAGER'] },
@@ -91,6 +97,8 @@ const isTabActive = (path) => route.path === path
   padding: 0.2rem 0.5rem;
   white-space: nowrap;
   transition: color 0.15s, border-color 0.15s;
+  background: transparent;
+  cursor: pointer;
 
   &:hover {
     color: #555;
