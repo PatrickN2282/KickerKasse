@@ -395,7 +395,17 @@ const {
   min-width: 0;
   /* Hintergrund mit 85% Transparenz */
   background-color: color-mix(in srgb, var(--app-surface-color) var(--kasse-bg-opacity), transparent);
-  background-image: var(--kasse-products-background-image, none);
+  --kasse-products-background-overlay: color-mix(
+    in srgb,
+    transparent var(--kasse-products-background-opacity, 100%),
+    var(--app-surface-color)
+  );
+  background-image:
+    linear-gradient(
+      var(--kasse-products-background-overlay),
+      var(--kasse-products-background-overlay)
+    ),
+    var(--kasse-products-background-image, none);
   background-size: var(--kasse-products-background-size, 100%);
   background-repeat: no-repeat;
   background-position: center;

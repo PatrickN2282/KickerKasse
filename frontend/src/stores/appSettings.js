@@ -74,8 +74,8 @@ export const useAppSettingsStore = defineStore('app-settings', () => {
       : 'none'
     document.documentElement.style.setProperty('--kasse-products-background-image', backgroundImageUrl)
     document.documentElement.style.setProperty('--kasse-products-background-size', `${settings.value.kasse_products_background_scale || 100}%`)
-    const opacity = (settings.value.kasse_products_background_opacity ?? 100) / 100
-    document.documentElement.style.setProperty('--kasse-products-background-opacity', String(opacity))
+    const backgroundOpacityPercent = settings.value.kasse_products_background_opacity ?? 100
+    document.documentElement.style.setProperty('--kasse-products-background-opacity', `${backgroundOpacityPercent}%`)
     document.title = settings.value.app_name
 
     const themeMeta = document.getElementById('theme-color-meta')
