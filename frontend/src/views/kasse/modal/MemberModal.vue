@@ -100,9 +100,10 @@ const { memberSearch, filteredMembers, selectMember, showMemberModal, getMemberF
 .modal-dialog {
   background: #ffffff;
   border-radius: 16px;
-  width: 100%;
-  max-width: 960px;
-  max-height: calc(100vh - 2.5rem);
+  width: 650px;
+  height: 650px;
+  max-width: 650px;
+  max-height: 650px;
   display: flex;
   flex-direction: column;
   box-shadow: 0 24px 50px rgba(15, 23, 42, 0.35);
@@ -195,6 +196,8 @@ const { memberSearch, filteredMembers, selectMember, showMemberModal, getMemberF
     align-items: stretch;
   }
   .modal-dialog {
+    width: 100%;
+    height: auto;
     max-height: calc(100vh - 1.5rem);
   }
   .member-grid {
