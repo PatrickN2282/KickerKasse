@@ -202,6 +202,9 @@
             ⚠️ Mindestgröße: <strong>700 × 700 Pixel</strong>. Kleinere Bilder werden abgelehnt.
           </p>
           <input type="file" accept="image/*" class="form-input" @change="handleKasseBackgroundSelection" />
+          <button class="btn btn-success" :disabled="!selectedKasseBackground || appSettingsStore.isSaving" @click="uploadKasseBackground">
+            Hintergrundbild hochladen
+          </button>
           <div class="form-group">
             <label for="kasse-bg-enabled" class="checkbox-label">
               <input
@@ -241,8 +244,8 @@
               class="form-input"
             >
           </div>
-          <button class="btn btn-success" :disabled="!selectedKasseBackground || appSettingsStore.isSaving" @click="uploadKasseBackground">
-            Hintergrundbild hochladen
+          <button class="btn btn-primary" :disabled="appSettingsStore.isSaving" @click="saveDesignSettings">
+            Einstellungen aktualisieren
           </button>
         </section>
       </div>

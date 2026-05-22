@@ -390,7 +390,11 @@ const {
   flex: 1 1 auto;
   min-width: 0;
   /* Hintergrund mit 85% Transparenz */
-  background: color-mix(in srgb, var(--app-surface-color) var(--kasse-bg-opacity), transparent);
+  background-color: color-mix(in srgb, var(--app-surface-color) var(--kasse-bg-opacity), transparent);
+  background-image: var(--kasse-products-background-image, none);
+  background-size: var(--kasse-products-background-size, 100%);
+  background-repeat: no-repeat;
+  background-position: center;
   border-radius: 12px;
   padding: var(--kasse-spacing-panels);
   box-shadow: 0 8px 20px rgba(24, 28, 34, 0.1);
