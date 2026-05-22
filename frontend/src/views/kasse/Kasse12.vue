@@ -433,7 +433,6 @@ const {
   box-shadow: 0 10px 24px rgba(24, 28, 34, 0.14);
   overflow-y: auto;
   border: 1px solid var(--app-banner-color);
-  border-left: 5px solid var(--app-highlight-color);
 
   h2 {
     margin: 0 0 1rem 0;

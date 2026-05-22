@@ -4,9 +4,16 @@
       <div class="modal-header">
         <div>
           <h3>Mitglied auswählen</h3>
-          <p class="subtitle">Mitglied für die Buchung auswählen</p>
+          <p class="subtitle">
+            Mitglied für die Buchung auswählen
+          </p>
         </div>
-        <button class="close-btn" @click="showMemberModal = false">✕</button>
+        <button
+          class="close-btn"
+          @click="showMemberModal = false"
+        >
+          ✕
+        </button>
       </div>
       <div class="modal-body">
         <input
@@ -14,32 +21,57 @@
           type="text"
           placeholder="Nach Name oder Nummer suchen..."
           class="member-search-input"
-        />
-        <div v-if="filteredMembers.length > 0" class="member-grid">
-          <button
-            v-for="member in filteredMembers"
-            :key="member.id"
-            @click="selectMember(member)"
-            class="member-card"
+        >
+        <div class="member-results">
+          <div
+            v-if="filteredMembers.length > 0"
+            class="member-grid"
           >
-            <div class="member-card-img">
-              <img
-                v-if="member.photo_path"
-                :src="`/api/members/${member.id}/photo`"
-                :alt="getMemberFullName(member)"
-              />
-              <div v-else class="member-card-img-placeholder">👤</div>
-            </div>
-            <div class="member-card-body">
-              <div class="member-card-name">{{ getMemberShortName(member) }}</div>
-              <div class="member-card-balance">{{ formatBalance(member.balance_cents) }}</div>
-            </div>
-          </button>
+            <button
+              v-for="member in filteredMembers"
+              :key="member.id"
+              class="member-card"
+              @click="selectMember(member)"
+            >
+              <div class="member-card-img">
+                <img
+                  v-if="member.photo_path"
+                  :src="`/api/members/${member.id}/photo`"
+                  :alt="getMemberFullName(member)"
+                >
+                <div
+                  v-else
+                  class="member-card-img-placeholder"
+                >
+                  👤
+                </div>
+              </div>
+              <div class="member-card-body">
+                <div class="member-card-name">
+                  {{ getMemberShortName(member) }}
+                </div>
+                <div class="member-card-balance-label">
+                  Guthaben
+                </div>
+                <div class="member-card-balance">
+                  {{ formatBalance(member.balance_cents) }}
+                </div>
+              </div>
+            </button>
+          </div>
+          <div
+            v-else
+            class="empty-state"
+          >
+            Keine Mitglieder gefunden
+          </div>
         </div>
-        <div v-else class="empty-state">Keine Mitglieder gefunden</div>
       </div>
       <div class="modal-footer">
-        <button @click="showMemberModal = false" class="btn btn-secondary">
+        <button
+          class="btn btn-secondary"
+          @click="showMemberModal = false"
+        >
           Abbrechen
         </button>
       </div>
@@ -63,13 +95,14 @@ const { memberSearch, filteredMembers, selectMember, showMemberModal, getMemberF
   justify-content: center;
   z-index: 1000;
   padding: 1.25rem;
+  overflow-y: auto;
 }
 .modal-dialog {
   background: #ffffff;
   border-radius: 16px;
   width: 100%;
-  max-width: 820px;
-  max-height: 80vh;
+  max-width: 960px;
+  max-height: calc(100vh - 2.5rem);
   display: flex;
   flex-direction: column;
   box-shadow: 0 24px 50px rgba(15, 23, 42, 0.35);
@@ -96,11 +129,12 @@ const { memberSearch, filteredMembers, selectMember, showMemberModal, getMemberF
 }
 .modal-body {
   padding: 1rem 1.25rem;
-  overflow-y: auto;
   flex: 1;
   display: flex;
   flex-direction: column;
   gap: 0.75rem;
+  min-height: 0;
+  overflow: hidden;
 }
 .modal-footer {
   padding: 0.95rem 1.25rem;
@@ -131,48 +165,63 @@ const { memberSearch, filteredMembers, selectMember, showMemberModal, getMemberF
   border-radius: 10px;
   font-size: 0.9rem;
   box-sizing: border-box;
+  flex-shrink: 0;
+}
+.member-results {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  padding-right: 0.15rem;
 }
 .member-grid {
   display: grid;
-  grid-template-columns: repeat(5, minmax(0, 1fr));
-  gap: 0.6rem;
-  overflow-y: auto;
-  flex: 1;
+  grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+  gap: 0.75rem;
+  align-content: start;
 }
 @media (max-width: 1200px) {
   .member-grid {
-    grid-template-columns: repeat(5, minmax(0, 1fr));
+    grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
   }
 }
 @media (max-width: 900px) {
   .member-grid {
-    grid-template-columns: repeat(5, minmax(0, 1fr));
+    grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
   }
 }
 @media (max-width: 640px) {
+  .modal-overlay {
+    padding: 0.75rem;
+    align-items: stretch;
+  }
+  .modal-dialog {
+    max-height: calc(100vh - 1.5rem);
+  }
   .member-grid {
-    grid-template-columns: repeat(5, minmax(0, 1fr));
+    grid-template-columns: repeat(auto-fill, minmax(130px, 1fr));
   }
 }
 .member-card {
-  background: white;
-  border: 1px solid #e2e8f0;
-  border-radius: 10px;
+  background: #fff;
+  border: 1.5px solid color-mix(in srgb, var(--app-banner-color) 22%, white 78%);
+  border-radius: 12px;
   cursor: pointer;
   display: flex;
   flex-direction: column;
   overflow: hidden;
   padding: 0;
-  transition: border-color 0.15s, box-shadow 0.15s;
+  text-align: left;
+  transition: all 0.18s;
   &:hover {
-    border-color: #0ea5e9;
-    box-shadow: 0 2px 8px rgba(14, 165, 233, 0.15);
+    border-color: var(--app-highlight-color);
+    box-shadow: 0 4px 16px color-mix(in srgb, var(--app-highlight-color) 18%, transparent);
+    transform: translateY(-2px);
   }
 }
 .member-card-img {
   width: 100%;
   aspect-ratio: 1 / 1;
-  background: #e2e8f0;
+  background: #eef1f7;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -185,23 +234,29 @@ const { memberSearch, filteredMembers, selectMember, showMemberModal, getMemberF
 }
 .member-card-img-placeholder { font-size: 2rem; }
 .member-card-body {
-  padding: 0.4rem 0.5rem;
+  padding: 0.55rem 0.65rem 0.7rem;
   display: flex;
   flex-direction: column;
-  gap: 0.15rem;
+  gap: 0.2rem;
 }
 .member-card-name {
-  font-size: 0.8rem;
+  font-size: 0.9rem;
+  font-weight: 700;
+  line-height: 1.25;
+  color: #111827;
+  word-break: break-word;
+}
+.member-card-balance-label {
+  font-size: 0.72rem;
   font-weight: 600;
-  color: #1e293b;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: #64748b;
 }
 .member-card-balance {
-  font-size: 0.85rem;
-  font-weight: 700;
-  color: #059669;
+  font-size: 0.95rem;
+  font-weight: 800;
+  color: var(--app-highlight-color);
 }
 .empty-state {
   text-align: center;
