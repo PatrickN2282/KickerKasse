@@ -68,8 +68,8 @@ const { memberSearch, filteredMembers, selectMember, showMemberModal, getMemberF
   background: #ffffff;
   border-radius: 16px;
   width: 100%;
-  max-width: 650px;
-  max-height: 650px;
+  max-width: 820px;
+  max-height: 80vh;
   display: flex;
   flex-direction: column;
   box-shadow: 0 24px 50px rgba(15, 23, 42, 0.35);
@@ -138,21 +138,20 @@ const { memberSearch, filteredMembers, selectMember, showMemberModal, getMemberF
   gap: 0.6rem;
   overflow-y: auto;
   flex: 1;
-  max-height: 55vh;
 }
 @media (max-width: 1200px) {
   .member-grid {
-    grid-template-columns: repeat(4, minmax(0, 1fr));
+    grid-template-columns: repeat(5, minmax(0, 1fr));
   }
 }
 @media (max-width: 900px) {
   .member-grid {
-    grid-template-columns: repeat(3, minmax(0, 1fr));
+    grid-template-columns: repeat(5, minmax(0, 1fr));
   }
 }
 @media (max-width: 640px) {
   .member-grid {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
+    grid-template-columns: repeat(5, minmax(0, 1fr));
   }
 }
 .member-card {
