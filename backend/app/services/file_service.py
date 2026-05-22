@@ -173,6 +173,18 @@ async def save_app_logo(file: UploadFile) -> str:
     return "app_settings/logo.png"
 
 
+async def save_kasse_products_background(file: UploadFile) -> str:
+    ensure_upload_directories()
+
+    content = await file.read()
+    image = Image.open(BytesIO(content)).convert("RGBA")
+
+    background_path = APP_SETTINGS_DIR / "kasse_products_background.png"
+    image.save(background_path, format="PNG")
+
+    return "app_settings/kasse_products_background.png"
+
+
 def delete_product_image(product_id: int) -> None:
     product_folder = _resolve_entity_directory(PRODUCTS_DIR, product_id)
     if product_folder.exists():

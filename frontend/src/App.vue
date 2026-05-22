@@ -87,13 +87,17 @@
 
     <div class="app-inline-footer">
       <span>{{ pkg.name }} v{{ pkg.version }} · © by Pixel-Finanz 2026</span>
-      <a
-        href="https://www.paypal.com/donate/?hosted_button_id=64BS2U8G43M5U"
-        target="_blank"
-        rel="noopener noreferrer"
+      <button
+        type="button"
         class="footer-donate-link"
-      >💛 Spenden</a>
+        @click="showDonationModal = true"
+      >💛 Spenden</button>
     </div>
+
+    <DonationModal
+      :show="showDonationModal"
+      @close="showDonationModal = false"
+    />
 
 
     <div
@@ -160,6 +164,7 @@ import { useRoute, useRouter } from 'vue-router'
 
 import NotificationCenter from '@/components/NotificationCenter.vue'
 import PwaInstallButton from '@/components/PwaInstallButton.vue'
+import DonationModal from '@/components/DonationModal.vue'
 
 import pkg from '../package.json'
 import { KASSE_LAYOUT_REFRESH_INTERVAL_MS, KASSE_LAYOUT_STORAGE_KEY, SESSION_RELOAD_FLAG_KEY } from '@/constants'
@@ -178,6 +183,7 @@ const isKasseUser = computed(() => authStore.isKasseUser)
 const isOnAdminRoute = computed(() => route.path.startsWith('/admin'))
 
 const showLoginModal = ref(false)
+const showDonationModal = ref(false)
 const modalError = ref('')
 const layoutRefreshIntervalId = ref(null)
 const refreshInFlight = ref(false)
@@ -572,6 +578,11 @@ onBeforeUnmount(() => {
   color: var(--app-text-color, #555);
   text-decoration: underline;
   opacity: 1;
+  background: transparent;
+  border: none;
+  padding: 0;
+  cursor: pointer;
+  font: inherit;
 
   &:hover {
     opacity: .8;

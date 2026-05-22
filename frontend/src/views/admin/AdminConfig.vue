@@ -192,6 +192,28 @@
           <button class="btn btn-success" :disabled="!selectedLogo || appSettingsStore.isSaving" @click="uploadLogo">
             Logo hochladen
           </button>
+
+          <h3>Hintergrundbild Produktbereich (Kasse)</h3>
+          <div class="logo-preview kasse-background-preview">
+            <img v-if="previewKasseBackgroundUrl" :src="previewKasseBackgroundUrl" alt="Produktbereich Hintergrund" />
+            <span v-else>Kein Hintergrundbild hochgeladen</span>
+          </div>
+          <input type="file" accept="image/*" class="form-input" @change="handleKasseBackgroundSelection" />
+          <div class="form-group">
+            <label for="kasse-bg-scale">Skalierung ({{ designForm.kasse_products_background_scale }}%)</label>
+            <input
+              id="kasse-bg-scale"
+              v-model.number="designForm.kasse_products_background_scale"
+              type="range"
+              min="10"
+              max="300"
+              step="5"
+              class="form-input"
+            >
+          </div>
+          <button class="btn btn-success" :disabled="!selectedKasseBackground || appSettingsStore.isSaving" @click="uploadKasseBackground">
+            Hintergrundbild hochladen
+          </button>
         </section>
       </div>
     </div>
@@ -489,10 +511,13 @@ const designForm = reactive({
   background_color: '#D7DCE2',
   banner_color: '#131820',
   highlight_color: '#5C8F3A',
+  kasse_products_background_scale: 100,
 })
 
 const selectedLogo = ref(null)
 const selectedLogoPreview = ref('')
+const selectedKasseBackground = ref(null)
+const selectedKasseBackgroundPreview = ref('')
 
 const isCustomBackground = computed(() => !designColors.some(c => c.value === designForm.background_color))
 const isCustomBanner = computed(() => !designColors.some(c => c.value === designForm.banner_color))
@@ -507,12 +532,19 @@ const previewStyle = computed(() => ({
 }))
 
 const previewLogoUrl = computed(() => selectedLogoPreview.value || appSettingsStore.logoUrl)
+const previewKasseBackgroundUrl = computed(() => (
+  selectedKasseBackgroundPreview.value
+  || (appSettingsStore.settings.kasse_products_background_url
+    ? `${appSettingsStore.settings.kasse_products_background_url}?v=${appSettingsStore.settings.asset_version}`
+    : '')
+))
 
 const syncDesignForm = () => {
   designForm.app_name = appSettingsStore.settings.app_name
   designForm.background_color = appSettingsStore.settings.background_color
   designForm.banner_color = appSettingsStore.settings.banner_color
   designForm.highlight_color = appSettingsStore.settings.highlight_color
+  designForm.kasse_products_background_scale = appSettingsStore.settings.kasse_products_background_scale || 100
 }
 
 const handleLogoSelection = (event) => {
@@ -520,6 +552,13 @@ const handleLogoSelection = (event) => {
   if (!file) return
   selectedLogo.value = file
   selectedLogoPreview.value = URL.createObjectURL(file)
+}
+
+const handleKasseBackgroundSelection = (event) => {
+  const [file] = event.target.files || []
+  if (!file) return
+  selectedKasseBackground.value = file
+  selectedKasseBackgroundPreview.value = URL.createObjectURL(file)
 }
 
 const saveDesignSettings = async () => {
@@ -541,6 +580,18 @@ const uploadLogo = async () => {
     notificationStore.success('Logo erfolgreich aktualisiert')
   } catch (error) {
     notificationStore.error(error.response?.data?.detail || 'Fehler beim Hochladen des Logos')
+  }
+}
+
+const uploadKasseBackground = async () => {
+  if (!selectedKasseBackground.value) return
+  try {
+    await appSettingsStore.uploadKasseProductsBackground(selectedKasseBackground.value)
+    selectedKasseBackground.value = null
+    selectedKasseBackgroundPreview.value = ''
+    notificationStore.success('Produktbereich-Hintergrund erfolgreich aktualisiert')
+  } catch (error) {
+    notificationStore.error(error.response?.data?.detail || 'Fehler beim Hochladen des Produktbereich-Hintergrunds')
   }
 }
 
@@ -932,6 +983,19 @@ onMounted(async () => {
     max-width: 100%;
     max-height: 130px;
     object-fit: contain;
+  }
+}
+
+.kasse-background-preview {
+  img {
+    width: 100%;
+    max-height: 130px;
+    object-fit: contain;
+  }
+
+  span {
+    color: #64748b;
+    font-size: 0.85rem;
   }
 }
 

@@ -16,6 +16,7 @@ from app.services.app_settings_service import (
     DEFAULT_APP_NAME,
     DEFAULT_SESSION_TIMER_MINUTES,
     DEFAULT_DECKEL_ENABLED,
+    DEFAULT_KASSE_PRODUCTS_BACKGROUND_SCALE,
 )
 
 logger = logging.getLogger(__name__)
@@ -335,6 +336,38 @@ class DatabaseMigrator:
                         logger.info("✓ Added session_timer_minutes column to app_settings")
                     except Exception as e:
                         logger.warning(f"Could not add session_timer_minutes column: {str(e)}")
+                        try:
+                            conn.rollback()
+                        except:
+                            pass
+
+
+                if 'kasse_products_background_path' not in app_settings_columns:
+                    logger.info("Adding kasse_products_background_path column to app_settings table...")
+                    try:
+                        conn.execute(text(
+                            "ALTER TABLE app_settings ADD COLUMN kasse_products_background_path VARCHAR(255)"
+                        ))
+                        conn.commit()
+                        logger.info("✓ Added kasse_products_background_path column to app_settings")
+                    except Exception as e:
+                        logger.warning(f"Could not add kasse_products_background_path column: {str(e)}")
+                        try:
+                            conn.rollback()
+                        except:
+                            pass
+
+                if 'kasse_products_background_scale' not in app_settings_columns:
+                    logger.info("Adding kasse_products_background_scale column to app_settings table...")
+                    try:
+                        conn.execute(text(
+                            "ALTER TABLE app_settings "
+                            "ADD COLUMN kasse_products_background_scale INTEGER DEFAULT :default_background_scale NOT NULL"
+                        ), {"default_background_scale": DEFAULT_KASSE_PRODUCTS_BACKGROUND_SCALE})
+                        conn.commit()
+                        logger.info("✓ Added kasse_products_background_scale column to app_settings")
+                    except Exception as e:
+                        logger.warning(f"Could not add kasse_products_background_scale column: {str(e)}")
                         try:
                             conn.rollback()
                         except:

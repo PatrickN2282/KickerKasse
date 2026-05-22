@@ -80,6 +80,41 @@ async def upload_app_logo(
     return service.to_private_payload(settings)
 
 
+
+
+@router.post("/kasse-products-background", response_model=AppSettingsResponse)
+@router.post("/kasse-products-background/", response_model=AppSettingsResponse)
+async def upload_kasse_products_background(
+    request: Request,
+    file: UploadFile = File(...),
+    db: Session = Depends(get_db),
+):
+    require_roles(request, db, UserRole.ADMIN)
+    if not file.content_type or not file.content_type.startswith("image/"):
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Image upload required")
+
+    service = AppSettingsService(db)
+    settings = await service.update_kasse_products_background(file)
+    return service.to_private_payload(settings)
+
+
+@router.get("/kasse-products-background")
+@router.get("/kasse-products-background/")
+async def get_kasse_products_background_file(db: Session = Depends(get_db)):
+    file_path = AppSettingsService(db).get_kasse_products_background_file_path()
+    if not file_path:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="No background image configured")
+    return FileResponse(file_path, media_type="image/png")
+
+
+@router.get("/donation-banner")
+@router.get("/donation-banner/")
+async def get_donation_banner_file(db: Session = Depends(get_db)):
+    file_path = AppSettingsService(db).assets_dir / "donation.png"
+    if not file_path.exists():
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Donation banner not found")
+    return FileResponse(file_path, media_type="image/png")
+
 @router.get("/logo")
 @router.get("/logo/")
 async def get_logo_file(db: Session = Depends(get_db)):
