@@ -29,12 +29,13 @@
                   :key="product.id"
                   :disabled="isProductOutOfStock(product)"
                   class="product-btn"
+                  :class="{ 'product-btn--oos': isProductOutOfStock(product) }"
                   :style="getCategoryCardStyle(category)"
                   @click="selectProduct(product, category.id)"
                 >
                   <div class="card-img">
-                    <span v-if="hasMemberPrice(product)" class="card-badge discount-badge">Rabatt</span>
-                    <span class="card-badge stock-badge">{{ product.is_unlimited_stock ? '∞' : getAvailableStock(product) }}</span>
+                    <span v-if="hasMemberPrice(product)" class="card-badge discount-badge">%</span>
+                    <span class="card-badge stock-badge" :class="{ 'stock-badge--in': !isProductOutOfStock(product), 'stock-badge--out': isProductOutOfStock(product) }">{{ product.is_unlimited_stock ? '∞' : getAvailableStock(product) }}</span>
                     <img v-if="product.image_path && !imageErrorMap[product.id]" :src="`/api/products/${product.id}/image`" :alt="product.name" @error="onImageError(product.id)" />
                     <div v-else class="card-img-ph">🛒</div>
                   </div>
@@ -71,11 +72,12 @@
                   :key="product.id"
                   :disabled="isProductOutOfStock(product)"
                   class="product-btn"
+                  :class="{ 'product-btn--oos': isProductOutOfStock(product) }"
                   @click="selectProduct(product)"
                 >
                   <div class="card-img">
-                    <span v-if="hasMemberPrice(product)" class="card-badge discount-badge">Rabatt</span>
-                    <span class="card-badge stock-badge">{{ product.is_unlimited_stock ? '∞' : getAvailableStock(product) }}</span>
+                    <span v-if="hasMemberPrice(product)" class="card-badge discount-badge">%</span>
+                    <span class="card-badge stock-badge" :class="{ 'stock-badge--in': !isProductOutOfStock(product), 'stock-badge--out': isProductOutOfStock(product) }">{{ product.is_unlimited_stock ? '∞' : getAvailableStock(product) }}</span>
                     <img v-if="product.image_path && !imageErrorMap[product.id]" :src="`/api/products/${product.id}/image`" :alt="product.name" @error="onImageError(product.id)" />
                     <div v-else class="card-img-ph">🛒</div>
                   </div>
@@ -389,6 +391,7 @@ const {
 .kasse-products {
   flex: 1 1 auto;
   min-width: 0;
+  position: relative;
   /* Hintergrund mit 85% Transparenz */
   background: color-mix(in srgb, var(--app-surface-color) var(--kasse-bg-opacity), transparent);
   border-radius: 12px;
@@ -396,11 +399,25 @@ const {
   box-shadow: 0 8px 20px rgba(24, 28, 34, 0.1);
   overflow-y: auto;
   border: 1px solid var(--app-banner-color);
+
+  &::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background-image: var(--kasse-products-background-image, none);
+    background-size: var(--kasse-products-background-size, 100%);
+    background-repeat: no-repeat;
+    background-position: center;
+    opacity: var(--kasse-products-background-opacity, 1);
+    pointer-events: none;
+    z-index: -1;
+    border-radius: inherit;
+  }
 }
 
 .kasse-resizer {
   width: var(--kasse-resizer-width);
-  margin: 0; /* Padding komplett entfernt */
+  margin: 0 3px; /* small horizontal breathing room on both sides */
   border-radius: 999px;
   background: var(--app-highlight-color);
   cursor: col-resize;
@@ -431,7 +448,6 @@ const {
   box-shadow: 0 10px 24px rgba(24, 28, 34, 0.14);
   overflow-y: auto;
   border: 1px solid var(--app-banner-color);
-  border-left: 5px solid var(--app-highlight-color);
 
   h2 {
     margin: 0 0 1rem 0;
@@ -458,6 +474,7 @@ const {
   border: none;
   border-top: 1px solid color-mix(in srgb, var(--app-banner-color) 25%, transparent);
   margin: .15rem 0;
+  padding: 1px 0;
 }
 
 /* ── Category row ─────────────────────────────────────── */
@@ -671,6 +688,16 @@ const {
       font-size: 11px;
       background: #e2e8f0;
       color: #475569;
+
+      &.stock-badge--in {
+        background: #dcfce7;
+        color: #15803d;
+      }
+
+      &.stock-badge--out {
+        background: #fee2e2;
+        color: #b91c1c;
+      }
     }
   }
 
@@ -702,6 +729,26 @@ const {
     color: var(--app-highlight-color);
     letter-spacing: -0.02em;
     margin: 0 auto; /* Zentriert den Preis, da Stock entfernt wurde */
+  }
+
+}
+
+/* OOS diagonal red bar overlay */
+.product-btn--oos {
+  &::after {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background: repeating-linear-gradient(
+      -45deg,
+      transparent,
+      transparent 8px,
+      rgba(239, 68, 68, 0.28) 8px,
+      rgba(239, 68, 68, 0.28) 14px
+    );
+    pointer-events: none;
+    z-index: 3;
+    border-radius: inherit;
   }
 }
 
@@ -763,6 +810,7 @@ const {
       transition: all 0.2s;
       border: none;
       cursor: pointer;
+      text-align: center;
 
       &:disabled {
         opacity: 0.5;
@@ -1089,6 +1137,7 @@ const {
         transition: all 0.2s;
         border: none;
         cursor: pointer;
+        text-align: center;
 
         &:disabled {
           opacity: 0.7;

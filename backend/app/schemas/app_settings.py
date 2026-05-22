@@ -15,6 +15,8 @@ class AppSettingsBase(BaseModel):
     session_timer_minutes: int = Field(default=15, ge=1, le=MAX_SESSION_TIMER_MINUTES)
     deckel_enabled: bool = True
     kasse_products_background_scale: int = Field(default=100, ge=10, le=300)
+    kasse_products_background_opacity: int = Field(default=100, ge=0, le=100)
+    kasse_products_background_enabled: bool = True
 
 
 class AppSettingsUpdate(AppSettingsBase):

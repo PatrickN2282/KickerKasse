@@ -17,6 +17,8 @@ DEFAULT_SESSION_TIMER_ENABLED = False
 DEFAULT_SESSION_TIMER_MINUTES = 15
 DEFAULT_DECKEL_ENABLED = True
 DEFAULT_KASSE_PRODUCTS_BACKGROUND_SCALE = 100
+DEFAULT_KASSE_PRODUCTS_BACKGROUND_OPACITY = 100
+DEFAULT_KASSE_PRODUCTS_BACKGROUND_ENABLED = True
 
 
 class AppSettingsService:
@@ -40,6 +42,8 @@ class AppSettingsService:
             deckel_enabled=DEFAULT_DECKEL_ENABLED,
             kasse_products_background_path=None,
             kasse_products_background_scale=DEFAULT_KASSE_PRODUCTS_BACKGROUND_SCALE,
+            kasse_products_background_opacity=DEFAULT_KASSE_PRODUCTS_BACKGROUND_OPACITY,
+            kasse_products_background_enabled=DEFAULT_KASSE_PRODUCTS_BACKGROUND_ENABLED,
         )
         self.db.add(settings)
         self.db.commit()
@@ -72,6 +76,8 @@ class AppSettingsService:
             "session_timer_minutes": settings.session_timer_minutes or DEFAULT_SESSION_TIMER_MINUTES,
             "deckel_enabled": settings.deckel_enabled,
             "kasse_products_background_scale": settings.kasse_products_background_scale or DEFAULT_KASSE_PRODUCTS_BACKGROUND_SCALE,
+            "kasse_products_background_opacity": settings.kasse_products_background_opacity if settings.kasse_products_background_opacity is not None else DEFAULT_KASSE_PRODUCTS_BACKGROUND_OPACITY,
+            "kasse_products_background_enabled": settings.kasse_products_background_enabled if settings.kasse_products_background_enabled is not None else DEFAULT_KASSE_PRODUCTS_BACKGROUND_ENABLED,
         }
 
     def to_private_payload(self, settings: AppSettings | None = None) -> dict:
@@ -96,6 +102,8 @@ class AppSettingsService:
             "session_timer_minutes": settings.session_timer_minutes,
             "deckel_enabled": settings.deckel_enabled,
             "kasse_products_background_scale": settings.kasse_products_background_scale or DEFAULT_KASSE_PRODUCTS_BACKGROUND_SCALE,
+            "kasse_products_background_opacity": settings.kasse_products_background_opacity if settings.kasse_products_background_opacity is not None else DEFAULT_KASSE_PRODUCTS_BACKGROUND_OPACITY,
+            "kasse_products_background_enabled": settings.kasse_products_background_enabled if settings.kasse_products_background_enabled is not None else DEFAULT_KASSE_PRODUCTS_BACKGROUND_ENABLED,
         }
 
         if "app_name" in kwargs and kwargs["app_name"] is not None:
@@ -131,6 +139,15 @@ class AppSettingsService:
             if scale < 10 or scale > 300:
                 raise ValueError("Kasse products background scale must be between 10 and 300")
             settings.kasse_products_background_scale = scale
+
+        if "kasse_products_background_opacity" in kwargs and kwargs["kasse_products_background_opacity"] is not None:
+            opacity = int(kwargs["kasse_products_background_opacity"])
+            if opacity < 0 or opacity > 100:
+                raise ValueError("Kasse products background opacity must be between 0 and 100")
+            settings.kasse_products_background_opacity = opacity
+
+        if "kasse_products_background_enabled" in kwargs:
+            settings.kasse_products_background_enabled = bool(kwargs["kasse_products_background_enabled"])
 
         self.db.commit()
         self.db.refresh(settings)

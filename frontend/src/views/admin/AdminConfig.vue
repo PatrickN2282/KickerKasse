@@ -198,7 +198,37 @@
             <img v-if="previewKasseBackgroundUrl" :src="previewKasseBackgroundUrl" alt="Produktbereich Hintergrund" />
             <span v-else>Kein Hintergrundbild hochgeladen</span>
           </div>
+          <p class="upload-hint">
+            ⚠️ Mindestgröße: <strong>700 × 700 Pixel</strong>. Kleinere Bilder werden abgelehnt.
+          </p>
           <input type="file" accept="image/*" class="form-input" @change="handleKasseBackgroundSelection" />
+          <div class="form-group">
+            <label for="kasse-bg-enabled" class="checkbox-label">
+              <input
+                id="kasse-bg-enabled"
+                v-model="designForm.kasse_products_background_enabled"
+                type="checkbox"
+                class="form-checkbox"
+              />
+              Hintergrundbild anzeigen
+            </label>
+          </div>
+          <div class="form-group">
+            <label for="kasse-bg-opacity">Deckkraft – Bild abschwächen ({{ designForm.kasse_products_background_opacity }}%)</label>
+            <input
+              id="kasse-bg-opacity"
+              v-model.number="designForm.kasse_products_background_opacity"
+              type="range"
+              min="0"
+              max="100"
+              step="5"
+              class="form-input"
+            >
+            <div class="range-labels">
+              <span>unsichtbar (0%)</span>
+              <span>volle Sichtbarkeit (100%)</span>
+            </div>
+          </div>
           <div class="form-group">
             <label for="kasse-bg-scale">Skalierung ({{ designForm.kasse_products_background_scale }}%)</label>
             <input
@@ -512,6 +542,8 @@ const designForm = reactive({
   banner_color: '#131820',
   highlight_color: '#5C8F3A',
   kasse_products_background_scale: 100,
+  kasse_products_background_opacity: 100,
+  kasse_products_background_enabled: true,
 })
 
 const selectedLogo = ref(null)
@@ -545,6 +577,8 @@ const syncDesignForm = () => {
   designForm.banner_color = appSettingsStore.settings.banner_color
   designForm.highlight_color = appSettingsStore.settings.highlight_color
   designForm.kasse_products_background_scale = appSettingsStore.settings.kasse_products_background_scale || 100
+  designForm.kasse_products_background_opacity = appSettingsStore.settings.kasse_products_background_opacity ?? 100
+  designForm.kasse_products_background_enabled = appSettingsStore.settings.kasse_products_background_enabled !== false
 }
 
 const handleLogoSelection = (event) => {
@@ -557,8 +591,21 @@ const handleLogoSelection = (event) => {
 const handleKasseBackgroundSelection = (event) => {
   const [file] = event.target.files || []
   if (!file) return
-  selectedKasseBackground.value = file
-  selectedKasseBackgroundPreview.value = URL.createObjectURL(file)
+  const objectUrl = URL.createObjectURL(file)
+  const img = new Image()
+  img.onload = () => {
+    if (img.width < 700 || img.height < 700) {
+      notificationStore.error(
+        `Das Bild ist zu klein (${img.width}×${img.height}px). Mindestgröße: 700×700 Pixel.`
+      )
+      event.target.value = ''
+      URL.revokeObjectURL(objectUrl)
+      return
+    }
+    selectedKasseBackground.value = file
+    selectedKasseBackgroundPreview.value = objectUrl
+  }
+  img.src = objectUrl
 }
 
 const saveDesignSettings = async () => {
@@ -1379,5 +1426,38 @@ onMounted(async () => {
   .ext-settings-grid {
     grid-template-columns: 1fr;
   }
+}
+
+.upload-hint {
+  font-size: 0.82rem;
+  color: #92400e;
+  background: #fef3c7;
+  border: 1px solid #fcd34d;
+  border-radius: 6px;
+  padding: 0.4rem 0.65rem;
+  margin: 0.25rem 0 0.5rem 0;
+}
+
+.checkbox-label {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-weight: 500;
+  cursor: pointer;
+}
+
+.form-checkbox {
+  width: 1rem;
+  height: 1rem;
+  accent-color: var(--app-highlight-color, #5C8F3A);
+  cursor: pointer;
+}
+
+.range-labels {
+  display: flex;
+  justify-content: space-between;
+  font-size: 0.78rem;
+  color: #64748b;
+  margin-top: 0.2rem;
 }
 </style>
