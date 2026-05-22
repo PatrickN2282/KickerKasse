@@ -397,7 +397,7 @@ const {
   background-color: color-mix(in srgb, var(--app-surface-color) var(--kasse-bg-opacity), transparent);
   --kasse-products-background-overlay: color-mix(
     in srgb,
-    transparent calc(var(--kasse-products-background-opacity, 1) * 100%),
+    transparent var(--kasse-products-background-opacity, 100%),
     var(--app-surface-color)
   );
   background-image:
