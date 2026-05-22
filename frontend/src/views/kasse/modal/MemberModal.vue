@@ -4,9 +4,16 @@
       <div class="modal-header">
         <div>
           <h3>Mitglied auswählen</h3>
-          <p class="subtitle">Mitglied für die Buchung auswählen</p>
+          <p class="subtitle">
+            Mitglied für die Buchung auswählen
+          </p>
         </div>
-        <button class="close-btn" @click="showMemberModal = false">✕</button>
+        <button
+          class="close-btn"
+          @click="showMemberModal = false"
+        >
+          ✕
+        </button>
       </div>
       <div class="modal-body">
         <input
@@ -14,35 +21,57 @@
           type="text"
           placeholder="Nach Name oder Nummer suchen..."
           class="member-search-input"
-        />
+        >
         <div class="member-results">
-          <div v-if="filteredMembers.length > 0" class="member-grid">
+          <div
+            v-if="filteredMembers.length > 0"
+            class="member-grid"
+          >
             <button
               v-for="member in filteredMembers"
               :key="member.id"
-              @click="selectMember(member)"
               class="member-card"
+              @click="selectMember(member)"
             >
               <div class="member-card-img">
                 <img
                   v-if="member.photo_path"
                   :src="`/api/members/${member.id}/photo`"
                   :alt="getMemberFullName(member)"
-                />
-                <div v-else class="member-card-img-placeholder">👤</div>
+                >
+                <div
+                  v-else
+                  class="member-card-img-placeholder"
+                >
+                  👤
+                </div>
               </div>
               <div class="member-card-body">
-                <div class="member-card-name">{{ getMemberFullName(member) }}</div>
-                <div class="member-card-balance-label">Guthaben</div>
-                <div class="member-card-balance">{{ formatBalance(member.balance_cents) }}</div>
+                <div class="member-card-name">
+                  {{ getMemberFullName(member) }}
+                </div>
+                <div class="member-card-balance-label">
+                  Guthaben
+                </div>
+                <div class="member-card-balance">
+                  {{ formatBalance(member.balance_cents) }}
+                </div>
               </div>
             </button>
           </div>
-          <div v-else class="empty-state">Keine Mitglieder gefunden</div>
+          <div
+            v-else
+            class="empty-state"
+          >
+            Keine Mitglieder gefunden
+          </div>
         </div>
       </div>
       <div class="modal-footer">
-        <button @click="showMemberModal = false" class="btn btn-secondary">
+        <button
+          class="btn btn-secondary"
+          @click="showMemberModal = false"
+        >
           Abbrechen
         </button>
       </div>
