@@ -69,7 +69,7 @@ export const useAppSettingsStore = defineStore('app-settings', () => {
     document.documentElement.style.setProperty('--app-highlight-contrast', getContrastColor(settings.value.highlight_color))
     document.documentElement.style.setProperty('--app-background-contrast', getContrastColor(settings.value.background_color))
     const backgroundEnabled = settings.value.kasse_products_background_enabled !== false
-    const backgroundImageUrl = (settings.value.kasse_products_background_url && backgroundEnabled)
+    const backgroundImageUrl = settings.value.kasse_products_background_url && backgroundEnabled
       ? `url(${versionedUrl(settings.value.kasse_products_background_url)})`
       : 'none'
     document.documentElement.style.setProperty('--kasse-products-background-image', backgroundImageUrl)

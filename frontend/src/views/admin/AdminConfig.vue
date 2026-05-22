@@ -214,7 +214,7 @@
             </label>
           </div>
           <div class="form-group">
-            <label for="kasse-bg-opacity">Transparenz – Bild abschwächen ({{ 100 - designForm.kasse_products_background_opacity }}%)</label>
+            <label for="kasse-bg-opacity">Deckkraft – Bild abschwächen ({{ designForm.kasse_products_background_opacity }}%)</label>
             <input
               id="kasse-bg-opacity"
               v-model.number="designForm.kasse_products_background_opacity"
@@ -225,8 +225,8 @@
               class="form-input"
             >
             <div class="range-labels">
-              <span>unsichtbar</span>
-              <span>volle Sichtbarkeit</span>
+              <span>unsichtbar (0%)</span>
+              <span>volle Sichtbarkeit (100%)</span>
             </div>
           </div>
           <div class="form-group">
