@@ -10,7 +10,7 @@
       </div>
       <div class="modal-body">
         <img
-          src="/api/app-settings/donation-banner"
+          :src="donationBannerUrl"
           alt="Spendenbanner"
           class="donation-banner"
         >
@@ -43,6 +43,7 @@ defineProps({
 })
 
 const emit = defineEmits(['close'])
+const donationBannerUrl = '/api/app-settings/donation-banner'
 </script>
 
 <style scoped lang="scss">
