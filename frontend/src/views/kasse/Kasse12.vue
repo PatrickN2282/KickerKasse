@@ -717,9 +717,6 @@ const {
     margin: 0 auto; /* Zentriert den Preis, da Stock entfernt wurde */
   }
 
-  .card-name--oos {
-    /* kept for backwards compat but no longer applied */
-  }
 }
 
 /* OOS diagonal red bar overlay */
@@ -739,10 +736,6 @@ const {
     z-index: 3;
     border-radius: inherit;
   }
-}
-
-.stock-dot {
-  display: none; /* dots removed; stock badge is now colored instead */
 }
 
 .member-info {
