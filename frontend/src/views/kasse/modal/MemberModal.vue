@@ -48,7 +48,7 @@
               </div>
               <div class="member-card-body">
                 <div class="member-card-name">
-                  {{ getMemberFullName(member) }}
+                  {{ getMemberShortName(member) }}
                 </div>
                 <div class="member-card-balance-label">
                   Guthaben
@@ -81,7 +81,7 @@
 
 <script setup>
 import { inject } from 'vue'
-const { memberSearch, filteredMembers, selectMember, showMemberModal, getMemberFullName, formatBalance } = inject('kasse')
+const { memberSearch, filteredMembers, selectMember, showMemberModal, getMemberFullName, getMemberShortName, formatBalance } = inject('kasse')
 </script>
 
 <style scoped lang="scss">
@@ -220,7 +220,7 @@ const { memberSearch, filteredMembers, selectMember, showMemberModal, getMemberF
 }
 .member-card-img {
   width: 100%;
-  height: 120px;
+  aspect-ratio: 1 / 1;
   background: #eef1f7;
   display: flex;
   align-items: center;
