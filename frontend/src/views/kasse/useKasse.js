@@ -153,13 +153,27 @@ const toggleCategory = (categoryId) => {
   }
 }
 
+const sortProductsByAvailability = (products) => (
+  products
+    .map((product, index) => ({ product, index }))
+    .sort((a, b) => {
+      const aOutOfStock = isProductOutOfStock(a.product) ? 1 : 0
+      const bOutOfStock = isProductOutOfStock(b.product) ? 1 : 0
+      if (aOutOfStock !== bOutOfStock) {
+        return aOutOfStock - bOutOfStock
+      }
+      return a.index - b.index
+    })
+    .map(({ product }) => product)
+)
+
 const getProductsByCategory = (categoryId) => {
   if (categoryId === 0) {
     return productsWithoutCategory.value
   }
-  return productStore.products.filter(p =>
+  return sortProductsByAvailability(productStore.products.filter(p =>
     p.categories && p.categories.some(c => c.id === categoryId)
-  )
+  ))
 }
 
 const activeCategories = computed(() => {
@@ -175,7 +189,9 @@ const activeCategories = computed(() => {
 })
 
 const productsWithoutCategory = computed(() => {
-  return productStore.products.filter(p => !p.categories || p.categories.length === 0)
+  return sortProductsByAvailability(
+    productStore.products.filter(p => !p.categories || p.categories.length === 0)
+  )
 })
 
 const selectedMemberName = computed(() => {

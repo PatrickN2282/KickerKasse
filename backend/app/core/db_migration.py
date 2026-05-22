@@ -14,6 +14,7 @@ from app.constants import (
 )
 from app.services.app_settings_service import (
     DEFAULT_APP_NAME,
+    DEFAULT_KASSE_AREA_BACKGROUND_COLOR,
     DEFAULT_SESSION_TIMER_MINUTES,
     DEFAULT_DECKEL_ENABLED,
     DEFAULT_KASSE_PRODUCTS_BACKGROUND_SCALE,
@@ -338,6 +339,22 @@ class DatabaseMigrator:
                         logger.info("✓ Added session_timer_minutes column to app_settings")
                     except Exception as e:
                         logger.warning(f"Could not add session_timer_minutes column: {str(e)}")
+                        try:
+                            conn.rollback()
+                        except:
+                            pass
+
+                if 'kasse_area_background_color' not in app_settings_columns:
+                    logger.info("Adding kasse_area_background_color column to app_settings table...")
+                    try:
+                        conn.execute(text(
+                            "ALTER TABLE app_settings "
+                            "ADD COLUMN kasse_area_background_color VARCHAR(7) DEFAULT :default_kasse_area_background_color NOT NULL"
+                        ), {"default_kasse_area_background_color": DEFAULT_KASSE_AREA_BACKGROUND_COLOR})
+                        conn.commit()
+                        logger.info("✓ Added kasse_area_background_color column to app_settings")
+                    except Exception as e:
+                        logger.warning(f"Could not add kasse_area_background_color column: {str(e)}")
                         try:
                             conn.rollback()
                         except:

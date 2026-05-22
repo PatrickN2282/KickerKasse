@@ -10,6 +10,7 @@ class AppSettings(BaseModel):
     background_color = Column(String(7), nullable=False, default="#d7dce2")
     banner_color = Column(String(7), nullable=False, default="#131820")
     highlight_color = Column(String(7), nullable=False, default="#5c8f3a")
+    kasse_area_background_color = Column(String(7), nullable=False, default="#ffffff")
     logo_path = Column(String(255), nullable=True)
     kasse_products_background_path = Column(String(255), nullable=True)
     kasse_layout = Column(String(50), nullable=True)
