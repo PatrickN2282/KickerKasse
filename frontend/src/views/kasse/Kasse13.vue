@@ -394,11 +394,11 @@ const {
   flex: 1 1 auto;
   min-width: 0;
   /* Hintergrund mit 85% Transparenz */
-  background-color: color-mix(in srgb, var(--app-surface-color) var(--kasse-bg-opacity), transparent);
+  background-color: color-mix(in srgb, var(--kasse-area-background-color, var(--app-surface-color)) var(--kasse-bg-opacity), transparent);
   --kasse-products-background-overlay: color-mix(
     in srgb,
     transparent var(--kasse-products-background-opacity, 100%),
-    var(--app-surface-color)
+    var(--kasse-area-background-color, var(--app-surface-color))
   );
   background-image:
     linear-gradient(

@@ -12,6 +12,7 @@ DEFAULT_APP_NAME = "KGB - KickerKasse"
 DEFAULT_BACKGROUND_COLOR = "#d7dce2"
 DEFAULT_BANNER_COLOR = "#131820"
 DEFAULT_HIGHLIGHT_COLOR = "#5c8f3a"
+DEFAULT_KASSE_AREA_BACKGROUND_COLOR = "#ffffff"
 DEFAULT_LOGO_RELATIVE_PATH = "app_settings/logo.png"
 DEFAULT_SESSION_TIMER_ENABLED = False
 DEFAULT_SESSION_TIMER_MINUTES = 15
@@ -36,6 +37,7 @@ class AppSettingsService:
             background_color=DEFAULT_BACKGROUND_COLOR,
             banner_color=DEFAULT_BANNER_COLOR,
             highlight_color=DEFAULT_HIGHLIGHT_COLOR,
+            kasse_area_background_color=DEFAULT_KASSE_AREA_BACKGROUND_COLOR,
             logo_path=None,
             session_timer_enabled=DEFAULT_SESSION_TIMER_ENABLED,
             session_timer_minutes=DEFAULT_SESSION_TIMER_MINUTES,
@@ -60,6 +62,7 @@ class AppSettingsService:
             "background_color": settings.background_color,
             "banner_color": settings.banner_color,
             "highlight_color": settings.highlight_color,
+            "kasse_area_background_color": settings.kasse_area_background_color or DEFAULT_KASSE_AREA_BACKGROUND_COLOR,
             "logo_url": "/api/app-settings/logo",
             "kasse_products_background_url": "/api/app-settings/kasse-products-background" if settings.kasse_products_background_path else "",
             "favicon_ico_url": "/api/app-settings/favicon.ico",
@@ -97,6 +100,7 @@ class AppSettingsService:
             "background_color": settings.background_color,
             "banner_color": settings.banner_color,
             "highlight_color": settings.highlight_color,
+            "kasse_area_background_color": settings.kasse_area_background_color,
             "kasse_layout": settings.kasse_layout,
             "session_timer_enabled": settings.session_timer_enabled,
             "session_timer_minutes": settings.session_timer_minutes,
@@ -112,7 +116,7 @@ class AppSettingsService:
                 raise ValueError("App name must not be empty")
             settings.app_name = app_name
 
-        for field in ("background_color", "banner_color", "highlight_color"):
+        for field in ("background_color", "banner_color", "highlight_color", "kasse_area_background_color"):
             if field in kwargs and kwargs[field] is not None:
                 value = kwargs[field].upper()
                 if not HEX_COLOR_RE.match(value):

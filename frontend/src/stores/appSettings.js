@@ -8,6 +8,7 @@ const fallbackSettings = {
   background_color: '#D7DCE2',
   banner_color: '#131820',
   highlight_color: '#5C8F3A',
+  kasse_area_background_color: '#FFFFFF',
   logo_url: '/api/app-settings/logo',
   favicon_ico_url: '/api/app-settings/favicon.ico',
   favicon_16_url: '/api/app-settings/favicon-16x16.png',
@@ -64,6 +65,7 @@ export const useAppSettingsStore = defineStore('app-settings', () => {
     document.documentElement.style.setProperty('--app-background-color', settings.value.background_color)
     document.documentElement.style.setProperty('--app-banner-color', settings.value.banner_color)
     document.documentElement.style.setProperty('--app-highlight-color', settings.value.highlight_color)
+    document.documentElement.style.setProperty('--kasse-area-background-color', settings.value.kasse_area_background_color || '#FFFFFF')
     document.documentElement.style.setProperty('--app-surface-color', '#ffffff')
     document.documentElement.style.setProperty('--app-banner-contrast', getContrastColor(settings.value.banner_color))
     document.documentElement.style.setProperty('--app-highlight-contrast', getContrastColor(settings.value.highlight_color))
@@ -125,6 +127,7 @@ export const useAppSettingsStore = defineStore('app-settings', () => {
     background_color: payload.background_color ?? settings.value.background_color,
     banner_color: payload.banner_color ?? settings.value.banner_color,
     highlight_color: payload.highlight_color ?? settings.value.highlight_color,
+    kasse_area_background_color: payload.kasse_area_background_color ?? settings.value.kasse_area_background_color,
     kasse_layout: payload.kasse_layout ?? settings.value.kasse_layout,
     session_timer_enabled: payload.session_timer_enabled ?? settings.value.session_timer_enabled,
     session_timer_minutes: payload.session_timer_minutes ?? settings.value.session_timer_minutes,

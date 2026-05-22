@@ -61,6 +61,7 @@
             <span class="preview-title">{{ designForm.app_name }}</span>
           </div>
           <div class="preview-highlight">Highlight-Fläche</div>
+          <div class="preview-kasse-area">Kassenbereich</div>
         </div>
       </section>
 
@@ -174,6 +175,41 @@
               </div>
               <div class="color-selected-preview" :style="{ background: designForm.highlight_color }">
                 <span :style="{ color: getContrastColor(designForm.highlight_color) }">{{ designForm.highlight_color }}</span>
+              </div>
+            </div>
+
+            <!-- Kasse area background color -->
+            <div class="form-group">
+              <label>Kassenbereich-Hintergrund</label>
+              <div class="color-picker-field">
+                <div class="color-options">
+                  <button
+                    v-for="preset in designColors"
+                    :key="preset.value"
+                    type="button"
+                    class="color-option"
+                    :class="{ selected: designForm.kasse_area_background_color === preset.value }"
+                    :style="{ background: preset.value }"
+                    :title="preset.label"
+                    @click="designForm.kasse_area_background_color = preset.value"
+                  ></button>
+                  <label
+                    class="color-option color-option-custom"
+                    :class="{ selected: isCustomKasseArea }"
+                    title="Eigene Farbe wählen"
+                  >
+                    <span v-if="isCustomKasseArea" class="custom-color-preview" :style="{ background: designForm.kasse_area_background_color }"></span>
+                    <span v-else class="custom-color-icon">🎨</span>
+                    <input
+                      type="color"
+                      :value="designForm.kasse_area_background_color"
+                      @input="designForm.kasse_area_background_color = $event.target.value"
+                    >
+                  </label>
+                </div>
+                <div class="color-selected-preview" :style="{ background: designForm.kasse_area_background_color }">
+                  <span :style="{ color: getContrastColor(designForm.kasse_area_background_color) }">{{ designForm.kasse_area_background_color }}</span>
+                </div>
               </div>
             </div>
           </div>
@@ -518,25 +554,12 @@ const activeSection = ref('design')
 // ── Design ────────────────────────────────────────────
 const designColors = [
   { value: '#FFFFFF', label: 'Weiß' },
-  { value: '#F5F7FA', label: 'Hellgrau' },
   { value: '#D7DCE2', label: 'Blaugrau' },
-  { value: '#E8F4F8', label: 'Eisblau' },
-  { value: '#F0FFF4', label: 'Mintgrün' },
-  { value: '#FFF7ED', label: 'Creme' },
   { value: '#131820', label: 'Marine' },
-  { value: '#1E293B', label: 'Slate' },
-  { value: '#374151', label: 'Dunkelgrau' },
-  { value: '#1A1A2E', label: 'Mitternacht' },
-  { value: '#14532D', label: 'Dunkelgrün' },
-  { value: '#7F1D1D', label: 'Dunkelrot' },
   { value: '#5C8F3A', label: 'Grün' },
   { value: '#3B82F6', label: 'Blau' },
-  { value: '#8B5CF6', label: 'Violett' },
-  { value: '#EC4899', label: 'Pink' },
-  { value: '#EF4444', label: 'Rot' },
   { value: '#F97316', label: 'Orange' },
-  { value: '#10B981', label: 'Smaragd' },
-  { value: '#EAB308', label: 'Gelb' },
+  { value: '#111827', label: 'Anthrazit' },
 ]
 
 const designForm = reactive({
@@ -544,6 +567,7 @@ const designForm = reactive({
   background_color: '#D7DCE2',
   banner_color: '#131820',
   highlight_color: '#5C8F3A',
+  kasse_area_background_color: '#FFFFFF',
   kasse_products_background_scale: 100,
   kasse_products_background_opacity: 100,
   kasse_products_background_enabled: true,
@@ -557,13 +581,16 @@ const selectedKasseBackgroundPreview = ref('')
 const isCustomBackground = computed(() => !designColors.some(c => c.value === designForm.background_color))
 const isCustomBanner = computed(() => !designColors.some(c => c.value === designForm.banner_color))
 const isCustomHighlight = computed(() => !designColors.some(c => c.value === designForm.highlight_color))
+const isCustomKasseArea = computed(() => !designColors.some(c => c.value === designForm.kasse_area_background_color))
 
 const previewStyle = computed(() => ({
   '--preview-background': designForm.background_color,
   '--preview-banner': designForm.banner_color,
   '--preview-highlight': designForm.highlight_color,
+  '--preview-kasse-area': designForm.kasse_area_background_color,
   '--preview-banner-contrast': getContrastColor(designForm.banner_color),
   '--preview-highlight-contrast': getContrastColor(designForm.highlight_color),
+  '--preview-kasse-area-contrast': getContrastColor(designForm.kasse_area_background_color),
 }))
 
 const previewLogoUrl = computed(() => selectedLogoPreview.value || appSettingsStore.logoUrl)
@@ -579,6 +606,7 @@ const syncDesignForm = () => {
   designForm.background_color = appSettingsStore.settings.background_color
   designForm.banner_color = appSettingsStore.settings.banner_color
   designForm.highlight_color = appSettingsStore.settings.highlight_color
+  designForm.kasse_area_background_color = appSettingsStore.settings.kasse_area_background_color || '#FFFFFF'
   designForm.kasse_products_background_scale = appSettingsStore.settings.kasse_products_background_scale || 100
   designForm.kasse_products_background_opacity = appSettingsStore.settings.kasse_products_background_opacity ?? 100
   designForm.kasse_products_background_enabled = appSettingsStore.settings.kasse_products_background_enabled !== false
@@ -1092,6 +1120,17 @@ onMounted(async () => {
   padding: 0.5rem 0.75rem;
   font-weight: 600;
   font-size: 0.88rem;
+}
+
+.preview-kasse-area {
+  margin-top: 0.6rem;
+  background: var(--preview-kasse-area);
+  color: var(--preview-kasse-area-contrast);
+  border-radius: 6px;
+  padding: 0.6rem 0.75rem;
+  font-weight: 600;
+  font-size: 0.85rem;
+  border: 1px solid color-mix(in srgb, var(--preview-banner) 20%, transparent);
 }
 
 // ── Datenpflege ───────────────────────────────────────

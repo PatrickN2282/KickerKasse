@@ -250,7 +250,7 @@
                 @click="openPaymentConfirmation('BALANCE')"
                 :disabled="!cartStore.selectedMemberId || cartStore.items.length === 0 || selectedMemberBalance <= 0"
                 :style="getPaymentButtonStyle('BALANCE')"
-                class="payment-btn"
+                class="payment-btn payment-btn--balance"
               >
                 💳 Guthaben nutzen
               </button>
@@ -260,7 +260,7 @@
                 :disabled="cartStore.items.length === 0"
                 class="payment-btn voucher-btn"
               >
-                🎫 Gutschein
+                🎫 Gutschein / Verzehrkarte
               </button>
             </div>
           </div>
@@ -387,11 +387,11 @@ const {
   flex: 1 1 auto;
   min-width: 0;
   /* Hintergrund mit 85% Transparenz */
-  background-color: color-mix(in srgb, var(--app-surface-color) var(--kasse-bg-opacity), transparent);
+  background-color: color-mix(in srgb, var(--kasse-area-background-color, var(--app-surface-color)) var(--kasse-bg-opacity), transparent);
   --kasse-products-background-overlay: color-mix(
     in srgb,
     transparent var(--kasse-products-background-opacity, 100%),
-    var(--app-surface-color)
+    var(--kasse-area-background-color, var(--app-surface-color))
   );
   background-image:
     linear-gradient(
@@ -793,6 +793,7 @@ const {
   .payment-buttons {
     display: grid;
     grid-template-columns: repeat(2, minmax(0, 1fr));
+    grid-template-rows: repeat(2, minmax(0, 1fr));
     gap: 0.5rem;
 
     .payment-btn {
@@ -827,9 +828,20 @@ const {
       }
 
       &.payment-btn--cash {
-        grid-column: 1 / -1;
+        grid-column: 1 / 2;
+        grid-row: 1 / 3;
         background: #2e7d32;
         color: #ffffff;
+      }
+
+      &.payment-btn--balance {
+        grid-column: 2 / 3;
+        grid-row: 1 / 2;
+      }
+
+      &.voucher-btn {
+        grid-column: 2 / 3;
+        grid-row: 2 / 3;
       }
     }
   }
@@ -1141,6 +1153,7 @@ const {
     .payment-buttons {
       display: grid;
       grid-template-columns: repeat(2, minmax(0, 1fr));
+      grid-template-rows: repeat(2, minmax(0, 1fr));
       gap: 0.5rem;
 
       .payment-btn {
@@ -1165,7 +1178,18 @@ const {
         }
 
         &.payment-btn--cash {
-          grid-column: 1 / -1;
+          grid-column: 1 / 2;
+          grid-row: 1 / 3;
+        }
+
+        &.payment-btn--balance {
+          grid-column: 2 / 3;
+          grid-row: 1 / 2;
+        }
+
+        &.voucher-btn {
+          grid-column: 2 / 3;
+          grid-row: 2 / 3;
         }
       }
     }
