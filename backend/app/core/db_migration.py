@@ -17,6 +17,8 @@ from app.services.app_settings_service import (
     DEFAULT_SESSION_TIMER_MINUTES,
     DEFAULT_DECKEL_ENABLED,
     DEFAULT_KASSE_PRODUCTS_BACKGROUND_SCALE,
+    DEFAULT_KASSE_PRODUCTS_BACKGROUND_OPACITY,
+    DEFAULT_KASSE_PRODUCTS_BACKGROUND_ENABLED,
 )
 
 logger = logging.getLogger(__name__)
@@ -368,6 +370,38 @@ class DatabaseMigrator:
                         logger.info("✓ Added kasse_products_background_scale column to app_settings")
                     except Exception as e:
                         logger.warning(f"Could not add kasse_products_background_scale column: {str(e)}")
+                        try:
+                            conn.rollback()
+                        except:
+                            pass
+
+                if 'kasse_products_background_opacity' not in app_settings_columns:
+                    logger.info("Adding kasse_products_background_opacity column to app_settings table...")
+                    try:
+                        conn.execute(text(
+                            "ALTER TABLE app_settings "
+                            "ADD COLUMN kasse_products_background_opacity INTEGER DEFAULT :default_opacity NOT NULL"
+                        ), {"default_opacity": DEFAULT_KASSE_PRODUCTS_BACKGROUND_OPACITY})
+                        conn.commit()
+                        logger.info("✓ Added kasse_products_background_opacity column to app_settings")
+                    except Exception as e:
+                        logger.warning(f"Could not add kasse_products_background_opacity column: {str(e)}")
+                        try:
+                            conn.rollback()
+                        except:
+                            pass
+
+                if 'kasse_products_background_enabled' not in app_settings_columns:
+                    logger.info("Adding kasse_products_background_enabled column to app_settings table...")
+                    try:
+                        conn.execute(text(
+                            "ALTER TABLE app_settings "
+                            "ADD COLUMN kasse_products_background_enabled BOOLEAN DEFAULT :default_enabled NOT NULL"
+                        ), {"default_enabled": DEFAULT_KASSE_PRODUCTS_BACKGROUND_ENABLED})
+                        conn.commit()
+                        logger.info("✓ Added kasse_products_background_enabled column to app_settings")
+                    except Exception as e:
+                        logger.warning(f"Could not add kasse_products_background_enabled column: {str(e)}")
                         try:
                             conn.rollback()
                         except:

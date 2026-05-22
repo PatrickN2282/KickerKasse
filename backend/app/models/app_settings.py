@@ -17,6 +17,8 @@ class AppSettings(BaseModel):
     session_timer_minutes = Column(Integer, nullable=False, default=15)
     deckel_enabled = Column(Boolean, nullable=False, default=True)
     kasse_products_background_scale = Column(Integer, nullable=False, default=100)
+    kasse_products_background_opacity = Column(Integer, nullable=False, default=100)
+    kasse_products_background_enabled = Column(Boolean, nullable=False, default=True)
     created_at = Column(DateTime, default=func.now(), nullable=False)
     updated_at = Column(DateTime, default=func.now(), onupdate=func.now(), nullable=False)
 

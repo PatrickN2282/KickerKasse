@@ -20,6 +20,8 @@ const fallbackSettings = {
   asset_version: '1',
   kasse_products_background_url: '',
   kasse_products_background_scale: 100,
+  kasse_products_background_opacity: 100,
+  kasse_products_background_enabled: true,
   kasse_layout: null,
   session_timer_enabled: false,
   session_timer_minutes: 15,
@@ -66,11 +68,14 @@ export const useAppSettingsStore = defineStore('app-settings', () => {
     document.documentElement.style.setProperty('--app-banner-contrast', getContrastColor(settings.value.banner_color))
     document.documentElement.style.setProperty('--app-highlight-contrast', getContrastColor(settings.value.highlight_color))
     document.documentElement.style.setProperty('--app-background-contrast', getContrastColor(settings.value.background_color))
-    const backgroundImageUrl = settings.value.kasse_products_background_url
+    const backgroundEnabled = settings.value.kasse_products_background_enabled !== false
+    const backgroundImageUrl = (settings.value.kasse_products_background_url && backgroundEnabled)
       ? `url(${versionedUrl(settings.value.kasse_products_background_url)})`
       : 'none'
     document.documentElement.style.setProperty('--kasse-products-background-image', backgroundImageUrl)
     document.documentElement.style.setProperty('--kasse-products-background-size', `${settings.value.kasse_products_background_scale || 100}%`)
+    const opacity = (settings.value.kasse_products_background_opacity ?? 100) / 100
+    document.documentElement.style.setProperty('--kasse-products-background-opacity', String(opacity))
     document.title = settings.value.app_name
 
     const themeMeta = document.getElementById('theme-color-meta')
@@ -125,6 +130,8 @@ export const useAppSettingsStore = defineStore('app-settings', () => {
     session_timer_minutes: payload.session_timer_minutes ?? settings.value.session_timer_minutes,
     deckel_enabled: payload.deckel_enabled ?? settings.value.deckel_enabled,
     kasse_products_background_scale: payload.kasse_products_background_scale ?? settings.value.kasse_products_background_scale,
+    kasse_products_background_opacity: payload.kasse_products_background_opacity ?? settings.value.kasse_products_background_opacity,
+    kasse_products_background_enabled: payload.kasse_products_background_enabled ?? settings.value.kasse_products_background_enabled,
   })
 
   const saveAdminSettings = async (payload) => {
