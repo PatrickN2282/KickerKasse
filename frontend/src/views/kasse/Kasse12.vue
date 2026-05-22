@@ -29,19 +29,18 @@
                   :key="product.id"
                   :disabled="isProductOutOfStock(product)"
                   class="product-btn"
+                  :class="{ 'product-btn--oos': isProductOutOfStock(product) }"
                   :style="getCategoryCardStyle(category)"
                   @click="selectProduct(product, category.id)"
                 >
                   <div class="card-img">
                     <span v-if="hasMemberPrice(product)" class="card-badge discount-badge">%</span>
-                    <span class="card-badge stock-badge">{{ product.is_unlimited_stock ? '∞' : getAvailableStock(product) }}</span>
-                    <span v-if="!isProductOutOfStock(product)" class="stock-dot stock-dot--in"></span>
-                    <span v-else class="stock-dot stock-dot--out"></span>
+                    <span class="card-badge stock-badge" :class="{ 'stock-badge--in': !isProductOutOfStock(product), 'stock-badge--out': isProductOutOfStock(product) }">{{ product.is_unlimited_stock ? '∞' : getAvailableStock(product) }}</span>
                     <img v-if="product.image_path && !imageErrorMap[product.id]" :src="`/api/products/${product.id}/image`" :alt="product.name" @error="onImageError(product.id)" />
                     <div v-else class="card-img-ph">🛒</div>
                   </div>
                   <div class="card-body">
-                    <div class="card-name" :class="{ 'card-name--oos': isProductOutOfStock(product) }">{{ product.name }}</div>
+                    <div class="card-name">{{ product.name }}</div>
                     <div class="card-bottom">
                       <span class="card-price">{{ formatPrice(getDisplayedProductPriceCents(product, category.id)) }}</span>
                     </div>
@@ -73,18 +72,17 @@
                   :key="product.id"
                   :disabled="isProductOutOfStock(product)"
                   class="product-btn"
+                  :class="{ 'product-btn--oos': isProductOutOfStock(product) }"
                   @click="selectProduct(product)"
                 >
                   <div class="card-img">
                     <span v-if="hasMemberPrice(product)" class="card-badge discount-badge">%</span>
-                    <span class="card-badge stock-badge">{{ product.is_unlimited_stock ? '∞' : getAvailableStock(product) }}</span>
-                    <span v-if="!isProductOutOfStock(product)" class="stock-dot stock-dot--in"></span>
-                    <span v-else class="stock-dot stock-dot--out"></span>
+                    <span class="card-badge stock-badge" :class="{ 'stock-badge--in': !isProductOutOfStock(product), 'stock-badge--out': isProductOutOfStock(product) }">{{ product.is_unlimited_stock ? '∞' : getAvailableStock(product) }}</span>
                     <img v-if="product.image_path && !imageErrorMap[product.id]" :src="`/api/products/${product.id}/image`" :alt="product.name" @error="onImageError(product.id)" />
                     <div v-else class="card-img-ph">🛒</div>
                   </div>
                   <div class="card-body">
-                    <div class="card-name" :class="{ 'card-name--oos': isProductOutOfStock(product) }">{{ product.name }}</div>
+                    <div class="card-name">{{ product.name }}</div>
                     <div class="card-bottom">
                       <span class="card-price">{{ formatPrice(product.price_cents) }}</span>
                     </div>
@@ -404,7 +402,7 @@ const {
 
 .kasse-resizer {
   width: var(--kasse-resizer-width);
-  margin: 0; /* Padding komplett entfernt */
+  margin: 0 3px; /* small horizontal breathing room on both sides */
   border-radius: 999px;
   background: var(--app-highlight-color);
   cursor: col-resize;
@@ -676,6 +674,16 @@ const {
       font-size: 11px;
       background: #e2e8f0;
       color: #475569;
+
+      &.stock-badge--in {
+        background: #dcfce7;
+        color: #15803d;
+      }
+
+      &.stock-badge--out {
+        background: #fee2e2;
+        color: #b91c1c;
+      }
     }
   }
 
@@ -710,28 +718,31 @@ const {
   }
 
   .card-name--oos {
-    text-decoration: line-through;
-    opacity: 0.55;
+    /* kept for backwards compat but no longer applied */
+  }
+}
+
+/* OOS diagonal red bar overlay */
+.product-btn--oos {
+  &::after {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background: repeating-linear-gradient(
+      -45deg,
+      transparent,
+      transparent 8px,
+      rgba(239, 68, 68, 0.28) 8px,
+      rgba(239, 68, 68, 0.28) 14px
+    );
+    pointer-events: none;
+    z-index: 3;
+    border-radius: inherit;
   }
 }
 
 .stock-dot {
-  position: absolute;
-  bottom: 5px;
-  left: 5px;
-  width: 8px;
-  height: 8px;
-  border-radius: 50%;
-  z-index: 2;
-  box-shadow: 0 0 0 1.5px rgba(255, 255, 255, 0.8);
-
-  &.stock-dot--in {
-    background: #22c55e;
-  }
-
-  &.stock-dot--out {
-    background: #ef4444;
-  }
+  display: none; /* dots removed; stock badge is now colored instead */
 }
 
 .member-info {
