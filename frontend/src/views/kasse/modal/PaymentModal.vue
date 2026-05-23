@@ -143,7 +143,7 @@ const {
   cashChangeDisplay, cashChangeCents, selectedMemberName, selectedMemberBalance, selectedMember,
   showPaymentConfirmModal, closePaymentConfirmation,
   confirmPayment, confirmPaymentWithTip, formatPrice, getPaymentMethodLabel,
-  handleCheckout, paymentSource, activePaymentDeckel, isInsufficientBalance,
+  handleCheckout, paymentSource, activePaymentDeckel, isInsufficientBalance, effectiveCashTotal,
 } = kasse
 const cashGivenInput = ref(null)
 watch(() => kasse.showPaymentConfirmModal.value, (val) => {
