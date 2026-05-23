@@ -229,17 +229,31 @@ const paymentTotal = computed(() => paymentSource.value === 'deckel'
   ? (activePaymentDeckel.value?.total_amount_cents || 0)
   : cartStore.getTotalAmount()
 )
+const isInsufficientBalance = computed(() => (
+  pendingPaymentMethod.value === 'BALANCE'
+  && !!cartStore.selectedMemberId
+  && selectedMemberBalance.value > 0
+  && selectedMemberBalance.value < paymentTotal.value
+))
+
+const effectiveCashTotal = computed(() => {
+  if (isInsufficientBalance.value) {
+    return paymentTotal.value - selectedMemberBalance.value
+  }
+  return paymentTotal.value
+})
+
 const cashChangeDisplay = computed(() => {
   const value = Number(cashGiven.value || 0)
-  const change = Math.max(Math.round((value * 100) - paymentTotal.value), 0)
+  const change = Math.max(Math.round((value * 100) - effectiveCashTotal.value), 0)
   return formatPrice(change)
 })
 
 const cashChangeCents = computed(() => {
   const value = Number(cashGiven.value || 0)
   const given = Math.round(value * 100)
-  if (given < paymentTotal.value) return 0
-  return given - paymentTotal.value
+  if (given < effectiveCashTotal.value) return 0
+  return given - effectiveCashTotal.value
 })
 const voucherActionLabel = computed(() => {
   if (redeemingVoucher.value) {
@@ -453,7 +467,13 @@ const openPaymentConfirmation = (method, options = {}) => {
   pendingPaymentMethod.value = method
   showPaymentConfirmModal.value = true
   paymentResult.value = null
-  cashGiven.value = method === 'CASH' ? (paymentTotal.value / 100).toFixed(2) : ''
+  if (method === 'CASH') {
+    cashGiven.value = (paymentTotal.value / 100).toFixed(2)
+  } else if (method === 'BALANCE' && selectedMemberBalance.value > 0 && selectedMemberBalance.value < paymentTotal.value) {
+    cashGiven.value = (Math.max(paymentTotal.value - selectedMemberBalance.value, 0) / 100).toFixed(2)
+  } else {
+    cashGiven.value = ''
+  }
 }
 
 const closePaymentConfirmation = () => {
@@ -469,17 +489,24 @@ const closePaymentConfirmation = () => {
   activePaymentDeckel.value = null
 }
 
+const validateCashInput = () => {
+  if (pendingPaymentMethod.value === 'CASH' || isInsufficientBalance.value) {
+    const givenCents = Math.round(Number(cashGiven.value || 0) * 100)
+    if (givenCents < effectiveCashTotal.value) {
+      notificationStore.error('Der gegebene Barbetrag reicht nicht aus')
+      return false
+    }
+  }
+  return true
+}
+
 const confirmPayment = async () => {
   if (!pendingPaymentMethod.value) {
     return
   }
 
-  if (pendingPaymentMethod.value === 'CASH') {
-    const givenCents = Math.round(Number(cashGiven.value || 0) * 100)
-    if (givenCents < paymentTotal.value) {
-      notificationStore.error('Der gegebene Barbetrag reicht nicht aus')
-      return
-    }
+  if (!validateCashInput()) {
+    return
   }
 
   cartStore.tipCents = 0
@@ -506,12 +533,8 @@ const confirmPaymentWithTip = async () => {
     return
   }
 
-  if (pendingPaymentMethod.value === 'CASH') {
-    const givenCents = Math.round(Number(cashGiven.value || 0) * 100)
-    if (givenCents < paymentTotal.value) {
-      notificationStore.error('Der gegebene Barbetrag reicht nicht aus')
-      return
-    }
+  if (!validateCashInput()) {
+    return
   }
 
   cartStore.tipCents = cashChangeCents.value
@@ -544,8 +567,14 @@ const handlePaymentAndCheckout = async (method) => {
   }
 
   if (method === 'BALANCE' && selectedMemberBalance.value < cartStore.getTotalAmount()) {
-    applyPartialBalanceAndContinue({ notify: true })
-    return { appliedBalanceOnly: true }
+    // Balance insufficient: apply full available balance as discount, process rest as CASH
+    const currentlyApplied = cartStore.getBalanceAppliedAmount()
+    const availableBalance = Math.max(selectedMemberBalance.value - currentlyApplied, 0)
+    if (availableBalance > 0) {
+      cartStore.applyBalanceDiscount(currentlyApplied + availableBalance)
+    }
+    cartStore.paymentMethod = 'CASH'
+    return handleCheckout()
   }
 
   cartStore.paymentMethod = method
@@ -844,9 +873,10 @@ const getPaymentMethodLabel = (method) => {
     return '💰 Zahlung in Bar'
   }
   if (method === 'BALANCE') {
-    return selectedMemberBalance.value >= cartStore.getTotalAmount()
-      ? '💳 Zahlung mit Guthaben'
-      : '💳 Guthaben als Rabatt anwenden'
+    if (selectedMemberBalance.value >= cartStore.getTotalAmount()) {
+      return '💳 Zahlung mit Guthaben'
+    }
+    return '💳 Zahlung mit Guthaben + Bar (Restbetrag)'
   }
 
   return '💰 Zahlung in Bar'
@@ -970,7 +1000,7 @@ onBeforeUnmount(() => {
     createDeckel, bookCurrentCartToDeckel, openDeckelPaymentConfirmation, handleDeckelPayment,
     clampBonWidth, BON_RESIZE_OFFSET, stopResizing, handleResize, startResizing,
     formatVoucherReason, getExpiredStatusLabel, getPaymentMethodLabel, loadNextReceiptNumber,
-    handleCheckout, getPaymentButtonStyle,
+    handleCheckout, getPaymentButtonStyle, isInsufficientBalance, effectiveCashTotal,
     getMemberFullName, getMemberShortName, formatPrice, formatBalance,
   }
 }

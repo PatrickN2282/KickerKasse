@@ -222,18 +222,17 @@
                   Guthaben: {{ formatBalance(selectedMemberBalance) }}
                 </div>
               </div>
+              <button
+                 @click="() => {
+                   cartStore.selectedMemberId = null;
+                   cartStore.selectedMemberHasDiscount = false;
+                   cartStore.removeBalanceDiscount();
+                   cartStore.recalculatePrices();
+                 }"
+                class="btn-remove-member"
+                title="Mitglied entfernen"
+              >✕</button>
             </div>
-            <button
-               @click="() => {
-                 cartStore.selectedMemberId = null;
-                 cartStore.selectedMemberHasDiscount = false;
-                 cartStore.removeBalanceDiscount();
-                 cartStore.recalculatePrices();
-               }"
-              class="btn-change"
-            >
-              Mitglied entfernen
-            </button>
           </div>
 
           <div class="payment-section">
@@ -792,7 +791,7 @@ const {
 
   .payment-buttons {
     display: grid;
-    grid-template-columns: repeat(2, minmax(0, 1fr));
+    grid-template-columns: minmax(min-content, 1fr) minmax(0, 1fr);
     grid-template-rows: repeat(2, minmax(0, 1fr));
     gap: 0.5rem;
 
@@ -832,6 +831,7 @@ const {
         grid-row: 1 / 3;
         background: #2e7d32;
         color: #ffffff;
+        white-space: nowrap;
       }
 
       &.payment-btn--balance {
@@ -1129,20 +1129,23 @@ const {
     }
 
     .btn-change {
-      width: 100%;
-      padding: 0.35rem;
-      background: white;
-      border: 1px solid var(--app-banner-color);
-      color: var(--app-banner-color);
+      display: none;
+    }
+
+    .btn-remove-member {
+      background: #ffebee;
+      color: #c62828;
+      border: none;
       border-radius: 4px;
+      width: 28px;
+      height: 28px;
+      flex-shrink: 0;
       cursor: pointer;
-      font-weight: 600;
-      font-size: 0.85rem;
-      transition: all 0.2s;
-      margin-bottom: 0;
+      font-weight: bold;
+      font-size: 0.9rem;
 
       &:hover {
-        background: color-mix(in srgb, var(--app-banner-color) 10%, white 90%);
+        background: #ffcdd2;
       }
     }
   }
@@ -1152,7 +1155,7 @@ const {
 
     .payment-buttons {
       display: grid;
-      grid-template-columns: repeat(2, minmax(0, 1fr));
+      grid-template-columns: minmax(min-content, 1fr) minmax(0, 1fr);
       grid-template-rows: repeat(2, minmax(0, 1fr));
       gap: 0.5rem;
 
@@ -1168,7 +1171,7 @@ const {
         text-align: center;
 
         &:disabled {
-          opacity: 0.7;
+          opacity: 0.5;
           cursor: not-allowed;
         }
 
@@ -1177,9 +1180,22 @@ const {
           box-shadow: 0 3px 7px rgba(0, 0, 0, 0.16);
         }
 
+        &.active {
+          box-shadow: 0 0 0 3px rgba(25, 118, 210, 0.3);
+          transform: scale(1.02);
+        }
+
+        &.voucher-btn {
+          background: var(--app-banner-color);
+          color: var(--app-banner-contrast);
+        }
+
         &.payment-btn--cash {
           grid-column: 1 / 2;
           grid-row: 1 / 3;
+          background: #2e7d32;
+          color: #ffffff;
+          white-space: nowrap;
         }
 
         &.payment-btn--balance {
