@@ -67,7 +67,25 @@
               <strong>{{ formatPrice(paymentTotal) }}</strong>
             </div>
           </div>
-          <div v-if="pendingPaymentMethod === 'CASH'" class="cash-payment-fields">
+
+          <div v-if="isInsufficientBalance" class="insufficient-balance-warning">
+            <p class="warning-title">⚠️ Guthaben nicht ausreichend</p>
+            <p class="warning-text">
+              Das Mitgliedsguthaben reicht nicht aus. Der Restbetrag muss bar beglichen werden.
+            </p>
+            <div class="balance-breakdown">
+              <div class="balance-row">
+                <span>Verfügbares Guthaben ({{ selectedMemberName }})</span>
+                <strong>-{{ formatPrice(selectedMemberBalance) }}</strong>
+              </div>
+              <div class="balance-row balance-row--remaining">
+                <span>Restbetrag (bar)</span>
+                <strong>{{ formatPrice(paymentTotal - selectedMemberBalance) }}</strong>
+              </div>
+            </div>
+          </div>
+
+          <div v-if="pendingPaymentMethod === 'CASH' || isInsufficientBalance" class="cash-payment-fields">
             <label>
               Bar gegeben
               <input
@@ -122,14 +140,14 @@ const {
   cartSubtotal, voucherAppliedAmount, balanceAppliedAmount,
   hasAppliedVoucher, hasAppliedBalance, cashGiven,
   paymentSummaryItems, paymentSubtotal, paymentTotal,
-  cashChangeDisplay, cashChangeCents, selectedMemberName, selectedMember,
+  cashChangeDisplay, cashChangeCents, selectedMemberName, selectedMemberBalance, selectedMember,
   showPaymentConfirmModal, closePaymentConfirmation,
   confirmPayment, confirmPaymentWithTip, formatPrice, getPaymentMethodLabel,
-  handleCheckout, paymentSource, activePaymentDeckel,
+  handleCheckout, paymentSource, activePaymentDeckel, isInsufficientBalance,
 } = kasse
 const cashGivenInput = ref(null)
 watch(() => kasse.showPaymentConfirmModal.value, (val) => {
-  if (val && kasse.pendingPaymentMethod.value === 'CASH') {
+  if (val && (kasse.pendingPaymentMethod.value === 'CASH' || kasse.isInsufficientBalance.value)) {
     nextTick(() => {
       cashGivenInput.value?.focus()
       cashGivenInput.value?.select?.()
@@ -343,5 +361,39 @@ watch(() => kasse.showPaymentConfirmModal.value, (val) => {
   margin: 0;
   color: #991b1b;
   font-weight: 700;
+}
+.insufficient-balance-warning {
+  padding: 0.85rem 1rem;
+  border-radius: 10px;
+  background: linear-gradient(135deg, #fffbeb, #fef3c7);
+  border: 2px solid #f59e0b;
+  .warning-title {
+    margin: 0 0 0.35rem;
+    font-weight: 700;
+    color: #92400e;
+    font-size: 0.95rem;
+  }
+  .warning-text {
+    margin: 0 0 0.65rem;
+    color: #78350f;
+    font-size: 0.85rem;
+  }
+  .balance-breakdown {
+    display: flex;
+    flex-direction: column;
+    gap: 0.35rem;
+    padding: 0.55rem 0.75rem;
+    background: rgba(255,255,255,0.6);
+    border-radius: 6px;
+    .balance-row {
+      display: flex;
+      justify-content: space-between;
+      gap: 1rem;
+      font-size: 0.88rem;
+      color: #44403c;
+      strong { color: #0f766e; }
+      &.balance-row--remaining strong { color: #dc2626; font-size: 1rem; }
+    }
+  }
 }
 </style>

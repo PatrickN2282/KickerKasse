@@ -218,18 +218,17 @@
                   Guthaben: {{ formatBalance(selectedMemberBalance) }}
                 </div>
               </div>
+              <button
+                 @click="() => {
+                   cartStore.selectedMemberId = null;
+                   cartStore.selectedMemberHasDiscount = false;
+                   cartStore.removeBalanceDiscount();
+                   cartStore.recalculatePrices();
+                 }"
+                class="btn-remove-member"
+                title="Mitglied entfernen"
+              >✕</button>
             </div>
-            <button
-               @click="() => {
-                 cartStore.selectedMemberId = null;
-                 cartStore.selectedMemberHasDiscount = false;
-                 cartStore.removeBalanceDiscount();
-                 cartStore.recalculatePrices();
-               }"
-              class="btn-change"
-            >
-              Wechseln
-            </button>
           </div>
 
           <div class="payment-section">
@@ -238,7 +237,7 @@
                 @click="openPaymentConfirmation('CASH')"
                 :disabled="cartStore.items.length === 0"
                 :style="getPaymentButtonStyle('CASH')"
-                class="payment-btn"
+                class="payment-btn payment-btn--cash"
               >
                 💰 Zahlen - BAR
               </button>
@@ -272,8 +271,7 @@
       <div v-if="appSettingsStore.settings.deckel_enabled" class="deckel-section">
         <button @click="openDeckelOverview" class="btn-deckel" :disabled="cartStore.items.length === 0 && deckelList.length === 0" title="Bon als Deckel speichern oder vorhandenen Deckel öffnen">
           <span v-if="activeDeckelCount > 0" class="deckel-badge">{{ activeDeckelCount }}</span>
-          <span>Deckel - Gastteam</span>
-          <span>Ligaspiel</span>
+          Deckel
         </button>
       </div>
     </div>
@@ -799,6 +797,7 @@ const {
 
     .payment-btn {
       flex: 1;
+      min-width: 0;
       font-size: 0.95rem;
       padding: 0.8rem;
       border-radius: 6px;
@@ -807,6 +806,9 @@ const {
       border: none;
       cursor: pointer;
       text-align: center;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
 
       &:disabled {
         opacity: 0.5;
@@ -826,6 +828,12 @@ const {
       &.voucher-btn {
         background: var(--app-banner-color);
         color: var(--app-banner-contrast);
+      }
+
+      &.payment-btn--cash {
+        flex: 0 0 auto;
+        white-space: nowrap;
+        overflow: visible;
       }
     }
   }
@@ -1098,20 +1106,23 @@ const {
     }
 
     .btn-change {
-      width: 100%;
-      padding: 0.5rem;
-      background: white;
-      border: 1px solid var(--app-banner-color);
-      color: var(--app-banner-color);
+      display: none;
+    }
+
+    .btn-remove-member {
+      background: #ffebee;
+      color: #c62828;
+      border: none;
       border-radius: 4px;
+      width: 28px;
+      height: 28px;
+      flex-shrink: 0;
       cursor: pointer;
-      font-weight: 600;
-      font-size: 0.85rem;
-      transition: all 0.2s;
-      margin-bottom: 0.75rem;
+      font-weight: bold;
+      font-size: 0.9rem;
 
       &:hover {
-        background: color-mix(in srgb, var(--app-banner-color) 10%, white 90%);
+        background: #ffcdd2;
       }
     }
   }
@@ -1126,6 +1137,7 @@ const {
 
       .payment-btn {
         flex: 1;
+        min-width: 0;
         font-size: 0.95rem;
         padding: 0.8rem;
         border-radius: 6px;
@@ -1134,6 +1146,9 @@ const {
         border: none;
         cursor: pointer;
         text-align: center;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
 
         &:disabled {
           opacity: 0.7;
@@ -1143,6 +1158,12 @@ const {
         &:hover:not(:disabled) {
           transform: translateY(-2px);
           box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
+        }
+
+        &.payment-btn--cash {
+          flex: 0 0 auto;
+          white-space: nowrap;
+          overflow: visible;
         }
       }
     }
@@ -1162,8 +1183,8 @@ const {
 .btn-deckel,
 .btn-cancel {
   width: 100%;
-  min-height: 60px;
-  padding: 0.95rem 1.35rem;
+  min-height: 40px;
+  padding: 0.5rem 1rem;
   border-radius: 12px;
   cursor: pointer;
   font-size: 1rem;
@@ -1185,10 +1206,10 @@ const {
   border: 1px solid #b8c6d8;
   display: flex;
   position: relative;
-  flex-direction: column;
+  flex-direction: row;
   justify-content: center;
   align-items: center;
-  gap: 0.1rem;
+  gap: 0.4rem;
   text-align: center;
   line-height: 1.2;
 
