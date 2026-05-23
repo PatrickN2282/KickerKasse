@@ -14,6 +14,11 @@
           alt="Spendenbanner"
           class="donation-banner"
         >
+        <img
+          :src="donationQrUrl"
+          alt="Spenden-QR-Code"
+          class="donation-qr"
+        >
         <p class="donation-hint">
           Wenn dir KickerKasse hilft, freuen wir uns über eine kleine Spende für die Zeit und Mühe,
           die in dieses Projekt geflossen ist.
@@ -44,6 +49,7 @@ defineProps({
 
 const emit = defineEmits(['close'])
 const donationBannerUrl = '/api/app-settings/donation-banner'
+const donationQrUrl = '/api/app-settings/donation-qr'
 </script>
 
 <style scoped lang="scss">
@@ -120,6 +126,13 @@ const donationBannerUrl = '/api/app-settings/donation-banner'
   border: 1px solid #e2e8f0;
   object-fit: cover;
   max-height: 140px;
+}
+
+.donation-qr {
+  width: min(220px, 100%);
+  align-self: center;
+  border-radius: 10px;
+  border: 1px solid #e2e8f0;
 }
 
 .donation-hint {

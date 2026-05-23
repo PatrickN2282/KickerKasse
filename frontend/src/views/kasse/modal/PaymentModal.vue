@@ -127,7 +127,11 @@
             Abbrechen / Zurück
           </button>
           <button @click="confirmPayment" class="btn btn-confirm-payment" :class="{ selected: true }" :disabled="processingPayment">
-            {{ processingPayment ? '⏳ Wird verarbeitet...' : 'Bestätigen' }}
+            <template v-if="processingPayment">⏳ Wird verarbeitet...</template>
+            <template v-else>
+              <span class="btn-confirm-payment__line">Kauf</span>
+              <span class="btn-confirm-payment__line">abschließen</span>
+            </template>
           </button>
         </template>
       </div>
@@ -318,6 +322,10 @@ watch(() => kasse.showPaymentConfirmModal.value, (val) => {
   box-shadow: 0 0 0 2px rgba(46, 125, 50, 0.2);
   &.selected { box-shadow: 0 0 0 3px rgba(46, 125, 50, 0.24), 0 0 16px rgba(46, 125, 50, 0.45); }
   &:not(:disabled):hover { background: #256a29; }
+}
+.btn-confirm-payment__line {
+  display: block;
+  line-height: 1.1;
 }
 .btn-tip-donate {
   width: 100%;

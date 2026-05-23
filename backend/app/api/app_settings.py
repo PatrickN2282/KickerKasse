@@ -115,6 +115,15 @@ async def get_donation_banner_file(db: Session = Depends(get_db)):
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Donation banner not found")
     return FileResponse(file_path, media_type="image/png")
 
+
+@router.get("/donation-qr")
+@router.get("/donation-qr/")
+async def get_donation_qr_file(db: Session = Depends(get_db)):
+    file_path = AppSettingsService(db).assets_dir / "qr-code.png"
+    if not file_path.exists():
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Donation QR code not found")
+    return FileResponse(file_path, media_type="image/png")
+
 @router.get("/logo")
 @router.get("/logo/")
 async def get_logo_file(db: Session = Depends(get_db)):
