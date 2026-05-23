@@ -817,21 +817,21 @@ watch(showPaymentConfirmModal, (isOpen) => {
 
   .payment-buttons {
     display: grid;
-    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+    grid-template-columns: minmax(72px, 1fr) minmax(0, 2fr);
     gap: 0.75rem;
     align-items: stretch;
 
     .payment-buttons-side {
       display: flex;
       flex-direction: column;
-      gap: 0.75rem;
+      gap: 0.5rem;
       min-width: 0;
     }
 
     .payment-btn {
       flex: 1;
       font-size: 0.95rem;
-      padding: 0.8rem;
+      padding: 0.6rem 0.5rem;
       border-radius: 6px;
       font-weight: 600;
       transition: all 0.2s;
@@ -859,19 +859,60 @@ watch(showPaymentConfirmModal, (isOpen) => {
         color: #1b5e20;
       }
 
+      /* Guthaben + Gutschein: emoji und label nebeneinander, 1 Zeile */
       &.payment-btn--balance,
       &.voucher-btn {
-        font-size: clamp(0.72rem, 1.1vw, 0.95rem);
-        line-height: 1.2;
-        white-space: normal;
-        overflow: visible;
-        text-overflow: unset;
-        overflow-wrap: anywhere;
+        display: flex;
+        flex-direction: row;
+        align-items: center;
+        justify-content: center;
+        gap: 0.4rem;
+        white-space: nowrap;
+        overflow: hidden;
+        font-size: clamp(0.7rem, 1.2vw, 0.9rem);
+
+        .payment-btn__emoji {
+          display: inline;
+          font-size: 1.05em;
+          line-height: 1;
+          flex-shrink: 0;
+          margin-top: 0;
+        }
+
+        .payment-btn__label {
+          display: inline;
+          margin-top: 0;
+          overflow: hidden;
+          text-overflow: ellipsis;
+          white-space: nowrap;
+          line-height: 1.2;
+          min-width: 0;
+        }
       }
 
+      /* Bar: 2 Zeilen, großes Emoji oben, label unten, volle Höhe */
       &.payment-btn--cash {
-        flex-shrink: 0;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
         height: 100%;
+        flex-shrink: 0;
+        gap: 0.25rem;
+
+        .payment-btn__emoji {
+          font-size: 1.7rem;
+          line-height: 1;
+          display: block;
+          margin-top: 0;
+        }
+
+        .payment-btn__label {
+          display: block;
+          font-size: 0.85rem;
+          margin-top: 0;
+          line-height: 1.2;
+        }
       }
     }
   }
@@ -881,6 +922,7 @@ watch(showPaymentConfirmModal, (isOpen) => {
   display: block;
   text-align: center;
   line-height: 1;
+  flex-shrink: 0;
 }
 
 .payment-btn__label {
@@ -1183,14 +1225,14 @@ watch(showPaymentConfirmModal, (isOpen) => {
 
     .payment-buttons {
       display: grid;
-      grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+      grid-template-columns: minmax(72px, 1fr) minmax(0, 2fr);
       gap: 0.75rem;
       align-items: stretch;
 
       .payment-buttons-side {
         display: flex;
         flex-direction: column;
-        gap: 0.75rem;
+        gap: 0.5rem;
         min-width: 0;
       }
 
@@ -1198,16 +1240,13 @@ watch(showPaymentConfirmModal, (isOpen) => {
         flex: 1;
         min-width: 0;
         font-size: 0.95rem;
-        padding: 0.8rem;
+        padding: 0.6rem 0.5rem;
         border-radius: 6px;
         font-weight: 600;
         transition: all 0.2s;
         border: none;
         cursor: pointer;
         text-align: center;
-        overflow: hidden;
-        text-overflow: ellipsis;
-        white-space: nowrap;
 
         &:disabled {
           opacity: 0.5;
@@ -1229,21 +1268,60 @@ watch(showPaymentConfirmModal, (isOpen) => {
           color: #1b5e20;
         }
 
-        &.payment-btn--cash {
-          flex-shrink: 0;
-          white-space: nowrap;
-          overflow: visible;
-          height: 100%;
-        }
-
+        /* Guthaben + Gutschein: emoji und label nebeneinander, 1 Zeile */
         &.payment-btn--balance,
         &.voucher-btn {
-          font-size: clamp(0.72rem, 2vw, 0.95rem);
-          line-height: 1.2;
-          white-space: normal;
-          overflow: visible;
-          text-overflow: unset;
-          overflow-wrap: anywhere;
+          display: flex;
+          flex-direction: row;
+          align-items: center;
+          justify-content: center;
+          gap: 0.4rem;
+          white-space: nowrap;
+          overflow: hidden;
+          font-size: clamp(0.68rem, 1.5vw, 0.9rem);
+
+          .payment-btn__emoji {
+            display: inline;
+            font-size: 1.05em;
+            line-height: 1;
+            flex-shrink: 0;
+            margin-top: 0;
+          }
+
+          .payment-btn__label {
+            display: inline;
+            margin-top: 0;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+            line-height: 1.2;
+            min-width: 0;
+          }
+        }
+
+        /* Bar: 2 Zeilen, großes Emoji oben, label unten, volle Höhe */
+        &.payment-btn--cash {
+          display: flex;
+          flex-direction: column;
+          align-items: center;
+          justify-content: center;
+          height: 100%;
+          flex-shrink: 0;
+          gap: 0.25rem;
+
+          .payment-btn__emoji {
+            font-size: 1.7rem;
+            line-height: 1;
+            display: block;
+            margin-top: 0;
+          }
+
+          .payment-btn__label {
+            display: block;
+            font-size: 0.85rem;
+            margin-top: 0;
+            line-height: 1.2;
+          }
         }
       }
     }
