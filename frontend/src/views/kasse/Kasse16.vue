@@ -233,7 +233,8 @@
                 :style="getPaymentButtonStyle('CASH')"
                 class="payment-btn payment-btn--cash"
               >
-                💰 Zahlen - BAR
+                <span class="payment-btn__emoji">💶</span>
+                <span class="payment-btn__label">Bar</span>
               </button>
 
               <button
@@ -242,7 +243,8 @@
                 :style="getPaymentButtonStyle('BALANCE')"
                 class="payment-btn payment-btn--balance"
               >
-                💳 Guthabenzahlung
+                <span class="payment-btn__emoji">👤</span>
+                <span class="payment-btn__label">Guthaben</span>
               </button>
 
               <button
@@ -250,7 +252,8 @@
                 :disabled="cartStore.items.length === 0"
                 class="payment-btn voucher-btn"
               >
-                🎫 Gutschein/Verzehrkarte
+                <span class="payment-btn__emoji">🎟️</span>
+                <span class="payment-btn__label">Gutschein</span>
               </button>
             </div>
           </div>
@@ -857,6 +860,19 @@ watch(showPaymentConfirmModal, (isOpen) => {
       }
     }
   }
+}
+
+.payment-btn__emoji {
+  display: block;
+  text-align: center;
+  line-height: 1;
+}
+
+.payment-btn__label {
+  display: block;
+  text-align: center;
+  line-height: 1.2;
+  margin-top: 0.2rem;
 }
 
 .bon-secondary-actions {
