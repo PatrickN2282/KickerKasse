@@ -204,7 +204,7 @@
               title="Bon als Deckel speichern oder vorhandenen Deckel öffnen"
             >
               <span v-if="activeDeckelCount > 0" class="deckel-badge-inline">{{ activeDeckelCount }}</span>
-              Deckel erstellen
+              Deckel - Ligaspiel
             </button>
           </div>
 
@@ -251,7 +251,7 @@
                 :style="getPaymentButtonStyle('BALANCE')"
                 class="payment-btn payment-btn--balance"
               >
-                💳 Guthaben nutzen
+                💳 Guthabenzahlung
               </button>
 
               <button
@@ -259,7 +259,7 @@
                 :disabled="cartStore.items.length === 0"
                 class="payment-btn voucher-btn"
               >
-                🎫 Gutschein / Verzehrkarte
+                🎫 Gutschein/Verzehrkarte
               </button>
             </div>
           </div>
@@ -826,6 +826,16 @@ const {
         color: var(--app-banner-contrast);
       }
 
+      &.payment-btn--balance,
+      &.voucher-btn {
+        font-size: clamp(0.72rem, 1.1vw, 0.88rem);
+        line-height: 1.2;
+        white-space: normal;
+        overflow: visible;
+        text-overflow: unset;
+        overflow-wrap: anywhere;
+      }
+
       &.payment-btn--cash {
         grid-column: 1 / 2;
         grid-row: 1 / 3;
@@ -1206,6 +1216,16 @@ const {
         &.voucher-btn {
           grid-column: 2 / 3;
           grid-row: 2 / 3;
+        }
+
+        &.payment-btn--balance,
+        &.voucher-btn {
+          font-size: clamp(0.72rem, 2.2vw, 0.88rem);
+          line-height: 1.2;
+          white-space: normal;
+          overflow: visible;
+          text-overflow: unset;
+          overflow-wrap: anywhere;
         }
       }
     }

@@ -240,9 +240,9 @@
                 @click="openPaymentConfirmation('BALANCE')"
                 :disabled="!cartStore.selectedMemberId || cartStore.items.length === 0 || selectedMemberBalance <= 0"
                 :style="getPaymentButtonStyle('BALANCE')"
-                class="payment-btn"
+                class="payment-btn payment-btn--balance"
               >
-                💳 Guthaben nutzen
+                💳 Guthabenzahlung
               </button>
 
               <button
@@ -250,7 +250,7 @@
                 :disabled="cartStore.items.length === 0"
                 class="payment-btn voucher-btn"
               >
-                🎫 Gutschein / Verzehrkarte
+                🎫 Gutschein/Verzehrkarte
               </button>
             </div>
           </div>
@@ -265,7 +265,7 @@
       <div v-if="appSettingsStore.settings.deckel_enabled" class="deckel-section">
         <button @click="openDeckelOverview" class="btn-deckel" :disabled="cartStore.items.length === 0 && deckelList.length === 0" title="Bon als Deckel speichern oder vorhandenen Deckel öffnen">
           <span v-if="activeDeckelCount > 0" class="deckel-badge">{{ activeDeckelCount }}</span>
-          Deckel
+          Deckel - Ligaspiel
         </button>
       </div>
     </div>
@@ -845,6 +845,16 @@ watch(showPaymentConfirmModal, (isOpen) => {
         background: var(--app-banner-color);
         color: var(--app-banner-contrast);
       }
+
+      &.payment-btn--balance,
+      &.voucher-btn {
+        font-size: clamp(0.72rem, 1.1vw, 0.95rem);
+        line-height: 1.2;
+        white-space: normal;
+        overflow: visible;
+        text-overflow: unset;
+        overflow-wrap: anywhere;
+      }
     }
   }
 }
@@ -1184,6 +1194,16 @@ watch(showPaymentConfirmModal, (isOpen) => {
           flex: 0 0 auto;
           white-space: nowrap;
           overflow: visible;
+        }
+
+        &.payment-btn--balance,
+        &.voucher-btn {
+          font-size: clamp(0.72rem, 2vw, 0.95rem);
+          line-height: 1.2;
+          white-space: normal;
+          overflow: visible;
+          text-overflow: unset;
+          overflow-wrap: anywhere;
         }
       }
     }
