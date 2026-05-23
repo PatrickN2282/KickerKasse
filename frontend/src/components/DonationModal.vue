@@ -10,11 +10,6 @@
       </div>
       <div class="modal-body">
         <img
-          :src="donationBannerUrl"
-          alt="Spendenbanner"
-          class="donation-banner"
-        >
-        <img
           :src="donationQrUrl"
           alt="Spenden-QR-Code"
           class="donation-qr"
