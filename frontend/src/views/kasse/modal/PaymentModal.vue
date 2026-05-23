@@ -80,7 +80,7 @@
               </div>
               <div class="balance-row balance-row--remaining">
                 <span>Restbetrag (bar)</span>
-                <strong>{{ formatPrice(paymentTotal - selectedMemberBalance) }}</strong>
+              <strong>{{ formatPrice(effectiveCashTotal) }}</strong>
               </div>
             </div>
           </div>

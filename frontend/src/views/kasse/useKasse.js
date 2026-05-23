@@ -489,26 +489,24 @@ const closePaymentConfirmation = () => {
   activePaymentDeckel.value = null
 }
 
+const validateCashInput = () => {
+  if (pendingPaymentMethod.value === 'CASH' || isInsufficientBalance.value) {
+    const givenCents = Math.round(Number(cashGiven.value || 0) * 100)
+    if (givenCents < effectiveCashTotal.value) {
+      notificationStore.error('Der gegebene Barbetrag reicht nicht aus')
+      return false
+    }
+  }
+  return true
+}
+
 const confirmPayment = async () => {
   if (!pendingPaymentMethod.value) {
     return
   }
 
-  if (pendingPaymentMethod.value === 'CASH') {
-    const givenCents = Math.round(Number(cashGiven.value || 0) * 100)
-    if (givenCents < paymentTotal.value) {
-      notificationStore.error('Der gegebene Barbetrag reicht nicht aus')
-      return
-    }
-  }
-
-  if (isInsufficientBalance.value) {
-    const givenCents = Math.round(Number(cashGiven.value || 0) * 100)
-    const cashDue = paymentTotal.value - selectedMemberBalance.value
-    if (givenCents < cashDue) {
-      notificationStore.error('Der gegebene Barbetrag reicht nicht aus')
-      return
-    }
+  if (!validateCashInput()) {
+    return
   }
 
   cartStore.tipCents = 0
@@ -535,22 +533,10 @@ const confirmPaymentWithTip = async () => {
     return
   }
 
-  if (pendingPaymentMethod.value === 'CASH') {
-    const givenCents = Math.round(Number(cashGiven.value || 0) * 100)
-    if (givenCents < paymentTotal.value) {
-      notificationStore.error('Der gegebene Barbetrag reicht nicht aus')
-      return
-    }
+  if (!validateCashInput()) {
+    return
   }
 
-  if (isInsufficientBalance.value) {
-    const givenCents = Math.round(Number(cashGiven.value || 0) * 100)
-    const cashDue = paymentTotal.value - selectedMemberBalance.value
-    if (givenCents < cashDue) {
-      notificationStore.error('Der gegebene Barbetrag reicht nicht aus')
-      return
-    }
-  }
   cartStore.tipCents = cashChangeCents.value
   processingPayment.value = true
   const transaction = await handlePaymentAndCheckout(pendingPaymentMethod.value)
