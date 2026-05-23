@@ -933,7 +933,7 @@ const getPaymentButtonStyle = (method) => {
     return { background: 'var(--app-highlight-color)', color: 'var(--app-highlight-contrast)' }
   } else {
     if (balance > 0) {
-      return { background: 'var(--app-banner-color)', color: 'var(--app-banner-contrast)' }
+      return { background: '#81c784', color: '#1b5e20' }
     } else {
       return { background: '#ccc', color: '#999', cursor: 'not-allowed' }
     }
