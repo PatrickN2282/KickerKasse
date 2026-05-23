@@ -62,27 +62,30 @@
               <span>Deckel</span>
               <strong>{{ activePaymentDeckel?.name }}</strong>
             </div>
-            <div class="total-row grand-total modal-grand-total">
+
+            <!-- Normal case: full amount highlighted -->
+            <div v-if="!isInsufficientBalance" class="total-row grand-total modal-grand-total">
               <span>Zu zahlen</span>
               <strong>{{ formatPrice(paymentTotal) }}</strong>
             </div>
-          </div>
 
-          <div v-if="isInsufficientBalance" class="insufficient-balance-warning">
-            <p class="warning-title">⚠️ Guthaben nicht ausreichend</p>
-            <p class="warning-text">
-              Das Mitgliedsguthaben reicht nicht aus. Der Restbetrag muss bar beglichen werden.
-            </p>
-            <div class="balance-breakdown">
-              <div class="balance-row">
-                <span>Verfügbares Guthaben ({{ selectedMemberName }})</span>
-                <strong>-{{ formatPrice(selectedMemberBalance) }}</strong>
+            <!-- Insufficient balance: show subdued total + prominent cash remainder -->
+            <template v-else>
+              <div class="total-row grand-total total-row--subdued">
+                <span>Gesamtbetrag</span>
+                <strong>{{ formatPrice(paymentTotal) }}</strong>
               </div>
-              <div class="balance-row balance-row--remaining">
-                <span>Restbetrag (bar)</span>
-              <strong>{{ formatPrice(effectiveCashTotal) }}</strong>
+              <div class="balance-deduction-row">
+                <div class="balance-deduction-line">
+                  <span>⬇ Guthaben {{ selectedMemberName }}</span>
+                  <strong>-{{ formatPrice(selectedMemberBalance) }}</strong>
+                </div>
               </div>
-            </div>
+              <div class="total-row grand-total modal-grand-total modal-grand-total--cash">
+                <span>💵 Jetzt bar zahlen</span>
+                <strong>{{ formatPrice(effectiveCashTotal) }}</strong>
+              </div>
+            </template>
           </div>
 
           <div v-if="pendingPaymentMethod === 'CASH' || isInsufficientBalance" class="cash-payment-fields">
@@ -362,38 +365,36 @@ watch(() => kasse.showPaymentConfirmModal.value, (val) => {
   color: #991b1b;
   font-weight: 700;
 }
-.insufficient-balance-warning {
-  padding: 0.85rem 1rem;
-  border-radius: 10px;
-  background: linear-gradient(135deg, #fffbeb, #fef3c7);
-  border: 2px solid #f59e0b;
-  .warning-title {
-    margin: 0 0 0.35rem;
-    font-weight: 700;
-    color: #92400e;
-    font-size: 0.95rem;
-  }
-  .warning-text {
-    margin: 0 0 0.65rem;
-    color: #78350f;
-    font-size: 0.85rem;
-  }
-  .balance-breakdown {
+.total-row--subdued {
+  padding-top: 0.55rem;
+  border-top: 1px solid #e2e8f0;
+  opacity: 0.6;
+  font-size: 0.9rem;
+}
+
+.balance-deduction-row {
+  padding: 0.45rem 0.75rem;
+  background: #f0fdf4;
+  border: 1px solid #bbf7d0;
+  border-radius: 8px;
+
+  .balance-deduction-line {
     display: flex;
-    flex-direction: column;
-    gap: 0.35rem;
-    padding: 0.55rem 0.75rem;
-    background: rgba(255,255,255,0.6);
-    border-radius: 6px;
-    .balance-row {
-      display: flex;
-      justify-content: space-between;
-      gap: 1rem;
-      font-size: 0.88rem;
-      color: #44403c;
-      strong { color: #0f766e; }
-      &.balance-row--remaining strong { color: #dc2626; font-size: 1rem; }
+    justify-content: space-between;
+    gap: 1rem;
+    font-size: 0.88rem;
+    color: #166534;
+
+    strong {
+      color: #15803d;
+      font-weight: 700;
     }
   }
+}
+
+.modal-grand-total--cash {
+  span, strong { color: #b45309 !important; }
+  border-color: #f59e0b !important;
+  background: linear-gradient(135deg, #fffbeb, #fef3c7) !important;
 }
 </style>
