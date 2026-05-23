@@ -194,7 +194,7 @@
               @click="selectCustomer"
               class="btn btn-info"
             >
-              {{ cartStore.selectedMemberId ? 'Mitglied wechseln' : '+ Mitglied auswählen' }}
+              {{ cartStore.selectedMemberId ? 'Mitglied wechseln' : '+ Mitglied auswählen' }} 👥
             </button>
             <button
               v-if="appSettingsStore.settings.deckel_enabled"
@@ -260,6 +260,7 @@
                 @click="openVoucherModal"
                 :disabled="cartStore.items.length === 0"
                 class="payment-btn voucher-btn"
+                title="Verzehrkarte"
               >
                 <span class="payment-btn__emoji">🎟️</span>
                 <span class="payment-btn__label">Gutschein</span>
@@ -793,13 +794,12 @@ const {
   margin-top: 0.65rem;
 
   .payment-buttons {
-    display: grid;
-    grid-template-columns: minmax(min-content, 1fr) minmax(0, 1fr);
-    grid-template-rows: repeat(2, minmax(0, 1fr));
+    display: flex;
+    flex-direction: row;
     gap: 0.5rem;
 
     .payment-btn {
-      flex: 1;
+      flex: 1 1 0;
       font-size: 0.88rem;
       padding: 0.62rem;
       border-radius: 6px;
@@ -825,8 +825,8 @@ const {
       }
 
       &.voucher-btn {
-        background: var(--app-banner-color);
-        color: var(--app-banner-contrast);
+        background: #81c784;
+        color: #1b5e20;
       }
 
       &.payment-btn--balance,
@@ -840,21 +840,10 @@ const {
       }
 
       &.payment-btn--cash {
-        grid-column: 1 / 2;
-        grid-row: 1 / 3;
+        flex-shrink: 0;
         background: #2e7d32;
         color: #ffffff;
         white-space: nowrap;
-      }
-
-      &.payment-btn--balance {
-        grid-column: 2 / 3;
-        grid-row: 1 / 2;
-      }
-
-      &.voucher-btn {
-        grid-column: 2 / 3;
-        grid-row: 2 / 3;
       }
     }
   }
@@ -1180,13 +1169,12 @@ const {
     width: 100%;
 
     .payment-buttons {
-      display: grid;
-      grid-template-columns: minmax(min-content, 1fr) minmax(0, 1fr);
-      grid-template-rows: repeat(2, minmax(0, 1fr));
+      display: flex;
+      flex-direction: row;
       gap: 0.5rem;
 
       .payment-btn {
-        flex: 1;
+        flex: 1 1 0;
         font-size: 0.88rem;
         padding: 0.62rem;
         border-radius: 6px;
@@ -1212,26 +1200,15 @@ const {
         }
 
         &.voucher-btn {
-          background: var(--app-banner-color);
-          color: var(--app-banner-contrast);
+          background: #81c784;
+          color: #1b5e20;
         }
 
         &.payment-btn--cash {
-          grid-column: 1 / 2;
-          grid-row: 1 / 3;
+          flex-shrink: 0;
           background: #2e7d32;
           color: #ffffff;
           white-space: nowrap;
-        }
-
-        &.payment-btn--balance {
-          grid-column: 2 / 3;
-          grid-row: 1 / 2;
-        }
-
-        &.voucher-btn {
-          grid-column: 2 / 3;
-          grid-row: 2 / 3;
         }
 
         &.payment-btn--balance,
@@ -1401,8 +1378,8 @@ const {
 }
 
 .btn-info {
-  background-color: var(--app-banner-color);
-  color: var(--app-banner-contrast);
+  background-color: #fef08a;
+  color: #7c5f00;
 
   &:not(:disabled):hover {
     opacity: 0.9;

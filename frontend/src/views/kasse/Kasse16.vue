@@ -194,7 +194,7 @@
               @click="selectCustomer"
               class="btn btn-info full-width"
             >
-              + Mitglied auswählen
+              + Mitglied auswählen 👥
             </button>
           </div>
 
@@ -251,6 +251,7 @@
                 @click="openVoucherModal"
                 :disabled="cartStore.items.length === 0"
                 class="payment-btn voucher-btn"
+                title="Verzehrkarte"
               >
                 <span class="payment-btn__emoji">🎟️</span>
                 <span class="payment-btn__label">Gutschein</span>
@@ -845,8 +846,8 @@ watch(showPaymentConfirmModal, (isOpen) => {
       }
 
       &.voucher-btn {
-        background: var(--app-banner-color);
-        color: var(--app-banner-contrast);
+        background: #81c784;
+        color: #1b5e20;
       }
 
       &.payment-btn--balance,
@@ -857,6 +858,10 @@ watch(showPaymentConfirmModal, (isOpen) => {
         overflow: visible;
         text-overflow: unset;
         overflow-wrap: anywhere;
+      }
+
+      &.payment-btn--cash {
+        flex-shrink: 0;
       }
     }
   }
@@ -1202,12 +1207,12 @@ watch(showPaymentConfirmModal, (isOpen) => {
         }
 
         &.voucher-btn {
-          background: var(--app-banner-color);
-          color: var(--app-banner-contrast);
+          background: #81c784;
+          color: #1b5e20;
         }
 
         &.payment-btn--cash {
-          flex: 0 0 auto;
+          flex-shrink: 0;
           white-space: nowrap;
           overflow: visible;
         }
@@ -1385,8 +1390,8 @@ watch(showPaymentConfirmModal, (isOpen) => {
 }
 
 .btn-info {
-  background-color: var(--app-banner-color);
-  color: var(--app-banner-contrast);
+  background-color: #fef08a;
+  color: #7c5f00;
 
   &:not(:disabled):hover {
     opacity: 0.9;
