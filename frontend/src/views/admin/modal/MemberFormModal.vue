@@ -70,7 +70,7 @@
                 </div>
                 <div class="recharge-trigger">
                   <input v-model.number="rechargeAmount" type="number" step="0.01" placeholder="0,00€">
-                  <button type="button" class="btn-recharge" @click="$emit('open-recharge')" :disabled="!rechargeAmount">Laden</button>
+                  <button type="button" class="btn-recharge" :disabled="!rechargeAmount" @click="$emit('open-recharge')">Laden</button>
                 </div>
               </div>
             </div>
@@ -96,7 +96,7 @@
 
             <div v-if="formData.role" class="password-box">
               <div class="form-group">
-                <label>{{ hasExistingUserAccount ? 'Passwort überfragen' : 'Initial-Passwort festlegen*' }}</label>
+                <label>{{ hasExistingUserAccount ? 'Passwort überschreiben' : 'Initial-Passwort festlegen*' }}</label>
                 <input
                   v-model="formData.account_password"
                   type="password"
