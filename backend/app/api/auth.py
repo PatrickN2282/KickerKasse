@@ -131,7 +131,12 @@ async def get_login_usernames(
     request: Request,
     db: Session = Depends(get_db),
 ):
-    """Return usernames of active, non-hidden users for the login dropdown."""
+    """Return usernames of active, non-hidden users for the login-switch dropdown.
+
+    This endpoint is used when the Kasse user (or any authenticated user) wants
+    to switch to a different account. It requires authentication so that username
+    suggestions are not publicly exposed, but does not require elevated roles.
+    """
     require_authenticated_user(request, db)
     users = UserRepository(db).get_visible_active_users()
     return [u.username for u in users]

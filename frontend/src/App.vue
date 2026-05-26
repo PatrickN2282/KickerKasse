@@ -229,7 +229,8 @@ const openLoginModal = async () => {
   try {
     const response = await apiService.get('/auth/usernames')
     availableUsernames.value = response.data ?? []
-  } catch {
+  } catch (err) {
+    console.error('[App] Failed to load login usernames:', err)
     availableUsernames.value = []
   }
 }
