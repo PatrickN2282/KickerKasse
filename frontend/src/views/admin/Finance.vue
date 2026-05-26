@@ -1311,293 +1311,70 @@
     <!-- ═══════════════════════════════════════════════════════════
          Z-BON ERSTELLEN
     ════════════════════════════════════════════════════════════ -->
-    <div
-      v-if="showZbonCreateModal"
-      class="confirmation-overlay"
-    >
-      <div class="kk-dialog">
-
-        <div class="kk-dialog__header">
-          <div>
-            <h3>🧾 Kassenbericht erstellen</h3>
-            <p class="kk-dialog__subtitle">Kassenabschluss durchführen und Z-Bon erstellen</p>
-          </div>
-          <button class="kk-dialog__close" @click="closeZbonCreateModal">✕</button>
-        </div>
-
-        <div class="kk-dialog__body">
-
-          <!-- Ablauf-Hinweis -->
-          <div class="kk-info-box">
-            Kassenprüfer wählen → Kasse zählen → ggf. Abschöpfung → Kassenbericht erstellen
-          </div>
-
-          <!-- Benutzer-Auswahl -->
-          <div class="kk-form-grid">
-            <div class="kk-form-group">
-              <label>Erstellt von</label>
-              <button
-                class="kk-select-btn"
-                @click="openUserPicker('createdByUserId')"
-              >
-                {{ getSelectedUserName(zbonForm.createdByUserId, 'Benutzer auswählen …') }}
-              </button>
-            </div>
-            <div class="kk-form-group">
-              <label>Kassenprüfer</label>
-              <div class="kk-selection-row">
-                <button
-                  class="kk-select-btn"
-                  @click="openMemberPicker('verifiedByUserId')"
-                >
-                  {{ getSelectedVerifierName(zbonForm.verifiedByUserId, 'Mitglied auswählen …') }}
-                </button>
-                <button
-                  v-if="zbonForm.verifiedByUserId"
-                  class="kk-clear-btn"
-                  @click="zbonForm.verifiedByUserId = null"
-                >
-                  Entfernen
-                </button>
-              </div>
-            </div>
-          </div>
-
-          <!-- Saldo-Übersicht -->
-          <div class="kk-balance-box">
-            <div class="kk-balance-row">
-              <span>Vorheriger Barbestand</span>
-              <strong>{{ formatEuroValue(dailyStats.opening_balance) }}</strong>
-            </div>
-            <div class="kk-balance-row">
-              <span>Buchungs-Range</span>
-              <strong>{{ currentReceiptLabel }}</strong>
-            </div>
-            <div class="kk-balance-row">
-              <span>Abschöpfungen Zeitraum</span>
-              <strong class="warning">{{ formatPrice(zbonModalWithdrawalTotalCents) }}</strong>
-            </div>
-            <div class="kk-balance-row">
-              <span>Neuer Barbestand Soll</span>
-              <strong>{{ zbonModalCashCalculatedDisplay }}</strong>
-            </div>
-          </div>
-
-          <!-- Kassenbestand eingeben -->
-          <div class="kk-counted-input">
-            <label>Gezählter Kassenbestand (€)</label>
-            <input
-              v-model="zbonCountedCash"
-              type="number"
-              min="0"
-              step="0.01"
-              class="form-input large"
-              placeholder="0,00"
-            >
-          </div>
-
-          <!-- Ergebnis -->
-          <div class="kk-result-box">
-            <div class="kk-result-row">
-              <span>Abschöpfung im Modal</span>
-              <strong>{{ formatPrice(newWithdrawalsCents) }}</strong>
-            </div>
-            <div class="kk-result-row">
-              <span>Neuer Ist-Bestand</span>
-              <strong>{{ zbonNewCashBalanceDisplay }}</strong>
-            </div>
-            <div
-              class="kk-result-row"
-              :class="{ error: zbonFinalCashInvalid }"
-            >
-              <span>Differenz</span>
-              <strong>{{ zbonDifferenceDisplay }}</strong>
-            </div>
-          </div>
-
-          <small
-            v-if="zbonFinalCashInvalid"
-            class="kk-warning-text"
-          >
-            Der gezählte Bestand darf nicht kleiner als die im Modal vorgenommene Abschöpfung sein.
-          </small>
-
-        </div>
-
-        <div class="kk-dialog__footer">
-          <button class="btn btn-secondary" @click="closeZbonCreateModal">Abbrechen</button>
-          <button class="btn btn-info"    @click="openCashCounterModal">💰 Kasse zählen</button>
-          <button class="btn btn-warning" @click="openWithdrawalModal">💸 Abschöpfung</button>
-          <button
-            :class="['btn', canCreateZbon ? 'btn-ready' : 'btn-disabled']"
-            :disabled="!canCreateZbon"
-            @click="requestZBonCreate"
-          >
-            ✓ Kassenbericht erstellen
-          </button>
-        </div>
-
-      </div>
-    </div>
+    <ZbonCreateModal
+      :show="showZbonCreateModal"
+      :created-by-user-name="getSelectedUserName(zbonForm.createdByUserId, '')"
+      :verified-by-member-name="getSelectedVerifierName(zbonForm.verifiedByUserId, '')"
+      :opening-balance-display="formatEuroValue(dailyStats.opening_balance)"
+      :receipt-label="currentReceiptLabel"
+      :withdrawal-total-display="formatPrice(zbonModalWithdrawalTotalCents)"
+      :cash-calculated-display="zbonModalCashCalculatedDisplay"
+      :counted-cash="zbonCountedCash"
+      :new-withdrawals-display="formatPrice(newWithdrawalsCents)"
+      :new-cash-balance-display="zbonNewCashBalanceDisplay"
+      :difference-display="zbonDifferenceDisplay"
+      :final-cash-invalid="zbonFinalCashInvalid"
+      :can-create="canCreateZbon"
+      @close="closeZbonCreateModal"
+      @open-user-picker="openUserPicker"
+      @open-member-picker="openMemberPicker"
+      @clear-verifier="zbonForm.verifiedByUserId = null"
+      @update:counted-cash="zbonCountedCash = $event"
+      @open-cash-counter="openCashCounterModal"
+      @open-withdrawal="openWithdrawalModal"
+      @request-create="requestZBonCreate"
+    />
 
     <!-- ═══════════════════════════════════════════════════════════
          ABSCHÖPFUNG
     ════════════════════════════════════════════════════════════ -->
-    <div
-      v-if="showWithdrawalModal"
-      class="confirmation-overlay"
-    >
-      <div class="kk-dialog kk-dialog--narrow">
-
-        <div class="kk-dialog__header">
-          <div>
-            <h3>💸 Abschöpfung durchführen</h3>
-            <p class="kk-dialog__subtitle">Barbetrag aus der Kasse entnehmen</p>
-          </div>
-          <button class="kk-dialog__close" @click="closeWithdrawalModal">✕</button>
-        </div>
-
-        <div class="kk-dialog__body kk-withdrawal-body">
-
-          <div class="kk-form-group">
-            <label>Betrag (€)</label>
-            <input
-              v-model="withdrawalForm.amount"
-              type="number"
-              min="0"
-              step="0.01"
-              class="form-input large"
-              placeholder="0,00"
-            >
-          </div>
-
-          <div class="kk-form-group">
-            <label>Durchgeführt von</label>
-            <button
-              class="kk-select-btn"
-              @click="openUserPicker('withdrawalUserId')"
-            >
-              {{ getSelectedUserName(selectedWithdrawalUserId, 'Benutzer auswählen …') }}
-            </button>
-          </div>
-
-          <div class="kk-form-group">
-            <label>Notiz (optional)</label>
-            <input
-              v-model="withdrawalForm.note"
-              type="text"
-              class="form-input"
-              placeholder="z. B. Vereinskasse, Bank …"
-            >
-          </div>
-
-        </div>
-
-        <div class="kk-dialog__footer">
-          <button class="btn btn-secondary" @click="closeWithdrawalModal">Abbrechen</button>
-          <button class="btn btn-warning"   @click="submitWithdrawal">Abschöpfen</button>
-        </div>
-
-      </div>
-    </div>
+    <WithdrawalModal
+      :show="showWithdrawalModal"
+      :amount="withdrawalForm.amount"
+      :note="withdrawalForm.note"
+      :selected-user-name="getSelectedUserName(selectedWithdrawalUserId, '')"
+      @close="closeWithdrawalModal"
+      @confirm="submitWithdrawal"
+      @open-user-picker="openUserPicker('withdrawalUserId')"
+      @update:amount="withdrawalForm.amount = $event"
+      @update:note="withdrawalForm.note = $event"
+    />
 
     <!-- ═══════════════════════════════════════════════════════════
          MEMBER / BENUTZER PICKER
     ════════════════════════════════════════════════════════════ -->
-    <div
-      v-if="showMemberPickerModal"
-      class="confirmation-overlay member-picker-overlay"
-    >
-      <div class="kk-dialog kk-dialog--narrow">
-
-        <div class="kk-dialog__header">
-          <div>
-            <h3>{{ pickerTitle }}</h3>
-            <p class="kk-dialog__subtitle">{{ pickerSearchPlaceholder }}</p>
-          </div>
-          <button class="kk-dialog__close" @click="closeMemberPicker">✕</button>
-        </div>
-
-        <div class="kk-dialog__body" style="gap: 0.75rem;">
-
-          <input
-            v-model="memberSearch"
-            type="text"
-            :placeholder="pickerSearchPlaceholder"
-            class="kk-picker-search"
-          >
-
-          <div class="kk-picker-list">
-            <button
-              v-for="entry in filteredPickerOptions"
-              :key="entry.id"
-              class="kk-picker-item"
-              @click="selectPickerOption(entry)"
-            >
-              <div
-                v-if="entry.photo_path"
-                class="kk-picker-photo"
-              >
-                <img
-                  :src="`/api/members/${entry.id}/photo`"
-                  :alt="formatPickerLabel(entry)"
-                >
-              </div>
-              <div v-else class="kk-picker-photo placeholder">👤</div>
-              <span>{{ formatPickerLabel(entry) }}</span>
-            </button>
-
-            <div
-              v-if="!filteredPickerOptions.length"
-              class="kk-picker-empty"
-            >
-              Keine Einträge gefunden
-            </div>
-          </div>
-
-        </div>
-
-        <div class="kk-dialog__footer">
-          <button class="btn btn-secondary" @click="closeMemberPicker">Abbrechen</button>
-        </div>
-
-      </div>
-    </div>
+    <MemberPickerModal
+      :show="showMemberPickerModal"
+      :title="pickerTitle"
+      :search-placeholder="pickerSearchPlaceholder"
+      :search="memberSearch"
+      :options="filteredPickerOptions"
+      :format-label="formatPickerLabel"
+      @close="closeMemberPicker"
+      @select="selectPickerOption"
+      @update:search="memberSearch = $event"
+    />
 
     <!-- ═══════════════════════════════════════════════════════════
          Z-BON VORSCHAU
     ════════════════════════════════════════════════════════════ -->
-    <div
-      v-if="showZbonPreviewModal && zBonHtml"
-      class="confirmation-overlay"
-    >
-      <div class="kk-dialog kk-dialog--wide">
-
-        <div class="kk-dialog__header">
-          <div>
-            <h3>{{ zbonHtmlModalTitle }}</h3>
-            <p class="kk-dialog__subtitle">Nur zur Ansicht – Download über den Button unten</p>
-          </div>
-          <button class="kk-dialog__close" @click="showZbonPreviewModal = false">✕</button>
-        </div>
-
-        <div class="kk-dialog__body" style="padding: 1rem;">
-          <div class="kk-preview-shell">
-            <iframe
-              :srcdoc="zBonHtml"
-              class="kk-preview-frame"
-              title="Kassenbericht-Vorschau"
-            />
-          </div>
-        </div>
-
-        <div class="kk-dialog__footer">
-          <button class="btn btn-secondary" @click="showZbonPreviewModal = false">Schließen</button>
-          <button class="btn btn-success"   @click="downloadCurrentZbonHtml">⬇️ HTML herunterladen</button>
-        </div>
-
-      </div>
-    </div>
+    <ZbonPreviewModal
+      :show="showZbonPreviewModal"
+      :z-bon-html="zBonHtml"
+      :title="zbonHtmlModalTitle"
+      @close="showZbonPreviewModal = false"
+      @download="downloadCurrentZbonHtml"
+    />
 
     <!-- Password Confirm Modal (bleibt unverändert) -->
     <PasswordConfirmModal
@@ -1624,6 +1401,10 @@ import { useMemberStore } from '@/stores/member'
 import { getMemberFullName, getMemberSearchText, getMemberShortName } from '@/services/member'
 import { useAuthStore } from '@/stores/auth'
 import Corrections from '@/views/admin/Corrections.vue'
+import ZbonCreateModal from '@/views/admin/modal/ZbonCreateModal.vue'
+import WithdrawalModal from '@/views/admin/modal/WithdrawalModal.vue'
+import MemberPickerModal from '@/views/admin/modal/MemberPickerModal.vue'
+import ZbonPreviewModal from '@/views/admin/modal/ZbonPreviewModal.vue'
 
 const notificationStore = useNotificationStore()
 const memberStore = useMemberStore()
