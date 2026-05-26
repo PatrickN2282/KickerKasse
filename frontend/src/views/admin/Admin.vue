@@ -5,7 +5,12 @@
         <h1>Admin Panel</h1>
         <button
           type="button"
-          class="admin-donate-link"
+          class="admin-header-link"
+          @click="showHelpInfoModal = true"
+        >ℹ️ Help &amp; Info</button>
+        <button
+          type="button"
+          class="admin-header-link"
           @click="showDonationModal = true"
         >💛 Spenden</button>
       </div>
@@ -31,6 +36,10 @@
       :show="showDonationModal"
       @close="showDonationModal = false"
     />
+    <HelpInfoModal
+      :show="showHelpInfoModal"
+      @close="showHelpInfoModal = false"
+    />
   </div>
 </template>
 
@@ -39,10 +48,12 @@ import { computed, ref } from 'vue'
 import { useRoute } from 'vue-router'
 import { useAuthStore } from '@/stores/auth'
 import DonationModal from '@/components/DonationModal.vue'
+import HelpInfoModal from '@/components/HelpInfoModal.vue'
 
 const route = useRoute()
 const authStore = useAuthStore()
 const showDonationModal = ref(false)
+const showHelpInfoModal = ref(false)
 
 const tabs = [
   { path: '/admin/members', label: 'Mitglieder', icon: '👥', roles: ['TOP_ADMIN', 'ADMIN', 'MANAGER'] },
@@ -87,7 +98,7 @@ const isTabActive = (path) => route.path === path
   }
 }
 
-.admin-donate-link {
+.admin-header-link {
   font-size: 0.78rem;
   font-weight: 600;
   color: #888;
