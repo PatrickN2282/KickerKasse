@@ -69,7 +69,7 @@
             >
           </div>
           <div class="corr-form-group">
-            <label>Neuer Bestand (€)</label>
+            <label>Neuer Bestand in Euro</label>
             <input
               :value="memberTargetBalanceEuro ?? ''"
               type="number"
