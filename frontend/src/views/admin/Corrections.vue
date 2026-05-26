@@ -256,171 +256,36 @@
 
     </div>
 
-    <!-- ── Correction Modal ───────────────────────────── -->
-    <div
-      v-if="showCorrectionModal"
-      class="modal-overlay"
-      @click.self="closeCorrectionModal"
-    >
-      <div class="modal-card modal-compact">
-        <header class="modal-header">
-          <div>
-            <h3>{{ activeTab === 'members' ? 'Guthaben korrigieren' : 'Bestand korrigieren' }}</h3>
-            <p class="modal-subtitle">
-              {{ activeTab === 'members' && selectedMember
-                ? getMemberFullName(selectedMember)
-                : selectedProduct?.name || '—' }}
-            </p>
-          </div>
-          <button
-            class="close-btn"
-            type="button"
-            @click="closeCorrectionModal"
-          >
-            ✕
-          </button>
-        </header>
-
-        <div class="modal-correction-body">
-          <div class="correction-subject-row">
-            <template v-if="activeTab === 'members' && selectedMember">
-              <div class="subject-avatar">
-                <img
-                  v-if="selectedMember.photo_path"
-                  :src="`/api/members/${selectedMember.id}/photo`"
-                  :alt="getMemberFullName(selectedMember)"
-                  class="subject-photo"
-                />
-                <div v-else class="subject-initials">
-                  {{ selectedMember.first_name[0] }}{{ selectedMember.last_name[0] }}
-                </div>
-              </div>
-              <div class="subject-meta">
-                <div class="subject-name">{{ getMemberFullName(selectedMember) }}</div>
-                <div class="subject-detail">Guthaben: {{ formatBalance(selectedMember.balance_cents) }}</div>
-              </div>
-            </template>
-            <template v-else-if="activeTab === 'products' && selectedProduct">
-              <div class="subject-avatar">
-                <img
-                  v-if="selectedProduct.image_path"
-                  :src="`/api/products/${selectedProduct.id}/image`"
-                  :alt="selectedProduct.name"
-                  class="subject-photo"
-                />
-                <div v-else class="subject-initials product-icon">📦</div>
-              </div>
-              <div class="subject-meta">
-                <div class="subject-name">{{ selectedProduct.name }}</div>
-                <div class="subject-detail">{{ getProductMeta(selectedProduct) }}</div>
-              </div>
-            </template>
-          </div>
-          <!-- Member correction form -->
-          <template v-if="activeTab === 'members' && selectedMember">
-            <div class="corr-form-group">
-              <label>Aktueller Bestand</label>
-              <input
-                :value="formatBalance(selectedMember.balance_cents)"
-                type="text"
-                disabled
-              >
-            </div>
-            <div class="corr-form-group">
-              <label>Neuer Bestand (€)</label>
-              <input
-                v-model.number="memberTargetBalanceEuro"
-                type="number"
-                min="0"
-                step="0.01"
-                placeholder="0,00"
-              >
-            </div>
-            <div class="corr-form-group">
-              <label>Grund der Korrektur</label>
-              <input
-                v-model.trim="memberCorrectionReason"
-                type="text"
-                maxlength="255"
-                placeholder="z. B. Übertrag aus alter Kasse"
-              >
-            </div>
-            <div class="corr-preview-row">
-              <span>Differenz: <strong>{{ formatBalance(memberDeltaCents) }}</strong></span>
-              <span>von: <strong>{{ authStore.user?.username || '—' }}</strong></span>
-            </div>
-          </template>
-
-          <!-- Product correction form -->
-          <template v-else-if="activeTab === 'products' && selectedProduct">
-            <div class="corr-form-group">
-              <label>Aktueller Bestand</label>
-              <input
-                :value="formatStockValue(selectedProduct)"
-                type="text"
-                disabled
-              >
-            </div>
-            <div class="corr-form-group">
-              <label>Neuer Bestand</label>
-              <input
-                v-model.number="productTargetStock"
-                type="number"
-                min="0"
-                step="1"
-                placeholder="0"
-              >
-            </div>
-            <div class="corr-form-group">
-              <label>Grund der Korrektur</label>
-              <input
-                v-model.trim="productCorrectionReason"
-                type="text"
-                maxlength="255"
-                placeholder="z. B. Inventurkorrektur"
-              >
-            </div>
-            <div class="corr-preview-row">
-              <span>Differenz: <strong>{{ productDelta }}</strong></span>
-              <span>von: <strong>{{ authStore.user?.username || '—' }}</strong></span>
-            </div>
-          </template>
-        </div>
-
-        <footer class="modal-footer">
-          <button
-            class="btn btn-secondary"
-            type="button"
-            @click="closeCorrectionModal"
-          >
-            Abbrechen / Zurück
-          </button>
-          <button
-            v-if="activeTab === 'members'"
-            class="btn btn-success"
-            type="button"
-            :disabled="!canSubmitMemberCorrection || isSubmitting"
-            @click="submitMemberCorrection"
-          >
-            {{ isSubmitting ? '⏳ Speichert...' : '✓ Speichern' }}
-          </button>
-          <button
-            v-else
-            class="btn btn-success"
-            type="button"
-            :disabled="!canSubmitProductCorrection || isSubmitting"
-            @click="submitProductCorrection"
-          >
-            {{ isSubmitting ? '⏳ Speichert...' : '✓ Speichern' }}
-          </button>
-        </footer>
-      </div>
-    </div>
+    <CorrectionModal
+      :show="showCorrectionModal"
+      :active-tab="activeTab"
+      :selected-member="selectedMember"
+      :selected-product="selectedProduct"
+      :product-meta="getProductMeta(selectedProduct)"
+      :member-target-balance-euro="memberTargetBalanceEuro"
+      :product-target-stock="productTargetStock"
+      :member-correction-reason="memberCorrectionReason"
+      :product-correction-reason="productCorrectionReason"
+      :member-delta-cents="memberDeltaCents"
+      :product-delta="productDelta"
+      :username="authStore.user?.username || ''"
+      :is-submitting="isSubmitting"
+      :can-submit-member-correction="canSubmitMemberCorrection"
+      :can-submit-product-correction="canSubmitProductCorrection"
+      @close="closeCorrectionModal"
+      @update:member-target-balance-euro="memberTargetBalanceEuro = $event"
+      @update:product-target-stock="productTargetStock = $event"
+      @update:member-correction-reason="memberCorrectionReason = $event"
+      @update:product-correction-reason="productCorrectionReason = $event"
+      @submit-member="submitMemberCorrection"
+      @submit-product="submitProductCorrection"
+    />
   </div>
 </template>
 
 <script setup>
 import { computed, onMounted, ref, watch } from 'vue'
+import CorrectionModal from '@/views/admin/modal/CorrectionModal.vue'
 import apiService from '@/services/api'
 import { useAuthStore } from '@/stores/auth'
 import { useMemberStore } from '@/stores/member'
@@ -530,8 +395,6 @@ const formatSignedNumber = (value) => {
   const numericValue = Number(value || 0)
   return `${numericValue > 0 ? '+' : ''}${numericValue}`
 }
-
-const formatStockValue = (product) => (product?.is_unlimited_stock ? '∞' : `${product?.stock_quantity ?? 0}`)
 
 const getProductMeta = (product) => {
   if (!product) return '—'
@@ -872,180 +735,6 @@ onMounted(() => {
   text-align: center !important;
   color: #64748b;
   padding: 2rem 1rem !important;
-}
-
-// ── Correction Modal ─────────────────────────────────
-.modal-overlay {
-  position: fixed;
-  inset: 0;
-  background: rgba(15, 23, 42, 0.55);
-  backdrop-filter: blur(3px);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  z-index: 1000;
-  padding: 1rem;
-}
-
-.modal-card {
-  background: color-mix(in srgb, var(--app-background-color) 55%, white);
-  width: 100%;
-  border-radius: 14px;
-  display: flex;
-  flex-direction: column;
-  box-shadow: 0 20px 40px rgba(0, 0, 0, 0.18);
-  overflow: hidden;
-}
-
-.modal-compact {
-  max-width: 480px;
-}
-
-.modal-header {
-  padding: 1.1rem 1.4rem;
-  border-bottom: 1px solid var(--border);
-  display: flex;
-  justify-content: space-between;
-  align-items: flex-start;
-  gap: 1rem;
-  background: linear-gradient(90deg, #0f766e 0%, #0ea5e9 100%);
-
-  h3 {
-    margin: 0;
-    font-size: 1.1rem;
-    font-weight: 600;
-    color: #ffffff;
-  }
-}
-
-.modal-subtitle {
-  margin: 0.15rem 0 0;
-  font-size: 0.85rem;
-  color: rgba(255,255,255,0.9);
-}
-
-.close-btn {
-  width: 34px; height: 34px; border-radius: 50%;
-  border: 1px solid rgba(255,255,255,0.45);
-  background: rgba(255,255,255,0.18);
-  color: #ffffff; font-size: 1.1rem; cursor: pointer;
-  display: grid; place-items: center; flex-shrink: 0;
-  &:hover { background: rgba(255,255,255,0.3); }
-}
-
-.correction-subject-row {
-  display: flex;
-  gap: 0.75rem;
-  align-items: center;
-  padding: 0.75rem;
-  background: #f8fafc;
-  border-radius: 10px;
-  border: 1px solid #e2e8f0;
-}
-.subject-avatar {
-  width: 52px; height: 52px; border-radius: 10px; overflow: hidden;
-  flex-shrink: 0; background: #e2e8f0;
-  display: flex; align-items: center; justify-content: center;
-}
-.subject-photo { width: 100%; height: 100%; object-fit: cover; }
-.subject-initials { font-weight: 700; color: #475569; font-size: 1rem; }
-.product-icon { font-size: 1.5rem; }
-.subject-meta { display: flex; flex-direction: column; gap: 0.2rem; }
-.subject-name { font-weight: 700; color: #1e293b; }
-.subject-detail { font-size: 0.85rem; color: #64748b; }
-
-.modal-correction-body {
-  padding: 1.25rem 1.4rem;
-  display: flex;
-  flex-direction: column;
-  gap: 0.9rem;
-}
-
-.corr-form-group {
-  display: flex;
-  flex-direction: column;
-  gap: 0.35rem;
-
-  label {
-    font-size: 0.85rem;
-    font-weight: 600;
-    color: #334155;
-  }
-
-  input {
-    width: 100%;
-    padding: 0.55rem 0.75rem;
-    border: 1px solid var(--border);
-    border-radius: 8px;
-    font-size: 0.9rem;
-    color: #0f172a;
-    background: white;
-
-    &:disabled {
-      background: #f8fafc;
-      color: #64748b;
-    }
-
-    &:focus {
-      outline: none;
-      border-color: #3b82f6;
-      box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
-    }
-  }
-}
-
-.corr-preview-row {
-  display: flex;
-  justify-content: space-between;
-  font-size: 0.85rem;
-  color: #475569;
-  padding: 0.5rem 0.75rem;
-  background: #f8fafc;
-  border-radius: 8px;
-  flex-wrap: wrap;
-  gap: 0.5rem;
-}
-
-.modal-footer {
-  display: flex;
-  justify-content: flex-end;
-  gap: 0.75rem;
-  padding: 1rem 1.4rem;
-  border-top: 1px solid var(--border);
-}
-
-.btn {
-  padding: 0.65rem 1.25rem;
-  border: none;
-  border-radius: 8px;
-  cursor: pointer;
-  font-weight: 600;
-  font-size: 0.9rem;
-  transition: all 0.2s;
-
-  &:disabled {
-    opacity: 0.55;
-    cursor: not-allowed;
-  }
-}
-
-.btn-success {
-  background: #4caf50;
-  color: white;
-
-  &:hover:not(:disabled) {
-    background: #45a049;
-  }
-}
-
-.btn-secondary {
-  background: #f1f5f9;
-  color: #475569;
-  border: 1px solid #e2e8f0;
-
-  &:hover:not(:disabled) {
-    background: #e2e8f0;
-  }
 }
 
 @media (max-width: 700px) {

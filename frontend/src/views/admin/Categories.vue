@@ -84,176 +84,31 @@
       </div>
     </div>
 
-    <div v-if="showCategoryModal" class="modal-overlay" @click.self="closeCategoryModal">
-      <div class="modal-card modal-compact">
-        <header class="modal-header">
-          <div>
-            <h3>{{ editingId ? 'Kategorie bearbeiten' : 'Neue Kategorie anlegen' }}</h3>
-            <p class="modal-subtitle">Kategorie mit Namen, Beschreibung und Anzeigeeinstellungen verwalten.</p>
-          </div>
-          <button class="close-btn" @click="closeCategoryModal">✕</button>
-        </header>
+    <CategoryFormModal
+      :show="showCategoryModal"
+      :editing-id="editingId"
+      :pastel-colors="pastelColors"
+      v-model:form-data="formData"
+      @close="closeCategoryModal"
+      @save="submitForm"
+    />
 
-        <form class="modal-compact-layout" @submit.prevent="submitForm">
-          <div class="modal-scroller">
-            <section class="form-section">
-              <h4>Stammdaten</h4>
-              <div class="form-row">
-                <div class="form-group">
-                  <label for="name">Name</label>
-                  <input id="name" v-model="formData.name" type="text" required>
-                </div>
-                <div class="form-group">
-                  <label for="display_order">Anzeigereihenfolge</label>
-                  <input id="display_order" v-model.number="formData.display_order" type="number">
-                </div>
-              </div>
-              <div class="form-group">
-                <label for="description">Beschreibung</label>
-                <textarea id="description" v-model="formData.description" rows="2"></textarea>
-              </div>
-            </section>
-
-            <section class="form-section">
-              <h4>Farbe</h4>
-              <div class="color-picker-section">
-                <p class="color-picker-hint">Wähle eine Farbe für diese Kategorie – sie erscheint am Chip und am Produktrahmen in der Kasse.</p>
-
-                <div class="color-options">
-                  <!-- No color option -->
-                  <button
-                    type="button"
-                    class="color-option color-option-none"
-                    :class="{ selected: !formData.color }"
-                    title="Keine Farbe"
-                    @click="formData.color = null"
-                  >
-                    <span class="no-color-icon">✕</span>
-                  </button>
-
-                  <!-- Pastel color swatches -->
-                  <button
-                    v-for="pastel in pastelColors"
-                    :key="pastel.value"
-                    type="button"
-                    class="color-option"
-                    :class="{ selected: formData.color === pastel.value }"
-                    :style="{ background: pastel.value }"
-                    :title="pastel.label"
-                    @click="formData.color = pastel.value"
-                  ></button>
-
-                  <!-- Custom color picker -->
-                  <label class="color-option color-option-custom" :class="{ selected: isCustomColor }" title="Eigene Farbe wählen">
-                    <span v-if="isCustomColor" class="custom-color-preview" :style="{ background: formData.color }"></span>
-                    <span v-else class="custom-color-icon">🎨</span>
-                    <input
-                      type="color"
-                      :value="formData.color || '#ffffff'"
-                      @input="setCustomColor($event.target.value)"
-                    >
-                  </label>
-                </div>
-
-                <div v-if="formData.color" class="color-preview-row">
-                  <span class="color-preview-chip" :style="{ borderColor: formData.color, background: formData.color + '33' }">
-                    Vorschau Chip
-                  </span>
-                  <span class="color-preview-card" :style="{ borderColor: formData.color }">
-                    Vorschau Karte
-                  </span>
-                  <button type="button" class="btn-clear-color" @click="formData.color = null">Farbe entfernen</button>
-                </div>
-              </div>
-            </section>
-
-            <section class="form-section highlight">
-              <h4>Darstellung</h4>
-              <label class="checkbox-card">
-                <input id="is_active" v-model="formData.is_active_in_kasse" type="checkbox">
-                <div class="checkbox-content">
-                  <span class="label">In Kassenansicht sichtbar</span>
-                  <span class="desc">Die Kategorie wird direkt in der Kasse als auswählbarer Bereich angezeigt.</span>
-                </div>
-              </label>
-            </section>
-          </div>
-
-          <footer class="modal-footer">
-            <button type="button" class="btn btn-secondary" @click="closeCategoryModal">Abbrechen</button>
-            <button type="submit" class="btn btn-success">
-              {{ editingId ? 'Änderungen speichern' : 'Kategorie anlegen' }}
-            </button>
-          </footer>
-        </form>
-      </div>
-    </div>
-
-    <!-- ── Product Assignment Modal ────────────────────── -->
-    <div v-if="showAssignModal && assignModalCategory" class="modal-overlay" @click.self="closeAssignModal">
-      <div class="modal-card modal-compact">
-        <header class="modal-header">
-          <div>
-            <h3>Artikel zuordnen</h3>
-            <p class="modal-subtitle">{{ assignModalCategory.name }}</p>
-          </div>
-          <button class="close-btn" @click="closeAssignModal">✕</button>
-        </header>
-
-        <div class="assign-modal-body">
-          <div class="assign-add-section">
-            <p class="assign-section-label">Nicht zugeordnete Artikel (klicken zum Hinzufügen):</p>
-            <div v-if="unassignedProducts(assignModalCategory.id).length > 0" class="product-pick-list">
-              <button
-                v-for="product in unassignedProducts(assignModalCategory.id)"
-                :key="`pick-${assignModalCategory.id}-${product.id}`"
-                class="product-pick-item"
-                @click="assignProductDirect(assignModalCategory.id, product.id)"
-              >
-                <img
-                  v-if="product.image_path"
-                  :src="`/api/products/${product.id}/image`"
-                  :alt="product.name"
-                  class="product-pick-img"
-                />
-                <span v-else class="product-pick-img product-pick-img-placeholder">📦</span>
-                <span class="product-pick-name">{{ product.name }}</span>
-              </button>
-            </div>
-            <div v-else class="assign-empty">Alle Artikel sind bereits zugeordnet</div>
-          </div>
-
-          <div v-if="assignedProducts(assignModalCategory.id).length > 0" class="assign-product-list">
-            <div
-              v-for="product in assignedProducts(assignModalCategory.id)"
-              :key="`assign-row-${product.id}`"
-              class="assign-product-row"
-            >
-              <img v-if="product.image_path" :src="`/api/products/${product.id}/image`" :alt="product.name" class="assign-product-thumb" />
-              <span v-else class="assign-product-thumb assign-product-thumb-placeholder">📦</span>
-              <span class="assign-product-name">{{ product.name }}</span>
-              <button
-                class="btn-tag-remove"
-                title="Zuordnung entfernen"
-                @click="removeProduct(assignModalCategory.id, product.id)"
-              >
-                ×
-              </button>
-            </div>
-          </div>
-          <div v-else class="assign-empty">Noch kein Artikel zugeordnet</div>
-        </div>
-
-        <footer class="modal-footer">
-          <button class="btn btn-secondary" @click="closeAssignModal">Schließen</button>
-        </footer>
-      </div>
-    </div>
+    <CategoryAssignmentModal
+      :show="showAssignModal"
+      :category="assignModalCategory"
+      :assigned-products="assignModalCategory ? assignedProducts(assignModalCategory.id) : []"
+      :unassigned-products="assignModalCategory ? unassignedProducts(assignModalCategory.id) : []"
+      @close="closeAssignModal"
+      @assign-product="assignProductDirect(assignModalCategory.id, $event)"
+      @remove-product="removeProduct(assignModalCategory.id, $event)"
+    />
   </div>
 </template>
 
 <script setup>
-import { ref, computed, onMounted } from 'vue'
+import { ref, onMounted } from 'vue'
+import CategoryAssignmentModal from '@/views/admin/modal/CategoryAssignmentModal.vue'
+import CategoryFormModal from '@/views/admin/modal/CategoryFormModal.vue'
 import { useNotificationStore } from '@/stores/notification'
 import apiService from '@/services/api'
 
@@ -265,7 +120,6 @@ const editingId = ref(null)
 const showCategoryModal = ref(false)
 const showAssignModal = ref(false)
 const assignModalCategory = ref(null)
-const selectedProductByCategory = ref({})
 const formData = ref({
   name: '',
   description: '',
@@ -288,14 +142,6 @@ const pastelColors = [
   { value: '#FFE4C4', label: 'Bisque' },
   { value: '#F0E6FF', label: 'Flieder' },
 ]
-
-const isCustomColor = computed(() => {
-  return !!formData.value.color && !pastelColors.some(p => p.value === formData.value.color)
-})
-
-const setCustomColor = (hex) => {
-  formData.value.color = hex
-}
 
 const resetForm = () => {
   formData.value = {
@@ -322,11 +168,6 @@ const loadCategories = async () => {
   try {
     const response = await apiService.get('/categories')
     categories.value = response.data
-    categories.value.forEach((category) => {
-      if (selectedProductByCategory.value[category.id] === undefined) {
-        selectedProductByCategory.value[category.id] = ''
-      }
-    })
   } catch (error) {
     console.error('Error loading categories:', error)
     notificationStore.error('Fehler beim Laden der Kategorien')
@@ -353,21 +194,6 @@ const unassignedProducts = (categoryId) => {
   return products.value.filter(
     (product) => !(product.categories || []).some((category) => category.id === categoryId)
   )
-}
-
-const assignProduct = async (categoryId) => {
-  const productId = Number(selectedProductByCategory.value[categoryId])
-  if (!productId) return
-
-  try {
-    await apiService.post(`/categories/${categoryId}/products`, [productId])
-    selectedProductByCategory.value[categoryId] = ''
-    await loadProducts()
-    notificationStore.success('Artikel zur Kategorie hinzugefügt')
-  } catch (error) {
-    console.error('Error assigning product:', error)
-    notificationStore.error(error.response?.data?.detail || 'Zuordnung fehlgeschlagen')
-  }
 }
 
 const removeProduct = async (categoryId, productId) => {
