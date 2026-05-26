@@ -3928,7 +3928,6 @@ onBeforeUnmount(() => {
     }
   }
 }
-</style>
 
 /* ==================== PAGINATION ==================== */
 .pagination {
