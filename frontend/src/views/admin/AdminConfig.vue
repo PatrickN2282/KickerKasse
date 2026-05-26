@@ -467,62 +467,12 @@
         </div>
       </div>
 
-      <!-- Business Data Modal -->
-      <div v-if="showBusinessModal" class="modal-overlay" @click.self="showBusinessModal = false">
-        <div class="modal-card">
-          <header class="modal-header">
-            <div>
-              <h3>Geschäftsdaten</h3>
-              <p class="modal-subtitle">Diese Daten werden für Belege und Berichte verwendet.</p>
-            </div>
-            <button class="modal-close" @click="showBusinessModal = false">×</button>
-          </header>
-          <form class="modal-form-content" @submit.prevent="saveBusinessData">
-            <div class="form-row">
-              <div class="form-group">
-                <label for="bd-name">Vereinsname</label>
-                <input id="bd-name" v-model="businessData.name" type="text" placeholder="z. B. Tischfußball e.V.">
-              </div>
-              <div class="form-group">
-                <label for="bd-tax">Steuernummer</label>
-                <input id="bd-tax" v-model="businessData.taxNumber" type="text" placeholder="z. B. 12/345/67890">
-              </div>
-            </div>
-            <div class="form-group">
-              <label for="bd-street">Straße &amp; Hausnummer</label>
-              <input id="bd-street" v-model="businessData.street" type="text" placeholder="z. B. Musterstraße 1">
-            </div>
-            <div class="form-row">
-              <div class="form-group">
-                <label for="bd-zip">PLZ</label>
-                <input id="bd-zip" v-model="businessData.zip" type="text" placeholder="z. B. 12345">
-              </div>
-              <div class="form-group">
-                <label for="bd-city">Ort</label>
-                <input id="bd-city" v-model="businessData.city" type="text" placeholder="z. B. Musterstadt">
-              </div>
-            </div>
-            <div class="form-row">
-              <div class="form-group">
-                <label for="bd-phone">Telefon</label>
-                <input id="bd-phone" v-model="businessData.phone" type="tel" placeholder="z. B. +49 123 456789">
-              </div>
-              <div class="form-group">
-                <label for="bd-email">E-Mail</label>
-                <input id="bd-email" v-model="businessData.email" type="email" placeholder="z. B. info@verein.de">
-              </div>
-            </div>
-            <div class="form-group">
-              <label for="bd-reg">Vereinsregister (optional)</label>
-              <input id="bd-reg" v-model="businessData.registrationNumber" type="text" placeholder="z. B. VR 12345 Amtsgericht Musterstadt">
-            </div>
-          </form>
-          <footer class="modal-footer">
-            <button type="button" class="btn btn-secondary" @click="showBusinessModal = false">Abbrechen</button>
-            <button type="button" class="btn btn-success" @click="saveBusinessData">Speichern</button>
-          </footer>
-        </div>
-      </div>
+      <BusinessDataModal
+        :show="showBusinessModal"
+        v-model:business-data="businessData"
+        @close="showBusinessModal = false"
+        @save="saveBusinessData"
+      />
     </div>
 
     <ImportExportModal
@@ -543,6 +493,7 @@ import { getContrastColor } from '@/services/utils'
 import { SESSION_RELOAD_FLAG_KEY } from '@/constants'
 import apiService from '@/services/api'
 import CredentialConfirmModal from '@/components/CredentialConfirmModal.vue'
+import BusinessDataModal from '@/views/admin/modal/BusinessDataModal.vue'
 
 const appSettingsStore = useAppSettingsStore()
 const notificationStore = useNotificationStore()
