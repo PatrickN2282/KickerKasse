@@ -2,11 +2,8 @@
   <div class="modal-overlay">
     <div class="modal-dialog">
       <div class="modal-header">
-        <div>
-          <h3>Mitglied auswählen</h3>
-          <p class="subtitle">
-            Mitglied für die Buchung auswählen
-          </p>
+        <div class="modal-header-title">
+          <h3>Mitglied auswählen <span class="header-pipe">|</span> <span class="header-sub">Mitglied für die Buchung auswählen</span></h3>
         </div>
         <button
           class="close-btn"
@@ -24,11 +21,11 @@
         >
         <div class="member-results">
           <div
-            v-if="filteredMembers.length > 0"
+            v-if="sortedMembers.length > 0"
             class="member-grid"
           >
             <button
-              v-for="member in filteredMembers"
+              v-for="member in sortedMembers"
               :key="member.id"
               class="member-card"
               @click="selectMember(member)"
@@ -80,8 +77,14 @@
 </template>
 
 <script setup>
-import { inject } from 'vue'
+import { inject, computed } from 'vue'
 const { memberSearch, filteredMembers, selectMember, showMemberModal, getMemberFullName, getMemberShortName, formatBalance } = inject('kasse')
+
+const sortedMembers = computed(() =>
+  [...filteredMembers.value].sort((a, b) =>
+    (a.last_name ?? '').localeCompare(b.last_name ?? '', 'de')
+  )
+)
 </script>
 
 <style scoped lang="scss">
@@ -100,25 +103,46 @@ const { memberSearch, filteredMembers, selectMember, showMemberModal, getMemberF
 .modal-dialog {
   background: #ffffff;
   border-radius: 16px;
-  width: 700px;
-  height: 700px;
-  max-width: 700px;
-  max-height: 700px;
+  width: 80vw;
+  height: 80vh;
+  max-width: 80vw;
+  max-height: 80vh;
   display: flex;
   flex-direction: column;
   box-shadow: 0 24px 50px rgba(15, 23, 42, 0.35);
   overflow: hidden;
 }
 .modal-header {
-  padding: 1rem 1.25rem;
+  padding: 0.75rem 1.25rem;
   border-bottom: 1px solid #e2e8f0;
   display: flex;
   justify-content: space-between;
-  align-items: flex-start;
+  align-items: center;
   background: linear-gradient(90deg, #0f766e 0%, #0ea5e9 100%);
   flex-shrink: 0;
-  h3 { margin: 0; color: #ffffff; font-size: 1.1rem; }
-  .subtitle { margin: 0.35rem 0 0; color: rgba(255,255,255,0.9); font-size: 0.85rem; }
+}
+.modal-header-title {
+  display: flex;
+  align-items: center;
+  min-width: 0;
+  h3 {
+    margin: 0;
+    color: #ffffff;
+    font-size: 1.05rem;
+    font-weight: 600;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+  .header-pipe {
+    margin: 0 0.5rem;
+    opacity: 0.5;
+  }
+  .header-sub {
+    font-weight: 400;
+    opacity: 0.88;
+    font-size: 0.92rem;
+  }
 }
 .close-btn {
   width: 34px; height: 34px; border-radius: 50%;
@@ -176,8 +200,9 @@ const { memberSearch, filteredMembers, selectMember, showMemberModal, getMemberF
 }
 .member-grid {
   display: grid;
-  grid-template-columns: repeat(5, 1fr);
-  gap: 0.75rem;
+  grid-template-columns: repeat(8, 1fr);
+  grid-auto-rows: 130px;
+  gap: 0.5rem;
   align-content: start;
 }
 @media (max-width: 640px) {
@@ -192,29 +217,32 @@ const { memberSearch, filteredMembers, selectMember, showMemberModal, getMemberF
     max-width: 100%;
   }
   .member-grid {
-    grid-template-columns: repeat(auto-fill, minmax(110px, 1fr));
+    grid-template-columns: repeat(auto-fill, minmax(100px, 1fr));
+    grid-auto-rows: 120px;
   }
 }
 .member-card {
   background: #fff;
   border: 1.5px solid color-mix(in srgb, var(--app-banner-color) 22%, white 78%);
-  border-radius: 12px;
+  border-radius: 10px;
   cursor: pointer;
   display: flex;
   flex-direction: column;
   overflow: hidden;
   padding: 0;
-  text-align: left;
+  text-align: center;
   transition: all 0.18s;
+  height: 130px;
   &:hover {
     border-color: var(--app-highlight-color);
-    box-shadow: 0 4px 16px color-mix(in srgb, var(--app-highlight-color) 18%, transparent);
+    box-shadow: 0 4px 14px color-mix(in srgb, var(--app-highlight-color) 18%, transparent);
     transform: translateY(-2px);
   }
 }
 .member-card-img {
   width: 100%;
-  aspect-ratio: 1 / 1;
+  height: 68px;
+  flex-shrink: 0;
   background: #eef1f7;
   display: flex;
   align-items: center;
@@ -226,29 +254,36 @@ const { memberSearch, filteredMembers, selectMember, showMemberModal, getMemberF
     object-fit: cover;
   }
 }
-.member-card-img-placeholder { font-size: 2rem; }
+.member-card-img-placeholder { font-size: 1.8rem; }
 .member-card-body {
-  padding: 0.55rem 0.65rem 0.7rem;
+  padding: 0.3rem 0.4rem 0.35rem;
   display: flex;
   flex-direction: column;
-  gap: 0.2rem;
+  align-items: center;
+  gap: 0.05rem;
+  flex: 1;
+  min-height: 0;
 }
 .member-card-name {
-  font-size: 0.9rem;
+  font-size: 0.72rem;
   font-weight: 700;
-  line-height: 1.25;
+  line-height: 1.2;
   color: #111827;
-  word-break: break-word;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  width: 100%;
+  text-align: center;
 }
 .member-card-balance-label {
-  font-size: 0.72rem;
+  font-size: 0.58rem;
   font-weight: 600;
   letter-spacing: 0.04em;
   text-transform: uppercase;
   color: #64748b;
 }
 .member-card-balance {
-  font-size: 0.95rem;
+  font-size: 0.78rem;
   font-weight: 800;
   color: var(--app-highlight-color);
 }
