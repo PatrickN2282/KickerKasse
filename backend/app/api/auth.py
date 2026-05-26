@@ -2,6 +2,7 @@ from fastapi import APIRouter, HTTPException, Depends, Request, status
 from sqlalchemy.orm import Session
 from sqlalchemy.exc import IntegrityError
 from app.core import get_db
+from app.core.auth import require_authenticated_user
 from app.schemas import LoginRequest, LoginResponse, UserResponse, SetupStatusResponse, TopAdminSetupRequest
 from app.services import AuthService
 from app.services import UserService
@@ -122,6 +123,18 @@ async def logout(request: Request):
     """Logout"""
     request.session.clear()
     return {"message": "Logged out successfully"}
+
+
+@router.get("/usernames", response_model=list[str])
+@router.get("/usernames/", response_model=list[str])
+async def get_login_usernames(
+    request: Request,
+    db: Session = Depends(get_db),
+):
+    """Return usernames of active, non-hidden users for the login dropdown."""
+    require_authenticated_user(request, db)
+    users = UserRepository(db).get_visible_active_users()
+    return [u.username for u in users]
 
 
 @router.get("/me", response_model=UserResponse)
