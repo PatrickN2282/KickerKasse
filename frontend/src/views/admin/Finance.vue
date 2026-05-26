@@ -1609,6 +1609,7 @@
       @close="showPasswordModal = false"
       @confirm="createZBon"
     />
+    </div>
 </template>
 
 <script setup>
