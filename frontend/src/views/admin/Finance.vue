@@ -1262,53 +1262,99 @@
       </div>
     </div>
 
-    <!-- Cash Counter Modal -->
+<!--
+  ================================================================
+  KONSOLIDIERTE MODAL-TEMPLATES – Finance.vue
+  Ersetzt die vier bestehenden Modal-Blöcke am Ende des Templates
+  (ab "Cash Counter Modal" bis Ende der Datei, vor </div> .admin-finance).
+
+  Klassen-Mapping (alt → neu):
+    .confirmation-dialog              bleibt als Overlay-Wrapper
+    .zbon-create-dialog               → .kk-dialog
+    .withdrawal-dialog                → .kk-dialog .kk-dialog--narrow
+    .member-picker-dialog             → .kk-dialog .kk-dialog--narrow
+    .zbon-preview-dialog              → .kk-dialog .kk-dialog--wide
+    .zbon-modal-header                → .kk-dialog__header
+    .close-btn                        → .kk-dialog__close
+    .zbon-subtitle                    → .kk-dialog__subtitle
+    .modal-body                       → .kk-dialog__body
+    .modal-actions / .confirmation-buttons → .kk-dialog__footer
+    .info-box                         → .kk-info-box
+    .form-grid                        → .kk-form-grid
+    .form-group                       → .kk-form-group
+    .select-btn                       → .kk-select-btn
+    .clear-selection-btn              → .kk-clear-btn
+    .selection-actions                → .kk-selection-row
+    .balance-summary                  → .kk-balance-box
+    .balance-row                      → .kk-balance-row
+    .counted-input                    → .kk-counted-input
+    .final-result                     → .kk-result-box
+    .result-row                       → .kk-result-row
+    .zbon-warning-text                → .kk-warning-text
+    .member-search-input              → .kk-picker-search
+    .member-picker-list               → .kk-picker-list
+    .member-picker-item               → .kk-picker-item
+    .member-picker-photo              → .kk-picker-photo
+    .member-picker-empty              → .kk-picker-empty
+    .zbon-preview-frame-shell         → .kk-preview-shell
+    .zbon-preview-frame               → .kk-preview-frame
+  ================================================================
+-->
+
+    <!-- Cash Counter Modal (Stil bereits ok, nur Shell angleichen) -->
     <CashCounterModal
       :show="showCashCounterModal"
       @close="showCashCounterModal = false"
       @confirm="onCashCounterConfirm"
     />
 
-    <!-- Z-Bon Erstellen Modal (modernisiert, max 650px) -->
+    <!-- ═══════════════════════════════════════════════════════════
+         Z-BON ERSTELLEN
+    ════════════════════════════════════════════════════════════ -->
     <div
       v-if="showZbonCreateModal"
       class="confirmation-overlay"
     >
-      <div class="confirmation-dialog zbon-create-dialog">
-        <div class="zbon-modal-header">
+      <div class="kk-dialog">
+
+        <div class="kk-dialog__header">
           <div>
             <h3>🧾 Kassenbericht erstellen</h3>
-            <p class="zbon-subtitle">Kassenabschluss durchführen und Z-Bon erstellen</p>
+            <p class="kk-dialog__subtitle">Kassenabschluss durchführen und Z-Bon erstellen</p>
           </div>
-          <button class="close-btn" @click="closeZbonCreateModal">✕</button>
+          <button class="kk-dialog__close" @click="closeZbonCreateModal">✕</button>
         </div>
-        <div class="modal-body">
-          <div class="info-box">
+
+        <div class="kk-dialog__body">
+
+          <!-- Ablauf-Hinweis -->
+          <div class="kk-info-box">
             Kassenprüfer wählen → Kasse zählen → ggf. Abschöpfung → Kassenbericht erstellen
           </div>
 
-          <div class="form-grid">
-            <div class="form-group">
+          <!-- Benutzer-Auswahl -->
+          <div class="kk-form-grid">
+            <div class="kk-form-group">
               <label>Erstellt von</label>
               <button
-                class="select-btn"
+                class="kk-select-btn"
                 @click="openUserPicker('createdByUserId')"
               >
-                {{ getSelectedUserName(zbonForm.createdByUserId, 'Benutzer auswählen') }}
+                {{ getSelectedUserName(zbonForm.createdByUserId, 'Benutzer auswählen …') }}
               </button>
             </div>
-            <div class="form-group">
+            <div class="kk-form-group">
               <label>Kassenprüfer</label>
-              <div class="selection-actions">
+              <div class="kk-selection-row">
                 <button
-                  class="select-btn"
+                  class="kk-select-btn"
                   @click="openMemberPicker('verifiedByUserId')"
                 >
-                  {{ getSelectedVerifierName(zbonForm.verifiedByUserId, 'Mitglied auswählen') }}
+                  {{ getSelectedVerifierName(zbonForm.verifiedByUserId, 'Mitglied auswählen …') }}
                 </button>
                 <button
                   v-if="zbonForm.verifiedByUserId"
-                  class="clear-selection-btn"
+                  class="kk-clear-btn"
                   @click="zbonForm.verifiedByUserId = null"
                 >
                   Entfernen
@@ -1317,26 +1363,28 @@
             </div>
           </div>
 
-          <div class="balance-summary">
-            <div class="balance-row">
-              <span>Vorheriger Barbestand:</span>
+          <!-- Saldo-Übersicht -->
+          <div class="kk-balance-box">
+            <div class="kk-balance-row">
+              <span>Vorheriger Barbestand</span>
               <strong>{{ formatEuroValue(dailyStats.opening_balance) }}</strong>
             </div>
-            <div class="balance-row">
-              <span>Buchungs-Range:</span>
+            <div class="kk-balance-row">
+              <span>Buchungs-Range</span>
               <strong>{{ currentReceiptLabel }}</strong>
             </div>
-            <div class="balance-row">
-              <span>Abschöpfungen Zeitraum:</span>
+            <div class="kk-balance-row">
+              <span>Abschöpfungen Zeitraum</span>
               <strong class="warning">{{ formatPrice(zbonModalWithdrawalTotalCents) }}</strong>
             </div>
-            <div class="balance-row">
-              <span>Neuer Barbestand Soll:</span>
+            <div class="kk-balance-row">
+              <span>Neuer Barbestand Soll</span>
               <strong>{{ zbonModalCashCalculatedDisplay }}</strong>
             </div>
           </div>
 
-          <div class="counted-input">
+          <!-- Kassenbestand eingeben -->
+          <div class="kk-counted-input">
             <label>Gezählter Kassenbestand (€)</label>
             <input
               v-model="zbonCountedCash"
@@ -1348,50 +1396,38 @@
             >
           </div>
 
-          <div class="final-result">
-            <div class="result-row">
-              <span>Abschöpfung im Modal:</span>
+          <!-- Ergebnis -->
+          <div class="kk-result-box">
+            <div class="kk-result-row">
+              <span>Abschöpfung im Modal</span>
               <strong>{{ formatPrice(newWithdrawalsCents) }}</strong>
             </div>
-            <div class="result-row">
-              <span>Neuer Ist-Bestand:</span>
+            <div class="kk-result-row">
+              <span>Neuer Ist-Bestand</span>
               <strong>{{ zbonNewCashBalanceDisplay }}</strong>
             </div>
             <div
-              class="result-row"
+              class="kk-result-row"
               :class="{ error: zbonFinalCashInvalid }"
             >
-              <span>Differenz:</span>
+              <span>Differenz</span>
               <strong>{{ zbonDifferenceDisplay }}</strong>
             </div>
           </div>
+
           <small
             v-if="zbonFinalCashInvalid"
-            class="zbon-warning-text"
+            class="kk-warning-text"
           >
-            Der gezählte Bestand darf nicht kleiner als die im Modal vorgenommenen Abschöpfung sein.
+            Der gezählte Bestand darf nicht kleiner als die im Modal vorgenommene Abschöpfung sein.
           </small>
+
         </div>
 
-        <div class="modal-actions">
-          <button
-            class="btn btn-secondary"
-            @click="closeZbonCreateModal"
-          >
-            Abbrechen
-          </button>
-          <button
-            class="btn btn-info"
-            @click="openCashCounterModal"
-          >
-            💰 Kasse zählen
-          </button>
-          <button
-            class="btn btn-warning"
-            @click="openWithdrawalModal"
-          >
-            💸 Abschöpfung
-          </button>
+        <div class="kk-dialog__footer">
+          <button class="btn btn-secondary" @click="closeZbonCreateModal">Abbrechen</button>
+          <button class="btn btn-info"    @click="openCashCounterModal">💰 Kasse zählen</button>
+          <button class="btn btn-warning" @click="openWithdrawalModal">💸 Abschöpfung</button>
           <button
             :class="['btn', canCreateZbon ? 'btn-ready' : 'btn-disabled']"
             :disabled="!canCreateZbon"
@@ -1400,24 +1436,30 @@
             ✓ Kassenbericht erstellen
           </button>
         </div>
+
       </div>
     </div>
 
-    <!-- Abschöpfung Modal (modernisiert, max 650px) -->
+    <!-- ═══════════════════════════════════════════════════════════
+         ABSCHÖPFUNG
+    ════════════════════════════════════════════════════════════ -->
     <div
       v-if="showWithdrawalModal"
       class="confirmation-overlay"
     >
-      <div class="confirmation-dialog withdrawal-dialog">
-        <div class="zbon-modal-header">
+      <div class="kk-dialog kk-dialog--narrow">
+
+        <div class="kk-dialog__header">
           <div>
             <h3>💸 Abschöpfung durchführen</h3>
-            <p class="zbon-subtitle">Barbetrag aus der Kasse entnehmen</p>
+            <p class="kk-dialog__subtitle">Barbetrag aus der Kasse entnehmen</p>
           </div>
-          <button class="close-btn" @click="closeWithdrawalModal">✕</button>
+          <button class="kk-dialog__close" @click="closeWithdrawalModal">✕</button>
         </div>
-        <div class="modal-body">
-          <div class="form-group">
+
+        <div class="kk-dialog__body kk-withdrawal-body">
+
+          <div class="kk-form-group">
             <label>Betrag (€)</label>
             <input
               v-model="withdrawalForm.amount"
@@ -1428,137 +1470,136 @@
               placeholder="0,00"
             >
           </div>
-          <div class="form-group">
+
+          <div class="kk-form-group">
             <label>Durchgeführt von</label>
             <button
-              class="select-btn"
+              class="kk-select-btn"
               @click="openUserPicker('withdrawalUserId')"
             >
-              {{ getSelectedUserName(selectedWithdrawalUserId, 'Benutzer auswählen') }}
+              {{ getSelectedUserName(selectedWithdrawalUserId, 'Benutzer auswählen …') }}
             </button>
           </div>
-          <div class="form-group">
+
+          <div class="kk-form-group">
             <label>Notiz (optional)</label>
             <input
               v-model="withdrawalForm.note"
               type="text"
               class="form-input"
-              placeholder="z. B. Vereinskasse, Bank..."
+              placeholder="z. B. Vereinskasse, Bank …"
             >
           </div>
+
         </div>
-        <div class="modal-actions">
-          <button
-            class="btn btn-secondary"
-            @click="closeWithdrawalModal"
-          >
-            Abbrechen
-          </button>
-          <button
-            class="btn btn-warning"
-            @click="submitWithdrawal"
-          >
-            Abschöpfen
-          </button>
+
+        <div class="kk-dialog__footer">
+          <button class="btn btn-secondary" @click="closeWithdrawalModal">Abbrechen</button>
+          <button class="btn btn-warning"   @click="submitWithdrawal">Abschöpfen</button>
         </div>
+
       </div>
     </div>
 
-    <!-- Member Picker Modal -->
+    <!-- ═══════════════════════════════════════════════════════════
+         MEMBER / BENUTZER PICKER
+    ════════════════════════════════════════════════════════════ -->
     <div
       v-if="showMemberPickerModal"
       class="confirmation-overlay member-picker-overlay"
     >
-      <div class="confirmation-dialog member-picker-dialog">
-        <div class="zbon-modal-header">
+      <div class="kk-dialog kk-dialog--narrow">
+
+        <div class="kk-dialog__header">
           <div>
             <h3>{{ pickerTitle }}</h3>
-            <p class="zbon-subtitle">{{ pickerSearchPlaceholder }}</p>
+            <p class="kk-dialog__subtitle">{{ pickerSearchPlaceholder }}</p>
           </div>
-          <button class="close-btn" @click="closeMemberPicker">✕</button>
+          <button class="kk-dialog__close" @click="closeMemberPicker">✕</button>
         </div>
-        <input
-          v-model="memberSearch"
-          type="text"
-          :placeholder="pickerSearchPlaceholder"
-          class="form-input member-search-input"
-        >
-        <div class="member-picker-list">
-          <button
-            v-for="entry in filteredPickerOptions"
-            :key="entry.id"
-            class="member-picker-item"
-            @click="selectPickerOption(entry)"
+
+        <div class="kk-dialog__body" style="gap: 0.75rem;">
+
+          <input
+            v-model="memberSearch"
+            type="text"
+            :placeholder="pickerSearchPlaceholder"
+            class="kk-picker-search"
           >
-            <div
-              v-if="entry.photo_path"
-              class="member-picker-photo"
+
+          <div class="kk-picker-list">
+            <button
+              v-for="entry in filteredPickerOptions"
+              :key="entry.id"
+              class="kk-picker-item"
+              @click="selectPickerOption(entry)"
             >
-              <img
-                :src="`/api/members/${entry.id}/photo`"
-                :alt="formatPickerLabel(entry)"
+              <div
+                v-if="entry.photo_path"
+                class="kk-picker-photo"
               >
-            </div>
+                <img
+                  :src="`/api/members/${entry.id}/photo`"
+                  :alt="formatPickerLabel(entry)"
+                >
+              </div>
+              <div v-else class="kk-picker-photo placeholder">👤</div>
+              <span>{{ formatPickerLabel(entry) }}</span>
+            </button>
+
             <div
-              v-else
-              class="member-picker-photo placeholder"
+              v-if="!filteredPickerOptions.length"
+              class="kk-picker-empty"
             >
-              👤
+              Keine Einträge gefunden
             </div>
-            <span>{{ formatPickerLabel(entry) }}</span>
-          </button>
-          <div
-            v-if="!filteredPickerOptions.length"
-            class="empty member-picker-empty"
-          >
-            Keine Einträge gefunden
           </div>
+
         </div>
-        <div class="confirmation-buttons">
-          <button
-            class="btn btn-secondary"
-            @click="closeMemberPicker"
-          >
-            Abbrechen
-          </button>
+
+        <div class="kk-dialog__footer">
+          <button class="btn btn-secondary" @click="closeMemberPicker">Abbrechen</button>
         </div>
+
       </div>
     </div>
 
-    <!-- Z-Bon Preview Modal -->
+    <!-- ═══════════════════════════════════════════════════════════
+         Z-BON VORSCHAU
+    ════════════════════════════════════════════════════════════ -->
     <div
       v-if="showZbonPreviewModal && zBonHtml"
       class="confirmation-overlay"
     >
-      <div
-        class="confirmation-dialog zbon-preview-dialog"
-      >
-        <h3>{{ zbonHtmlModalTitle }}</h3>
-        <div class="zbon-preview-frame-shell">
-          <iframe
-            :srcdoc="zBonHtml"
-            class="zbon-preview-frame"
-            title="Kassenbericht-Vorschau"
-          />
+      <div class="kk-dialog kk-dialog--wide">
+
+        <div class="kk-dialog__header">
+          <div>
+            <h3>{{ zbonHtmlModalTitle }}</h3>
+            <p class="kk-dialog__subtitle">Nur zur Ansicht – Download über den Button unten</p>
+          </div>
+          <button class="kk-dialog__close" @click="showZbonPreviewModal = false">✕</button>
         </div>
-        <div class="confirmation-buttons">
-          <button
-            class="btn btn-success"
-            @click="downloadCurrentZbonHtml"
-          >
-            ⬇️ HTML herunterladen
-          </button>
-          <button
-            class="btn btn-secondary"
-            @click="showZbonPreviewModal = false"
-          >
-            Abbrechen
-          </button>
+
+        <div class="kk-dialog__body" style="padding: 1rem;">
+          <div class="kk-preview-shell">
+            <iframe
+              :srcdoc="zBonHtml"
+              class="kk-preview-frame"
+              title="Kassenbericht-Vorschau"
+            />
+          </div>
         </div>
+
+        <div class="kk-dialog__footer">
+          <button class="btn btn-secondary" @click="showZbonPreviewModal = false">Schließen</button>
+          <button class="btn btn-success"   @click="downloadCurrentZbonHtml">⬇️ HTML herunterladen</button>
+        </div>
+
       </div>
     </div>
 
-    <!-- Password Confirm Modal -->
+    <!-- Password Confirm Modal (bleibt unverändert) -->
     <PasswordConfirmModal
       :show="showPasswordModal"
       title="Kassenbericht erstellen"
@@ -1568,7 +1609,6 @@
       @close="showPasswordModal = false"
       @confirm="createZBon"
     />
-  </div>
 </template>
 
 <script setup>
@@ -3437,243 +3477,373 @@ onBeforeUnmount(() => {
   flex-shrink: 0;
 }
 
-/* ==================== MODALS ==================== */
+/* ============================================================
+   KONSOLIDIERTE MODAL-STILE – Finance.vue
+   Ersetzt den bisherigen Abschnitt "MODALS" vollständig.
+   Alle vier Dialoge teilen denselben Shell (.kk-dialog).
+   Zielgröße: 80 % Bildschirm auf 19" (≈ 1280–1440 px).
+   ============================================================ */
+
+/* ---------- Overlay (gemeinsam) ---------- */
 .confirmation-overlay {
   position: fixed;
   inset: 0;
-  background: rgba(15, 23, 42, 0.7);
-  backdrop-filter: blur(4px);
+  background: rgba(15, 23, 42, 0.65);
+  backdrop-filter: blur(5px);
   display: flex;
   align-items: center;
   justify-content: center;
   z-index: 1500;
-  padding: 1rem;
-}
-
-.confirmation-dialog {
-  background: white;
-  border-radius: 16px;
   padding: 1.5rem;
-  max-width: 620px;
-  width: 100%;
-  max-height: calc(100vh - 2rem);
   overflow-y: auto;
-  box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25);
-  text-align: center;
-
-  h3 {
-    margin: 0 0 1rem 0;
-    color: #1e293b;
-    font-size: 1.2rem;
-    padding-bottom: 0.75rem;
-    border-bottom: 1px solid #e2e8f0;
-    text-align: left;
-  }
-
-  p {
-    margin: 0 0 1.5rem 0;
-    color: #666;
-  }
 }
 
-/* Z-Bon Create Modal */
-.zbon-create-dialog {
-  max-width: 620px;
-  width: 100%;
-  text-align: left;
-  padding: 0;
-}
-
-.withdrawal-dialog {
-  max-width: 500px;
-  text-align: left;
-  padding: 0;
-}
-
-.zbon-modal-header {
-  padding: 1rem 1.25rem;
-  border-bottom: 1px solid #e2e8f0;
-  display: flex;
-  justify-content: space-between;
-  align-items: flex-start;
-  background: linear-gradient(90deg, #0f766e 0%, #0ea5e9 100%);
-  border-radius: 16px 16px 0 0;
-
-  h3 {
-    margin: 0;
-    color: #ffffff;
-    font-size: 1.1rem;
-    padding-bottom: 0;
-    border-bottom: none;
-  }
-}
-
-.zbon-subtitle {
-  margin: 0.35rem 0 0;
-  color: rgba(255,255,255,0.9);
-  font-size: 0.85rem;
-}
-
-.close-btn {
-  width: 34px;
-  height: 34px;
-  border-radius: 50%;
-  border: 1px solid rgba(255,255,255,0.45);
-  background: rgba(255,255,255,0.18);
-  color: #ffffff;
-  font-size: 1.1rem;
-  cursor: pointer;
-  display: grid;
-  place-items: center;
-  flex-shrink: 0;
-  &:hover { background: rgba(255,255,255,0.3); }
-}
-
-.modal-body {
-  padding: 1.25rem;
-}
-
-.info-box {
-  background: #eef4ff;
-  border: 1px solid #c8d8f2;
-  color: #1e40af;
-  padding: 0.9rem 1.1rem;
-  border-radius: 10px;
-  margin-bottom: 1.25rem;
-  font-weight: 500;
-}
-
-.form-grid {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 1rem;
-  margin: 1rem 0;
-}
-
-.form-group {
-  display: flex;
-  flex-direction: column;
-  gap: 0.5rem;
-  margin-bottom: 0.75rem;
-  text-align: left;
-
-  label {
-    font-weight: 600;
-    font-size: 0.9rem;
-  }
-}
-
-.selection-actions {
-  display: flex;
-  gap: 0.5rem;
-  align-items: center;
-}
-
-.balance-summary,
-.final-result {
-  background: #f1f5f9;
-  padding: 1rem;
-  border-radius: 10px;
-  margin: 1rem 0;
-}
-
-.balance-row,
-.result-row {
-  display: flex;
-  justify-content: space-between;
-  padding: 0.4rem 0;
-  font-size: 1.05rem;
-
-  &.error {
-    color: #b91c1c;
-  }
-}
-
-.counted-input {
-  margin: 1rem 0;
-
-  label {
-    display: block;
-    margin-bottom: 0.5rem;
-    font-weight: 600;
-    font-size: 0.9rem;
-    text-align: left;
-  }
-}
-
-.zbon-warning-text {
-  display: block;
-  margin-top: 0.75rem;
-  color: #b91c1c;
-  font-weight: 600;
-  text-align: left;
-}
-
-.modal-actions {
-  display: flex;
-  gap: 0.75rem;
-  justify-content: flex-end;
-  flex-wrap: wrap;
-  padding-top: 1.25rem;
-  border-top: 1px solid #e2e8f0;
-}
-
-.confirmation-buttons {
-  display: flex;
-  gap: 1rem;
-  justify-content: center;
-}
-
-/* Member Picker Modal */
 .member-picker-overlay {
   z-index: 1600;
 }
 
-.member-picker-dialog {
-  max-width: 520px;
-}
-
-.member-search-input {
-  width: 100%;
-  margin-bottom: 1rem;
-}
-
-.member-picker-list {
+/* ---------- Gemeinsame Dialog-Shell ---------- */
+.kk-dialog {
+  background: #ffffff;
+  border-radius: 20px;
+  width: min(80vw, 1100px);
+  max-height: min(82vh, 900px);
   display: flex;
   flex-direction: column;
-  gap: 0.75rem;
-  max-height: 360px;
-  overflow-y: auto;
-  margin-bottom: 1rem;
+  overflow: hidden;
+  box-shadow:
+    0 32px 64px rgba(15, 23, 42, 0.28),
+    0 0 0 1px rgba(15, 23, 42, 0.06);
 }
 
-.member-picker-item {
+/* Schmalere Dialoge (Abschöpfung, Member Picker) */
+.kk-dialog--narrow {
+  width: min(80vw, 560px);
+}
+
+/* Preview-Dialog darf breiter sein */
+.kk-dialog--wide {
+  width: min(90vw, 1400px);
+  max-height: min(88vh, 960px);
+}
+
+/* ---------- Header (gemeinsam) ---------- */
+.kk-dialog__header {
+  padding: 1rem 1.4rem;
+  background: #0f766e;
   display: flex;
-  align-items: center;
-  gap: 0.85rem;
-  width: 100%;
-  padding: 0.75rem 0.9rem;
-  border: 1px solid #cbd5e1;
-  border-radius: 10px;
-  background: #f8fafc;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 1rem;
+  flex-shrink: 0;
+
+  h3 {
+    margin: 0;
+    color: #ffffff;
+    font-size: 1.05rem;
+    font-weight: 600;
+    line-height: 1.3;
+  }
+}
+
+.kk-dialog__subtitle {
+  margin: 0.3rem 0 0;
+  color: rgba(255, 255, 255, 0.8);
+  font-size: 0.82rem;
+}
+
+.kk-dialog__close {
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  border: 1px solid rgba(255, 255, 255, 0.4);
+  background: rgba(255, 255, 255, 0.15);
+  color: #ffffff;
+  font-size: 1rem;
   cursor: pointer;
-  text-align: left;
-  font-weight: 600;
-  color: #1e293b;
-  transition: all 0.2s;
+  display: grid;
+  place-items: center;
+  flex-shrink: 0;
+  transition: background 0.15s;
 
   &:hover {
-    background: #eef2f7;
+    background: rgba(255, 255, 255, 0.28);
+  }
+}
+
+/* ---------- Body (gemeinsam) ---------- */
+.kk-dialog__body {
+  padding: 1.4rem;
+  overflow-y: auto;
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 1.1rem;
+}
+
+/* ---------- Footer (gemeinsam) ---------- */
+.kk-dialog__footer {
+  padding: 1rem 1.4rem;
+  border-top: 1px solid #e2e8f0;
+  display: flex;
+  justify-content: flex-end;
+  gap: 0.65rem;
+  flex-shrink: 0;
+  background: #f8fafc;
+  flex-wrap: wrap;
+}
+
+/* ============================================================
+   Z-BON ERSTELLEN – spezifische Inhaltsblöcke
+   ============================================================ */
+
+/* Info-Box (blauer Hinweis oben) */
+.kk-info-box {
+  background: #eff6ff;
+  border: 1px solid #bfdbfe;
+  color: #1e40af;
+  padding: 0.85rem 1.1rem;
+  border-radius: 10px;
+  font-size: 0.88rem;
+  font-weight: 500;
+  line-height: 1.5;
+}
+
+/* Zwei-Spalten-Formular */
+.kk-form-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 1rem;
+
+  @media (max-width: 640px) {
+    grid-template-columns: 1fr;
+  }
+}
+
+.kk-form-group {
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+  text-align: left;
+
+  label {
+    font-size: 0.8rem;
+    font-weight: 700;
+    color: #64748b;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+  }
+}
+
+.kk-select-btn {
+  width: 100%;
+  padding: 0.75rem 1rem;
+  text-align: left;
+  background: #f8fafc;
+  border: 1px solid #cbd5e1;
+  border-radius: 10px;
+  font-weight: 600;
+  font-size: 0.9rem;
+  color: #1e293b;
+  cursor: pointer;
+  transition: all 0.15s;
+
+  &:hover {
+    background: #f1f5f9;
     border-color: #94a3b8;
   }
 }
 
-.member-picker-photo {
-  width: 42px;
-  height: 42px;
+.kk-clear-btn {
+  padding: 0.75rem 0.85rem;
+  background: transparent;
+  border: 1px solid #e2e8f0;
+  border-radius: 10px;
+  color: #94a3b8;
+  font-size: 0.85rem;
+  cursor: pointer;
+  white-space: nowrap;
+
+  &:hover {
+    background: #f1f5f9;
+    color: #64748b;
+  }
+}
+
+.kk-selection-row {
+  display: flex;
+  gap: 0.5rem;
+  align-items: center;
+}
+
+/* Saldo-Übersicht (graue Box) */
+.kk-balance-box {
+  background: #f8fafc;
+  border: 1px solid #e2e8f0;
+  border-radius: 12px;
+  overflow: hidden;
+}
+
+.kk-balance-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 0.55rem 1rem;
+  font-size: 0.88rem;
+  border-bottom: 1px solid #f1f5f9;
+  color: #475569;
+
+  &:last-child {
+    border-bottom: none;
+  }
+
+  strong {
+    color: #1e293b;
+    font-weight: 700;
+
+    &.warning {
+      color: #b45309;
+    }
+  }
+}
+
+/* Gezählter Kassenbestand */
+.kk-counted-input {
+  label {
+    display: block;
+    font-size: 0.8rem;
+    font-weight: 700;
+    color: #64748b;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    margin-bottom: 0.5rem;
+  }
+
+  .form-input.large {
+    font-size: 1.5rem;
+    padding: 0.85rem 1.1rem;
+    font-weight: 700;
+    width: 100%;
+    border-radius: 10px;
+    border: 1.5px solid #cbd5e1;
+    transition: border-color 0.15s;
+
+    &:focus {
+      outline: none;
+      border-color: #0f766e;
+    }
+  }
+}
+
+/* Ergebnis-Box (grün/rot je nach Differenz) */
+.kk-result-box {
+  background: #f0fdf4;
+  border: 1px solid #bbf7d0;
+  border-radius: 12px;
+  overflow: hidden;
+}
+
+.kk-result-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 0.55rem 1rem;
+  font-size: 0.9rem;
+  border-bottom: 1px solid #dcfce7;
+  color: #166534;
+
+  &:last-child {
+    border-bottom: none;
+  }
+
+  strong {
+    font-weight: 700;
+  }
+
+  &.error {
+    background: #fff1f2;
+    color: #b91c1c;
+
+    strong {
+      color: #b91c1c;
+    }
+  }
+}
+
+.kk-warning-text {
+  display: block;
+  color: #b91c1c;
+  font-size: 0.82rem;
+  font-weight: 600;
+  margin-top: -0.5rem;
+}
+
+/* ============================================================
+   ABSCHÖPFUNG – spezifische Inhaltsblöcke
+   ============================================================ */
+
+.kk-withdrawal-body {
+  gap: 0.85rem;
+}
+
+/* ============================================================
+   MEMBER PICKER
+   ============================================================ */
+
+.kk-picker-search {
+  width: 100%;
+  padding: 0.65rem 0.9rem;
+  border: 1px solid #e2e8f0;
+  border-radius: 10px;
+  font-size: 0.9rem;
+  background: #f8fafc;
+  transition: border-color 0.15s;
+
+  &:focus {
+    outline: none;
+    border-color: #0f766e;
+    background: #fff;
+  }
+}
+
+.kk-picker-list {
+  flex: 1;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+  min-height: 200px;
+  max-height: 400px;
+}
+
+.kk-picker-item {
+  display: flex;
+  align-items: center;
+  gap: 0.85rem;
+  width: 100%;
+  padding: 0.65rem 0.9rem;
+  border: 1px solid #e2e8f0;
+  border-radius: 10px;
+  background: #f8fafc;
+  cursor: pointer;
+  text-align: left;
+  font-size: 0.88rem;
+  font-weight: 600;
+  color: #1e293b;
+  transition: all 0.15s;
+
+  &:hover {
+    background: #f1f5f9;
+    border-color: #94a3b8;
+  }
+}
+
+.kk-picker-photo {
+  width: 38px;
+  height: 38px;
   border-radius: 50%;
   overflow: hidden;
-  background: #cbd5e1;
+  background: #e2e8f0;
   display: grid;
   place-items: center;
   flex-shrink: 0;
@@ -3685,36 +3855,80 @@ onBeforeUnmount(() => {
   }
 
   &.placeholder {
-    color: #475569;
-    font-size: 1.1rem;
+    color: #94a3b8;
+    font-size: 1rem;
   }
 }
 
-.member-picker-empty {
-  margin: 0;
-  padding: 1rem 0;
+.kk-picker-empty {
+  text-align: center;
+  padding: 2rem;
+  color: #94a3b8;
+  font-style: italic;
+  font-size: 0.9rem;
 }
 
-/* Z-Bon Preview Modal */
-.zbon-preview-dialog {
-  width: min(96vw, 2200px);
-  max-width: min(96vw, 2200px);
-}
+/* ============================================================
+   Z-BON PREVIEW
+   ============================================================ */
 
-.zbon-preview-frame-shell {
-  background: white;
-  border-radius: 8px;
-  max-height: min(80vh, 1200px);
+.kk-preview-shell {
+  flex: 1;
+  background: #f8fafc;
+  border-radius: 10px;
+  border: 1px solid #e2e8f0;
   overflow: hidden;
-  border: 1px solid #eee;
+  display: flex;
+  flex-direction: column;
+  min-height: 500px;
 }
 
-.zbon-preview-frame {
+.kk-preview-frame {
   width: 100%;
-  min-height: min(80vh, 1200px);
-  border: 0;
+  flex: 1;
+  border: none;
   display: block;
+  min-height: 500px;
 }
+
+/* ============================================================
+   RESPONSIVE
+   ============================================================ */
+
+@media (max-width: 900px) {
+  .kk-dialog {
+    width: min(94vw, 1100px);
+    max-height: min(90vh, 900px);
+    border-radius: 16px;
+  }
+
+  .kk-dialog--wide {
+    width: 96vw;
+  }
+}
+
+@media (max-width: 640px) {
+  .confirmation-overlay {
+    padding: 0.75rem;
+    align-items: flex-start;
+  }
+
+  .kk-dialog {
+    width: 100%;
+    max-height: calc(100dvh - 1.5rem);
+    border-radius: 14px;
+  }
+
+  .kk-dialog__footer {
+    flex-direction: column;
+
+    .btn {
+      width: 100%;
+      justify-content: center;
+    }
+  }
+}
+</style>
 
 /* ==================== PAGINATION ==================== */
 .pagination {
