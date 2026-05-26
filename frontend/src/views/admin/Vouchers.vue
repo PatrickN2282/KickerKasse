@@ -736,9 +736,7 @@ const submitPrepaidVoucher = async ({ username, password }) => {
 
 const handlePasswordModalClose = () => {
   showPasswordModal.value = false
-  if (pendingVoucherAction.value !== 'edit') {
-    pendingVoucherAction.value = null
-  }
+  pendingVoucherAction.value = null
 }
 
 const handlePasswordConfirmed = async (credentials) => {
