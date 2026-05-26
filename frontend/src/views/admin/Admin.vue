@@ -3,20 +3,22 @@
     <div class="admin-header">
       <div class="admin-header-row">
         <h1>Admin Panel</h1>
-        <button
-          type="button"
-          class="admin-header-link"
-          @click="showHelpInfoModal = true"
-        >
-          ℹ️ Help &amp; Info
-        </button>
-        <button
-          type="button"
-          class="admin-header-link"
-          @click="showDonationModal = true"
-        >
-          💛 Spenden
-        </button>
+        <div class="admin-header-actions">
+          <button
+            type="button"
+            class="admin-header-link"
+            @click="showHelpInfoModal = true"
+          >
+            ℹ️ Help &amp; Info
+          </button>
+          <button
+            type="button"
+            class="admin-header-link"
+            @click="showDonationModal = true"
+          >
+            💛 Spenden
+          </button>
+        </div>
       </div>
 
       <div class="admin-tabs">
@@ -99,7 +101,14 @@ const isTabActive = (path) => route.path === path
     color: #333;
     margin: 0;
     font-size: 1.35rem;
+    flex: 1;
   }
+}
+
+.admin-header-actions {
+  display: flex;
+  gap: 0.5rem;
+  margin-left: auto;
 }
 
 .admin-header-link {
