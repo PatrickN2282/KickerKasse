@@ -1,65 +1,80 @@
 <template>
-  <div
-    v-if="show"
-    class="modal-overlay"
-    @click.self="emit('close')"
-  >
+  <div v-if="show" class="modal-overlay" @click.self="emit('close')">
     <div class="modal-dialog">
+
       <div class="modal-header">
         <div class="modal-header-title">
-          <h3>ℹ️ Help &amp; Info <span class="header-pipe">|</span> <span class="header-sub">Über KickerKasse</span></h3>
+          <i class="ti ti-info-circle" />
+          <h3>Help &amp; Info <span class="header-pipe">|</span> <span class="header-sub">KickerKasse</span></h3>
         </div>
-        <button
-          class="close-btn"
-          @click="emit('close')"
-        >
-          ✕
-        </button>
+        <button class="close-btn" @click="emit('close')">✕</button>
       </div>
 
       <div class="modal-body">
-        <p>
-          KickerKasse ist ein privates Projekt und wurde speziell auf die Anforderungen unseres Kickervereins zugeschnitten.
-        </p>
-        <p>
-          Projekt-Link:
-          <a
-            href="https://github.com/PatrickN2282/KickerKasse"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            github.com/PatrickN2282/KickerKasse
-          </a>
-        </p>
-        <p>
-          <strong>Disclaimer:</strong> Es handelt sich nicht um ein revisionssicheres, TSE-fähiges Kassensystem.
-          Ziel ist es, die Lagerhaltung und die Kassenzugangssteuerung zu vereinfachen.
-        </p>
-        <p>
-          Für weitere Ideen oder Fehlermeldungen gern direkt an mich wenden.
-        </p>
+        <div class="card-grid">
+
+          <div class="info-card">
+            <i class="ti ti-device-desktop-code card-icon" />
+            <p class="card-label">Projekt</p>
+            <p class="card-val">KickerKasse</p>
+          </div>
+
+          <div class="info-card">
+            <i class="ti ti-user card-icon" />
+            <p class="card-label">Autor</p>
+            <p class="card-val">Patrick Neuber</p>
+          </div>
+
+          <div class="info-card">
+            <i class="ti ti-mail card-icon" />
+            <p class="card-label">Kontakt</p>
+            <p class="card-val">
+              <a href="mailto:kickerkasse@patrick-neuber.de" target="_blank" rel="noopener noreferrer">
+                kickerkasse@patrick-neuber.de
+              </a>
+            </p>
+          </div>
+
+          <div class="info-card">
+            <i class="ti ti-brand-github card-icon" />
+            <p class="card-label">Source Code</p>
+            <p class="card-val">
+              <a href="https://github.com/PatrickN2282/KickerKasse" target="_blank" rel="noopener noreferrer">
+                github.com/PatrickN2282/KickerKasse
+              </a>
+            </p>
+          </div>
+
+          <div class="info-card full">
+            <i class="ti ti-soccer-field card-icon" />
+            <p class="card-label">Beschreibung</p>
+            <p class="card-val desc">
+              Privates Projekt, zugeschnitten auf die Anforderungen unseres Kickervereins.
+              Vereinfacht Lagerhaltung und Kassenzugang.
+            </p>
+          </div>
+
+          <div class="disclaimer">
+            <strong>Hinweis:</strong> Kein TSE-fähiges oder revisionssicheres Kassensystem.
+            Ziel ist die Vereinfachung von Lagerhaltung und Kassenzugangssteuerung.
+            Ideen &amp; Bugs gern per Mail melden.
+          </div>
+
+        </div>
       </div>
 
       <div class="modal-footer">
-        <button
-          class="btn btn-secondary"
-          @click="emit('close')"
-        >
-          Schließen
-        </button>
+        <button class="btn btn-secondary" @click="emit('close')">Schließen</button>
       </div>
+
     </div>
   </div>
 </template>
 
 <script setup>
 defineProps({
-  show: {
-    type: Boolean,
-    default: false,
-  },
+  show: { type: Boolean, default: false },
 })
-
 const emit = defineEmits(['close'])
 </script>
 
@@ -79,9 +94,9 @@ const emit = defineEmits(['close'])
 
 .modal-dialog {
   background: #ffffff;
-  border-radius: 16px;
-  width: min(760px, 100%);
-  max-height: 80vh;
+  border-radius: 20px;
+  width: min(620px, 100%);
+  max-height: 85vh;
   display: flex;
   flex-direction: column;
   box-shadow: 0 24px 50px rgba(15, 23, 42, 0.35);
@@ -89,81 +104,133 @@ const emit = defineEmits(['close'])
 }
 
 .modal-header {
-  padding: 0.75rem 1.25rem;
-  border-bottom: 1px solid #e2e8f0;
+  padding: 0.85rem 1.25rem;
+  background: #0f766e;
   display: flex;
   justify-content: space-between;
   align-items: center;
-  background: linear-gradient(90deg, #0f766e 0%, #0ea5e9 100%);
   flex-shrink: 0;
+
+  .ti-info-circle {
+    color: #ffffff;
+    font-size: 1.2rem;
+    margin-right: 0.4rem;
+  }
 }
 
 .modal-header-title {
   display: flex;
   align-items: center;
-  min-width: 0;
 
   h3 {
     margin: 0;
     color: #ffffff;
-    font-size: 1.05rem;
+    font-size: 1rem;
     font-weight: 600;
-    white-space: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis;
   }
 
   .header-pipe {
     margin: 0 0.5rem;
-    opacity: 0.5;
+    opacity: 0.45;
   }
 
   .header-sub {
     font-weight: 400;
-    opacity: 0.88;
-    font-size: 0.92rem;
+    opacity: 0.8;
+    font-size: 0.88rem;
   }
 }
 
 .close-btn {
-  width: 34px;
-  height: 34px;
+  width: 32px;
+  height: 32px;
   border-radius: 50%;
-  border: 1px solid rgba(255, 255, 255, 0.45);
-  background: rgba(255, 255, 255, 0.18);
+  border: 1px solid rgba(255, 255, 255, 0.4);
+  background: rgba(255, 255, 255, 0.15);
   color: #ffffff;
-  font-size: 1.1rem;
+  font-size: 1rem;
   cursor: pointer;
   display: grid;
   place-items: center;
   flex-shrink: 0;
 
   &:hover {
-    background: rgba(255, 255, 255, 0.3);
+    background: rgba(255, 255, 255, 0.28);
   }
 }
 
 .modal-body {
   padding: 1rem 1.25rem;
-  display: grid;
-  gap: 0.75rem;
   overflow-y: auto;
-  color: #334155;
-  line-height: 1.45;
+}
 
-  p {
-    margin: 0;
+.card-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0.65rem;
+}
+
+.info-card {
+  background: #f8fafc;
+  border: 1px solid #e2e8f0;
+  border-radius: 12px;
+  padding: 0.75rem 1rem;
+
+  &.full {
+    grid-column: 1 / -1;
   }
 
-  a {
-    color: var(--app-highlight-color);
-    font-weight: 600;
-    word-break: break-word;
+  .card-icon {
+    font-size: 1.1rem;
+    color: #0f766e;
+    display: block;
+    margin-bottom: 0.35rem;
+  }
+
+  .card-label {
+    font-size: 0.7rem;
+    text-transform: uppercase;
+    letter-spacing: 0.07em;
+    color: #94a3b8;
+    margin-bottom: 0.2rem;
+  }
+
+  .card-val {
+    font-size: 0.85rem;
+    color: #1e293b;
+    font-weight: 500;
+    word-break: break-all;
+
+    &.desc {
+      font-weight: 400;
+      line-height: 1.5;
+    }
+
+    a {
+      color: #0f766e;
+      text-decoration: none;
+      font-weight: 600;
+
+      &:hover {
+        text-decoration: underline;
+      }
+    }
   }
 }
 
+.disclaimer {
+  grid-column: 1 / -1;
+  border-left: 3px solid #f59e0b;
+  background: #fffbeb;
+  border-radius: 0 10px 10px 0;
+  padding: 0.65rem 0.9rem;
+  font-size: 0.8rem;
+  color: #92400e;
+  line-height: 1.5;
+}
+
 .modal-footer {
-  padding: 0.95rem 1.25rem;
+  padding: 0.9rem 1.25rem;
   border-top: 1px solid #e2e8f0;
   display: flex;
   justify-content: flex-end;
@@ -173,10 +240,10 @@ const emit = defineEmits(['close'])
 
 .btn {
   border-radius: 8px;
-  padding: 0.65rem 1rem;
+  padding: 0.6rem 1.1rem;
   font-weight: 600;
   cursor: pointer;
-  font-size: 0.9rem;
+  font-size: 0.88rem;
   border: none;
 }
 
@@ -184,21 +251,20 @@ const emit = defineEmits(['close'])
   background: #f8fafc;
   color: #475569;
   border: 1px solid #cbd5e1;
+
+  &:hover {
+    background: #f1f5f9;
+  }
 }
 
-@media (max-width: 640px) {
-  .modal-overlay {
-    padding: 0.75rem;
-    align-items: stretch;
+@media (max-width: 480px) {
+  .card-grid {
+    grid-template-columns: 1fr;
   }
 
-  .modal-dialog {
-    width: 100%;
-    max-height: calc(100vh - 1.5rem);
-  }
-
-  .modal-header-title h3 {
-    white-space: normal;
+  .info-card.full,
+  .disclaimer {
+    grid-column: 1;
   }
 }
 </style>
