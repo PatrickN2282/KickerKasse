@@ -373,130 +373,21 @@
       </div>
     </div>
 
-    <div
-      v-if="showEditModal"
-      class="modal-overlay"
-    >
-      <div class="modal-dialog">
-        <div class="modal-header">
-          <div class="modal-header-title">
-            <h3>🎫 Gutschein bearbeiten <span class="header-pipe">|</span> <span class="header-sub">Wert und Details ändern</span></h3>
-          </div>
-          <button
-            class="close-btn"
-            @click="closeEditVoucher"
-          >
-            ✕
-          </button>
-        </div>
-        <div class="modal-body">
-          <div class="form-group">
-            <label>Wert (€)</label>
-            <input
-              v-model="editForm.valueDisplay"
-              type="number"
-              min="0.01"
-              step="0.01"
-            >
-          </div>
-          <div
-            v-if="editingVoucher?.voucher_type === 'GIFT'"
-            class="form-group"
-          >
-            <label>Grund</label>
-            <select v-model="editForm.reason">
-              <option value="DYP_SIEGER">
-                DYP-Sieger
-              </option>
-              <option value="PROMOTION">
-                Promotion
-              </option>
-            </select>
-          </div>
-          <div class="form-group">
-            <label>Beschreibung</label>
-            <input
-              v-model="editForm.description"
-              type="text"
-              maxlength="255"
-            >
-          </div>
-          <div
-            v-if="editError"
-            class="error-message"
-          >
-            ❌ {{ editError }}
-          </div>
-        </div>
-        <div class="modal-footer">
-          <button
-            class="btn-secondary"
-            @click="closeEditVoucher"
-          >
-            Abbrechen / Zurück
-          </button>
-          <button
-            class="btn-primary"
-            :disabled="updatingVoucher"
-            @click="saveVoucherEdit"
-          >
-            {{ updatingVoucher ? '⏳ Speichert...' : '✓ Speichern' }}
-          </button>
-        </div>
-      </div>
-    </div>
-    <div
-      v-if="showCreatedVoucherModal && createdVoucherModalData"
-      class="modal-overlay"
-    >
-      <div class="modal-dialog created-voucher-modal">
-        <div class="modal-header">
-          <div class="modal-header-title">
-            <h3>{{ createdVoucherModalData.title }}</h3>
-          </div>
-          <button
-            class="close-btn"
-            @click="closeCreatedVoucherModal"
-          >
-            ✕
-          </button>
-        </div>
-        <div class="modal-body">
-          <p class="info-text">
-            {{ createdVoucherModalData.subtitle }}
-          </p>
-          <div class="created-voucher-box">
-            <div
-              v-for="voucherNumber in createdVoucherModalData.numbers"
-              :key="voucherNumber"
-              class="created-voucher-number"
-            >
-              {{ voucherNumber }}
-            </div>
-          </div>
-          <div class="created-voucher-alert">
-            <p class="created-voucher-note">
-              {{ createdVoucherModalData.note }}
-            </p>
-          </div>
-        </div>
-        <div class="modal-footer created-voucher-actions">
-          <button
-            v-if="createdVoucherModalData.showClubAccountButton"
-            class="btn-secondary"
-            @click="openClubAccountFromModal"
-          >
-            🏦 Gutscheinkonto öffnen
-          </button>
-          <button
-            class="btn-secondary"
-            @click="closeCreatedVoucherModal"
-          >
-            Schließen
-          </button>
-        </div>
-      </div>
-    </div>
+    <VoucherEditModal
+      :show="showEditModal"
+      :editing-voucher="editingVoucher"
+      :edit-form="editForm"
+      :edit-error="editError"
+      :updating-voucher="updatingVoucher"
+      @close="closeEditVoucher"
+      @save="saveVoucherEdit"
+    />
+    <VoucherCreatedModal
+      :show="showCreatedVoucherModal"
+      :modal-data="createdVoucherModalData"
+      @close="closeCreatedVoucherModal"
+      @open-club-account="openClubAccountFromModal"
+    />
     <CredentialConfirmModal
       :show="showPasswordModal"
       :title="passwordModalTitle"
@@ -515,6 +406,8 @@ import { ref, computed, onMounted } from 'vue'
 import { useAuthStore } from '@/stores/auth'
 import apiService from '@/services/api'
 import CredentialConfirmModal from '@/components/CredentialConfirmModal.vue'
+import VoucherEditModal from '@/views/admin/modal/VoucherEditModal.vue'
+import VoucherCreatedModal from '@/views/admin/modal/VoucherCreatedModal.vue'
 
 // Active sub-tab
 const activeSubTab = ref('create')
