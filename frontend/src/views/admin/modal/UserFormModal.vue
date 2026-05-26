@@ -16,19 +16,35 @@
             <div class="form-row">
               <div class="form-group">
                 <label for="username">Benutzername*</label>
-                <input id="username" v-model="formData.username" type="text" required>
+                <input
+                  id="username"
+                  :value="username"
+                  type="text"
+                  required
+                  @input="$emit('update:username', $event.target.value)"
+                >
               </div>
 
               <div class="form-group">
                 <label for="email">E-Mail</label>
-                <input id="email" v-model="formData.email" type="email">
+                <input
+                  id="email"
+                  :value="email"
+                  type="email"
+                  @input="$emit('update:email', $event.target.value)"
+                >
               </div>
             </div>
 
             <div class="form-row">
               <div class="form-group">
                 <label for="role">Rolle*</label>
-                <select id="role" v-model="formData.role" required>
+                <select
+                  id="role"
+                  :value="role"
+                  required
+                  @change="$emit('update:role', $event.target.value)"
+                >
                   <option value="VERKAUF">Verkauf</option>
                   <option value="MANAGER">Manager</option>
                   <option value="ADMIN">Admin</option>
@@ -39,11 +55,12 @@
                 <label for="password">{{ editingUserId ? 'Neues Passwort' : 'Passwort*' }}</label>
                 <input
                   id="password"
-                  v-model="formData.password"
+                  :value="passwordValue"
                   type="password"
                   minlength="8"
                   :required="!editingUserId"
                   placeholder="Mindestens 8 Zeichen"
+                  @input="$emit('update:password-value', $event.target.value)"
                 >
                 <small class="help-text">
                   {{ editingUserId
@@ -69,11 +86,14 @@
 <script setup>
 defineProps({
   show: { type: Boolean, required: true },
-  editingUserId: { type: [Number, String, null], default: null },
-  formData: { type: Object, required: true },
+  editingUserId: { type: [Number, String], default: null },
+  username: { type: String, default: '' },
+  email: { type: String, default: '' },
+  passwordValue: { type: String, default: '' },
+  role: { type: String, default: 'VERKAUF' },
 })
 
-defineEmits(['close', 'save'])
+defineEmits(['close', 'save', 'update:username', 'update:email', 'update:password-value', 'update:role'])
 </script>
 
 <style scoped lang="scss">

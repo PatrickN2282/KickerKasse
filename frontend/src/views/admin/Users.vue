@@ -49,15 +49,22 @@
     <UserFormModal
       :show="showUserModal"
       :editing-user-id="editingUserId"
-      :form-data="formData"
+      :username="formData.username"
+      :email="formData.email"
+      :password-value="formData.password"
+      :role="formData.role"
       @close="closeUserModal"
+      @update:username="formData.username = $event"
+      @update:email="formData.email = $event"
+      @update:password-value="formData.password = $event"
+      @update:role="formData.role = $event"
       @save="handleSaveUser"
     />
 
     <UserPasswordResetModal
       :show="Boolean(resettingPasswordFor)"
-      :user="resettingPasswordFor"
       v-model:model-value="resetPwd"
+      :user="resettingPasswordFor"
       @close="closePasswordReset"
       @submit="submitPasswordReset"
     />

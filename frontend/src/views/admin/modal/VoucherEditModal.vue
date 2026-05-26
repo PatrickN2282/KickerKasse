@@ -13,10 +13,11 @@
         <div class="form-group">
           <label>Wert (€)</label>
           <input
-            v-model="editForm.valueDisplay"
+            :value="valueDisplay"
             type="number"
             min="0.01"
             step="0.01"
+            @input="$emit('update:value-display', $event.target.value)"
           >
         </div>
         <div
@@ -24,7 +25,7 @@
           class="form-group"
         >
           <label>Grund</label>
-          <select v-model="editForm.reason">
+          <select :value="reason" @change="$emit('update:reason', $event.target.value)">
             <option value="DYP_SIEGER">
               DYP-Sieger
             </option>
@@ -36,9 +37,10 @@
         <div class="form-group">
           <label>Beschreibung</label>
           <input
-            v-model="editForm.description"
+            :value="description"
             type="text"
             maxlength="255"
+            @input="$emit('update:description', $event.target.value)"
           >
         </div>
         <div
@@ -64,12 +66,14 @@
 defineProps({
   show: { type: Boolean, required: true },
   editingVoucher: { type: Object, default: null },
-  editForm: { type: Object, required: true },
+  valueDisplay: { type: String, default: '' },
+  reason: { type: String, default: 'DYP_SIEGER' },
+  description: { type: String, default: '' },
   editError: { type: String, default: '' },
   updatingVoucher: { type: Boolean, default: false },
 })
 
-defineEmits(['close', 'save'])
+defineEmits(['close', 'save', 'update:value-display', 'update:reason', 'update:description'])
 </script>
 
 <style scoped lang="scss">

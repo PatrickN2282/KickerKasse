@@ -376,10 +376,15 @@
     <VoucherEditModal
       :show="showEditModal"
       :editing-voucher="editingVoucher"
-      :edit-form="editForm"
+      :value-display="editForm.valueDisplay"
+      :reason="editForm.reason"
+      :description="editForm.description"
       :edit-error="editError"
       :updating-voucher="updatingVoucher"
       @close="closeEditVoucher"
+      @update:value-display="editForm.valueDisplay = $event"
+      @update:reason="editForm.reason = $event"
+      @update:description="editForm.description = $event"
       @save="saveVoucherEdit"
     />
     <VoucherCreatedModal
