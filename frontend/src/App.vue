@@ -104,48 +104,72 @@
       v-if="showLoginModal"
       class="modal-overlay"
     >
-      <div class="modal-card">
-        <h3>Benutzer anmelden</h3>
-
-        <label>
-          Benutzername
-          <input
-            v-model="loginForm.username"
-            type="text"
-            class="form-input"
-          >
-        </label>
-
-        <label>
-          Passwort
-          <input
-            v-model="loginForm.password"
-            type="password"
-            class="form-input"
-            @keyup.enter="loginFromModal"
-          >
-        </label>
-
-        <p
-          v-if="modalError"
-          class="modal-error"
-        >
-          {{ modalError }}
-        </p>
-
-        <div class="modal-actions">
+      <div class="modal-dialog">
+        <div class="modal-header">
+          <div class="modal-header-title">
+            <h3>Benutzer anmelden <span class="header-pipe">|</span> <span class="header-sub">Zugangsdaten eingeben</span></h3>
+          </div>
           <button
-            class="btn-login"
+            class="close-btn"
+            @click="closeLoginModal"
+          >
+            ✕
+          </button>
+        </div>
+
+        <div class="modal-body">
+          <div class="form-group">
+            <label>Benutzername</label>
+            <input
+              v-model="loginForm.username"
+              type="text"
+              list="login-usernames-list"
+              class="form-input"
+              placeholder="Benutzername eingeben oder auswählen"
+              autocomplete="username"
+            >
+            <datalist id="login-usernames-list">
+              <option
+                v-for="name in availableUsernames"
+                :key="name"
+                :value="name"
+              />
+            </datalist>
+          </div>
+
+          <div class="form-group">
+            <label>Passwort</label>
+            <input
+              v-model="loginForm.password"
+              type="password"
+              class="form-input"
+              placeholder="Passwort eingeben"
+              autocomplete="current-password"
+              @keyup.enter="loginFromModal"
+            >
+          </div>
+
+          <p
+            v-if="modalError"
+            class="modal-error"
+          >
+            {{ modalError }}
+          </p>
+        </div>
+
+        <div class="modal-footer">
+          <button
+            class="btn btn-secondary"
+            @click="closeLoginModal"
+          >
+            Abbrechen
+          </button>
+          <button
+            class="btn btn-primary"
+            :disabled="!loginForm.username.trim() || !loginForm.password"
             @click="loginFromModal"
           >
             Login
-          </button>
-
-          <button
-            class="btn-logout"
-            @click="closeLoginModal"
-          >
-            <span class="btn-logout__label">Abbrechen</span>
           </button>
         </div>
       </div>
@@ -165,6 +189,7 @@ import { useRoute, useRouter } from 'vue-router'
 import NotificationCenter from '@/components/NotificationCenter.vue'
 import PwaInstallButton from '@/components/PwaInstallButton.vue'
 import DonationModal from '@/components/DonationModal.vue'
+import apiService from '@/services/api'
 
 import pkg from '../package.json'
 import { KASSE_LAYOUT_REFRESH_INTERVAL_MS, KASSE_LAYOUT_STORAGE_KEY, SESSION_RELOAD_FLAG_KEY } from '@/constants'
@@ -185,6 +210,7 @@ const isOnAdminRoute = computed(() => route.path.startsWith('/admin'))
 const showLoginModal = ref(false)
 const showDonationModal = ref(false)
 const modalError = ref('')
+const availableUsernames = ref([])
 const layoutRefreshIntervalId = ref(null)
 const refreshInFlight = ref(false)
 const sessionTimerId = ref(null)
@@ -195,11 +221,18 @@ const loginForm = reactive({
   password: ''
 })
 
-const openLoginModal = () => {
+const openLoginModal = async () => {
   showLoginModal.value = true
   modalError.value = ''
   loginForm.username = authStore.user?.username || ''
   loginForm.password = ''
+  try {
+    const response = await apiService.get('/auth/usernames')
+    availableUsernames.value = response.data ?? []
+  } catch (err) {
+    console.error('[App] Failed to load login usernames:', err)
+    availableUsernames.value = []
+  }
 }
 
 const logout = async () => {
@@ -595,48 +628,146 @@ onBeforeUnmount(() => {
   position: fixed;
   inset: 0;
   background: rgba(15, 23, 42, .55);
-  display: grid;
-  place-items: center;
+  backdrop-filter: blur(4px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 1.25rem;
   z-index: 2000;
 }
 
-.modal-card {
-  background: white;
+.modal-dialog {
+  background: #ffffff;
   border-radius: 16px;
-  padding: 1.5rem;
-  width: min(92vw, 420px);
+  width: 100%;
+  max-width: 460px;
   display: flex;
   flex-direction: column;
-  gap: .9rem;
+  box-shadow: 0 24px 50px rgba(15, 23, 42, 0.35);
+  overflow: hidden;
+}
 
-  h3 { margin: 0; }
+.modal-header {
+  padding: 0.75rem 1.25rem;
+  border-bottom: 1px solid #e2e8f0;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  background: linear-gradient(90deg, #0f766e 0%, #0ea5e9 100%);
+  flex-shrink: 0;
+}
+
+.modal-header-title {
+  display: flex;
+  align-items: center;
+  min-width: 0;
+
+  h3 {
+    margin: 0;
+    color: #ffffff;
+    font-size: 1.05rem;
+    font-weight: 600;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  .header-pipe {
+    margin: 0 0.5rem;
+    opacity: 0.5;
+  }
+
+  .header-sub {
+    font-weight: 400;
+    opacity: 0.88;
+    font-size: 0.92rem;
+  }
+}
+
+.close-btn {
+  width: 34px;
+  height: 34px;
+  border-radius: 50%;
+  border: 1px solid rgba(255, 255, 255, 0.45);
+  background: rgba(255, 255, 255, 0.18);
+  color: #ffffff;
+  font-size: 1.1rem;
+  cursor: pointer;
+  display: grid;
+  place-items: center;
+  flex-shrink: 0;
+
+  &:hover {
+    background: rgba(255, 255, 255, 0.3);
+  }
+}
+
+.modal-body {
+  padding: 1rem 1.25rem;
+  flex: 1;
+}
+
+.modal-footer {
+  padding: 0.95rem 1.25rem;
+  border-top: 1px solid #e2e8f0;
+  display: flex;
+  gap: 0.75rem;
+  justify-content: flex-end;
+  background: #ffffff;
+  flex-shrink: 0;
+}
+
+.form-group {
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+  margin-bottom: 1rem;
 
   label {
-    display: flex;
-    flex-direction: column;
-    gap: .35rem;
     font-weight: 600;
+    font-size: 0.9rem;
   }
 }
 
 .form-input {
   width: 100%;
-  padding: .75rem;
-  border: 1px solid #ddd;
+  padding: 0.75rem;
+  border: 1px solid #cbd5e1;
   border-radius: 8px;
   font-size: 1rem;
+  box-sizing: border-box;
 }
 
-.modal-actions {
-  display: flex;
-  gap: .75rem;
-  justify-content: flex-end;
+.btn {
+  border: none;
+  border-radius: 8px;
+  padding: 0.65rem 1rem;
+  cursor: pointer;
+  font-weight: 600;
+  font-size: 0.9rem;
+
+  &:disabled {
+    opacity: 0.55;
+    cursor: not-allowed;
+  }
+}
+
+.btn-secondary {
+  background: #f8fafc;
+  color: #475569;
+  border: 1px solid #cbd5e1;
+}
+
+.btn-primary {
+  background: var(--app-highlight-color);
+  color: var(--app-highlight-contrast);
 }
 
 .modal-error {
-  margin: 0;
+  margin: 0 0 0.5rem;
   color: #c62828;
   font-weight: 600;
+  font-size: 0.9rem;
 }
 
 
