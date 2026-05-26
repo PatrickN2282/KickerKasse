@@ -18,6 +18,9 @@
           Wenn dir KickerKasse hilft, freuen wir uns über eine kleine Spende für die Zeit und Mühe,
           die in dieses Projekt geflossen ist.
         </p>
+        <p class="donation-hint">
+          Der QR-Code verweist direkt auf PayPal – einfach scannen und einen kleinen Betrag hinterlassen. Danke! 🙏
+        </p>
       </div>
       <div class="modal-footer">
         <button class="btn btn-secondary" @click="emit('close')">Schließen</button>

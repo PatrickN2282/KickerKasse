@@ -54,6 +54,56 @@
             </p>
           </div>
 
+          <div class="section-title">Features &amp; Betrieb</div>
+
+          <div class="info-card">
+            <i class="ti ti-cash-register card-icon" />
+            <p class="card-label">Kassensystem</p>
+            <p class="card-val desc">Mehrere wählbare Kassen-Layouts. Artikel per Klick in den Warenkorb, direkte Abrechnung per Guthaben, Voucher oder Bargeld.</p>
+          </div>
+
+          <div class="info-card">
+            <i class="ti ti-users card-icon" />
+            <p class="card-label">Mitgliederverwaltung</p>
+            <p class="card-val desc">Mitglieder anlegen, Guthaben aufladen und Transaktionen einsehen. Bild-Upload pro Mitglied möglich.</p>
+          </div>
+
+          <div class="info-card">
+            <i class="ti ti-package card-icon" />
+            <p class="card-label">Produktverwaltung</p>
+            <p class="card-val desc">Produkte mit Preis, Kategorie und Lagerbestand pflegen. Bestandswarnungen bei Unterschreiten eines Mindestwerts.</p>
+          </div>
+
+          <div class="info-card">
+            <i class="ti ti-ticket card-icon" />
+            <p class="card-label">Gutscheinsystem</p>
+            <p class="card-val desc">Voucher mit festem Wert erstellen und an der Kasse einlösen. Übersicht aller aktiven und verbrauchten Gutscheine.</p>
+          </div>
+
+          <div class="info-card">
+            <i class="ti ti-chart-bar card-icon" />
+            <p class="card-label">Finanzen</p>
+            <p class="card-val desc">Übersicht aller Einnahmen und Ausgaben. Export der Buchhaltungsdaten als CSV/Excel.</p>
+          </div>
+
+          <div class="info-card">
+            <i class="ti ti-shield-lock card-icon" />
+            <p class="card-label">Benutzerverwaltung &amp; Rollen</p>
+            <p class="card-val desc">Rollen: Top-Admin, Admin, Manager, Kasse. Zugriffsrechte werden pro Rolle gesteuert. Session-Timer für automatischen Logout konfigurierbar.</p>
+          </div>
+
+          <div class="info-card">
+            <i class="ti ti-settings card-icon" />
+            <p class="card-label">Einstellungen</p>
+            <p class="card-val desc">App-Name, Logo, Farben, Kassen-Layout und weitere Parameter zentral im Admin-Bereich konfigurierbar.</p>
+          </div>
+
+          <div class="info-card">
+            <i class="ti ti-device-mobile card-icon" />
+            <p class="card-label">PWA-Unterstützung</p>
+            <p class="card-val desc">Als Progressive Web App installierbar – auch offline grundlegend nutzbar. Optimiert für Tablet- und Desktop-Betrieb.</p>
+          </div>
+
           <div class="disclaimer">
             <strong>Hinweis:</strong> Kein TSE-fähiges oder revisionssicheres Kassensystem.
             Ziel ist die Vereinfachung von Lagerhaltung und Kassenzugangssteuerung.
@@ -216,6 +266,16 @@ const emit = defineEmits(['close'])
       }
     }
   }
+}
+
+.section-title {
+  grid-column: 1 / -1;
+  font-size: 0.72rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: #64748b;
+  margin-top: 0.35rem;
 }
 
 .disclaimer {
