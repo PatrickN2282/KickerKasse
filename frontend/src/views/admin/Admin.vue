@@ -7,12 +7,16 @@
           type="button"
           class="admin-header-link"
           @click="showHelpInfoModal = true"
-        >ℹ️ Help &amp; Info</button>
+        >
+          ℹ️ Help &amp; Info
+        </button>
         <button
           type="button"
           class="admin-header-link"
           @click="showDonationModal = true"
-        >💛 Spenden</button>
+        >
+          💛 Spenden
+        </button>
       </div>
 
       <div class="admin-tabs">
