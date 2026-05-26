@@ -312,7 +312,14 @@ async def update_voucher(
     db: Session = Depends(get_db),
 ):
     """Update editable voucher fields before redemption."""
-    user_id = require_roles(request, db, UserRole.ADMIN).id
+    current_user = require_roles(request, db, UserRole.ADMIN)
+    confirmation_user = resolve_confirmation_user(
+        db,
+        current_user,
+        voucher_data.auth_password,
+        username=voucher_data.auth_username,
+        allow_top_admin_override=True,
+    )
 
     try:
         service = VoucherService(db)
@@ -322,7 +329,7 @@ async def update_voucher(
             reason=voucher_data.reason,
             description=voucher_data.description,
         )
-        logger.info(f"[ADMIN] Updated voucher {voucher_id} by user {user_id}")
+        logger.info(f"[ADMIN] Updated voucher {voucher_id} by user {confirmation_user.id}")
         return VoucherResponse.from_orm(voucher)
     except ValueError as e:
         raise HTTPException(

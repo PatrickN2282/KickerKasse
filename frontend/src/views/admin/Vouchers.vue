@@ -377,58 +377,70 @@
       v-if="showEditModal"
       class="modal-overlay"
     >
-      <div class="modal-card">
-        <h3>🎫 Gutschein bearbeiten</h3>
-        <div class="form-group">
-          <label>Wert (€)</label>
-          <input
-            v-model="editForm.valueDisplay"
-            type="number"
-            min="0.01"
-            step="0.01"
+      <div class="modal-dialog">
+        <div class="modal-header">
+          <div class="modal-header-title">
+            <h3>🎫 Gutschein bearbeiten <span class="header-pipe">|</span> <span class="header-sub">Wert und Details ändern</span></h3>
+          </div>
+          <button
+            class="close-btn"
+            @click="closeEditVoucher"
           >
+            ✕
+          </button>
         </div>
-        <div
-          v-if="editingVoucher?.voucher_type === 'GIFT'"
-          class="form-group"
-        >
-          <label>Grund</label>
-          <select v-model="editForm.reason">
-            <option value="DYP_SIEGER">
-              DYP-Sieger
-            </option>
-            <option value="PROMOTION">
-              Promotion
-            </option>
-          </select>
-        </div>
-        <div class="form-group">
-          <label>Beschreibung</label>
-          <input
-            v-model="editForm.description"
-            type="text"
-            maxlength="255"
+        <div class="modal-body">
+          <div class="form-group">
+            <label>Wert (€)</label>
+            <input
+              v-model="editForm.valueDisplay"
+              type="number"
+              min="0.01"
+              step="0.01"
+            >
+          </div>
+          <div
+            v-if="editingVoucher?.voucher_type === 'GIFT'"
+            class="form-group"
           >
+            <label>Grund</label>
+            <select v-model="editForm.reason">
+              <option value="DYP_SIEGER">
+                DYP-Sieger
+              </option>
+              <option value="PROMOTION">
+                Promotion
+              </option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label>Beschreibung</label>
+            <input
+              v-model="editForm.description"
+              type="text"
+              maxlength="255"
+            >
+          </div>
+          <div
+            v-if="editError"
+            class="error-message"
+          >
+            ❌ {{ editError }}
+          </div>
         </div>
-        <div
-          v-if="editError"
-          class="error-message"
-        >
-          ❌ {{ editError }}
-        </div>
-        <div class="button-row">
+        <div class="modal-footer">
+          <button
+            class="btn-secondary"
+            @click="closeEditVoucher"
+          >
+            Abbrechen / Zurück
+          </button>
           <button
             class="btn-primary"
             :disabled="updatingVoucher"
             @click="saveVoucherEdit"
           >
             {{ updatingVoucher ? '⏳ Speichert...' : '✓ Speichern' }}
-          </button>
-          <button
-            class="btn-secondary"
-            @click="closeEditVoucher"
-          >
-            Abbrechen / Zurück
           </button>
         </div>
       </div>
@@ -437,26 +449,38 @@
       v-if="showCreatedVoucherModal && createdVoucherModalData"
       class="modal-overlay"
     >
-      <div class="modal-card created-voucher-modal">
-        <h3>{{ createdVoucherModalData.title }}</h3>
-        <p class="info-text">
-          {{ createdVoucherModalData.subtitle }}
-        </p>
-        <div class="created-voucher-box">
-          <div
-            v-for="voucherNumber in createdVoucherModalData.numbers"
-            :key="voucherNumber"
-            class="created-voucher-number"
+      <div class="modal-dialog created-voucher-modal">
+        <div class="modal-header">
+          <div class="modal-header-title">
+            <h3>{{ createdVoucherModalData.title }}</h3>
+          </div>
+          <button
+            class="close-btn"
+            @click="closeCreatedVoucherModal"
           >
-            {{ voucherNumber }}
+            ✕
+          </button>
+        </div>
+        <div class="modal-body">
+          <p class="info-text">
+            {{ createdVoucherModalData.subtitle }}
+          </p>
+          <div class="created-voucher-box">
+            <div
+              v-for="voucherNumber in createdVoucherModalData.numbers"
+              :key="voucherNumber"
+              class="created-voucher-number"
+            >
+              {{ voucherNumber }}
+            </div>
+          </div>
+          <div class="created-voucher-alert">
+            <p class="created-voucher-note">
+              {{ createdVoucherModalData.note }}
+            </p>
           </div>
         </div>
-        <div class="created-voucher-alert">
-          <p class="created-voucher-note">
-            {{ createdVoucherModalData.note }}
-          </p>
-        </div>
-        <div class="button-row created-voucher-actions">
+        <div class="modal-footer created-voucher-actions">
           <button
             v-if="createdVoucherModalData.showClubAccountButton"
             class="btn-secondary"
@@ -480,7 +504,7 @@
       :username="authStore.user?.username || ''"
       allow-username-edit
       confirm-label="Bestätigen"
-      @close="showPasswordModal = false"
+      @close="handlePasswordModalClose"
       @confirm="handlePasswordConfirmed"
     />
   </div>
@@ -633,7 +657,9 @@ const passwordModalTitle = computed(() => pendingVoucherAction.value === 'gift'
   ? 'Gutschein erstellen'
   : pendingVoucherAction.value === 'account'
     ? 'Gutscheinkonto aufladen'
-    : 'Verzehrkarte erstellen')
+    : pendingVoucherAction.value === 'edit'
+      ? 'Gutschein bearbeiten'
+      : 'Verzehrkarte erstellen')
 
 const createGiftVoucher = async () => {
   pendingVoucherAction.value = 'gift'
@@ -708,6 +734,11 @@ const submitPrepaidVoucher = async ({ username, password }) => {
   }
 }
 
+const handlePasswordModalClose = () => {
+  showPasswordModal.value = false
+  pendingVoucherAction.value = null
+}
+
 const handlePasswordConfirmed = async (credentials) => {
   showPasswordModal.value = false
   if (pendingVoucherAction.value === 'gift') {
@@ -722,6 +753,8 @@ const handlePasswordConfirmed = async (credentials) => {
     })
     clubAccountTopUp.value = ''
     await loadClubAccount()
+  } else if (pendingVoucherAction.value === 'edit') {
+    await submitVoucherEdit(credentials)
   }
   pendingVoucherAction.value = null
 }
@@ -876,6 +909,12 @@ const closeEditVoucher = () => {
 
 const saveVoucherEdit = async () => {
   if (!editingVoucher.value) return
+  pendingVoucherAction.value = 'edit'
+  showPasswordModal.value = true
+}
+
+const submitVoucherEdit = async ({ username, password }) => {
+  if (!editingVoucher.value) return
 
   updatingVoucher.value = true
   editError.value = null
@@ -885,6 +924,8 @@ const saveVoucherEdit = async () => {
       value_cents: Math.round(parseFloat(editForm.value.valueDisplay || '0') * 100),
       reason: editingVoucher.value.voucher_type === 'GIFT' ? editForm.value.reason : null,
       description: editForm.value.description || null,
+      auth_username: username,
+      auth_password: password,
     })
 
     const updatedVoucher = response.data
@@ -1369,23 +1410,92 @@ onMounted(() => {
   position: fixed;
   inset: 0;
   background: rgba(20, 24, 30, 0.45);
+  backdrop-filter: blur(4px);
   display: flex;
   align-items: center;
   justify-content: center;
   z-index: 1000;
 }
 
-.modal-card {
-  width: min(480px, calc(100vw - 2rem));
-  background: color-mix(in srgb, var(--app-background-color) 55%, white);
-  border-radius: 12px;
-  padding: 1.5rem;
-  box-shadow: 0 16px 40px rgba(15, 20, 28, 0.22);
+.modal-dialog {
+  width: min(520px, calc(100vw - 2rem));
+  background: #ffffff;
+  border-radius: 16px;
+  display: flex;
+  flex-direction: column;
+  box-shadow: 0 24px 50px rgba(15, 23, 42, 0.35);
+  overflow: hidden;
 }
 
-.button-row {
+.modal-header {
+  padding: 0.75rem 1.25rem;
+  border-bottom: 1px solid #e2e8f0;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  background: linear-gradient(90deg, #0f766e 0%, #0ea5e9 100%);
+  flex-shrink: 0;
+}
+
+.modal-header-title {
+  display: flex;
+  align-items: center;
+  min-width: 0;
+
+  h3 {
+    margin: 0;
+    color: #ffffff;
+    font-size: 1.05rem;
+    font-weight: 600;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  .header-pipe {
+    margin: 0 0.5rem;
+    opacity: 0.5;
+  }
+
+  .header-sub {
+    font-weight: 400;
+    opacity: 0.88;
+    font-size: 0.92rem;
+  }
+}
+
+.close-btn {
+  width: 34px;
+  height: 34px;
+  border-radius: 50%;
+  border: 1px solid rgba(255, 255, 255, 0.45);
+  background: rgba(255, 255, 255, 0.18);
+  color: #ffffff;
+  font-size: 1.1rem;
+  cursor: pointer;
+  display: grid;
+  place-items: center;
+  flex-shrink: 0;
+
+  &:hover {
+    background: rgba(255, 255, 255, 0.3);
+  }
+}
+
+.modal-body {
+  padding: 1rem 1.25rem;
+  overflow-y: auto;
+  flex: 1;
+}
+
+.modal-footer {
+  padding: 0.95rem 1.25rem;
+  border-top: 1px solid #e2e8f0;
   display: flex;
   gap: 0.75rem;
+  justify-content: flex-end;
+  background: #ffffff;
+  flex-shrink: 0;
 }
 
 @media (max-width: 768px) {

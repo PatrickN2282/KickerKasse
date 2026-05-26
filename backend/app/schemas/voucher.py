@@ -124,3 +124,5 @@ class VoucherUpdateRequest(BaseModel):
     value_cents: int = Field(..., ge=1, description="Value in cents")
     reason: Optional[Literal["DYP_SIEGER", "PROMOTION"]] = None
     description: Optional[str] = Field(None, max_length=255)
+    auth_username: Optional[str] = Field(default=None, min_length=1, max_length=50)
+    auth_password: str = Field(..., min_length=1)
