@@ -495,19 +495,38 @@ onMounted(() => {
   color: #1d4ed8;
 }
 
+.btn-primary { background: var(--primary); color: white; }
+.btn-success { background: var(--success); color: white; }
+.btn-secondary { background: #e2e8f0; color: #475569; }
+
+.btn-action {
+  border: 1px solid var(--border);
+  background: white;
+  color: #334155;
+  padding: 0.45rem 0.75rem;
+  border-radius: 6px;
+  cursor: pointer;
+  font-weight: 600;
+  font-size: 0.85rem;
+  transition: background-color 0.15s ease;
+
+  &:hover:not(:disabled) {
+    background: #f8fafc;
+  }
+
+  &:disabled {
+    opacity: 0.45;
+    cursor: not-allowed;
+  }
+}
+
 .btn-action-icon {
   width: 2rem;
   height: 2rem;
   padding: 0;
-  line-height: 1;
-  font-size: 1rem;
   border-radius: 8px;
-}
-
-.btn-action-manage-icon {
-  border-color: #bfdbfe;
-  background: #dbeafe;
-  color: #1e40af;
+  font-size: 1rem;
+  line-height: 1;
 }
 
 .btn-action-edit-icon {
@@ -520,6 +539,15 @@ onMounted(() => {
   border-color: #fecaca;
   background: #fee2e2;
   color: #b91c1c;
+}
+
+.btn-action-danger {
+  border-color: #fecaca;
+  color: #b91c1c;
+
+  &:hover {
+    background: #fef2f2;
+  }
 }
 
 .empty-state {
@@ -824,49 +852,8 @@ onMounted(() => {
   min-height: 40px;
 }
 
-.btn-primary {
-  background: var(--primary);
-  color: white;
-}
-
-.btn-success {
-  background: var(--success);
-  color: white;
-}
-
-.btn-secondary {
-  background: #e2e8f0;
-  color: #475569;
-}
-
 .btn-compact {
   white-space: nowrap;
-}
-
-.btn-action {
-  border: 1px solid var(--border);
-  background: white;
-  color: #334155;
-  padding: 0.45rem 0.75rem;
-  border-radius: 8px;
-  cursor: pointer;
-  font-weight: 600;
-  font-size: 0.85rem;
-  transition: background-color 0.15s ease;
-
-  &:hover:not(:disabled) {
-    background: #f8fafc;
-  }
-
-  &:disabled {
-    opacity: 0.45;
-    cursor: not-allowed;
-  }
-}
-
-.btn-action-danger {
-  border-color: #fecaca;
-  color: #b91c1c;
 }
 
 .close-btn {
