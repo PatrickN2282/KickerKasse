@@ -231,7 +231,7 @@ const sortedMembers = computed(() =>
   padding: 0;
   text-align: center;
   transition: all 0.18s;
-  height: 190px;
+  height: 185px;
   &:hover {
     border-color: var(--app-highlight-color);
     box-shadow: 0 4px 14px color-mix(in srgb, var(--app-highlight-color) 18%, transparent);
@@ -276,7 +276,7 @@ const sortedMembers = computed(() =>
   text-align: center;
 }
 .member-card-balance {
-  font-size: 1.5rem;
+  font-size: 1.15rem;
   font-weight: 800;
   color: var(--app-highlight-color);
 }
