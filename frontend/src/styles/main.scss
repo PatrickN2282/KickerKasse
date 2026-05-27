@@ -74,36 +74,15 @@ img {
 
 /* ================================================================
    UNIFIED MODAL DESIGN
-   ================================================================
-
-   FIX 1 – Overlay-Positionierung:
-   align-items: flex-start verhindert, dass zentrierte Modals bei
-   viel Inhalt oben aus dem Viewport laufen. Kurze Modals werden
-   trotzdem zentriert, weil das Dialog-Element margin: auto bekommt.
-
-   FIX 2 – Scroll-Indikator via background-attachment: local/scroll:
-   Ein rein-CSS-Trick: Die weißen "Abdeckschichten" scrollen mit dem
-   Inhalt (local), die Schatten-Gradienten bleiben fix (scroll).
-   Dadurch ist der untere Schatten nur sichtbar, wenn noch Inhalt
-   darunter liegt – komplett ohne JavaScript.
-
-   FIX 3 – justify-content im Body auf flex-start:
-   Verhindert, dass kurze Formularinhalte vertikal in der Mitte
-   schweben, was bei Inputs seltsam wirkt.
    ================================================================ */
 
 :where(.modal-overlay, .admin-modal-overlay, .confirmation-overlay) {
   position: fixed !important;
   inset: 0 !important;
   display: flex !important;
-
-  /* FIX 1: flex-start statt center – Inhalt wird nie oben abgeschnitten */
   align-items: flex-start !important;
   justify-content: center !important;
-
-  /* Mehr Padding oben damit Header-Luft bleibt; unten symmetrisch */
   padding: max(5vh, 3rem) 1.25rem max(3vh, 1.5rem) !important;
-
   background: rgba(15, 23, 42, 0.62) !important;
   backdrop-filter: blur(6px) !important;
   z-index: 3000 !important;
@@ -112,11 +91,6 @@ img {
 
 :where(.modal-overlay, .admin-modal-overlay, .confirmation-overlay)
   :is(.modal-dialog, .modal-card, .modal-content, .admin-modal, .kk-dialog) {
-  /* FIX 4 – Inhaltbasierte Breite & Höhe:
-     fit-content lässt das Modal so breit/hoch werden wie sein Inhalt es verlangt
-     (Header, Body und Footer werden alle berücksichtigt). max-width/max-height
-     begrenzen auf 85vw/85vh damit das Modal nie den Viewport sprengt.
-     min-width verhindert zu schmale Modals auf leeren/kurzen Inhalten. */
   width: fit-content !important;
   min-width: min(420px, calc(100vw - 2.5rem)) !important;
   max-width: min(85vw, 1200px) !important;
@@ -130,16 +104,25 @@ img {
   display: flex !important;
   flex-direction: column !important;
   overflow: hidden !important;
-
-  /* margin: auto zentriert kurze Modals trotzdem vertikal */
   margin: auto !important;
 }
 
 :where(.modal-overlay, .admin-modal-overlay, .confirmation-overlay)
   :is(.modal-dialog, .modal-card, .admin-modal, .kk-dialog):not(.modal-compact):not(.created-voucher-modal) {
-  /* Nicht-kompakte Modals haben eine großzügigere Mindestbreite damit
-     Formulare und Tabellen nicht zu eng werden */
   min-width: min(650px, calc(100vw - 2.5rem)) !important;
+}
+
+/* ================================================================
+   FULLSIZE MODAL OVERRIDE
+   Für Modals die explizit 85vw/85vh benötigen (z.B. MemberModal)
+   ================================================================ */
+:where(.modal-overlay, .admin-modal-overlay, .confirmation-overlay)
+  .modal-dialog--fullsize {
+  width: 85vw !important;
+  max-width: 85vw !important;
+  height: 85vh !important;
+  max-height: 85vh !important;
+  max-height: 85dvh !important;
 }
 
 :where(.modal-overlay, .admin-modal-overlay, .confirmation-overlay)
@@ -154,8 +137,6 @@ img {
   font-size: clamp(1.15rem, 1rem + 0.45vw, 1.55rem) !important;
   font-weight: 700 !important;
   margin: 0 !important;
-  /* white-space: nowrap lässt den Titel die Modal-Breite nach oben treiben
-     (bis max-width greift). Erst dann wird mit ellipsis gekürzt. */
   white-space: nowrap !important;
   overflow: hidden !important;
   text-overflow: ellipsis !important;
@@ -192,7 +173,6 @@ img {
 
 :where(.modal-overlay, .admin-modal-overlay, .confirmation-overlay)
   :is(.modal-subtitle, .kk-dialog__subtitle, .subtitle)::before {
-  /* override per modal via --modal-subtitle-separator, e.g. "|" or "•" */
   content: var(--modal-subtitle-separator, '|');
   opacity: 0.72;
   margin-right: 0.2rem;
@@ -206,16 +186,8 @@ img {
   overflow-x: hidden !important;
   display: flex !important;
   flex-direction: column !important;
-
-  /* FIX 3: flex-start statt center – Inhalte beginnen oben */
   justify-content: flex-start !important;
 
-  /* Hintergrund: Schichten von vorne nach hinten
-     1+2  – lokale Abdeckblenden für den Scroll-Indikator-Trick (FIX 2)
-     3+4  – Schatten-Gradienten (fix, scheinen durch wenn scrollbar)
-     5    – vertikaler Verlauf oben heller, unten minimal dunkler
-     6    – diagonales Linienmuster (Option C) als feinste Basis-Schicht
-     Inputs und Cards bleiben #ffffff und heben sich dadurch klar ab. */
   background:
     linear-gradient(
       to bottom,
@@ -288,7 +260,6 @@ img {
   :is(.modal-footer, .admin-modal-footer, .kk-dialog__footer) {
   margin-top: auto !important;
   flex-shrink: 0 !important;
-  /* Footer passend zum unteren Verlaufsende des Body, mit feiner Trennlinie */
   background: #e4e7ea !important;
   border-top: 1px solid rgba(15, 23, 42, 0.08) !important;
 }
@@ -322,7 +293,6 @@ img {
 
   :where(.modal-overlay, .admin-modal-overlay, .confirmation-overlay)
     :is(.modal-dialog, .modal-card, .modal-content, .admin-modal, .kk-dialog) {
-    /* Auf Mobile fit-content aufheben – volle verfügbare Breite nutzen */
     width: calc(100vw - 1.5rem) !important;
     max-width: 100% !important;
     min-width: 0 !important;
