@@ -110,6 +110,7 @@
       :auth-is-top-admin="authStore.isTopAdmin"
       :has-existing-user-account="hasExistingUserAccount"
       :photo-preview="photoPreview"
+      :is-gif="photoIsGif"
       :member-photo-alt="memberPhotoAlt"
       :current-member-balance-display="formatBalance(currentMemberBalance || 0)"
       v-model:form-data="formData"
@@ -172,6 +173,7 @@ const photoFile = ref(null)
 const photoPreview = ref(null)
 const photoOriginalSrc = ref(null)
 const photoOriginalFile = ref(null)
+const photoIsGif = ref(false)
 const photoCropSource = ref(null)
 const pendingPhotoOriginalSrc = ref(null)
 const showPhotoCropModal = ref(false)
@@ -267,6 +269,7 @@ const handlePhotoUpload = async (event) => {
     const dataUrl = await readFileAsDataUrl(file)
     if (isGifFile(file)) {
       photoFile.value = file
+      photoIsGif.value = true
       photoPreview.value = dataUrl
       photoOriginalSrc.value = dataUrl
       photoOriginalFile.value = file
@@ -303,6 +306,7 @@ const closePhotoEditor = () => {
 
 const handlePhotoCropApply = ({ blob, dataUrl }) => {
   photoFile.value = new File([blob], 'member-photo.jpg', { type: 'image/jpeg' })
+  photoIsGif.value = false
   photoPreview.value = dataUrl
   photoOriginalSrc.value = pendingPhotoOriginalSrc.value || photoOriginalSrc.value
   photoPendingOriginalUpload.value = Boolean(pendingPhotoOriginalSrc.value)
@@ -317,6 +321,7 @@ const requestPhotoRemoval = () => {
   photoFile.value = null
   photoOriginalSrc.value = null
   photoOriginalFile.value = null
+  photoIsGif.value = false
   photoCropSource.value = null
   pendingPhotoOriginalSrc.value = null
   showPhotoCropModal.value = false
@@ -453,6 +458,7 @@ const editMember = async (member) => {
   })
   const cacheBust = Date.now()
   photoPreview.value = member.photo_path ? withCacheBust(`/api/members/${member.id}/photo`, cacheBust) : null
+  photoIsGif.value = member.photo_path ? member.photo_path.toLowerCase().endsWith('.gif') : false
   photoOriginalSrc.value = null
   photoOriginalFile.value = null
   photoPendingOriginalUpload.value = false
@@ -505,6 +511,7 @@ const resetForm = () => {
   photoPreview.value = null
   photoOriginalSrc.value = null
   photoOriginalFile.value = null
+  photoIsGif.value = false
   photoCropSource.value = null
   pendingPhotoOriginalSrc.value = null
   showPhotoCropModal.value = false

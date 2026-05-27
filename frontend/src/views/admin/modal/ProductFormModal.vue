@@ -16,13 +16,8 @@
               <span class="section-label">Produktbild Vorschau</span>
 
               <template v-if="imagePreviewSrc">
-                <button
-                  type="button"
-                  class="image-preview-trigger"
-                  aria-label="Produktbild anpassen"
-                  @click="$emit('open-crop')"
-                >
-                  <div class="kasse-card-preview interactive-image-card">
+                <template v-if="isGif">
+                  <div class="kasse-card-preview">
                     <div class="card-img">
                       <span v-if="formData.memberPrice !== null && formData.memberPrice !== ''" class="card-badge discount-badge">Rabatt</span>
                       <img
@@ -31,7 +26,7 @@
                         class="preview-crop-img preview-static-img"
                         draggable="false"
                       >
-                      <span class="image-preview-overlay">Anpassen</span>
+                      <span class="gif-badge">GIF 🎬</span>
                     </div>
                     <div class="card-body">
                       <div class="card-name">{{ formData.name || 'Produktname' }}</div>
@@ -41,7 +36,40 @@
                       </div>
                     </div>
                   </div>
-                </button>
+                  <label class="upload-button hint-upload gif-replace-btn">
+                    Bild ersetzen
+                    <input id="image" type="file" accept="image/*" hidden @change="$emit('image-upload', $event)">
+                  </label>
+                </template>
+
+                <template v-else>
+                  <button
+                    type="button"
+                    class="image-preview-trigger"
+                    aria-label="Produktbild anpassen"
+                    @click="$emit('open-crop')"
+                  >
+                    <div class="kasse-card-preview interactive-image-card">
+                      <div class="card-img">
+                        <span v-if="formData.memberPrice !== null && formData.memberPrice !== ''" class="card-badge discount-badge">Rabatt</span>
+                        <img
+                          :src="imagePreviewSrc"
+                          :alt="productPreviewAlt"
+                          class="preview-crop-img preview-static-img"
+                          draggable="false"
+                        >
+                        <span class="image-preview-overlay">Anpassen</span>
+                      </div>
+                      <div class="card-body">
+                        <div class="card-name">{{ formData.name || 'Produktname' }}</div>
+                        <div class="card-bottom">
+                          <span class="card-price">{{ previewPriceText }}</span>
+                          <span class="card-stock">{{ formData.isUnlimitedStock ? '∞' : formData.stock }}</span>
+                        </div>
+                      </div>
+                    </div>
+                  </button>
+                </template>
               </template>
 
               <template v-else>
@@ -145,6 +173,7 @@ defineProps({
   show: { type: Boolean, required: true },
   editingId: { type: [Number, String], default: null },
   imagePreviewSrc: { type: String, default: null },
+  isGif: { type: Boolean, default: false },
   productPreviewAlt: { type: String, default: '' },
   previewPriceText: { type: String, default: '' },
   warengruppeOptions: { type: Array, required: true },
@@ -315,6 +344,23 @@ defineEmits(['close', 'save', 'open-crop', 'image-upload', 'unlimited-stock-chan
   font-size: 0.85rem;
   text-align: center;
   padding: 0.5rem;
+}
+
+.gif-replace-btn {
+  margin-top: 0.4rem;
+}
+
+.gif-badge {
+  position: absolute;
+  bottom: 3px;
+  right: 3px;
+  z-index: 1;
+  font-size: 9px;
+  font-weight: 800;
+  padding: 2px 4px;
+  border-radius: 3px;
+  background: #fef3c7;
+  color: #92400e;
 }
 
 .fields-section {

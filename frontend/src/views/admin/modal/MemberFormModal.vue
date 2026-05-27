@@ -14,29 +14,44 @@
           <div class="main-form-grid">
             <div class="image-upload-section">
               <span class="section-label">Foto</span>
-              <button
-                v-if="photoPreview"
-                type="button"
-                class="image-preview-trigger"
-                aria-label="Foto anpassen"
-                @click="$emit('open-photo-editor')"
-              >
-                <div class="avatar-display compact-avatar interactive-image-frame">
+              <template v-if="photoPreview && isGif">
+                <div class="avatar-display compact-avatar gif-preview-frame">
                   <img :src="photoPreview" :alt="memberPhotoAlt" class="profile-img">
-                  <span class="image-preview-overlay">Anpassen</span>
+                  <span class="gif-badge">GIF 🎬</span>
                 </div>
-              </button>
-              <div v-else class="avatar-display compact-avatar">
-                <div class="photo-placeholder">
-                  <span>Kein Bild ausgewählt</span>
+                <div class="image-action-buttons">
+                  <label class="upload-button btn-action">
+                    Foto ersetzen
+                    <input type="file" hidden accept="image/*" @change="$emit('photo-upload', $event)">
+                  </label>
                 </div>
-              </div>
-              <div v-if="!photoPreview" class="image-action-buttons">
-                <label class="upload-button btn-action">
-                  Bild auswählen
-                  <input type="file" hidden accept="image/*" @change="$emit('photo-upload', $event)">
-                </label>
-              </div>
+              </template>
+              <template v-else-if="photoPreview">
+                <button
+                  type="button"
+                  class="image-preview-trigger"
+                  aria-label="Foto anpassen"
+                  @click="$emit('open-photo-editor')"
+                >
+                  <div class="avatar-display compact-avatar interactive-image-frame">
+                    <img :src="photoPreview" :alt="memberPhotoAlt" class="profile-img">
+                    <span class="image-preview-overlay">Anpassen</span>
+                  </div>
+                </button>
+              </template>
+              <template v-else>
+                <div class="avatar-display compact-avatar">
+                  <div class="photo-placeholder">
+                    <span>Kein Bild ausgewählt</span>
+                  </div>
+                </div>
+                <div class="image-action-buttons">
+                  <label class="upload-button btn-action">
+                    Bild auswählen
+                    <input type="file" hidden accept="image/*" @change="$emit('photo-upload', $event)">
+                  </label>
+                </div>
+              </template>
 
               <label class="checkbox-card compact-cb">
                 <input v-model="formData.has_discount" type="checkbox">
@@ -137,6 +152,7 @@ defineProps({
   authIsTopAdmin: { type: Boolean, default: false },
   hasExistingUserAccount: { type: Boolean, default: false },
   photoPreview: { type: String, default: null },
+  isGif: { type: Boolean, default: false },
   memberPhotoAlt: { type: String, default: '' },
   currentMemberBalanceDisplay: { type: String, default: '' },
 })
@@ -309,6 +325,23 @@ defineEmits(['close', 'save', 'open-photo-editor', 'photo-upload', 'open-recharg
 
 .profile-img { width: 100%; height: 100%; object-fit: cover; }
 .photo-placeholder { height: 100%; display: flex; align-items: center; justify-content: center; color: #94a3b8; font-size: 0.8rem; text-align: center; }
+
+.gif-preview-frame {
+  position: relative;
+}
+
+.gif-badge {
+  position: absolute;
+  bottom: 4px;
+  right: 4px;
+  z-index: 1;
+  font-size: 9px;
+  font-weight: 800;
+  padding: 2px 5px;
+  border-radius: 3px;
+  background: #fef3c7;
+  color: #92400e;
+}
 
 .compact-summary {
   background: #ecfdf5;
