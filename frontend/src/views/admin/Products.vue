@@ -110,6 +110,7 @@
       :editing-id="editingId"
       v-model:form-data="formData"
       :image-preview-src="imagePreviewSrc"
+      :is-gif="imageIsGif"
       :product-preview-alt="productPreviewAlt"
       :preview-price-text="previewPriceText"
       :warengruppe-options="warengruppeOptions"
@@ -164,6 +165,7 @@ const imagePreviewSrc = ref(null)
 const imageFile = ref(null)
 const imageOriginalSrc = ref(null)
 const imageOriginalFile = ref(null)
+const imageIsGif = ref(false)
 const cropModalImageSrc = ref(null)
 const pendingOriginalImageSrc = ref(null)
 const imageDeleteRequested = ref(false)
@@ -294,6 +296,7 @@ const handleCropClose = () => {
 
 const handleCropApply = ({ blob, dataUrl }) => {
   imageFile.value = new File([blob], 'product-image.jpg', { type: 'image/jpeg' })
+  imageIsGif.value = false
   imagePreviewSrc.value = dataUrl
   imageOriginalSrc.value = pendingOriginalImageSrc.value || imageOriginalSrc.value
   imagePendingOriginalUpload.value = Boolean(pendingOriginalImageSrc.value)
@@ -321,6 +324,7 @@ const handleImageUpload = async (event) => {
     const dataUrl = await readFileAsDataUrl(file)
     if (isGifFile(file)) {
       imageFile.value = file
+      imageIsGif.value = true
       imagePreviewSrc.value = dataUrl
       imageOriginalSrc.value = dataUrl
       imageOriginalFile.value = file
@@ -346,6 +350,7 @@ const requestImageRemoval = () => {
   imageFile.value = null
   imageOriginalSrc.value = null
   imageOriginalFile.value = null
+  imageIsGif.value = false
   cropModalImageSrc.value = null
   pendingOriginalImageSrc.value = null
   imagePendingOriginalUpload.value = false
@@ -507,6 +512,7 @@ const resetForm = () => {
   imagePreviewSrc.value = null
   imageOriginalSrc.value = null
   imageOriginalFile.value = null
+  imageIsGif.value = false
   cropModalImageSrc.value = null
   pendingOriginalImageSrc.value = null
   imageDeleteRequested.value = false
@@ -531,6 +537,7 @@ const editProduct = async (product) => {
   imagePreviewSrc.value = null
   imageOriginalSrc.value = null
   imageOriginalFile.value = null
+  imageIsGif.value = false
   cropModalImageSrc.value = null
   pendingOriginalImageSrc.value = null
   imageDeleteRequested.value = false
@@ -542,6 +549,7 @@ const editProduct = async (product) => {
     const cacheBust = Date.now()
     const previewUrl = withCacheBust(`/api/products/${product.id}/image`, cacheBust)
     imagePreviewSrc.value = previewUrl
+    imageIsGif.value = product.image_path.toLowerCase().endsWith('.gif')
     imageOriginalSrc.value = null
     try {
       const originalUrl = withCacheBust(`/api/products/${product.id}/original-image`, cacheBust)
@@ -549,7 +557,6 @@ const editProduct = async (product) => {
         imageOriginalSrc.value = originalUrl
       }
     } catch {
-      imagePreviewSrc.value = null
       imageOriginalSrc.value = null
       notificationStore.warning('Das bestehende Produktbild konnte nicht geladen werden.')
     }
