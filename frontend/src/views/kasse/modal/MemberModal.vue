@@ -205,7 +205,7 @@ const sortedMembers = computed(() =>
   gap: 0.5rem;
   align-content: start;
 }
-@media (max-width: 640px) {
+@media (max-width: 85vw) {
   .modal-overlay {
     padding: 0.75rem;
     align-items: stretch;
