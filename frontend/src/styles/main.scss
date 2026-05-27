@@ -72,14 +72,38 @@ img {
   border-radius: 4px;
 }
 
-/* ---- Unified modal design ---- */
+/* ================================================================
+   UNIFIED MODAL DESIGN
+   ================================================================
+
+   FIX 1 – Overlay-Positionierung:
+   align-items: flex-start verhindert, dass zentrierte Modals bei
+   viel Inhalt oben aus dem Viewport laufen. Kurze Modals werden
+   trotzdem zentriert, weil das Dialog-Element margin: auto bekommt.
+
+   FIX 2 – Scroll-Indikator via background-attachment: local/scroll:
+   Ein rein-CSS-Trick: Die weißen "Abdeckschichten" scrollen mit dem
+   Inhalt (local), die Schatten-Gradienten bleiben fix (scroll).
+   Dadurch ist der untere Schatten nur sichtbar, wenn noch Inhalt
+   darunter liegt – komplett ohne JavaScript.
+
+   FIX 3 – justify-content im Body auf flex-start:
+   Verhindert, dass kurze Formularinhalte vertikal in der Mitte
+   schweben, was bei Inputs seltsam wirkt.
+   ================================================================ */
+
 :where(.modal-overlay, .admin-modal-overlay, .confirmation-overlay) {
   position: fixed !important;
   inset: 0 !important;
   display: flex !important;
-  align-items: center !important;
+
+  /* FIX 1: flex-start statt center – Inhalt wird nie oben abgeschnitten */
+  align-items: flex-start !important;
   justify-content: center !important;
-  padding: 1.25rem !important;
+
+  /* Mehr Padding oben damit Header-Luft bleibt; unten symmetrisch */
+  padding: max(5vh, 3rem) 1.25rem max(3vh, 1.5rem) !important;
+
   background: rgba(15, 23, 42, 0.62) !important;
   backdrop-filter: blur(6px) !important;
   z-index: 3000 !important;
@@ -90,13 +114,16 @@ img {
   :is(.modal-dialog, .modal-card, .modal-content, .admin-modal, .kk-dialog) {
   width: min(85vw, 1200px) !important;
   height: auto !important;
-  max-height: 85vh !important;
-  max-height: 85dvh !important;
+  max-height: calc(100vh - max(10vh, 6rem)) !important;
+  max-height: calc(100dvh - max(10vh, 6rem)) !important;
   border-radius: 16px !important;
   box-shadow: 0 24px 50px rgba(15, 23, 42, 0.35) !important;
   display: flex !important;
   flex-direction: column !important;
   overflow: hidden !important;
+
+  /* FIX 1: margin: auto zentriert kurze Modals trotzdem vertikal */
+  margin: auto !important;
 }
 
 :where(.modal-overlay, .admin-modal-overlay, .confirmation-overlay)
@@ -163,7 +190,45 @@ img {
   overflow-x: hidden !important;
   display: flex !important;
   flex-direction: column !important;
-  justify-content: center !important;
+
+  /* FIX 3: flex-start statt center – Inhalte beginnen oben, kein vertikales Schweben */
+  justify-content: flex-start !important;
+
+  /* FIX 2: Scroll-Indikator via background-attachment local/scroll.
+     Die weißen Blenden (Schicht 1+2) scrollen MIT dem Inhalt (local)
+     und decken die Schatten (Schicht 3+4) ab solange kein Overflow vorliegt.
+     Sobald gescrollt werden kann, schaut der Schatten darunter hervor.
+     Kein JavaScript nötig. */
+  background:
+    /* Obere weiße Abdeckblende (scrollt mit) */
+    linear-gradient(
+      to bottom,
+      var(--app-surface-color) 40%,
+      transparent 100%
+    ) center top / 100% 3rem no-repeat local,
+
+    /* Untere weiße Abdeckblende (scrollt mit) */
+    linear-gradient(
+      to top,
+      var(--app-surface-color) 40%,
+      transparent 100%
+    ) center bottom / 100% 3rem no-repeat local,
+
+    /* Oberer Schattenindikator (bleibt fix) */
+    radial-gradient(
+      farthest-side at 50% 0%,
+      rgba(15, 23, 42, 0.18),
+      transparent
+    ) center top / 100% 14px no-repeat scroll,
+
+    /* Unterer Schattenindikator (bleibt fix) – Hauptindikator */
+    radial-gradient(
+      farthest-side at 50% 100%,
+      rgba(15, 23, 42, 0.22),
+      transparent
+    ) center bottom / 100% 14px no-repeat scroll !important;
+
+  background-color: var(--app-surface-color) !important;
 }
 
 :where(.modal-overlay, .admin-modal-overlay, .confirmation-overlay)
@@ -222,7 +287,7 @@ img {
 @media (max-width: 760px) {
   :where(.modal-overlay, .admin-modal-overlay, .confirmation-overlay) {
     padding: 0.75rem !important;
-    align-items: flex-start !important;
+    /* Auf Mobile ebenfalls flex-start, kein separater Override nötig */
   }
 
   :where(.modal-overlay, .admin-modal-overlay, .confirmation-overlay)
@@ -233,5 +298,7 @@ img {
     min-height: 0 !important;
     max-height: calc(100vh - 1.5rem) !important;
     max-height: calc(100dvh - 1.5rem) !important;
+    /* margin: auto sorgt auch auf Mobile für Zentrierung wenn Inhalt kurz ist */
+    margin: auto !important;
   }
 }
