@@ -231,7 +231,7 @@ const sortedMembers = computed(() =>
   padding: 0;
   text-align: center;
   transition: all 0.18s;
-  height: 200px;
+  height: 190px;
   &:hover {
     border-color: var(--app-highlight-color);
     box-shadow: 0 4px 14px color-mix(in srgb, var(--app-highlight-color) 18%, transparent);
@@ -265,7 +265,7 @@ const sortedMembers = computed(() =>
   min-height: 0;
 }
 .member-card-name {
-  font-size: 0.95rem;
+  font-size: 1.25rem;
   font-weight: 700;
   line-height: 1.2;
   color: #111827;
@@ -276,7 +276,7 @@ const sortedMembers = computed(() =>
   text-align: center;
 }
 .member-card-balance {
-  font-size: 1rem;
+  font-size: 1.5rem;
   font-weight: 800;
   color: var(--app-highlight-color);
 }
