@@ -1,6 +1,6 @@
 <template>
   <div class="modal-overlay">
-    <div class="modal-dialog">
+    <div class="modal-dialog modal-dialog--fullsize">
       <div class="modal-header">
         <div class="modal-header-title">
           <h3>Mitglied auswählen <span class="header-pipe">|</span> <span class="header-sub">Mitglied für die Buchung auswählen</span></h3>
@@ -103,14 +103,16 @@ const sortedMembers = computed(() =>
 .modal-dialog {
   background: #ffffff;
   border-radius: 16px;
-  width: 85vw;
-  height: 85vh;
-  max-width: 85vw;
-  max-height: 85vh;
   display: flex;
   flex-direction: column;
   box-shadow: 0 24px 50px rgba(15, 23, 42, 0.35);
   overflow: hidden;
+}
+.modal-dialog--fullsize {
+  width: 85vw !important;
+  max-width: 85vw !important;
+  height: 85vh !important;
+  max-height: 85vh !important;
 }
 .modal-header {
   padding: 0.75rem 1.25rem;
@@ -210,11 +212,11 @@ const sortedMembers = computed(() =>
     padding: 0.75rem;
     align-items: stretch;
   }
-  .modal-dialog {
-    width: 100%;
-    height: auto;
-    max-height: calc(100vh - 1.5rem);
-    max-width: 100%;
+  .modal-dialog--fullsize {
+    width: 100% !important;
+    height: auto !important;
+    max-height: calc(100vh - 1.5rem) !important;
+    max-width: 100% !important;
   }
   .member-grid {
     grid-template-columns: repeat(auto-fill, minmax(100px, 1fr));
