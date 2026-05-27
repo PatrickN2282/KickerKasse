@@ -265,7 +265,7 @@ const sortedMembers = computed(() =>
   transform: translateX(-50%);
   background: rgba(255, 255, 255, 0.92);
   color: var(--app-highlight-color);
-  font-size: 0.82rem;
+  font-size: 1.0rem;
   font-weight: 700;
   padding: 0.25rem 0.6rem;
   border-radius: 20px;
@@ -284,7 +284,7 @@ const sortedMembers = computed(() =>
   min-height: 0;
 }
 .member-card-name {
-  font-size: 0.9rem;
+  font-size: 1.1rem;
   font-weight: 700;
   line-height: 1.2;
   color: #111827;
