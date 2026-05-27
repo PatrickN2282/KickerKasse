@@ -2552,7 +2552,7 @@ onBeforeUnmount(() => {
   gap: 0.5rem;
   flex-wrap: wrap;
   margin: 0 -1rem 1rem;
-  padding: 0.75rem 1rem;
+  padding: 0.35rem 1rem 0.75rem;
   border-bottom: 1px solid rgba(0, 0, 0, 0.13);
 }
 
@@ -2561,7 +2561,7 @@ onBeforeUnmount(() => {
   top: 0;
   z-index: 20;
   background: var(--app-background-color);
-  padding: 0.75rem 1rem;
+  padding: 0.35rem 1rem 0.75rem;
   border-bottom: 2px solid #e2e8f0;
   margin-bottom: 1.5rem;
 }
@@ -2585,7 +2585,7 @@ onBeforeUnmount(() => {
 }
 
 .page-subtitle {
-  color: #556;
+  color: #64748b;
   font-size: 0.82rem;
   margin: 0;
 }

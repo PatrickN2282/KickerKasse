@@ -52,7 +52,15 @@
             <td>
               <div class="product-count-cell">
                 <span class="product-count-badge">{{ assignedProducts(category.id).length }}</span>
-                <button class="btn-action" @click="openAssignModal(category)">Verwalten</button>
+                <button
+                  class="btn-action btn-action-icon btn-action-manage-icon"
+                  type="button"
+                  title="Artikelzuordnung bearbeiten"
+                  aria-label="Artikelzuordnung bearbeiten"
+                  @click="openAssignModal(category)"
+                >
+                  ⚙️
+                </button>
               </div>
             </td>
             <td class="text-right">
@@ -285,7 +293,7 @@ onMounted(() => {
   --primary: #3b82f6;
   --success: #10b981;
   --border: #e2e8f0;
-  padding: 0.75rem 1rem;
+  padding: 0.35rem 1rem 0.75rem;
   background: var(--app-background-color);
   min-height: 100%;
 }
@@ -298,8 +306,8 @@ onMounted(() => {
   display: flex;
   flex-direction: column;
   gap: 0.5rem;
-  margin: -0.75rem -1rem 0.75rem;
-  padding: 0.75rem 1rem;
+  margin: -0.35rem -1rem 0.75rem;
+  padding: 0.35rem 1rem 0.75rem;
   border-bottom: 1px solid rgba(0, 0, 0, 0.13);
 
   h2 {
@@ -397,9 +405,6 @@ onMounted(() => {
   align-items: center;
   justify-content: flex-end;
   gap: 0.5rem;
-  flex-wrap: wrap;
-  white-space: nowrap;
-  width: 100%;
 }
 
 .assignment-cell {
@@ -496,6 +501,13 @@ onMounted(() => {
   padding: 0;
   line-height: 1;
   font-size: 1rem;
+  border-radius: 8px;
+}
+
+.btn-action-manage-icon {
+  border-color: #bfdbfe;
+  background: #dbeafe;
+  color: #1e40af;
 }
 
 .btn-action-edit-icon {
@@ -839,6 +851,12 @@ onMounted(() => {
   border-radius: 8px;
   cursor: pointer;
   font-weight: 600;
+  font-size: 0.85rem;
+  transition: background-color 0.15s ease;
+
+  &:hover:not(:disabled) {
+    background: #f8fafc;
+  }
 
   &:disabled {
     opacity: 0.45;

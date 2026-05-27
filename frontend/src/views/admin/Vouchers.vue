@@ -2,7 +2,7 @@
   <div class="vouchers-container">
     <div class="page-header">
       <div class="title-row">
-        <h2>🎫 Gutscheine</h2>
+        <h2>Gutscheinverwaltung</h2>
         <span class="title-sep">|</span>
         <span class="page-subtitle">Gutscheine erstellen und verwalten.</span>
       </div>
@@ -273,7 +273,10 @@
                 <div class="action-cell">
                   <button
                     v-if="authStore.isAdmin && voucher.status === 'CREATED'"
-                    class="btn-small btn-edit"
+                    class="btn-action btn-action-icon btn-action-edit-icon"
+                    type="button"
+                    title="Bearbeiten"
+                    aria-label="Bearbeiten"
                     @click="openEditVoucher(voucher)"
                   >
                     ✏️
@@ -900,7 +903,7 @@ onMounted(() => {
 
 <style scoped lang="scss">
 .vouchers-container {
-  padding: 0.75rem 1rem;
+  padding: 0.35rem 1rem 0.75rem;
   background: var(--app-background-color);
   min-height: 100%;
 }
@@ -913,8 +916,8 @@ onMounted(() => {
   display: flex;
   flex-direction: column;
   gap: 0.5rem;
-  margin: -0.75rem -1rem 1rem;
-  padding: 0.75rem 1rem;
+  margin: -0.35rem -1rem 1rem;
+  padding: 0.35rem 1rem 0.75rem;
   border-bottom: 1px solid rgba(0, 0, 0, 0.13);
 }
 
@@ -937,8 +940,7 @@ onMounted(() => {
 }
 
 .page-subtitle {
-  color: #556;
-  font-size: 0.82rem;
+  color: #64748b;
   margin: 0;
 }
 
@@ -981,12 +983,12 @@ onMounted(() => {
 
 @media (max-width: 700px) {
   .vouchers-container {
-    padding: 1rem;
+    padding: 0.5rem 1rem 1rem;
   }
 
   .page-header {
-    margin: -1rem -1rem 1rem;
-    padding: 1rem;
+    margin: -0.5rem -1rem 1rem;
+    padding: 0.5rem 1rem 0.85rem;
   }
 }
 .manage-section {
@@ -1291,10 +1293,6 @@ onMounted(() => {
   }
 }
 
-.btn-edit {
-  background: #ff6b35;
-}
-
 .action-cell {
   display: flex;
   align-items: center;
@@ -1302,6 +1300,37 @@ onMounted(() => {
   gap: 0.35rem;
   flex-wrap: wrap;
   width: 100%;
+}
+
+.btn-action {
+  border: 1px solid #e2e8f0;
+  background: #ffffff;
+  color: #334155;
+  padding: 0.45rem 0.75rem;
+  border-radius: 6px;
+  cursor: pointer;
+  font-weight: 600;
+  font-size: 0.85rem;
+  transition: background-color 0.15s ease;
+
+  &:hover {
+    background: #f8fafc;
+  }
+}
+
+.btn-action-icon {
+  width: 2rem;
+  height: 2rem;
+  padding: 0;
+  border-radius: 8px;
+  font-size: 1rem;
+  line-height: 1;
+}
+
+.btn-action-edit-icon {
+  border-color: #fed7aa;
+  background: #ffedd5;
+  color: #9a3412;
 }
 
 .modal-overlay {

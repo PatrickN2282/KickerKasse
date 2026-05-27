@@ -300,11 +300,11 @@ const productStore = useProductStore()
 const notificationStore = useNotificationStore()
 
 const subTabs = [
-  { id: 'members', label: 'Mitglieder', icon: '👥' },
   { id: 'products', label: 'Produkte', icon: '📦' },
+  { id: 'members', label: 'Mitglieder', icon: '👥' },
 ]
 
-const activeTab = ref('members')
+const activeTab = ref('products')
 const selectedMemberId = ref(null)
 const selectedProductId = ref(null)
 const memberSearch = ref('')
@@ -519,7 +519,7 @@ onMounted(() => {
   gap: 0.5rem;
   flex-wrap: wrap;
   margin: 0 -1rem 0.6rem;
-  padding: 0.75rem 1rem;
+  padding: 0.35rem 1rem 0.75rem;
   border-bottom: 1px solid rgba(0, 0, 0, 0.13);
 
   h2 {
