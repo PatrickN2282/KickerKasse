@@ -96,6 +96,7 @@ img {
 
 :where(.modal-overlay, .admin-modal-overlay, .confirmation-overlay)
   :is(.modal-dialog, .modal-card, .admin-modal, .kk-dialog):not(.modal-compact):not(.created-voucher-modal) {
+  /* created-voucher-modal intentionally stays compact for short confirmation content */
   min-width: min(650px, calc(100vw - 2.5rem)) !important;
   min-height: min(650px, calc(100vh - 2.5rem)) !important;
 }
@@ -121,6 +122,7 @@ img {
 
 :where(.modal-overlay, .admin-modal-overlay, .confirmation-overlay)
   :is(.modal-subtitle, .kk-dialog__subtitle)::before {
+  /* override per modal via --modal-subtitle-separator, e.g. "|" or "•" */
   content: var(--modal-subtitle-separator, '|');
   opacity: 0.72;
   margin-right: 0.2rem;
@@ -185,6 +187,7 @@ img {
     max-width: 100% !important;
     min-width: 0 !important;
     min-height: 0 !important;
+    max-height: calc(100vh - 1.5rem) !important;
     max-height: calc(100dvh - 1.5rem) !important;
   }
 }
