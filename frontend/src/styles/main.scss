@@ -112,23 +112,33 @@ img {
 
 :where(.modal-overlay, .admin-modal-overlay, .confirmation-overlay)
   :is(.modal-dialog, .modal-card, .modal-content, .admin-modal, .kk-dialog) {
-  width: min(85vw, 1200px) !important;
-  height: auto !important;
-  max-height: calc(100vh - max(10vh, 6rem)) !important;
-  max-height: calc(100dvh - max(10vh, 6rem)) !important;
+  /* FIX 4 – Inhaltbasierte Breite & Höhe:
+     fit-content lässt das Modal so breit/hoch werden wie sein Inhalt es verlangt
+     (Header, Body und Footer werden alle berücksichtigt). max-width/max-height
+     begrenzen auf 85vw/85vh damit das Modal nie den Viewport sprengt.
+     min-width verhindert zu schmale Modals auf leeren/kurzen Inhalten. */
+  width: fit-content !important;
+  min-width: min(420px, calc(100vw - 2.5rem)) !important;
+  max-width: min(85vw, 1200px) !important;
+
+  height: fit-content !important;
+  max-height: 85vh !important;
+  max-height: 85dvh !important;
+
   border-radius: 16px !important;
   box-shadow: 0 24px 50px rgba(15, 23, 42, 0.35) !important;
   display: flex !important;
   flex-direction: column !important;
   overflow: hidden !important;
 
-  /* FIX 1: margin: auto zentriert kurze Modals trotzdem vertikal */
+  /* margin: auto zentriert kurze Modals trotzdem vertikal */
   margin: auto !important;
 }
 
 :where(.modal-overlay, .admin-modal-overlay, .confirmation-overlay)
   :is(.modal-dialog, .modal-card, .admin-modal, .kk-dialog):not(.modal-compact):not(.created-voucher-modal) {
-  /* created-voucher-modal intentionally stays compact for short confirmation content */
+  /* Nicht-kompakte Modals haben eine großzügigere Mindestbreite damit
+     Formulare und Tabellen nicht zu eng werden */
   min-width: min(650px, calc(100vw - 2.5rem)) !important;
 }
 
@@ -144,9 +154,12 @@ img {
   font-size: clamp(1.15rem, 1rem + 0.45vw, 1.55rem) !important;
   font-weight: 700 !important;
   margin: 0 !important;
+  /* white-space: nowrap lässt den Titel die Modal-Breite nach oben treiben
+     (bis max-width greift). Erst dann wird mit ellipsis gekürzt. */
   white-space: nowrap !important;
   overflow: hidden !important;
   text-overflow: ellipsis !important;
+  min-width: 0 !important;
 }
 
 :where(.modal-overlay, .admin-modal-overlay, .confirmation-overlay)
@@ -191,44 +204,55 @@ img {
   display: flex !important;
   flex-direction: column !important;
 
-  /* FIX 3: flex-start statt center – Inhalte beginnen oben, kein vertikales Schweben */
+  /* FIX 3: flex-start statt center – Inhalte beginnen oben */
   justify-content: flex-start !important;
 
-  /* FIX 2: Scroll-Indikator via background-attachment local/scroll.
-     Die weißen Blenden (Schicht 1+2) scrollen MIT dem Inhalt (local)
-     und decken die Schatten (Schicht 3+4) ab solange kein Overflow vorliegt.
-     Sobald gescrollt werden kann, schaut der Schatten darunter hervor.
-     Kein JavaScript nötig. */
+  /* Hintergrund: Schichten von vorne nach hinten
+     1+2  – lokale Abdeckblenden für den Scroll-Indikator-Trick (FIX 2)
+     3+4  – Schatten-Gradienten (fix, scheinen durch wenn scrollbar)
+     5    – vertikaler Verlauf oben heller, unten minimal dunkler
+     6    – diagonales Linienmuster (Option C) als feinste Basis-Schicht
+     Inputs und Cards bleiben #ffffff und heben sich dadurch klar ab. */
   background:
-    /* Obere weiße Abdeckblende (scrollt mit) */
     linear-gradient(
       to bottom,
-      var(--app-surface-color) 40%,
+      #f2f4f6 30%,
       transparent 100%
     ) center top / 100% 3rem no-repeat local,
 
-    /* Untere weiße Abdeckblende (scrollt mit) */
     linear-gradient(
       to top,
-      var(--app-surface-color) 40%,
+      #eaecef 30%,
       transparent 100%
     ) center bottom / 100% 3rem no-repeat local,
 
-    /* Oberer Schattenindikator (bleibt fix) */
     radial-gradient(
       farthest-side at 50% 0%,
-      rgba(15, 23, 42, 0.18),
+      rgba(15, 23, 42, 0.12),
       transparent
     ) center top / 100% 14px no-repeat scroll,
 
-    /* Unterer Schattenindikator (bleibt fix) – Hauptindikator */
     radial-gradient(
       farthest-side at 50% 100%,
-      rgba(15, 23, 42, 0.22),
+      rgba(15, 23, 42, 0.16),
       transparent
-    ) center bottom / 100% 14px no-repeat scroll !important;
+    ) center bottom / 100% 14px no-repeat scroll,
 
-  background-color: var(--app-surface-color) !important;
+    linear-gradient(
+      to bottom,
+      #f2f4f6 0%,
+      #eaecef 100%
+    ) center / 100% 100% no-repeat scroll,
+
+    repeating-linear-gradient(
+      135deg,
+      rgba(180, 186, 194, 0.10) 0px,
+      rgba(180, 186, 194, 0.10) 1px,
+      transparent 1px,
+      transparent 13px
+    ) !important;
+
+  background-color: #eaecef !important;
 }
 
 :where(.modal-overlay, .admin-modal-overlay, .confirmation-overlay)
@@ -260,6 +284,9 @@ img {
   :is(.modal-footer, .admin-modal-footer, .kk-dialog__footer) {
   margin-top: auto !important;
   flex-shrink: 0 !important;
+  /* Footer passend zum unteren Verlaufsende des Body, mit feiner Trennlinie */
+  background: #e4e7ea !important;
+  border-top: 1px solid rgba(15, 23, 42, 0.08) !important;
 }
 
 :where(.modal-overlay, .admin-modal-overlay, .confirmation-overlay)
@@ -287,18 +314,17 @@ img {
 @media (max-width: 760px) {
   :where(.modal-overlay, .admin-modal-overlay, .confirmation-overlay) {
     padding: 0.75rem !important;
-    /* Auf Mobile ebenfalls flex-start, kein separater Override nötig */
   }
 
   :where(.modal-overlay, .admin-modal-overlay, .confirmation-overlay)
     :is(.modal-dialog, .modal-card, .modal-content, .admin-modal, .kk-dialog) {
-    width: min(100%, calc(100vw - 1.5rem)) !important;
+    /* Auf Mobile fit-content aufheben – volle verfügbare Breite nutzen */
+    width: calc(100vw - 1.5rem) !important;
     max-width: 100% !important;
     min-width: 0 !important;
     min-height: 0 !important;
     max-height: calc(100vh - 1.5rem) !important;
     max-height: calc(100dvh - 1.5rem) !important;
-    /* margin: auto sorgt auch auf Mobile für Zentrierung wenn Inhalt kurz ist */
     margin: auto !important;
   }
 }
