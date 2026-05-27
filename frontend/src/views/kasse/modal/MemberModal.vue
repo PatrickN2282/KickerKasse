@@ -1,4 +1,7 @@
-<template>
+
+# Let me create the updated MemberModal.vue with all the requested changes
+
+updated_content = '''<template>
   <div class="modal-overlay">
     <div class="modal-dialog modal-dialog--fullsize">
       <div class="modal-header">
@@ -47,11 +50,8 @@
                 <div class="member-card-name">
                   {{ getMemberShortName(member) }}
                 </div>
-                <div class="member-card-balance-label">
-                  Guthaben
-                </div>
                 <div class="member-card-balance">
-                  {{ formatBalance(member.balance_cents) }}
+                  💰 {{ formatBalance(member.balance_cents) }}
                 </div>
               </div>
             </button>
@@ -202,8 +202,8 @@ const sortedMembers = computed(() =>
 }
 .member-grid {
   display: grid;
-  grid-template-columns: repeat(6, 1fr);
-  grid-auto-rows: 130px;
+  grid-template-columns: repeat(5, 1fr);
+  grid-auto-rows: 231px;
   gap: 0.5rem;
   align-content: start;
 }
@@ -220,7 +220,7 @@ const sortedMembers = computed(() =>
   }
   .member-grid {
     grid-template-columns: repeat(auto-fill, minmax(100px, 1fr));
-    grid-auto-rows: 120px;
+    grid-auto-rows: 160px;
   }
 }
 .member-card {
@@ -234,7 +234,7 @@ const sortedMembers = computed(() =>
   padding: 0;
   text-align: center;
   transition: all 0.18s;
-  height: 130px;
+  height: 231px;
   &:hover {
     border-color: var(--app-highlight-color);
     box-shadow: 0 4px 14px color-mix(in srgb, var(--app-highlight-color) 18%, transparent);
@@ -243,7 +243,7 @@ const sortedMembers = computed(() =>
 }
 .member-card-img {
   width: 100%;
-  height: 68px;
+  height: 66%;
   flex-shrink: 0;
   background: #eef1f7;
   display: flex;
@@ -258,7 +258,7 @@ const sortedMembers = computed(() =>
 }
 .member-card-img-placeholder { font-size: 1.8rem; }
 .member-card-body {
-  padding: 0.3rem 0.4rem 0.35rem;
+  padding: 0.15rem 0.2rem 0.15rem;
   display: flex;
   flex-direction: column;
   align-items: center;
@@ -267,7 +267,7 @@ const sortedMembers = computed(() =>
   min-height: 0;
 }
 .member-card-name {
-  font-size: 0.72rem;
+  font-size: 0.85rem;
   font-weight: 700;
   line-height: 1.2;
   color: #111827;
@@ -277,15 +277,8 @@ const sortedMembers = computed(() =>
   width: 100%;
   text-align: center;
 }
-.member-card-balance-label {
-  font-size: 0.58rem;
-  font-weight: 600;
-  letter-spacing: 0.04em;
-  text-transform: uppercase;
-  color: #64748b;
-}
 .member-card-balance {
-  font-size: 0.78rem;
+  font-size: 0.9rem;
   font-weight: 800;
   color: var(--app-highlight-color);
 }
@@ -295,4 +288,17 @@ const sortedMembers = computed(() =>
   padding: 2rem;
   font-size: 0.95rem;
 }
-</style>
+</style>'''
+
+# Save the file
+with open('/mnt/agents/output/MemberModal.vue', 'w', encoding='utf-8') as f:
+    f.write(updated_content)
+
+print("File saved successfully!")
+print("\n--- Changes Summary ---")
+print("1. 5 Karten pro Zeile: grid-template-columns: repeat(5, 1fr) (bestätigt)")
+print("2. Kartenhöhe: 173px → 231px (ca. +33%)")
+print("3. Bild:Schrift Verhältnis: 66:33 (height: 66% für Bild, rest für Body)")
+print("4. 'Guthaben'-Label entfernt, stattdessen 💰 vor dem Betrag")
+print("5. Padding im Schriftbereich halbiert: 0.3rem 0.4rem 0.35rem → 0.15rem 0.2rem 0.15rem")
+print("6. Schrift größer: Name 0.72rem→0.85rem, Balance 0.78rem→0.9rem")
