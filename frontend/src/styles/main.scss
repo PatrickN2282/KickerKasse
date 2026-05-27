@@ -122,7 +122,7 @@ img {
 
 :where(.modal-overlay, .admin-modal-overlay, .confirmation-overlay)
   :is(.modal-subtitle, .kk-dialog__subtitle)::before {
-  content: '| ';
+  content: var(--modal-subtitle-separator, '| ');
   opacity: 0.72;
   margin-right: 0.2rem;
 }
