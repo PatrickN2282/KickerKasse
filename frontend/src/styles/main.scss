@@ -71,3 +71,121 @@ img {
   background: rgba(0, 0, 0, 0.3);
   border-radius: 4px;
 }
+
+/* ---- Einheitliches Modal-Design ---- */
+:where(.modal-overlay, .admin-modal-overlay, .confirmation-overlay) {
+  position: fixed !important;
+  inset: 0 !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  padding: 1.25rem !important;
+  background: rgba(15, 23, 42, 0.62) !important;
+  backdrop-filter: blur(6px) !important;
+  z-index: 3000 !important;
+  overflow-y: auto !important;
+}
+
+:where(.modal-overlay, .admin-modal-overlay, .confirmation-overlay)
+  :is(.modal-dialog, .modal-card, .modal-content, .admin-modal, .kk-dialog) {
+  width: min(85vw, 1200px) !important;
+  max-width: 85vw !important;
+  max-height: 85vh !important;
+  border-radius: 16px !important;
+  box-shadow: 0 24px 50px rgba(15, 23, 42, 0.35) !important;
+}
+
+:where(.modal-overlay, .admin-modal-overlay, .confirmation-overlay)
+  :is(.modal-dialog, .modal-card, .admin-modal, .kk-dialog):not(.modal-compact):not(.created-voucher-modal) {
+  min-width: min(650px, calc(100vw - 2.5rem)) !important;
+  min-height: min(650px, calc(100vh - 2.5rem)) !important;
+}
+
+:where(.modal-overlay, .admin-modal-overlay, .confirmation-overlay)
+  :is(.modal-header, .admin-modal-header, .kk-dialog__header) {
+  background: linear-gradient(90deg, var(--app-banner-color) 0%, var(--app-highlight-color) 100%) !important;
+  color: #ffffff !important;
+}
+
+:where(.modal-overlay, .admin-modal-overlay, .confirmation-overlay)
+  :is(.modal-header, .admin-modal-header, .kk-dialog__header) h3 {
+  color: #ffffff !important;
+  font-size: clamp(1.15rem, 1rem + 0.45vw, 1.55rem) !important;
+  font-weight: 700 !important;
+}
+
+:where(.modal-overlay, .admin-modal-overlay, .confirmation-overlay)
+  :is(.modal-subtitle, .kk-dialog__subtitle) {
+  color: rgba(255, 255, 255, 0.9) !important;
+  font-size: 0.9rem !important;
+}
+
+:where(.modal-overlay, .admin-modal-overlay, .confirmation-overlay)
+  :is(.modal-subtitle, .kk-dialog__subtitle)::before {
+  content: '| ';
+  opacity: 0.72;
+  margin-right: 0.2rem;
+}
+
+:where(.modal-overlay, .admin-modal-overlay, .confirmation-overlay)
+  :is(.close-btn, .modal-close, .admin-close-btn, .kk-dialog__close) {
+  width: 34px !important;
+  height: 34px !important;
+  border-radius: 999px !important;
+  border: 1px solid rgba(255, 255, 255, 0.45) !important;
+  background: rgba(255, 255, 255, 0.2) !important;
+  color: #ffffff !important;
+  display: grid !important;
+  place-items: center !important;
+  cursor: pointer !important;
+}
+
+:where(.modal-overlay, .admin-modal-overlay, .confirmation-overlay)
+  :is(.close-btn, .modal-close, .admin-close-btn, .kk-dialog__close):hover {
+  background: rgba(255, 255, 255, 0.32) !important;
+}
+
+:where(.modal-overlay, .admin-modal-overlay, .confirmation-overlay)
+  :is(.modal-footer, .admin-modal-footer, .kk-dialog__footer) :is(.btn-success, .btn-confirm-payment, .btn-primary, .btn-ready) {
+  background: #cdeedc !important;
+  color: #14532d !important;
+  border: 1px solid #86efac !important;
+}
+
+:where(.modal-overlay, .admin-modal-overlay, .confirmation-overlay)
+  :is(.modal-footer, .admin-modal-footer, .kk-dialog__footer) :is(.btn-secondary, .btn-danger, .btn-action-danger, .btn-cancel, .btn-close, .btn-abort) {
+  background: #f9d5d9 !important;
+  color: #7f1d1d !important;
+  border: 1px solid #fda4af !important;
+}
+
+:where(.modal-overlay, .admin-modal-overlay, .confirmation-overlay)
+  :is(.modal-footer, .admin-modal-footer, .kk-dialog__footer) :is(.btn-info, .btn-warning, .btn-action, .btn-edit, .btn-action-restore) {
+  background: #dbeafe !important;
+  color: #1e3a8a !important;
+  border: 1px solid #93c5fd !important;
+}
+
+:where(.modal-overlay, .admin-modal-overlay, .confirmation-overlay)
+  :is(.modal-footer, .admin-modal-footer, .kk-dialog__footer) button:disabled {
+  background: #e2e8f0 !important;
+  color: #94a3b8 !important;
+  border: 1px solid #cbd5e1 !important;
+  cursor: not-allowed !important;
+}
+
+@media (max-width: 760px) {
+  :where(.modal-overlay, .admin-modal-overlay, .confirmation-overlay) {
+    padding: 0.75rem !important;
+    align-items: flex-start !important;
+  }
+
+  :where(.modal-overlay, .admin-modal-overlay, .confirmation-overlay)
+    :is(.modal-dialog, .modal-card, .modal-content, .admin-modal, .kk-dialog) {
+    width: min(100%, calc(100vw - 1.5rem)) !important;
+    max-width: 100% !important;
+    min-width: 0 !important;
+    min-height: 0 !important;
+    max-height: calc(100dvh - 1.5rem) !important;
+  }
+}
