@@ -103,10 +103,10 @@ const sortedMembers = computed(() =>
 .modal-dialog {
   background: #ffffff;
   border-radius: 16px;
-  width: 80vw;
-  height: 80vh;
-  max-width: 80vw;
-  max-height: 80vh;
+  width: 85vw;
+  height: 85vh;
+  max-width: 85vw;
+  max-height: 85vh;
   display: flex;
   flex-direction: column;
   box-shadow: 0 24px 50px rgba(15, 23, 42, 0.35);
@@ -205,7 +205,7 @@ const sortedMembers = computed(() =>
   gap: 0.5rem;
   align-content: start;
 }
-@media (max-width: 85vw) {
+@media (max-width: 900px) {
   .modal-overlay {
     padding: 0.75rem;
     align-items: stretch;
