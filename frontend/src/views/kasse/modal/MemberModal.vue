@@ -42,13 +42,16 @@
                 >
                   👤
                 </div>
+                <div
+                  v-if="member.balance_cents && member.balance_cents !== 0"
+                  class="balance-badge"
+                >
+                  💰 {{ formatBalance(member.balance_cents) }}
+                </div>
               </div>
               <div class="member-card-body">
                 <div class="member-card-name">
                   {{ getMemberShortName(member) }}
-                </div>
-                <div class="member-card-balance">
-                  💰 {{ formatBalance(member.balance_cents) }}
                 </div>
               </div>
             </button>
@@ -231,7 +234,7 @@ const sortedMembers = computed(() =>
   padding: 0;
   text-align: center;
   transition: all 0.18s;
-  height: 185px;
+  height: 200px;
   &:hover {
     border-color: var(--app-highlight-color);
     box-shadow: 0 4px 14px color-mix(in srgb, var(--app-highlight-color) 18%, transparent);
@@ -240,13 +243,14 @@ const sortedMembers = computed(() =>
 }
 .member-card-img {
   width: 100%;
-  height: 66%;
+  height: 85%;
   flex-shrink: 0;
   background: #eef1f7;
   display: flex;
   align-items: center;
   justify-content: center;
   overflow: hidden;
+  position: relative;
   img {
     width: 100%;
     height: 100%;
@@ -254,18 +258,33 @@ const sortedMembers = computed(() =>
   }
 }
 .member-card-img-placeholder { font-size: 1.8rem; }
+.balance-badge {
+  position: absolute;
+  bottom: 6px;
+  left: 50%;
+  transform: translateX(-50%);
+  background: rgba(255, 255, 255, 0.92);
+  color: var(--app-highlight-color);
+  font-size: 0.82rem;
+  font-weight: 700;
+  padding: 0.25rem 0.6rem;
+  border-radius: 20px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
+  white-space: nowrap;
+  backdrop-filter: blur(2px);
+  border: 1px solid rgba(255, 255, 255, 0.5);
+}
 .member-card-body {
-  padding: 0.15rem 0.2rem 0.15rem;
+  padding: 0.1rem 0.2rem;
   display: flex;
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  gap: 0.15rem;
   flex: 1;
   min-height: 0;
 }
 .member-card-name {
-  font-size: 1.25rem;
+  font-size: 0.9rem;
   font-weight: 700;
   line-height: 1.2;
   color: #111827;
@@ -274,11 +293,6 @@ const sortedMembers = computed(() =>
   text-overflow: ellipsis;
   width: 100%;
   text-align: center;
-}
-.member-card-balance {
-  font-size: 1.15rem;
-  font-weight: 800;
-  color: var(--app-highlight-color);
 }
 .empty-state {
   text-align: center;
