@@ -171,6 +171,7 @@ const editingId = ref(null)
 const photoFile = ref(null)
 const photoPreview = ref(null)
 const photoOriginalSrc = ref(null)
+const photoOriginalFile = ref(null)
 const photoCropSource = ref(null)
 const pendingPhotoOriginalSrc = ref(null)
 const showPhotoCropModal = ref(false)
@@ -248,6 +249,11 @@ const checkImageExists = async (url) => {
 
 const withCacheBust = (url, token = Date.now()) => `${url}?t=${token}`
 
+const isGifFile = (file) => {
+  const name = file?.name?.toLowerCase?.() || ''
+  return file?.type === 'image/gif' || name.endsWith('.gif')
+}
+
 const handlePhotoUpload = async (event) => {
   const [file] = event.target.files || []
   event.target.value = ''
@@ -259,8 +265,21 @@ const handlePhotoUpload = async (event) => {
 
   try {
     const dataUrl = await readFileAsDataUrl(file)
+    if (isGifFile(file)) {
+      photoFile.value = file
+      photoPreview.value = dataUrl
+      photoOriginalSrc.value = dataUrl
+      photoOriginalFile.value = file
+      photoPendingOriginalUpload.value = true
+      photoDeleteRequested.value = false
+      photoCropSource.value = null
+      pendingPhotoOriginalSrc.value = null
+      showPhotoCropModal.value = false
+      return
+    }
     photoCropSource.value = dataUrl
     pendingPhotoOriginalSrc.value = dataUrl
+    photoOriginalFile.value = file
     showPhotoCropModal.value = true
   } catch (error) {
     console.error('Member image file read error:', error)
@@ -269,8 +288,9 @@ const handlePhotoUpload = async (event) => {
 }
 
 const openPhotoEditor = () => {
-  if (!photoPreview.value) return
-  photoCropSource.value = photoPreview.value
+  const source = photoOriginalSrc.value || photoPreview.value
+  if (!source) return
+  photoCropSource.value = source
   pendingPhotoOriginalSrc.value = null
   showPhotoCropModal.value = true
 }
@@ -296,6 +316,7 @@ const requestPhotoRemoval = () => {
   photoPreview.value = null
   photoFile.value = null
   photoOriginalSrc.value = null
+  photoOriginalFile.value = null
   photoCropSource.value = null
   pendingPhotoOriginalSrc.value = null
   showPhotoCropModal.value = false
@@ -325,9 +346,14 @@ const syncMemberPhoto = async (memberId) => {
 
   if (photoPendingOriginalUpload.value && photoOriginalSrc.value) {
     try {
-      const originalBlob = await dataUrlToBlob(photoOriginalSrc.value)
       const originalFormData = new FormData()
-      originalFormData.append('file', new File([originalBlob], 'original.jpg', { type: 'image/jpeg' }))
+      const originalFile = photoOriginalFile.value
+      if (originalFile) {
+        originalFormData.append('file', originalFile)
+      } else {
+        const originalBlob = await dataUrlToBlob(photoOriginalSrc.value)
+        originalFormData.append('file', new File([originalBlob], 'original.jpg', { type: 'image/jpeg' }))
+      }
       await fetch(`/api/members/${memberId}/original-photo`, {
         method: 'POST',
         body: originalFormData,
@@ -348,6 +374,7 @@ const syncMemberPhoto = async (memberId) => {
     })
     if (response.ok) {
       photoFile.value = null
+      photoOriginalFile.value = null
       photoPendingOriginalUpload.value = false
       persistedPhotoExists.value = true
       return true
@@ -427,6 +454,7 @@ const editMember = async (member) => {
   const cacheBust = Date.now()
   photoPreview.value = member.photo_path ? withCacheBust(`/api/members/${member.id}/photo`, cacheBust) : null
   photoOriginalSrc.value = null
+  photoOriginalFile.value = null
   photoPendingOriginalUpload.value = false
   photoCropSource.value = null
   pendingPhotoOriginalSrc.value = null
@@ -476,6 +504,7 @@ const resetForm = () => {
   photoFile.value = null
   photoPreview.value = null
   photoOriginalSrc.value = null
+  photoOriginalFile.value = null
   photoCropSource.value = null
   pendingPhotoOriginalSrc.value = null
   showPhotoCropModal.value = false
