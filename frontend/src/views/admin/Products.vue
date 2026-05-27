@@ -113,7 +113,7 @@
       :product-preview-alt="productPreviewAlt"
       :preview-price-text="previewPriceText"
       :warengruppe-options="warengruppeOptions"
-      :show-corrections-shortcut="authStore.isAdmin"
+      :show-corrections-shortcut="canAccessCorrections"
       @close="closeProductModal"
       @save="handleSaveProduct"
       @open-crop="openCropModalFromCurrentImage"
@@ -182,6 +182,8 @@ const formData = reactive({
   isUnlimitedStock: false,
   isVariablePrice: false,
 })
+
+const canAccessCorrections = computed(() => authStore.hasRole('TOP_ADMIN', 'ADMIN'))
 
 const previewPriceText = computed(() => {
   const cents = formData.price ? Math.round(formData.price * 100) : 0
@@ -538,8 +540,13 @@ const deleteProduct = async (productId) => {
 }
 
 const goToCorrections = async () => {
-  closeProductModal()
-  await router.push({ path: '/admin/finance', query: { tab: 'corrections' } })
+  try {
+    closeProductModal()
+    await router.push({ path: '/admin/finance', query: { tab: 'corrections' } })
+  } catch (error) {
+    console.error('Navigation to corrections failed:', error)
+    notificationStore.error('Der Bereich Korrekturen konnte nicht geöffnet werden.')
+  }
 }
 
 onMounted(async () => {

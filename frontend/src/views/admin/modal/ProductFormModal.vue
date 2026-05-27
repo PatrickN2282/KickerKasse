@@ -119,6 +119,8 @@
                 v-if="editingId && showCorrectionsShortcut"
                 type="button"
                 class="corrections-jump-btn"
+                title="Zu Finanzen → Korrekturen wechseln"
+                aria-label="Zu Finanzen → Korrekturen wechseln"
                 @click="$emit('go-to-corrections')"
               >
                 ↗ Korrekturen
