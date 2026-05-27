@@ -1,7 +1,4 @@
-
-# Let me create the updated MemberModal.vue with all the requested changes
-
-updated_content = '''<template>
+<template>
   <div class="modal-overlay">
     <div class="modal-dialog modal-dialog--fullsize">
       <div class="modal-header">
@@ -202,8 +199,8 @@ const sortedMembers = computed(() =>
 }
 .member-grid {
   display: grid;
-  grid-template-columns: repeat(5, 1fr);
-  grid-auto-rows: 231px;
+  grid-template-columns: repeat(6, 1fr);
+  grid-auto-rows: 200px;
   gap: 0.5rem;
   align-content: start;
 }
@@ -234,7 +231,7 @@ const sortedMembers = computed(() =>
   padding: 0;
   text-align: center;
   transition: all 0.18s;
-  height: 231px;
+  height: 200px;
   &:hover {
     border-color: var(--app-highlight-color);
     box-shadow: 0 4px 14px color-mix(in srgb, var(--app-highlight-color) 18%, transparent);
@@ -262,12 +259,13 @@ const sortedMembers = computed(() =>
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 0.05rem;
+  justify-content: center;
+  gap: 0.15rem;
   flex: 1;
   min-height: 0;
 }
 .member-card-name {
-  font-size: 0.85rem;
+  font-size: 0.95rem;
   font-weight: 700;
   line-height: 1.2;
   color: #111827;
@@ -278,7 +276,7 @@ const sortedMembers = computed(() =>
   text-align: center;
 }
 .member-card-balance {
-  font-size: 0.9rem;
+  font-size: 1rem;
   font-weight: 800;
   color: var(--app-highlight-color);
 }
@@ -288,17 +286,4 @@ const sortedMembers = computed(() =>
   padding: 2rem;
   font-size: 0.95rem;
 }
-</style>'''
-
-# Save the file
-with open('/mnt/agents/output/MemberModal.vue', 'w', encoding='utf-8') as f:
-    f.write(updated_content)
-
-print("File saved successfully!")
-print("\n--- Changes Summary ---")
-print("1. 5 Karten pro Zeile: grid-template-columns: repeat(5, 1fr) (bestätigt)")
-print("2. Kartenhöhe: 173px → 231px (ca. +33%)")
-print("3. Bild:Schrift Verhältnis: 66:33 (height: 66% für Bild, rest für Body)")
-print("4. 'Guthaben'-Label entfernt, stattdessen 💰 vor dem Betrag")
-print("5. Padding im Schriftbereich halbiert: 0.3rem 0.4rem 0.35rem → 0.15rem 0.2rem 0.15rem")
-print("6. Schrift größer: Name 0.72rem→0.85rem, Balance 0.78rem→0.9rem")
+</style>
