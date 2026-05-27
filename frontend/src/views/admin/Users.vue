@@ -277,7 +277,7 @@ onMounted(async () => {
   --primary: #3b82f6;
   --success: #10b981;
   --border: #e2e8f0;
-  padding: 0.75rem 1rem;
+  padding: 0.35rem 1rem 0.75rem;
   background: var(--app-background-color);
   min-height: 100%;
 }
@@ -290,8 +290,8 @@ onMounted(async () => {
   display: flex;
   flex-direction: column;
   gap: 0.5rem;
-  margin: -0.75rem -1rem 0.75rem;
-  padding: 0.75rem 1rem;
+  margin: -0.35rem -1rem 0.75rem;
+  padding: 0.35rem 1rem 0.75rem;
   border-bottom: 1px solid rgba(0, 0, 0, 0.13);
 
   h2 {

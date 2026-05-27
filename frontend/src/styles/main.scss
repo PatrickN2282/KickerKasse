@@ -173,11 +173,14 @@ img {
 
 :where(.modal-overlay, .admin-modal-overlay, .confirmation-overlay)
   :is(.modal-header, .admin-modal-header, .kk-dialog__header) :is(.header-pipe) {
-  margin: 0 !important;
+  margin: 0 0.35rem !important;
+  font-size: 0.9em !important;
+  font-weight: 400 !important;
+  opacity: 0.62 !important;
 }
 
 :where(.modal-overlay, .admin-modal-overlay, .confirmation-overlay)
-  :is(.modal-subtitle, .kk-dialog__subtitle) {
+  :is(.modal-subtitle, .kk-dialog__subtitle, .subtitle) {
   color: rgba(255, 255, 255, 0.9) !important;
   font-size: 0.9rem !important;
   margin: 0 !important;
@@ -188,7 +191,7 @@ img {
 }
 
 :where(.modal-overlay, .admin-modal-overlay, .confirmation-overlay)
-  :is(.modal-subtitle, .kk-dialog__subtitle)::before {
+  :is(.modal-subtitle, .kk-dialog__subtitle, .subtitle)::before {
   /* override per modal via --modal-subtitle-separator, e.g. "|" or "•" */
   content: var(--modal-subtitle-separator, '|');
   opacity: 0.72;
@@ -278,6 +281,7 @@ img {
   background: #cdeedc !important;
   color: #14532d !important;
   border: 1px solid #86efac !important;
+  box-shadow: 0 0 0 2px rgba(46, 125, 50, 0.2) !important;
 }
 
 :where(.modal-overlay, .admin-modal-overlay, .confirmation-overlay)

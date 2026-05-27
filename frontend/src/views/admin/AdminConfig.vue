@@ -3,7 +3,7 @@
     <!-- Inner section navigation -->
     <div class="section-nav">
       <div class="title-row">
-        <span class="section-nav-label">Einstellungen</span>
+        <span class="section-nav-label">Einstellungsverwaltung</span>
         <span class="title-sep">|</span>
         <span class="page-subtitle">Konfiguration, Design und Systemeinstellungen.</span>
       </div>
@@ -349,7 +349,7 @@
     <div v-if="activeSection === 'extsettings' && authStore.isAdmin" class="section-content ext-settings-section">
       <div class="page-header">
         <div class="title-row">
-          <h2>⚙️ Ext. Settings</h2>
+          <h2>Erweiterte Einstellungen</h2>
           <span class="title-sep">|</span>
           <span class="page-subtitle">Bereich sichtbar für Admin und TopAdmin; erweiterte Systemkarten nur für TopAdmin.</span>
         </div>
@@ -762,7 +762,7 @@ onMounted(async () => {
 <style scoped lang="scss">
 .admin-config {
   background: var(--app-background-color);
-  padding: 0.75rem 1rem;
+  padding: 0.35rem 1rem 0.75rem;
   border-radius: 8px;
   min-height: 100%;
 }
@@ -776,8 +776,8 @@ onMounted(async () => {
   display: flex;
   flex-direction: column;
   gap: 0.5rem;
-  margin: -0.75rem -1rem 1rem;
-  padding: 0.75rem 1rem;
+  margin: -0.35rem -1rem 1rem;
+  padding: 0.35rem 1rem 0.75rem;
   border-bottom: 1px solid rgba(0, 0, 0, 0.13);
   flex-wrap: wrap;
 }
@@ -790,7 +790,7 @@ onMounted(async () => {
 }
 
 .section-nav-label {
-  font-size: 1.15rem;
+  font-size: 1.25rem;
   font-weight: 700;
   color: #333;
   line-height: 1.2;
@@ -802,8 +802,7 @@ onMounted(async () => {
 }
 
 .page-subtitle {
-  font-size: 0.82rem;
-  color: #556;
+  color: #64748b;
   margin: 0;
 }
 
@@ -842,7 +841,7 @@ onMounted(async () => {
 // ── Section content ───────────────────────────────────
 .section-content {
   h2 {
-    font-size: 1.2rem;
+    font-size: 1.25rem;
     color: #1e293b;
     margin: 0 0 0.75rem;
   }
@@ -1109,7 +1108,7 @@ onMounted(async () => {
   margin-bottom: 0.75rem;
 
   h2 {
-    font-size: 1.2rem;
+    font-size: 1.25rem;
     color: #333;
     margin: 0;
   }

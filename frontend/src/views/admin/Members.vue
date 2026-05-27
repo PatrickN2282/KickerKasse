@@ -497,7 +497,7 @@ onMounted(() => memberStore.getMembers())
   --success: #10b981;
   --bg-main: #f8fafc;
   --border: #e2e8f0;
-  padding: 0.75rem 1rem;
+  padding: 0.35rem 1rem 0.75rem;
   background: var(--app-background-color);
   min-height: 100%;
 }
@@ -510,8 +510,8 @@ onMounted(() => memberStore.getMembers())
   display: flex;
   flex-direction: column;
   gap: 0.5rem;
-  margin: -0.75rem -1rem 0.75rem;
-  padding: 0.75rem 1rem;
+  margin: -0.35rem -1rem 0.75rem;
+  padding: 0.35rem 1rem 0.75rem;
   border-bottom: 1px solid rgba(0, 0, 0, 0.13);
 }
 
