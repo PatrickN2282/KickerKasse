@@ -115,6 +115,14 @@
                 <span class="value">{{ formData.isUnlimitedStock ? '∞' : formData.stock }}</span>
               </div>
               <span class="desc">Bestandskorrekturen erfolgen über das Finanzen-Modul.</span>
+              <button
+                v-if="editingId && showCorrectionsShortcut"
+                type="button"
+                class="corrections-jump-btn"
+                @click="$emit('go-to-corrections')"
+              >
+                ↗ Korrekturen
+              </button>
             </div>
           </div>
         </div>
@@ -138,6 +146,7 @@ defineProps({
   productPreviewAlt: { type: String, default: '' },
   previewPriceText: { type: String, default: '' },
   warengruppeOptions: { type: Array, required: true },
+  showCorrectionsShortcut: { type: Boolean, default: false },
 })
 
 const formData = defineModel('formData', {
@@ -145,7 +154,7 @@ const formData = defineModel('formData', {
   required: true,
 })
 
-defineEmits(['close', 'save', 'open-crop', 'image-upload', 'unlimited-stock-change'])
+defineEmits(['close', 'save', 'open-crop', 'image-upload', 'unlimited-stock-change', 'go-to-corrections'])
 </script>
 
 <style scoped lang="scss">
@@ -438,6 +447,19 @@ defineEmits(['close', 'save', 'open-crop', 'image-upload', 'unlimited-stock-chan
     line-height: 1.2;
     opacity: 0.85;
   }
+}
+
+.corrections-jump-btn {
+  margin-top: 0.5rem;
+  align-self: flex-start;
+  border: 1px solid #93c5fd;
+  background: #dbeafe;
+  color: #1e3a8a;
+  border-radius: 999px;
+  font-size: 0.7rem;
+  font-weight: 700;
+  padding: 0.2rem 0.55rem;
+  cursor: pointer;
 }
 
 .modal-footer {

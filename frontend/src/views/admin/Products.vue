@@ -77,8 +77,24 @@
               </td>
               <td class="text-right">
                 <div class="action-cell">
-                  <button class="btn-action" @click="editProduct(product)">Bearbeiten</button>
-                  <button class="btn-action btn-action-danger" @click="deleteProduct(product.id)">Löschen</button>
+                  <button
+                    class="btn-action btn-action-icon btn-action-edit-icon"
+                    type="button"
+                    title="Bearbeiten"
+                    aria-label="Bearbeiten"
+                    @click="editProduct(product)"
+                  >
+                    ✏️
+                  </button>
+                  <button
+                    class="btn-action btn-action-icon btn-action-danger btn-action-delete-icon"
+                    type="button"
+                    title="Löschen"
+                    aria-label="Löschen"
+                    @click="deleteProduct(product.id)"
+                  >
+                    ✕
+                  </button>
                 </div>
               </td>
             </tr>
@@ -97,11 +113,13 @@
       :product-preview-alt="productPreviewAlt"
       :preview-price-text="previewPriceText"
       :warengruppe-options="warengruppeOptions"
+      :show-corrections-shortcut="authStore.isAdmin"
       @close="closeProductModal"
       @save="handleSaveProduct"
       @open-crop="openCropModalFromCurrentImage"
       @image-upload="handleImageUpload"
       @unlimited-stock-change="handleUnlimitedStockChange"
+      @go-to-corrections="goToCorrections"
     />
 
     <ImageEditorModal
@@ -126,12 +144,16 @@
 
 <script setup>
 import { ref, reactive, onMounted, computed } from 'vue'
+import { useRouter } from 'vue-router'
+import { useAuthStore } from '@/stores/auth'
 import { useProductStore } from '@/stores/product'
 import { useNotificationStore } from '@/stores/notification'
 import { formatPrice } from '@/services/utils'
 import ImageEditorModal from '@/components/ImageEditorModal.vue'
 import ProductFormModal from '@/views/admin/modal/ProductFormModal.vue'
 
+const router = useRouter()
+const authStore = useAuthStore()
 const productStore = useProductStore()
 const notificationStore = useNotificationStore()
 
@@ -515,6 +537,11 @@ const deleteProduct = async (productId) => {
   }
 }
 
+const goToCorrections = async () => {
+  closeProductModal()
+  await router.push({ path: '/admin/finance', query: { tab: 'corrections' } })
+}
+
 onMounted(async () => {
   await productStore.getProducts()
 })
@@ -762,6 +789,27 @@ onMounted(async () => {
   &:hover {
     background: #f8fafc;
   }
+}
+
+.btn-action-icon {
+  width: 2rem;
+  height: 2rem;
+  padding: 0;
+  border-radius: 8px;
+  font-size: 1rem;
+  line-height: 1;
+}
+
+.btn-action-edit-icon {
+  border-color: #fed7aa;
+  background: #ffedd5;
+  color: #9a3412;
+}
+
+.btn-action-delete-icon {
+  border-color: #fecaca;
+  background: #fee2e2;
+  color: #b91c1c;
 }
 
 .btn-action-danger {
