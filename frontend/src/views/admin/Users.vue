@@ -37,9 +37,27 @@
               <span :class="['role-tag', roleClass(user.role)]">{{ roleLabel(user.role) }}</span>
             </td>
             <td class="text-right action-cell">
-              <button v-if="user.deletable" class="btn-action" @click="openEditModal(user)">Bearbeiten</button>
+              <button
+                v-if="user.deletable"
+                class="btn-action btn-action-icon btn-action-edit-icon"
+                type="button"
+                title="Bearbeiten"
+                aria-label="Bearbeiten"
+                @click="openEditModal(user)"
+              >
+                ✏️
+              </button>
               <button v-if="user.canResetPassword" class="btn-action" @click="openPasswordReset(user)">Passwort setzen</button>
-              <button v-if="user.deletable" class="btn-action btn-action-danger" @click="deleteUser(user.id)">Löschen</button>
+              <button
+                v-if="user.deletable"
+                class="btn-action btn-action-icon btn-action-danger btn-action-delete-icon"
+                type="button"
+                title="Löschen"
+                aria-label="Löschen"
+                @click="deleteUser(user.id)"
+              >
+                ✕
+              </button>
             </td>
           </tr>
         </tbody>
@@ -415,6 +433,26 @@ onMounted(async () => {
   border-radius: 8px;
   cursor: pointer;
   font-weight: 600;
+}
+
+.btn-action-icon {
+  width: 2rem;
+  height: 2rem;
+  padding: 0;
+  line-height: 1;
+  font-size: 1rem;
+}
+
+.btn-action-edit-icon {
+  border-color: #fed7aa;
+  background: #ffedd5;
+  color: #9a3412;
+}
+
+.btn-action-delete-icon {
+  border-color: #fecaca;
+  background: #fee2e2;
+  color: #b91c1c;
 }
 
 .modal-overlay {

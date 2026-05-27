@@ -58,20 +58,24 @@
             <td class="text-right">
               <div class="action-cell">
                 <button
-                  class="btn-action"
+                  class="btn-action btn-action-icon btn-action-edit-icon"
+                  type="button"
                   :disabled="category.is_fixed"
-                  :title="category.is_fixed ? 'Feste Kategorie kann nicht bearbeitet werden' : ''"
+                  :title="category.is_fixed ? 'Feste Kategorie kann nicht bearbeitet werden' : 'Bearbeiten'"
+                  aria-label="Bearbeiten"
                   @click="editCategory(category)"
                 >
-                  Bearbeiten
+                  ✏️
                 </button>
                 <button
-                  class="btn-action btn-action-danger"
+                  class="btn-action btn-action-icon btn-action-danger btn-action-delete-icon"
+                  type="button"
                   :disabled="category.is_fixed"
-                  :title="category.is_fixed ? 'Feste Kategorie kann nicht gelöscht werden' : ''"
+                  :title="category.is_fixed ? 'Feste Kategorie kann nicht gelöscht werden' : 'Löschen'"
+                  aria-label="Löschen"
                   @click="deleteCategory(category.id)"
                 >
-                  Löschen
+                  ✕
                 </button>
               </div>
             </td>
@@ -484,6 +488,26 @@ onMounted(() => {
 .badge-info {
   background: #dbeafe;
   color: #1d4ed8;
+}
+
+.btn-action-icon {
+  width: 2rem;
+  height: 2rem;
+  padding: 0;
+  line-height: 1;
+  font-size: 1rem;
+}
+
+.btn-action-edit-icon {
+  border-color: #fed7aa;
+  background: #ffedd5;
+  color: #9a3412;
+}
+
+.btn-action-delete-icon {
+  border-color: #fecaca;
+  background: #fee2e2;
+  color: #b91c1c;
 }
 
 .empty-state {

@@ -75,12 +75,25 @@
               <td class="balance-cell font-bold">{{ formatBalance(member.balance_cents) }}</td>
               <td class="text-right">
                 <div class="action-cell">
-                  <button class="btn-action" @click="editMember(member)">Bearbeiten</button>
                   <button
-                    class="btn-action btn-action-danger"
+                    class="btn-action btn-action-icon btn-action-edit-icon"
+                    type="button"
+                    title="Bearbeiten"
+                    aria-label="Bearbeiten"
+                    @click="editMember(member)"
+                  >
+                    ✏️
+                  </button>
+                  <button
+                    class="btn-action btn-action-icon btn-action-danger btn-action-delete-icon"
+                    type="button"
                     :disabled="!authStore.isAdmin"
+                    title="Löschen"
+                    aria-label="Löschen"
                     @click="deleteMember(member.id)"
-                  >Löschen</button>
+                  >
+                    ✕
+                  </button>
                 </div>
               </td>
             </tr>
@@ -626,6 +639,23 @@ onMounted(() => memberStore.getMembers())
   border: 1px solid var(--border); background: white; color: #334155;
   padding: 0.45rem 0.75rem; border-radius: 8px; cursor: pointer; font-weight: 600;
   display: inline-flex; align-items: center; justify-content: center;
+}
+.btn-action-icon {
+  width: 2rem;
+  height: 2rem;
+  padding: 0;
+  line-height: 1;
+  font-size: 1rem;
+}
+.btn-action-edit-icon {
+  border-color: #fed7aa;
+  background: #ffedd5;
+  color: #9a3412;
+}
+.btn-action-delete-icon {
+  border-color: #fecaca;
+  background: #fee2e2;
+  color: #b91c1c;
 }
 .btn-action-danger { border-color: #fecaca; color: #b91c1c; }
 .upload-button { overflow: hidden; }
