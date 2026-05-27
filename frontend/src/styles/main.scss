@@ -89,16 +89,20 @@ img {
 :where(.modal-overlay, .admin-modal-overlay, .confirmation-overlay)
   :is(.modal-dialog, .modal-card, .modal-content, .admin-modal, .kk-dialog) {
   width: min(85vw, 1200px) !important;
+  height: auto !important;
   max-height: 85vh !important;
+  max-height: 85dvh !important;
   border-radius: 16px !important;
   box-shadow: 0 24px 50px rgba(15, 23, 42, 0.35) !important;
+  display: flex !important;
+  flex-direction: column !important;
+  overflow: hidden !important;
 }
 
 :where(.modal-overlay, .admin-modal-overlay, .confirmation-overlay)
   :is(.modal-dialog, .modal-card, .admin-modal, .kk-dialog):not(.modal-compact):not(.created-voucher-modal) {
   /* created-voucher-modal intentionally stays compact for short confirmation content */
   min-width: min(650px, calc(100vw - 2.5rem)) !important;
-  min-height: min(650px, calc(100vh - 2.5rem)) !important;
 }
 
 :where(.modal-overlay, .admin-modal-overlay, .confirmation-overlay)
@@ -112,12 +116,35 @@ img {
   color: #ffffff !important;
   font-size: clamp(1.15rem, 1rem + 0.45vw, 1.55rem) !important;
   font-weight: 700 !important;
+  margin: 0 !important;
+  white-space: nowrap !important;
+  overflow: hidden !important;
+  text-overflow: ellipsis !important;
+}
+
+:where(.modal-overlay, .admin-modal-overlay, .confirmation-overlay)
+  :is(.modal-header, .admin-modal-header, .kk-dialog__header) > :first-child {
+  display: flex !important;
+  align-items: center !important;
+  gap: 0.35rem !important;
+  min-width: 0 !important;
+  flex: 1 1 auto !important;
+}
+
+:where(.modal-overlay, .admin-modal-overlay, .confirmation-overlay)
+  :is(.modal-header, .admin-modal-header, .kk-dialog__header) :is(.header-pipe) {
+  margin: 0 !important;
 }
 
 :where(.modal-overlay, .admin-modal-overlay, .confirmation-overlay)
   :is(.modal-subtitle, .kk-dialog__subtitle) {
   color: rgba(255, 255, 255, 0.9) !important;
   font-size: 0.9rem !important;
+  margin: 0 !important;
+  min-width: 0 !important;
+  white-space: nowrap !important;
+  overflow: hidden !important;
+  text-overflow: ellipsis !important;
 }
 
 :where(.modal-overlay, .admin-modal-overlay, .confirmation-overlay)
@@ -126,6 +153,17 @@ img {
   content: var(--modal-subtitle-separator, '|');
   opacity: 0.72;
   margin-right: 0.2rem;
+}
+
+:where(.modal-overlay, .admin-modal-overlay, .confirmation-overlay)
+  :is(.modal-body, .admin-modal-body, .kk-dialog__body, .modal-scroller, .modal-correction-body) {
+  flex: 1 1 auto !important;
+  min-height: 0 !important;
+  overflow-y: auto !important;
+  overflow-x: hidden !important;
+  display: flex !important;
+  flex-direction: column !important;
+  justify-content: center !important;
 }
 
 :where(.modal-overlay, .admin-modal-overlay, .confirmation-overlay)
@@ -151,6 +189,12 @@ img {
   background: #cdeedc !important;
   color: #14532d !important;
   border: 1px solid #86efac !important;
+}
+
+:where(.modal-overlay, .admin-modal-overlay, .confirmation-overlay)
+  :is(.modal-footer, .admin-modal-footer, .kk-dialog__footer) {
+  margin-top: auto !important;
+  flex-shrink: 0 !important;
 }
 
 :where(.modal-overlay, .admin-modal-overlay, .confirmation-overlay)
