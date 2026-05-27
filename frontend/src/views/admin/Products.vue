@@ -163,6 +163,7 @@ const editingId = ref(null)
 const imagePreviewSrc = ref(null)
 const imageFile = ref(null)
 const imageOriginalSrc = ref(null)
+const imageOriginalFile = ref(null)
 const cropModalImageSrc = ref(null)
 const pendingOriginalImageSrc = ref(null)
 const imageDeleteRequested = ref(false)
@@ -263,6 +264,11 @@ const readFileAsDataUrl = (file) => {
 
 const withCacheBust = (url, token = Date.now()) => `${url}?t=${token}`
 
+const isGifFile = (file) => {
+  const name = file?.name?.toLowerCase?.() || ''
+  return file?.type === 'image/gif' || name.endsWith('.gif')
+}
+
 const checkImageExists = async (url) => {
   try {
     const response = await fetch(url, { credentials: 'include' })
@@ -273,8 +279,9 @@ const checkImageExists = async (url) => {
 }
 
 const openCropModalFromCurrentImage = () => {
-  if (!imagePreviewSrc.value) return
-  cropModalImageSrc.value = imagePreviewSrc.value
+  const source = imageOriginalSrc.value || imagePreviewSrc.value
+  if (!source) return
+  cropModalImageSrc.value = source
   pendingOriginalImageSrc.value = null
   showCropModal.value = true
 }
@@ -312,8 +319,21 @@ const handleImageUpload = async (event) => {
 
   try {
     const dataUrl = await readFileAsDataUrl(file)
+    if (isGifFile(file)) {
+      imageFile.value = file
+      imagePreviewSrc.value = dataUrl
+      imageOriginalSrc.value = dataUrl
+      imageOriginalFile.value = file
+      imagePendingOriginalUpload.value = true
+      imageDeleteRequested.value = false
+      cropModalImageSrc.value = null
+      pendingOriginalImageSrc.value = null
+      showCropModal.value = false
+      return
+    }
     cropModalImageSrc.value = dataUrl
     pendingOriginalImageSrc.value = dataUrl
+    imageOriginalFile.value = file
     showCropModal.value = true
   } catch (error) {
     console.error('Image file read error:', error)
@@ -325,6 +345,7 @@ const requestImageRemoval = () => {
   imagePreviewSrc.value = null
   imageFile.value = null
   imageOriginalSrc.value = null
+  imageOriginalFile.value = null
   cropModalImageSrc.value = null
   pendingOriginalImageSrc.value = null
   imagePendingOriginalUpload.value = false
@@ -408,9 +429,14 @@ const syncProductImage = async (productId) => {
 
   if (imagePendingOriginalUpload.value && imageOriginalSrc.value) {
     try {
-      const origBlob = await dataUrlToBlob(imageOriginalSrc.value)
       const origFormData = new FormData()
-      origFormData.append('file', new File([origBlob], 'original.jpg', { type: 'image/jpeg' }))
+      const originalFile = imageOriginalFile.value
+      if (originalFile) {
+        origFormData.append('file', originalFile)
+      } else {
+        const origBlob = await dataUrlToBlob(imageOriginalSrc.value)
+        origFormData.append('file', new File([origBlob], 'original.jpg', { type: 'image/jpeg' }))
+      }
       await fetch(`/api/products/${productId}/original-image`, {
         method: 'POST',
         body: origFormData,
@@ -433,6 +459,7 @@ const syncProductImage = async (productId) => {
 
     if (response.ok) {
       imageFile.value = null
+      imageOriginalFile.value = null
       imagePendingOriginalUpload.value = false
       imageDeleteRequested.value = false
       persistedImageExists.value = true
@@ -479,6 +506,7 @@ const resetForm = () => {
   imageFile.value = null
   imagePreviewSrc.value = null
   imageOriginalSrc.value = null
+  imageOriginalFile.value = null
   cropModalImageSrc.value = null
   pendingOriginalImageSrc.value = null
   imageDeleteRequested.value = false
@@ -502,6 +530,7 @@ const editProduct = async (product) => {
   imageFile.value = null
   imagePreviewSrc.value = null
   imageOriginalSrc.value = null
+  imageOriginalFile.value = null
   cropModalImageSrc.value = null
   pendingOriginalImageSrc.value = null
   imageDeleteRequested.value = false
