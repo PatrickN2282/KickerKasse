@@ -927,8 +927,8 @@ const loadDataStats = async () => {
   try {
     const response = await apiService.get('/admin/data-maintenance/stats')
     dataStats.value = response.data
-  } catch {
-    // silently ignore if not accessible
+  } catch (e) {
+    console.error('Daten-Übersicht konnte nicht geladen werden:', e)
   }
 }
 

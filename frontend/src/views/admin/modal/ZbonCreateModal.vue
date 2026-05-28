@@ -195,9 +195,11 @@ defineEmits([
   background: #ffffff;
   border-radius: 20px;
   width: min(80vw, 1100px);
+  /* Override main.scss global max-height: 85dvh !important — the overlay scrolls instead */
   max-height: none !important;
   display: flex;
   flex-direction: column;
+  /* Allow content to determine dialog height; overflow handled by overlay */
   overflow: visible !important;
   box-shadow:
     0 32px 64px rgba(15, 23, 42, 0.28),
@@ -250,6 +252,7 @@ defineEmits([
 
 .kk-dialog__body {
   padding: 1.4rem;
+  /* Override main.scss global flex: 1 1 auto + min-height: 0 that causes content to shrink */
   overflow-y: visible !important;
   flex: 0 0 auto !important;
   min-height: unset !important;
@@ -497,7 +500,7 @@ defineEmits([
 @media (max-width: 900px) {
   .kk-dialog {
     width: min(94vw, 1100px);
-    max-height: none !important;
+    max-height: none !important; /* Override main.scss global max-height */
     border-radius: 16px;
   }
 }
@@ -510,7 +513,7 @@ defineEmits([
 
   .kk-dialog {
     width: 100%;
-    max-height: none !important;
+    max-height: none !important; /* Override main.scss global max-height */
     border-radius: 14px;
   }
 
