@@ -7,6 +7,7 @@ from app.constants import (
     INTERNAL_MATERIAL_CATEGORY_NAME,
 )
 from app.models import (
+    AuditLog,
     BalanceLog,
     CashBalance,
     CashEntry,
@@ -47,6 +48,7 @@ _TABLES_WITH_SEQUENCES = [
     "zbon_history",
     "product_stock_correction_logs",
     "member_balance_correction_logs",
+    "audit_logs",
 ]
 
 
@@ -74,6 +76,18 @@ class DataMaintenanceService:
                 )
             )
 
+    def get_stats(self) -> dict:
+        """Return current row counts for the main data tables."""
+        return {
+            "transactions": self.db.query(Transaction.id).count(),
+            "members": self.db.query(Member.id).count(),
+            "users": self.db.query(User.id).count(),
+            "products": self.db.query(Product.id).count(),
+            "categories": self.db.query(Category.id).count(),
+            "vouchers": self.db.query(Voucher.id).count(),
+            "audit_log_entries": self.db.query(AuditLog.id).count(),
+        }
+
     def hard_reset(self) -> dict:
         member_ids = [member_id for (member_id,) in self.db.query(Member.id).all()]
         product_ids = [product_id for (product_id,) in self.db.query(Product.id).all()]
@@ -97,6 +111,7 @@ class DataMaintenanceService:
         self.db.query(ProductStockCorrectionLog).delete(synchronize_session=False)
         self.db.query(Product).delete(synchronize_session=False)
         self.db.query(Category).delete(synchronize_session=False)
+        self.db.query(AuditLog).delete(synchronize_session=False)
         self.db.add(self._build_fixed_internal_material_category())
         self._reset_sequences()
         self.db.commit()

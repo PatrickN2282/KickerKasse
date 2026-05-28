@@ -471,20 +471,35 @@
           <div class="data-overview">
             <div class="overview-item">
               <span>Transaktionen</span>
-              <span class="overview-value">—</span>
+              <span class="overview-value">{{ dataStats.transactions ?? '—' }}</span>
+            </div>
+            <div class="overview-item">
+              <span>Mitglieder</span>
+              <span class="overview-value">{{ dataStats.members ?? '—' }}</span>
             </div>
             <div class="overview-item">
               <span>Benutzer</span>
-              <span class="overview-value">—</span>
+              <span class="overview-value">{{ dataStats.users ?? '—' }}</span>
             </div>
             <div class="overview-item">
               <span>Produkte</span>
-              <span class="overview-value">—</span>
+              <span class="overview-value">{{ dataStats.products ?? '—' }}</span>
             </div>
             <div class="overview-item">
               <span>Kategorien</span>
-              <span class="overview-value">—</span>
+              <span class="overview-value">{{ dataStats.categories ?? '—' }}</span>
             </div>
+            <div class="overview-item">
+              <span>Gutscheine</span>
+              <span class="overview-value">{{ dataStats.vouchers ?? '—' }}</span>
+            </div>
+            <div class="overview-item">
+              <span>Audit-Log Einträge</span>
+              <span class="overview-value">{{ dataStats.audit_log_entries ?? '—' }}</span>
+            </div>
+          </div>
+          <div class="btn-row">
+            <button class="btn btn-outline btn-sm" @click="loadDataStats">🔄 Aktualisieren</button>
           </div>
         </div>
       </div>
@@ -511,7 +526,7 @@
         Import / Export
       </div>
 
-      <div class="warning-box" style="margin-bottom: 1rem;">
+      <div class="warning-box" style="margin-bottom: 0.75rem;">
         <span class="warning-icon">⚠️</span>
         <div class="warning-text">
           <strong>Hinweis:</strong> Der Import ist ausschließlich für frische oder leere
@@ -520,26 +535,48 @@
         </div>
       </div>
 
-      <div class="grid-3">
-        <div class="action-card" @click="showImportExportModal = true">
-          <div class="action-icon">📥</div>
-          <div class="action-title">Daten importieren</div>
-          <div class="action-desc">CSV oder ZIP Datei hochladen</div>
+      <div class="grid-2">
+        <div class="card">
+          <div class="card-header">
+            <div class="card-icon blue">📥</div>
+            <div>
+              <div class="card-title">Import</div>
+              <div class="card-subtitle">CSV oder ZIP-Datei hochladen</div>
+            </div>
+          </div>
+          <div class="hint-box">
+            Importiere Produkte, Mitglieder und Kategorien aus einer CSV- oder ZIP-Datei.
+          </div>
+          <div class="btn-row">
+            <button class="btn btn-primary" @click="showImportExportModal = true; importExportInitialTab = 'import'">
+              📥 Import öffnen
+            </button>
+          </div>
         </div>
-        <div class="action-card" @click="exportData('csv')">
-          <div class="action-icon">📤</div>
-          <div class="action-title">Als CSV exportieren</div>
-          <div class="action-desc">Produkte, Mitglieder & Kategorien</div>
-        </div>
-        <div class="action-card" @click="exportData('zip')">
-          <div class="action-icon">🗜️</div>
-          <div class="action-title">Als ZIP exportieren</div>
-          <div class="action-desc">Komplettes Backup erstellen</div>
+
+        <div class="card">
+          <div class="card-header">
+            <div class="card-icon green">📤</div>
+            <div>
+              <div class="card-title">Export</div>
+              <div class="card-subtitle">Daten als CSV oder ZIP exportieren</div>
+            </div>
+          </div>
+          <div class="hint-box">
+            Exportiere Produkte, Mitglieder und Kategorien. Einzelne Bereiche als CSV,
+            Kombinationen oder mit Medien als ZIP.
+          </div>
+          <div class="btn-row">
+            <button class="btn btn-success" @click="showImportExportModal = true; importExportInitialTab = 'export'">
+              📤 Export öffnen
+            </button>
+          </div>
         </div>
       </div>
 
       <ImportExportModal
         :show="showImportExportModal"
+        :initial-tab="importExportInitialTab"
         @close="showImportExportModal = false"
       />
     </div>
@@ -773,15 +810,21 @@ const isCustomBanner = computed(() => !designColors.some(c => c.value === design
 const isCustomHighlight = computed(() => !designColors.some(c => c.value === designForm.highlight_color))
 const isCustomKasseArea = computed(() => !designColors.some(c => c.value === designForm.kasse_area_background_color))
 
-const previewStyle = computed(() => ({
-  '--preview-background': designForm.background_color,
-  '--preview-banner': designForm.banner_color,
-  '--preview-highlight': designForm.highlight_color,
-  '--preview-kasse-area': designForm.kasse_area_background_color,
-  '--preview-banner-contrast': getContrastColor(designForm.banner_color),
-  '--preview-highlight-contrast': getContrastColor(designForm.highlight_color),
-  '--preview-kasse-area-contrast': getContrastColor(designForm.kasse_area_background_color),
-}))
+const previewStyle = computed(() => {
+  const bgImage = previewKasseBackgroundUrl.value
+    ? `url(${previewKasseBackgroundUrl.value})`
+    : 'none'
+  return {
+    '--preview-background': designForm.background_color,
+    '--preview-banner': designForm.banner_color,
+    '--preview-highlight': designForm.highlight_color,
+    '--preview-kasse-area': designForm.kasse_area_background_color,
+    '--preview-banner-contrast': getContrastColor(designForm.banner_color),
+    '--preview-highlight-contrast': getContrastColor(designForm.highlight_color),
+    '--preview-kasse-area-contrast': getContrastColor(designForm.kasse_area_background_color),
+    '--preview-bg-image': designForm.kasse_products_background_enabled ? bgImage : 'none',
+  }
+})
 
 const previewLogoUrl = computed(() => selectedLogoPreview.value || appSettingsStore.logoUrl)
 const previewKasseBackgroundUrl = computed(() => (
@@ -878,6 +921,16 @@ const uploadKasseBackground = async () => {
 // ── Datenpflege ───────────────────────────────────────
 const showResetModal = ref(false)
 const showImportExportModal = ref(false)
+const dataStats = ref({})
+
+const loadDataStats = async () => {
+  try {
+    const response = await apiService.get('/admin/data-maintenance/stats')
+    dataStats.value = response.data
+  } catch {
+    // silently ignore if not accessible
+  }
+}
 
 const handleHardReset = async ({ password, confirmationText }) => {
   showResetModal.value = false
@@ -895,10 +948,7 @@ const handleHardReset = async ({ password, confirmationText }) => {
 }
 
 // ── Import / Export ───────────────────────────────────
-const exportData = async (format) => {
-  // Placeholder for export functionality
-  notificationStore.info(`Export als ${format.toUpperCase()} wird vorbereitet...`)
-}
+const importExportInitialTab = ref('import')
 
 // ── Ext. Settings ─────────────────────────────────────
 const LAYOUT_STORAGE_KEY = 'kasseLayout'
@@ -989,6 +1039,7 @@ onMounted(async () => {
   syncDesignForm()
   syncSessionTimer()
   syncDeckelSetting()
+  loadDataStats()
 
   const serverLayout = appSettingsStore.settings.kasse_layout
   if (serverLayout) {
@@ -1120,21 +1171,21 @@ onMounted(async () => {
 }
 
 .section-title {
-  font-size: 1.1rem;
+  font-size: 1rem;
   font-weight: 700;
   color: var(--text);
-  margin-bottom: 1rem;
+  margin-bottom: 0.75rem;
   display: flex;
   align-items: center;
   gap: 0.5rem;
 
   .title-icon {
-    width: 32px; height: 32px;
+    width: 28px; height: 28px;
     background: var(--primary-light);
     color: var(--primary);
     border-radius: 8px;
     display: flex; align-items: center; justify-content: center;
-    font-size: 1rem;
+    font-size: 0.9rem;
   }
 }
 
@@ -1144,13 +1195,13 @@ onMounted(async () => {
 .grid-2 {
   display: grid;
   grid-template-columns: repeat(2, 1fr);
-  gap: 1rem;
+  gap: 0.75rem;
 }
 
 .grid-3 {
   display: grid;
   grid-template-columns: repeat(3, 1fr);
-  gap: 1rem;
+  gap: 0.75rem;
 }
 
 @media (max-width: 900px) {
@@ -1164,12 +1215,12 @@ onMounted(async () => {
   background: color-mix(in srgb, var(--app-background-color) 55%, white);
   border: 1px solid color-mix(in srgb, var(--app-background-color) 65%, #777);
   border-radius: var(--radius);
-  padding: 1.25rem;
+  padding: 0.85rem;
   box-shadow: var(--shadow);
   transition: var(--transition);
   display: flex;
   flex-direction: column;
-  gap: 1rem;
+  gap: 0.65rem;
 
   &:hover {
     box-shadow: var(--shadow-hover);
@@ -1180,16 +1231,16 @@ onMounted(async () => {
 .card-header {
   display: flex;
   align-items: center;
-  gap: 0.75rem;
-  padding-bottom: 0.75rem;
+  gap: 0.6rem;
+  padding-bottom: 0.5rem;
   border-bottom: 1px solid var(--border);
 }
 
 .card-icon {
-  width: 40px; height: 40px;
-  border-radius: 10px;
+  width: 34px; height: 34px;
+  border-radius: 8px;
   display: flex; align-items: center; justify-content: center;
-  font-size: 1.25rem;
+  font-size: 1.1rem;
   flex-shrink: 0;
 
   &.blue { background: #eff6ff; }
@@ -1322,7 +1373,7 @@ onMounted(async () => {
   border-radius: 10px;
   overflow: hidden;
   border: 1px solid var(--border);
-  min-height: 200px;
+  min-height: 150px;
   display: flex;
   flex-direction: column;
   background: var(--preview-background);
@@ -1370,6 +1421,9 @@ onMounted(async () => {
 .preview-kasse {
   flex: 1;
   background: var(--preview-kasse-area);
+  background-image: var(--preview-bg-image);
+  background-size: cover;
+  background-position: center;
   color: var(--preview-kasse-area-contrast);
   border-radius: 6px;
   padding: 0.75rem;
@@ -1386,7 +1440,7 @@ onMounted(async () => {
 .upload-zone {
   border: 2px dashed var(--border);
   border-radius: 10px;
-  padding: 1.5rem;
+  padding: 0.85rem;
   text-align: center;
   cursor: pointer;
   transition: var(--transition);
@@ -1397,9 +1451,9 @@ onMounted(async () => {
     background: var(--primary-light);
   }
 
-  .upload-icon { font-size: 2rem; margin-bottom: 0.5rem; }
-  .upload-text { font-size: 0.85rem; color: var(--muted); }
-  .upload-hint { font-size: 0.75rem; color: var(--muted); margin-top: 0.3rem; }
+  .upload-icon { font-size: 1.5rem; margin-bottom: 0.25rem; }
+  .upload-text { font-size: 0.8rem; color: var(--muted); }
+  .upload-hint { font-size: 0.7rem; color: var(--muted); margin-top: 0.2rem; }
 }
 
 .image-preview {
@@ -1407,9 +1461,9 @@ onMounted(async () => {
   overflow: hidden;
   background: var(--bg);
   display: flex; align-items: center; justify-content: center;
-  min-height: 100px;
+  min-height: 70px;
 
-  img { max-width: 100%; max-height: 120px; object-fit: contain; }
+  img { max-width: 100%; max-height: 80px; object-fit: contain; }
 
   .no-image { color: var(--muted); font-size: 0.8rem; }
 }

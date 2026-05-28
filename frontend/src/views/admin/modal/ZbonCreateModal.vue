@@ -184,7 +184,7 @@ defineEmits([
   background: rgba(15, 23, 42, 0.65);
   backdrop-filter: blur(5px);
   display: flex;
-  align-items: center;
+  align-items: flex-start;
   justify-content: center;
   z-index: 1500;
   padding: 1.5rem;
@@ -195,13 +195,14 @@ defineEmits([
   background: #ffffff;
   border-radius: 20px;
   width: min(80vw, 1100px);
-  max-height: min(82vh, 900px);
+  max-height: none !important;
   display: flex;
   flex-direction: column;
-  overflow: hidden;
+  overflow: visible !important;
   box-shadow:
     0 32px 64px rgba(15, 23, 42, 0.28),
     0 0 0 1px rgba(15, 23, 42, 0.06);
+  margin: auto;
 }
 
 .kk-dialog__header {
@@ -249,8 +250,9 @@ defineEmits([
 
 .kk-dialog__body {
   padding: 1.4rem;
-  overflow-y: auto;
-  flex: 1;
+  overflow-y: visible !important;
+  flex: 0 0 auto !important;
+  min-height: unset !important;
   display: flex;
   flex-direction: column;
   gap: 1.1rem;
@@ -495,7 +497,7 @@ defineEmits([
 @media (max-width: 900px) {
   .kk-dialog {
     width: min(94vw, 1100px);
-    max-height: min(90vh, 900px);
+    max-height: none !important;
     border-radius: 16px;
   }
 }
@@ -508,7 +510,7 @@ defineEmits([
 
   .kk-dialog {
     width: 100%;
-    max-height: calc(100dvh - 1.5rem);
+    max-height: none !important;
     border-radius: 14px;
   }
 

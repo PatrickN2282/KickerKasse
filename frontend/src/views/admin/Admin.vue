@@ -45,6 +45,7 @@
     <HelpInfoModal
       :show="showHelpInfoModal"
       @close="showHelpInfoModal = false"
+      @donate="showHelpInfoModal = false; showDonationModal = true"
     />
   </div>
 </template>

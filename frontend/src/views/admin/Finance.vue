@@ -1301,13 +1301,6 @@
   ================================================================
 -->
 
-    <!-- Cash Counter Modal (Stil bereits ok, nur Shell angleichen) -->
-    <CashCounterModal
-      :show="showCashCounterModal"
-      @close="showCashCounterModal = false"
-      @confirm="onCashCounterConfirm"
-    />
-
     <!-- ═══════════════════════════════════════════════════════════
          Z-BON ERSTELLEN
     ════════════════════════════════════════════════════════════ -->
@@ -1335,6 +1328,12 @@
       @request-create="requestZBonCreate"
     />
 
+    <!-- Cash Counter Modal (rendered after ZbonCreateModal so it appears on top) -->
+    <CashCounterModal
+      :show="showCashCounterModal"
+      @close="showCashCounterModal = false"
+      @confirm="onCashCounterConfirm"
+    />
     <!-- ═══════════════════════════════════════════════════════════
          ABSCHÖPFUNG
     ════════════════════════════════════════════════════════════ -->
