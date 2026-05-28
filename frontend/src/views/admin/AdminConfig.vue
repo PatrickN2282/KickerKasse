@@ -60,7 +60,7 @@
             <div class="color-pickers-col">
               <div class="card-row-header">
                 <h3>Farben</h3>
-                <button class="btn btn-secondary btn-sm" type="button" title="Farben auf Standard zurücksetzen" @click="resetDesignColors">
+                <button class="btn btn-secondary btn-sm" type="button" title="Farben auf Standard zurücksetzen" aria-label="Farben zurücksetzen" @click="resetDesignColors">
                   ↺ Reset
                 </button>
               </div>
@@ -596,11 +596,19 @@ const saveDesignSettings = async () => {
   }
 }
 
+// Default colors for the Reset button
+const DESIGN_COLOR_DEFAULTS = {
+  background_color: '#D7DCE2',
+  banner_color: '#131820',
+  highlight_color: '#209529',
+  kasse_area_background_color: '#FFFFFF',
+}
+
 const resetDesignColors = () => {
-  designForm.background_color = '#D7DCE2'
-  designForm.banner_color = '#131820'
-  designForm.highlight_color = '#209529'
-  designForm.kasse_area_background_color = '#FFFFFF'
+  designForm.background_color = DESIGN_COLOR_DEFAULTS.background_color
+  designForm.banner_color = DESIGN_COLOR_DEFAULTS.banner_color
+  designForm.highlight_color = DESIGN_COLOR_DEFAULTS.highlight_color
+  designForm.kasse_area_background_color = DESIGN_COLOR_DEFAULTS.kasse_area_background_color
 }
 
 const uploadLogo = async () => {
