@@ -1,11 +1,13 @@
 <template>
   <div class="admin-config">
-    <!-- Inner section navigation -->
+    <!-- ═══════════════════════════════════════════════
+         SECTION NAVIGATION
+         ═══════════════════════════════════════════════ -->
     <div class="section-nav">
       <div class="title-row">
-        <span class="section-nav-label">Einstellungsverwaltung</span>
+        <span class="section-nav-label">⚙️ Einstellungsverwaltung</span>
         <span class="title-sep">|</span>
-        <span class="page-subtitle">Konfiguration, Design und Systemeinstellungen.</span>
+        <span class="page-subtitle">Konfiguration, Design und Systemeinstellungen</span>
       </div>
       <div class="section-nav-buttons">
         <button
@@ -13,14 +15,14 @@
           type="button"
           @click="activeSection = 'design'"
         >
-          🎨 Design
+          <span class="tab-icon">🎨</span> Design
         </button>
         <button
           :class="['section-tab', { active: activeSection === 'datamaintenance' }]"
           type="button"
           @click="activeSection = 'datamaintenance'"
         >
-          🧹 Datenpflege
+          <span class="tab-icon">🧹</span> Datenpflege
         </button>
         <button
           v-if="authStore.isAdmin"
@@ -28,7 +30,7 @@
           type="button"
           @click="activeSection = 'importexport'"
         >
-          🔄 Import/Export
+          <span class="tab-icon">🔄</span> Import / Export
         </button>
         <button
           v-if="authStore.isAdmin"
@@ -36,7 +38,7 @@
           type="button"
           @click="activeSection = 'extsettings'"
         >
-          ⚙️ Ext. Settings
+          <span class="tab-icon">⚙️</span> Erweitert
         </button>
         <button
           v-if="authStore.isTopAdmin"
@@ -44,253 +46,448 @@
           type="button"
           @click="activeSection = 'auditlog'"
         >
-          🔍 Audit-Log
+          <span class="tab-icon">🔍</span> Audit-Log
         </button>
       </div>
     </div>
 
-    <!-- ── Design ─────────────────────────────────────── -->
+    <!-- ═══════════════════════════════════════════════
+         SECTION: DESIGN
+         ═══════════════════════════════════════════════ -->
     <div v-if="activeSection === 'design'" class="section-content">
-      <h2>Design &amp; Logo</h2>
+      <div class="section-title">
+        <div class="title-icon">🎨</div>
+        Design & Logo
+      </div>
 
-      <div class="design-grid">
-
-        <!-- Spalte 1: Farben -->
-        <section class="settings-card colors-card">
-          <div class="card-row-header">
-            <h3>Farben</h3>
-          </div>
-
-          <!-- Reset-Hinweis-Box -->
-          <div class="reset-hint-box">
-            <div class="reset-hint-text">
-              <span class="reset-hint-icon">↺</span>
-              <div>
-                <strong>Standardfarben wiederherstellen</strong>
-                <span class="reset-hint-sub">Setzt alle Farben auf die Werkseinstellung zurück.</span>
-              </div>
+      <!-- Row 1: Colors + Preview -->
+      <div class="grid-2">
+        <!-- Card: Farben -->
+        <div class="card">
+          <div class="card-header">
+            <div class="card-icon blue">🎨</div>
+            <div>
+              <div class="card-title">Farben</div>
+              <div class="card-subtitle">App-Farben anpassen</div>
             </div>
-            <button
-              class="btn btn-reset"
-              type="button"
-              title="Farben auf Standard zurücksetzen"
-              aria-label="Farben zurücksetzen"
-              @click="resetDesignColors"
-            >
-              Reset
-            </button>
           </div>
 
+          <!-- Reset Hint -->
+          <div class="info-row">
+            <span class="info-icon">↺</span>
+            <div class="info-text">
+              <strong>Standardfarben wiederherstellen</strong>
+              Setzt alle Farben auf die Werkseinstellung zurück.
+            </div>
+            <button class="btn btn-warning btn-sm" @click="resetDesignColors">Reset</button>
+          </div>
+
+          <!-- App Name -->
           <div class="form-group">
-            <label for="appName">App-Überschrift</label>
-            <input id="appName" v-model.trim="designForm.app_name" type="text" class="form-input" maxlength="120" />
+            <label class="form-label">App-Überschrift</label>
+            <input
+              v-model.trim="designForm.app_name"
+              type="text"
+              class="form-input"
+              maxlength="120"
+            />
           </div>
 
-          <div class="color-row">
-            <span class="color-row-label">Hintergrundfarbe</span>
-            <div class="color-options">
+          <!-- Hintergrundfarbe -->
+          <div class="form-group">
+            <label class="form-label">
+              Hintergrundfarbe
+              <span class="color-hex-display">{{ designForm.background_color }}</span>
+            </label>
+            <div class="color-presets">
               <button
                 v-for="preset in designColors"
                 :key="preset.value"
                 type="button"
-                class="color-option"
+                class="color-preset"
                 :class="{ selected: designForm.background_color === preset.value }"
                 :style="{ background: preset.value }"
                 :title="preset.label"
                 @click="designForm.background_color = preset.value"
-              ></button>
+              />
               <label
-                class="color-option color-option-custom"
+                class="color-preset color-custom"
                 :class="{ selected: isCustomBackground }"
                 title="Eigene Farbe wählen"
               >
-                <span v-if="isCustomBackground" class="custom-color-preview" :style="{ background: designForm.background_color }"></span>
+                <span
+                  v-if="isCustomBackground"
+                  class="custom-color-preview"
+                  :style="{ background: designForm.background_color }"
+                />
                 <span v-else class="custom-color-icon">🎨</span>
-                <input type="color" :value="designForm.background_color" @input="designForm.background_color = $event.target.value">
+                <input
+                  type="color"
+                  :value="designForm.background_color"
+                  @input="designForm.background_color = $event.target.value"
+                />
               </label>
             </div>
-            <code class="color-hex" :style="{ background: designForm.background_color, color: getContrastColor(designForm.background_color) }">{{ designForm.background_color }}</code>
           </div>
 
-          <div class="color-row">
-            <span class="color-row-label">Bannerfarbe</span>
-            <div class="color-options">
+          <!-- Bannerfarbe -->
+          <div class="form-group">
+            <label class="form-label">
+              Bannerfarbe
+              <span class="color-hex-display">{{ designForm.banner_color }}</span>
+            </label>
+            <div class="color-presets">
               <button
                 v-for="preset in designColors"
                 :key="preset.value"
                 type="button"
-                class="color-option"
+                class="color-preset"
                 :class="{ selected: designForm.banner_color === preset.value }"
                 :style="{ background: preset.value }"
                 :title="preset.label"
                 @click="designForm.banner_color = preset.value"
-              ></button>
+              />
               <label
-                class="color-option color-option-custom"
+                class="color-preset color-custom"
                 :class="{ selected: isCustomBanner }"
                 title="Eigene Farbe wählen"
               >
-                <span v-if="isCustomBanner" class="custom-color-preview" :style="{ background: designForm.banner_color }"></span>
+                <span
+                  v-if="isCustomBanner"
+                  class="custom-color-preview"
+                  :style="{ background: designForm.banner_color }"
+                />
                 <span v-else class="custom-color-icon">🎨</span>
-                <input type="color" :value="designForm.banner_color" @input="designForm.banner_color = $event.target.value">
+                <input
+                  type="color"
+                  :value="designForm.banner_color"
+                  @input="designForm.banner_color = $event.target.value"
+                />
               </label>
             </div>
-            <code class="color-hex" :style="{ background: designForm.banner_color, color: getContrastColor(designForm.banner_color) }">{{ designForm.banner_color }}</code>
           </div>
 
-          <div class="color-row">
-            <span class="color-row-label">Highlight-Farbe</span>
-            <div class="color-options">
+          <!-- Highlight-Farbe -->
+          <div class="form-group">
+            <label class="form-label">
+              Highlight-Farbe
+              <span class="color-hex-display">{{ designForm.highlight_color }}</span>
+            </label>
+            <div class="color-presets">
               <button
                 v-for="preset in designColors"
                 :key="preset.value"
                 type="button"
-                class="color-option"
+                class="color-preset"
                 :class="{ selected: designForm.highlight_color === preset.value }"
                 :style="{ background: preset.value }"
                 :title="preset.label"
                 @click="designForm.highlight_color = preset.value"
-              ></button>
+              />
               <label
-                class="color-option color-option-custom"
+                class="color-preset color-custom"
                 :class="{ selected: isCustomHighlight }"
                 title="Eigene Farbe wählen"
               >
-                <span v-if="isCustomHighlight" class="custom-color-preview" :style="{ background: designForm.highlight_color }"></span>
+                <span
+                  v-if="isCustomHighlight"
+                  class="custom-color-preview"
+                  :style="{ background: designForm.highlight_color }"
+                />
                 <span v-else class="custom-color-icon">🎨</span>
-                <input type="color" :value="designForm.highlight_color" @input="designForm.highlight_color = $event.target.value">
+                <input
+                  type="color"
+                  :value="designForm.highlight_color"
+                  @input="designForm.highlight_color = $event.target.value"
+                />
               </label>
             </div>
-            <code class="color-hex" :style="{ background: designForm.highlight_color, color: getContrastColor(designForm.highlight_color) }">{{ designForm.highlight_color }}</code>
           </div>
 
-          <div class="color-row">
-            <span class="color-row-label">Kassenbereich</span>
-            <div class="color-options">
+          <!-- Kassenbereich -->
+          <div class="form-group">
+            <label class="form-label">
+              Kassenbereich
+              <span class="color-hex-display">{{ designForm.kasse_area_background_color }}</span>
+            </label>
+            <div class="color-presets">
               <button
                 v-for="preset in designColors"
                 :key="preset.value"
                 type="button"
-                class="color-option"
+                class="color-preset"
                 :class="{ selected: designForm.kasse_area_background_color === preset.value }"
                 :style="{ background: preset.value }"
                 :title="preset.label"
                 @click="designForm.kasse_area_background_color = preset.value"
-              ></button>
+              />
               <label
-                class="color-option color-option-custom"
+                class="color-preset color-custom"
                 :class="{ selected: isCustomKasseArea }"
                 title="Eigene Farbe wählen"
               >
-                <span v-if="isCustomKasseArea" class="custom-color-preview" :style="{ background: designForm.kasse_area_background_color }"></span>
+                <span
+                  v-if="isCustomKasseArea"
+                  class="custom-color-preview"
+                  :style="{ background: designForm.kasse_area_background_color }"
+                />
                 <span v-else class="custom-color-icon">🎨</span>
-                <input type="color" :value="designForm.kasse_area_background_color" @input="designForm.kasse_area_background_color = $event.target.value">
+                <input
+                  type="color"
+                  :value="designForm.kasse_area_background_color"
+                  @input="designForm.kasse_area_background_color = $event.target.value"
+                />
               </label>
             </div>
-            <code class="color-hex" :style="{ background: designForm.kasse_area_background_color, color: getContrastColor(designForm.kasse_area_background_color) }">{{ designForm.kasse_area_background_color }}</code>
           </div>
 
-          <button class="btn btn-primary" :disabled="appSettingsStore.isSaving" @click="saveDesignSettings">
-            Farben speichern
-          </button>
-        </section>
+          <div class="btn-row">
+            <button
+              class="btn btn-primary"
+              :disabled="appSettingsStore.isSaving"
+              @click="saveDesignSettings"
+            >
+              💾 Farben speichern
+            </button>
+          </div>
+        </div>
 
-        <!-- Spalte 2: Live-Vorschau -->
-        <section class="settings-card preview-card">
-          <h3>Vorschau</h3>
-          <div class="preview-shell" :style="previewStyle">
+        <!-- Card: Live-Vorschau -->
+        <div class="card">
+          <div class="card-header">
+            <div class="card-icon purple">👁️</div>
+            <div>
+              <div class="card-title">Live-Vorschau</div>
+              <div class="card-subtitle">Echtzeit-Vorschau der Änderungen</div>
+            </div>
+          </div>
+          <div class="preview-box" :style="previewStyle">
             <div class="preview-banner">
-              <img :src="previewLogoUrl" alt="Logo Vorschau" class="preview-logo" />
+              <img :src="previewLogoUrl" alt="Logo" class="preview-logo" />
               <span class="preview-title">{{ designForm.app_name }}</span>
             </div>
-            <div class="preview-highlight">Highlight-Fläche</div>
-            <div class="preview-kasse-area">Kassenbereich</div>
+            <div class="preview-body">
+              <div class="preview-highlight">Highlight-Fläche</div>
+              <div class="preview-kasse">Kassenbereich</div>
+            </div>
           </div>
-        </section>
+        </div>
+      </div>
 
-        <!-- Spalte 3: Logo + Kassen-Hintergrund -->
-        <section class="settings-card media-card">
-
-          <!-- Logo -->
-          <h3>Logo</h3>
-          <div class="logo-preview logo-preview--sm">
-            <img :src="appSettingsStore.logoUrl" alt="Aktuelles Logo" />
+      <!-- Row 2: Logo + Kassen-Hintergrund -->
+      <div class="grid-2">
+        <!-- Card: Logo -->
+        <div class="card">
+          <div class="card-header">
+            <div class="card-icon green">🏷️</div>
+            <div>
+              <div class="card-title">Logo</div>
+              <div class="card-subtitle">App-Logo hochladen</div>
+            </div>
           </div>
-          <input type="file" accept="image/*" class="form-input" @change="handleLogoSelection" />
-          <button class="btn btn-success" :disabled="!selectedLogo || appSettingsStore.isSaving" @click="uploadLogo">
-            Logo hochladen
-          </button>
-
-          <div class="divider"></div>
-
-          <!-- Kassen-Hintergrund -->
-          <h3>Hintergrundbild Produktbereich</h3>
-          <div class="logo-preview logo-preview--sm">
-            <img v-if="previewKasseBackgroundUrl" :src="previewKasseBackgroundUrl" alt="Produktbereich Hintergrund" />
-            <span v-else class="no-image-hint">Kein Hintergrundbild</span>
+          <div class="image-preview">
+            <img
+              v-if="appSettingsStore.logoUrl"
+              :src="appSettingsStore.logoUrl"
+              alt="Aktuelles Logo"
+            />
+            <span v-else class="no-image">Kein Logo ausgewählt</span>
           </div>
-          <p class="upload-hint">⚠️ Mindestgröße: <strong>700 × 700 Pixel</strong>. Kleinere Bilder werden abgelehnt.</p>
-          <input type="file" accept="image/*" class="form-input" @change="handleKasseBackgroundSelection" />
-          <button class="btn btn-success" :disabled="!selectedKasseBackground || appSettingsStore.isSaving" @click="uploadKasseBackground">
-            Hintergrundbild hochladen
-          </button>
+          <div class="upload-zone" @click="$refs.logoInput.click()">
+            <div class="upload-icon">📤</div>
+            <div class="upload-text">Logo hier ablegen oder klicken</div>
+            <div class="upload-hint">Bilddatei (PNG, JPG, SVG)</div>
+          </div>
+          <input
+            ref="logoInput"
+            type="file"
+            accept="image/*"
+            style="display: none"
+            @change="handleLogoSelection"
+          />
+          <div class="btn-row">
+            <button
+              class="btn btn-success"
+              :disabled="!selectedLogo || appSettingsStore.isSaving"
+              @click="uploadLogo"
+            >
+              ⬆️ Logo hochladen
+            </button>
+          </div>
+        </div>
 
-          <div class="kasse-bg-controls">
-            <label class="checkbox-label" for="kasse-bg-enabled">
-              <input
-                id="kasse-bg-enabled"
-                v-model="designForm.kasse_products_background_enabled"
-                type="checkbox"
-                class="form-checkbox"
-              />
-              Hintergrundbild anzeigen
+        <!-- Card: Kassen-Hintergrund -->
+        <div class="card">
+          <div class="card-header">
+            <div class="card-icon orange">🖼️</div>
+            <div>
+              <div class="card-title">Hintergrundbild Produktbereich</div>
+              <div class="card-subtitle">Hintergrund für den Kassenbereich</div>
+            </div>
+          </div>
+          <div class="image-preview">
+            <img
+              v-if="previewKasseBackgroundUrl"
+              :src="previewKasseBackgroundUrl"
+              alt="Produktbereich Hintergrund"
+            />
+            <span v-else class="no-image">Kein Hintergrundbild</span>
+          </div>
+          <div class="warning-box">
+            <span class="warning-icon">⚠️</span>
+            <div class="warning-text">
+              <strong>Mindestgröße: 700 × 700 Pixel</strong>
+              Kleinere Bilder werden abgelehnt.
+            </div>
+          </div>
+          <div class="upload-zone" @click="$refs.bgInput.click()">
+            <div class="upload-icon">📤</div>
+            <div class="upload-text">Hintergrundbild hier ablegen</div>
+            <div class="upload-hint">Mindestens 700×700 px</div>
+          </div>
+          <input
+            ref="bgInput"
+            type="file"
+            accept="image/*"
+            style="display: none"
+            @change="handleKasseBackgroundSelection"
+          />
+
+          <hr class="divider" />
+
+          <div class="toggle-row">
+            <span class="toggle-label-text">Hintergrundbild anzeigen</span>
+            <div
+              class="toggle-switch"
+              :class="{ active: designForm.kasse_products_background_enabled }"
+              @click="designForm.kasse_products_background_enabled = !designForm.kasse_products_background_enabled"
+            />
+          </div>
+
+          <div class="form-group">
+            <label class="form-label">
+              Deckkraft
+              <span class="hint">{{ designForm.kasse_products_background_opacity }}%</span>
             </label>
-            <div class="form-group">
-              <label for="kasse-bg-opacity">Deckkraft ({{ designForm.kasse_products_background_opacity }}%)</label>
-              <input
-                id="kasse-bg-opacity"
-                v-model.number="designForm.kasse_products_background_opacity"
-                type="range" min="0" max="100" step="5" class="form-input"
-              >
-              <div class="range-labels"><span>0%</span><span>100%</span></div>
-            </div>
-            <div class="form-group">
-              <label for="kasse-bg-scale">Skalierung ({{ designForm.kasse_products_background_scale }}%)</label>
-              <input
-                id="kasse-bg-scale"
-                v-model.number="designForm.kasse_products_background_scale"
-                type="range" min="10" max="300" step="5" class="form-input"
-              >
-            </div>
+            <input
+              v-model.number="designForm.kasse_products_background_opacity"
+              type="range"
+              class="form-input"
+              min="0"
+              max="100"
+              step="5"
+            />
+            <div class="range-labels"><span>0%</span><span>100%</span></div>
           </div>
 
-          <button class="btn btn-primary" :disabled="appSettingsStore.isSaving" @click="saveDesignSettings">
-            Einstellungen aktualisieren
-          </button>
-        </section>
+          <div class="form-group">
+            <label class="form-label">
+              Skalierung
+              <span class="hint">{{ designForm.kasse_products_background_scale }}%</span>
+            </label>
+            <input
+              v-model.number="designForm.kasse_products_background_scale"
+              type="range"
+              class="form-input"
+              min="10"
+              max="300"
+              step="5"
+            />
+            <div class="range-labels"><span>10%</span><span>300%</span></div>
+          </div>
 
+          <div class="btn-row">
+            <button
+              class="btn btn-success"
+              :disabled="!selectedKasseBackground || appSettingsStore.isSaving"
+              @click="uploadKasseBackground"
+            >
+              ⬆️ Hintergrund hochladen
+            </button>
+            <button
+              class="btn btn-primary"
+              :disabled="appSettingsStore.isSaving"
+              @click="saveDesignSettings"
+            >
+              💾 Einstellungen aktualisieren
+            </button>
+          </div>
+        </div>
       </div>
     </div>
 
-    <!-- ── Datenpflege ────────────────────────────────── -->
+    <!-- ═══════════════════════════════════════════════
+         SECTION: DATENPFLEGE
+         ═══════════════════════════════════════════════ -->
     <div v-if="activeSection === 'datamaintenance'" class="section-content">
-      <h2>Datenpflege</h2>
-      <div class="warning-box">
-        <p>
-          Der Hard-Reset entfernt Transaktionen, Benutzer, Mitglieder, Produkte, Statistiken,
-          Gutscheine, Verzehrkarten und Kategorien unwiderruflich.
-        </p>
-        <p v-if="!authStore.isTopAdmin" class="access-note">
-          Nur der Top-Admin darf diese Aktion ausführen.
-        </p>
+      <div class="section-title">
+        <div class="title-icon">🧹</div>
+        Datenpflege
       </div>
-      <button
-        class="btn btn-danger"
-        :disabled="!authStore.isTopAdmin"
-        @click="showResetModal = true"
-      >
-        🧨 Hard-Reset starten
-      </button>
+
+      <div class="grid-2">
+        <div class="card">
+          <div class="card-header">
+            <div class="card-icon red">🧨</div>
+            <div>
+              <div class="card-title">Hard-Reset</div>
+              <div class="card-subtitle">Alle Daten unwiderruflich löschen</div>
+            </div>
+          </div>
+          <div class="warning-box danger">
+            <span class="warning-icon">⚠️</span>
+            <div class="warning-text">
+              <strong>Achtung!</strong>
+              Der Hard-Reset entfernt Transaktionen, Benutzer, Mitglieder, Produkte,
+              Statistiken, Gutscheine, Verzehrkarten und Kategorien unwiderruflich.
+            </div>
+          </div>
+          <div class="warning-box success">
+            <span class="warning-icon">🔒</span>
+            <div class="warning-text">
+              <strong>Zugriffsbeschränkung</strong>
+              Nur der Top-Admin darf diese Aktion ausführen.
+            </div>
+          </div>
+          <div class="btn-row">
+            <button
+              class="btn btn-danger"
+              :disabled="!authStore.isTopAdmin"
+              @click="showResetModal = true"
+            >
+              🧨 Hard-Reset starten
+            </button>
+          </div>
+        </div>
+
+        <div class="card">
+          <div class="card-header">
+            <div class="card-icon gray">📋</div>
+            <div>
+              <div class="card-title">Daten-Übersicht</div>
+              <div class="card-subtitle">Aktueller Datenbestand</div>
+            </div>
+          </div>
+          <div class="data-overview">
+            <div class="overview-item">
+              <span>Transaktionen</span>
+              <span class="overview-value">—</span>
+            </div>
+            <div class="overview-item">
+              <span>Benutzer</span>
+              <span class="overview-value">—</span>
+            </div>
+            <div class="overview-item">
+              <span>Produkte</span>
+              <span class="overview-value">—</span>
+            </div>
+            <div class="overview-item">
+              <span>Kategorien</span>
+              <span class="overview-value">—</span>
+            </div>
+          </div>
+        </div>
+      </div>
 
       <CredentialConfirmModal
         :show="showResetModal"
@@ -305,132 +502,211 @@
       />
     </div>
 
+    <!-- ═══════════════════════════════════════════════
+         SECTION: IMPORT / EXPORT
+         ═══════════════════════════════════════════════ -->
     <div v-if="activeSection === 'importexport' && authStore.isAdmin" class="section-content">
-      <h2>Import / Export</h2>
-      <div class="settings-card">
-        <h3>Datenübernahme und Sicherung</h3>
-        <div class="import-warning-box">
-          <span class="import-warning-icon">⚠️</span>
-          <div>
-            <strong>Hinweis:</strong> Der Import ist ausschließlich für frische oder leere Datenbanken vorgesehen.
-            Auf einer bestehenden Datenbank mit Transaktionen kann der Import zu Inkonsistenzen führen.
-          </div>
-        </div>
-        <p class="section-description">
-          Produkte, Mitglieder und Kategorien können gesammelt exportiert oder aus CSV-/ZIP-Dateien wieder importiert werden.
-        </p>
-        <button class="btn btn-primary" type="button" @click="showImportExportModal = true">
-          Import / Export öffnen
-        </button>
+      <div class="section-title">
+        <div class="title-icon">🔄</div>
+        Import / Export
       </div>
+
+      <div class="warning-box" style="margin-bottom: 1rem;">
+        <span class="warning-icon">⚠️</span>
+        <div class="warning-text">
+          <strong>Hinweis:</strong> Der Import ist ausschließlich für frische oder leere
+          Datenbanken vorgesehen. Auf einer bestehenden Datenbank mit Transaktionen kann
+          der Import zu Inkonsistenzen führen.
+        </div>
+      </div>
+
+      <div class="grid-3">
+        <div class="action-card" @click="showImportExportModal = true">
+          <div class="action-icon">📥</div>
+          <div class="action-title">Daten importieren</div>
+          <div class="action-desc">CSV oder ZIP Datei hochladen</div>
+        </div>
+        <div class="action-card" @click="exportData('csv')">
+          <div class="action-icon">📤</div>
+          <div class="action-title">Als CSV exportieren</div>
+          <div class="action-desc">Produkte, Mitglieder & Kategorien</div>
+        </div>
+        <div class="action-card" @click="exportData('zip')">
+          <div class="action-icon">🗜️</div>
+          <div class="action-title">Als ZIP exportieren</div>
+          <div class="action-desc">Komplettes Backup erstellen</div>
+        </div>
+      </div>
+
+      <ImportExportModal
+        :show="showImportExportModal"
+        @close="showImportExportModal = false"
+      />
     </div>
 
+    <!-- ═══════════════════════════════════════════════
+         SECTION: AUDIT-LOG
+         ═══════════════════════════════════════════════ -->
     <div v-if="activeSection === 'auditlog' && authStore.isTopAdmin" class="section-content">
-      <h2>Audit-Log</h2>
+      <div class="section-title">
+        <div class="title-icon">🔍</div>
+        Audit-Log
+      </div>
       <AuditLogPanel />
     </div>
 
-    <!-- ── Ext. Settings ──────────────────────────────── -->
-    <div v-if="activeSection === 'extsettings' && authStore.isAdmin" class="section-content ext-settings-section">
-      <div class="page-header">
-        <div class="title-row">
-          <h2>Erweiterte Einstellungen</h2>
-          <span class="title-sep">|</span>
-          <span class="page-subtitle">Bereich sichtbar für Admin und TopAdmin; erweiterte Systemkarten nur für TopAdmin.</span>
-        </div>
+    <!-- ═══════════════════════════════════════════════
+         SECTION: ERWEITERTE EINSTELLUNGEN
+         ═══════════════════════════════════════════════ -->
+    <div v-if="activeSection === 'extsettings' && authStore.isAdmin" class="section-content">
+      <div class="section-title">
+        <div class="title-icon">⚙️</div>
+        Erweiterte Einstellungen
       </div>
 
-      <div class="ext-settings-grid">
-        <div v-if="authStore.isTopAdmin" class="ext-card">
-          <div class="ext-card-header">
-            <div class="ext-card-icon">🏢</div>
+      <div class="grid-2">
+        <!-- Geschäftsdaten -->
+        <div v-if="authStore.isTopAdmin" class="card">
+          <div class="card-header">
+            <div class="card-icon blue">🏢</div>
             <div>
-              <h3>Geschäftsdaten</h3>
-              <p>Vereinsname, Anschrift und Kontaktdaten hinterlegen.</p>
+              <div class="card-title">Geschäftsdaten</div>
+              <div class="card-subtitle">Vereinsname, Anschrift und Kontaktdaten</div>
             </div>
           </div>
-          <button class="btn btn-primary" @click="showBusinessModal = true">
-            Geschäftsdaten bearbeiten
-          </button>
-        </div>
-
-        <div v-if="authStore.isTopAdmin" class="ext-card">
-          <div class="ext-card-header">
-            <div class="ext-card-icon">🖥️</div>
-            <div>
-              <h3>Layout-Chooser</h3>
-              <p>Kassenansicht-Layout auswählen. Die App wird nach der Auswahl neu geladen.</p>
-            </div>
+          <div class="form-group">
+            <label class="form-label">Firmenname</label>
+            <input v-model="businessData.name" type="text" class="form-input" placeholder="z.B. KickerKasse e.V." />
           </div>
-          <div class="layout-chooser">
-            <div class="layout-options">
-              <label
-                v-for="layout in availableLayouts"
-                :key="layout.key"
-                class="layout-option"
-                :class="{ selected: selectedLayout === layout.key }"
-              >
-                <input v-model="selectedLayout" type="radio" :value="layout.key" class="layout-radio">
-                <div class="layout-preview">
-                  <div class="layout-preview-icon">{{ layout.icon }}</div>
-                  <div class="layout-preview-name">{{ layout.name }}</div>
-                  <div v-if="selectedLayout === layout.key" class="layout-active-badge">Aktiv</div>
-                </div>
-              </label>
-            </div>
-            <div v-if="layoutChanged" class="layout-changed-hint">
-              <span>⚠️ Auswahl geändert. Zum Übernehmen neu laden.</span>
-              <button class="btn btn-warning" @click="applyLayout">Jetzt neu laden</button>
-            </div>
+          <div class="form-group">
+            <label class="form-label">Straße & Hausnr.</label>
+            <input v-model="businessData.street" type="text" class="form-input" placeholder="Musterstraße 1" />
           </div>
-        </div>
-
-        <div v-if="authStore.isTopAdmin" class="ext-card">
-          <div class="ext-card-header">
-            <div class="ext-card-icon">⏱️</div>
-            <div>
-              <h3>Session-Timer</h3>
-              <p>Automatischer Logout nach Inaktivität mit Rückkehr zum Login-Screen.</p>
-            </div>
-          </div>
-          <div class="ext-card-controls">
-            <button
-              class="btn"
-              :class="sessionTimer.enabled ? 'btn-success' : 'btn-secondary'"
-              type="button"
-              @click="sessionTimer.enabled = !sessionTimer.enabled"
-            >
-              {{ sessionTimer.enabled ? 'Eingeschaltet' : 'Ausgeschaltet' }}
-            </button>
+          <div class="grid-2" style="gap: 0.75rem;">
             <div class="form-group">
-              <label for="session-timer-minutes">Automatische Abmeldung nach (Minuten)</label>
-              <input
-                id="session-timer-minutes"
-                v-model.number="sessionTimer.minutes"
-                type="number" min="1" step="1" inputmode="numeric"
-              >
+              <label class="form-label">PLZ</label>
+              <input v-model="businessData.zip" type="text" class="form-input" placeholder="12345" />
             </div>
-            <button class="btn btn-primary" type="button" :disabled="appSettingsStore.isSaving" @click="saveSessionTimer">
-              Session-Timer speichern
+            <div class="form-group">
+              <label class="form-label">Ort</label>
+              <input v-model="businessData.city" type="text" class="form-input" placeholder="Musterstadt" />
+            </div>
+          </div>
+          <div class="form-group">
+            <label class="form-label">Telefon</label>
+            <input v-model="businessData.phone" type="tel" class="form-input" placeholder="+49 123 456789" />
+          </div>
+          <div class="form-group">
+            <label class="form-label">E-Mail</label>
+            <input v-model="businessData.email" type="email" class="form-input" placeholder="info@beispiel.de" />
+          </div>
+          <div class="btn-row">
+            <button class="btn btn-primary" @click="saveBusinessData">💾 Geschäftsdaten speichern</button>
+          </div>
+        </div>
+
+        <!-- Layout-Chooser -->
+        <div v-if="authStore.isTopAdmin" class="card">
+          <div class="card-header">
+            <div class="card-icon purple">🖥️</div>
+            <div>
+              <div class="card-title">Layout-Chooser</div>
+              <div class="card-subtitle">Kassenansicht-Layout auswählen</div>
+            </div>
+          </div>
+          <div class="layout-grid">
+            <div
+              v-for="layout in availableLayouts"
+              :key="layout.key"
+              class="layout-card"
+              :class="{ selected: selectedLayout === layout.key }"
+              @click="selectedLayout = layout.key"
+            >
+              <div class="layout-icon">{{ layout.icon }}</div>
+              <div class="layout-name">{{ layout.name }}</div>
+              <div v-if="selectedLayout === layout.key" class="layout-badge">Aktiv</div>
+            </div>
+          </div>
+          <div v-if="layoutChanged" class="layout-changed-hint">
+            <span>⚠️ Auswahl geändert. Zum Übernehmen neu laden.</span>
+            <button class="btn btn-warning btn-sm" @click="applyLayout">🔄 Jetzt neu laden</button>
+          </div>
+        </div>
+
+        <!-- Session-Timer -->
+        <div v-if="authStore.isTopAdmin" class="card">
+          <div class="card-header">
+            <div class="card-icon orange">⏱️</div>
+            <div>
+              <div class="card-title">Session-Timer</div>
+              <div class="card-subtitle">Automatischer Logout bei Inaktivität</div>
+            </div>
+          </div>
+          <div class="toggle-row">
+            <span class="toggle-label-text">Session-Timer aktivieren</span>
+            <div
+              class="toggle-switch"
+              :class="{ active: sessionTimer.enabled }"
+              @click="sessionTimer.enabled = !sessionTimer.enabled"
+            />
+          </div>
+          <div class="timer-display" :class="{ inactive: !sessionTimer.enabled }">
+            <div>
+              <div class="timer-value">{{ sessionTimer.minutes }}</div>
+              <div class="timer-label">Minuten</div>
+            </div>
+          </div>
+          <div class="form-group">
+            <label class="form-label">Automatische Abmeldung nach (Minuten)</label>
+            <input
+              v-model.number="sessionTimer.minutes"
+              type="number"
+              class="form-input"
+              min="1"
+              step="1"
+              inputmode="numeric"
+              :disabled="!sessionTimer.enabled"
+            />
+          </div>
+          <div class="btn-row">
+            <button
+              class="btn btn-primary"
+              :disabled="appSettingsStore.isSaving"
+              @click="saveSessionTimer"
+            >
+              💾 Session-Timer speichern
             </button>
           </div>
         </div>
 
-        <div v-if="authStore.isAdmin" class="ext-card">
-          <div class="ext-card-header">
-            <div class="ext-card-icon">🧾</div>
+        <!-- Deckel-Funktion -->
+        <div v-if="authStore.isAdmin" class="card">
+          <div class="card-header">
+            <div class="card-icon green">🧾</div>
             <div>
-              <h3>Deckel-Funktion</h3>
-              <p>Steuert, ob der Deckel-Button im Kassenbereich angezeigt wird.</p>
+              <div class="card-title">Deckel-Funktion</div>
+              <div class="card-subtitle">Deckel-Button im Kassenbereich</div>
             </div>
           </div>
-          <div class="ext-card-controls">
-            <label class="toggle-label" for="deckel-enabled">
-              <input id="deckel-enabled" v-model="deckelEnabled" type="checkbox" class="toggle-checkbox">
-              <span>Deckel-Funktion aktivieren</span>
-            </label>
-            <button class="btn btn-primary" type="button" :disabled="appSettingsStore.isSaving" @click="saveDeckelSettings">
-              Deckel-Funktion speichern
+          <div class="toggle-row">
+            <span class="toggle-label-text">Deckel-Funktion aktivieren</span>
+            <div
+              class="toggle-switch"
+              :class="{ active: deckelEnabled }"
+              @click="deckelEnabled = !deckelEnabled"
+            />
+          </div>
+          <div class="hint-box">
+            Wenn aktiviert, wird der Deckel-Button im Kassenbereich angezeigt und kann zur
+            Verwaltung von Deckeln verwendet werden.
+          </div>
+          <div class="btn-row">
+            <button
+              class="btn btn-primary"
+              :disabled="appSettingsStore.isSaving"
+              @click="saveDeckelSettings"
+            >
+              💾 Deckel-Einstellungen speichern
             </button>
           </div>
         </div>
@@ -443,11 +719,6 @@
         @save="saveBusinessData"
       />
     </div>
-
-    <ImportExportModal
-      :show="showImportExportModal"
-      @close="showImportExportModal = false"
-    />
   </div>
 </template>
 
@@ -470,6 +741,7 @@ const authStore = useAuthStore()
 
 const activeSection = ref('design')
 
+// ── Design Colors ─────────────────────────────────────
 const designColors = [
   { value: '#FFFFFF', label: 'Weiß' },
   { value: '#D7DCE2', label: 'Blaugrau' },
@@ -622,6 +894,12 @@ const handleHardReset = async ({ password, confirmationText }) => {
   }
 }
 
+// ── Import / Export ───────────────────────────────────
+const exportData = async (format) => {
+  // Placeholder for export functionality
+  notificationStore.info(`Export als ${format.toUpperCase()} wird vorbereitet...`)
+}
+
 // ── Ext. Settings ─────────────────────────────────────
 const LAYOUT_STORAGE_KEY = 'kasseLayout'
 const showBusinessModal = ref(false)
@@ -730,18 +1008,41 @@ onMounted(async () => {
 </script>
 
 <style scoped lang="scss">
+// ═══════════════════════════════════════════════════════
+// CSS VARIABLES
+// ═══════════════════════════════════════════════════════
 .admin-config {
+  --bg: #f1f5f9;
+  --card-bg: #ffffff;
+  --text: #1e293b;
+  --muted: #64748b;
+  --border: #e2e8f0;
+  --primary: #3b82f6;
+  --primary-light: #eff6ff;
+  --danger: #ef4444;
+  --danger-bg: #fef2f2;
+  --warning: #f59e0b;
+  --warning-bg: #fffbeb;
+  --success: #10b981;
+  --success-bg: #f0fdf4;
+  --radius: 14px;
+  --shadow: 0 1px 3px rgba(0,0,0,0.07), 0 4px 12px rgba(0,0,0,0.05);
+  --shadow-hover: 0 4px 12px rgba(0,0,0,0.1), 0 8px 24px rgba(0,0,0,0.06);
+  --transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+
   background: var(--app-background-color);
   padding: 0.35rem 1rem 0.75rem;
   border-radius: 8px;
   min-height: 100%;
 }
 
-// ── Inner section nav ─────────────────────────────────
+// ═══════════════════════════════════════════════════════
+// SECTION NAVIGATION
+// ═══════════════════════════════════════════════════════
 .section-nav {
   position: sticky;
   top: 0;
-  z-index: 10;
+  z-index: 100;
   background: var(--app-background-color);
   display: flex;
   flex-direction: column;
@@ -780,446 +1081,515 @@ onMounted(async () => {
   display: inline-flex;
   align-items: center;
   gap: 0.3rem;
-  padding: 0.35rem 0.85rem;
-  border-radius: 8px;
+  padding: 0.4rem 0.9rem;
+  border-radius: 10px;
   border: 1px solid #e2e8f0;
   background: #f8fafc;
   color: #475569;
   font-size: 0.85rem;
   font-weight: 600;
   cursor: pointer;
-  transition: all 0.15s;
+  transition: var(--transition);
+  white-space: nowrap;
 
-  &:hover { background: #f1f5f9; border-color: #cbd5e1; }
+  &:hover {
+    background: #f1f5f9;
+    border-color: #cbd5e1;
+  }
+
   &.active {
     background: var(--app-highlight-color);
     border-color: var(--app-highlight-color);
     color: var(--app-highlight-contrast);
+    box-shadow: 0 2px 8px rgba(0,0,0,0.1);
   }
+
+  .tab-icon { font-size: 1rem; }
 }
 
-// ── Section content ───────────────────────────────────
+// ═══════════════════════════════════════════════════════
+// SECTION CONTENT & TITLE
+// ═══════════════════════════════════════════════════════
 .section-content {
-  h2 {
-    font-size: 1.25rem;
-    color: #1e293b;
-    margin: 0 0 0.75rem;
-  }
+  animation: fadeIn 0.3s ease;
 }
 
-.section-description {
-  margin: 0;
-  color: #64748b;
-  font-size: 0.9rem;
+@keyframes fadeIn {
+  from { opacity: 0; transform: translateY(8px); }
+  to { opacity: 1; transform: translateY(0); }
 }
 
-.import-warning-box {
-  display: flex;
-  align-items: flex-start;
-  gap: 0.6rem;
-  background: #fff7ed;
-  border: 1px solid #fdba74;
-  border-radius: 8px;
-  padding: 0.75rem 1rem;
-  font-size: 0.9rem;
-  color: #92400e;
-
-  .import-warning-icon { font-size: 1.1rem; flex-shrink: 0; margin-top: 0.05rem; }
-}
-
-// ── Design grid: 3 columns ────────────────────────────
-.design-grid {
-  display: grid;
-  grid-template-columns: minmax(0, 1.6fr) minmax(0, 1fr) minmax(0, 1.1fr);
-  gap: 0.9rem;
-  align-items: start;
-
-  @media (max-width: 900px) {
-    grid-template-columns: 1fr 1fr;
-  }
-  @media (max-width: 600px) {
-    grid-template-columns: 1fr;
-  }
-}
-
-// ── Settings cards ────────────────────────────────────
-.settings-card {
-  background: color-mix(in srgb, var(--app-background-color) 55%, white);
-  border: 1px solid color-mix(in srgb, var(--app-background-color) 65%, #777);
-  padding: 0.85rem;
-  border-radius: 12px;
-  display: flex;
-  flex-direction: column;
-  gap: 0.65rem;
-
-  h3 {
-    margin: 0;
-    font-size: 0.9rem;
-    font-weight: 700;
-    color: #1e293b;
-    text-transform: uppercase;
-    letter-spacing: 0.04em;
-  }
-}
-
-.card-row-header {
+.section-title {
+  font-size: 1.1rem;
+  font-weight: 700;
+  color: var(--text);
+  margin-bottom: 1rem;
   display: flex;
   align-items: center;
-  justify-content: space-between;
   gap: 0.5rem;
 
-  h3 { margin: 0; }
-}
-
-// ── Reset hint box ────────────────────────────────────
-.reset-hint-box {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 0.75rem;
-  background: #fffbeb;
-  border: 1.5px solid #f59e0b;
-  border-radius: 8px;
-  padding: 0.6rem 0.75rem;
-}
-
-.reset-hint-text {
-  display: flex;
-  align-items: center;
-  gap: 0.6rem;
-  min-width: 0;
-
-  strong {
-    display: block;
-    font-size: 0.8rem;
-    color: #78350f;
-    font-weight: 700;
-    line-height: 1.2;
+  .title-icon {
+    width: 32px; height: 32px;
+    background: var(--primary-light);
+    color: var(--primary);
+    border-radius: 8px;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 1rem;
   }
 }
 
-.reset-hint-icon {
-  font-size: 1.3rem;
+// ═══════════════════════════════════════════════════════
+// GRID SYSTEM
+// ═══════════════════════════════════════════════════════
+.grid-2 {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 1rem;
+}
+
+.grid-3 {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 1rem;
+}
+
+@media (max-width: 900px) {
+  .grid-2, .grid-3 { grid-template-columns: 1fr; }
+}
+
+// ═══════════════════════════════════════════════════════
+// CARDS
+// ═══════════════════════════════════════════════════════
+.card {
+  background: color-mix(in srgb, var(--app-background-color) 55%, white);
+  border: 1px solid color-mix(in srgb, var(--app-background-color) 65%, #777);
+  border-radius: var(--radius);
+  padding: 1.25rem;
+  box-shadow: var(--shadow);
+  transition: var(--transition);
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+
+  &:hover {
+    box-shadow: var(--shadow-hover);
+    transform: translateY(-1px);
+  }
+}
+
+.card-header {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  padding-bottom: 0.75rem;
+  border-bottom: 1px solid var(--border);
+}
+
+.card-icon {
+  width: 40px; height: 40px;
+  border-radius: 10px;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 1.25rem;
   flex-shrink: 0;
-  color: #b45309;
+
+  &.blue { background: #eff6ff; }
+  &.green { background: #f0fdf4; }
+  &.orange { background: #fff7ed; }
+  &.purple { background: #faf5ff; }
+  &.red { background: #fef2f2; }
+  &.gray { background: #f8fafc; }
 }
 
-.reset-hint-sub {
-  display: block;
-  font-size: 0.72rem;
-  color: #92400e;
-  margin-top: 1px;
-}
+.card-title { font-size: 0.95rem; font-weight: 700; color: var(--text); }
+.card-subtitle { font-size: 0.8rem; color: var(--muted); margin-top: 0.15rem; }
 
-.btn-reset {
-  flex-shrink: 0;
-  padding: 0.35rem 0.8rem;
-  border-radius: 6px;
-  border: 1px solid #d97706;
-  background: #f59e0b;
-  color: #fff;
-  font-size: 0.8rem;
-  font-weight: 700;
-  cursor: pointer;
-  transition: filter 0.15s;
-  white-space: nowrap;
-
-  &:hover { filter: brightness(1.08); }
-  &:active { filter: brightness(0.95); }
-}
-
-// ── Form ──────────────────────────────────────────────
+// ═══════════════════════════════════════════════════════
+// FORM ELEMENTS
+// ═══════════════════════════════════════════════════════
 .form-group {
   display: flex;
   flex-direction: column;
-  gap: 0.35rem;
-
-  label {
-    font-size: 0.8rem;
-    font-weight: 600;
-    color: #334155;
-  }
+  gap: 0.4rem;
 }
 
-.form-input { width: 100%; }
-
-// ── Color pickers ─────────────────────────────────────
-.color-row {
+.form-label {
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: var(--text);
   display: flex;
   align-items: center;
-  gap: 0.5rem;
-  flex-wrap: wrap;
+  justify-content: space-between;
 
-  .color-row-label {
-    font-size: 0.78rem;
-    font-weight: 600;
-    color: #334155;
-    min-width: 105px;
-    flex-shrink: 0;
-  }
-
-  .color-options {
-    flex: 1;
-    flex-wrap: wrap;
-    min-width: 0;
+  .hint {
+    font-weight: 400;
+    color: var(--muted);
+    font-size: 0.75rem;
   }
 }
 
-.color-hex {
-  font-size: 0.68rem;
-  font-family: monospace;
-  padding: 2px 6px;
-  border-radius: 4px;
-  flex-shrink: 0;
-  white-space: nowrap;
-  border: 1px solid rgba(0, 0, 0, 0.1);
+.form-input, .form-select {
+  width: 100%;
+  padding: 0.6rem 0.85rem;
+  border: 1.5px solid var(--border);
+  border-radius: 8px;
+  font-size: 0.9rem;
+  color: var(--text);
+  background: var(--card-bg);
+  transition: var(--transition);
+
+  &:focus {
+    outline: none;
+    border-color: var(--primary);
+    box-shadow: 0 0 0 3px rgba(59,130,246,0.1);
+  }
+
+  &:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+    background: var(--bg);
+  }
 }
 
-.color-options {
+.form-input[type="range"] {
+  padding: 0;
+  accent-color: var(--primary);
+}
+
+// ═══════════════════════════════════════════════════════
+// COLOR PRESETS
+// ═══════════════════════════════════════════════════════
+.color-presets {
   display: flex;
   flex-wrap: wrap;
-  gap: 0.35rem;
-  align-items: center;
+  gap: 0.4rem;
 }
 
-.color-option {
-  width: 26px;
-  height: 26px;
-  border-radius: 6px;
+.color-preset {
+  width: 28px; height: 28px;
+  border-radius: 8px;
   border: 2px solid transparent;
   cursor: pointer;
-  transition: transform 0.12s, border-color 0.12s;
+  transition: var(--transition);
   position: relative;
-  display: flex;
-  align-items: center;
-  justify-content: center;
   padding: 0;
 
   &:hover { transform: scale(1.15); }
-  &.selected { border-color: #1e293b; box-shadow: 0 0 0 2px white inset; }
+
+  &.selected {
+    border-color: var(--text);
+    box-shadow: 0 0 0 2px white inset, 0 2px 8px rgba(0,0,0,0.15);
+  }
 }
 
-.color-option-custom {
+.color-custom {
   background: #f8fafc;
   border: 2px dashed #94a3b8;
-  cursor: pointer;
-  overflow: visible;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 0.8rem;
+  overflow: hidden;
 
-  &.selected { border-style: solid; border-color: #1e293b; }
+  &.selected { border-style: solid; border-color: var(--text); }
 
   input[type="color"] {
-    position: absolute;
-    inset: 0;
-    width: 100%;
-    height: 100%;
-    opacity: 0;
-    cursor: pointer;
-    padding: 0;
-    border: none;
+    position: absolute; inset: 0;
+    width: 100%; height: 100%;
+    opacity: 0; cursor: pointer;
+    padding: 0; border: none;
   }
 }
 
 .custom-color-preview {
-  width: 100%;
-  height: 100%;
-  display: block;
+  width: 100%; height: 100%;
+  display: block; border-radius: 6px;
+  position: absolute; inset: 0;
+}
+
+.custom-color-icon { pointer-events: none; }
+
+.color-hex-display {
+  font-family: 'SF Mono', monospace;
+  font-size: 0.72rem;
+  padding: 0.2rem 0.5rem;
   border-radius: 4px;
-  position: absolute;
-  inset: 0;
+  border: 1px solid var(--border);
+  background: var(--bg);
 }
 
-.custom-color-icon {
-  font-size: 0.85rem;
-  pointer-events: none;
+// ═══════════════════════════════════════════════════════
+// PREVIEW BOX
+// ═══════════════════════════════════════════════════════
+.preview-box {
+  border-radius: 10px;
+  overflow: hidden;
+  border: 1px solid var(--border);
+  min-height: 200px;
+  display: flex;
+  flex-direction: column;
+  background: var(--preview-background);
 }
 
-// ── Vorschau card ─────────────────────────────────────
-.preview-card {
-  .preview-shell {
-    background: var(--preview-background);
-    border-radius: 8px;
-    padding: 0.5rem;
-    flex: 1;
-  }
+.preview-banner {
+  background: var(--preview-banner);
+  color: var(--preview-banner-contrast);
+  border-bottom: 2px solid var(--preview-highlight);
+  padding: 0.75rem 1rem;
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  justify-content: center;
 
-  .preview-banner {
-    background: var(--preview-banner);
-    color: var(--preview-banner-contrast);
-    border-bottom: 2px solid var(--preview-highlight);
-    border-radius: 5px;
-    padding: 0.4rem 0.65rem;
-    display: flex;
-    align-items: center;
-    gap: 0.4rem;
-    justify-content: center;
-    flex-wrap: wrap;
-  }
-
-  .preview-logo {
-    width: min(90px, 100%);
-    height: 30px;
+  img {
+    height: 32px;
     object-fit: contain;
   }
 
-  .preview-title {
-    font-size: 0.8rem;
+  span {
     font-weight: 700;
-  }
-
-  .preview-highlight {
-    margin-top: 0.35rem;
-    background: var(--preview-highlight);
-    color: var(--preview-highlight-contrast);
-    border-radius: 5px;
-    padding: 0.3rem 0.5rem;
-    font-weight: 600;
-    font-size: 0.74rem;
-  }
-
-  .preview-kasse-area {
-    margin-top: 0.35rem;
-    background: var(--preview-kasse-area);
-    color: var(--preview-kasse-area-contrast);
-    border-radius: 5px;
-    padding: 0.5rem 0.65rem;
-    font-weight: 600;
-    font-size: 0.8rem;
-    border: 1px solid color-mix(in srgb, var(--preview-banner) 20%, transparent);
+    font-size: 0.9rem;
   }
 }
 
-// ── Media card (Logo + Kasse BG) ──────────────────────
-.media-card {
-  .logo-preview--sm {
-    display: flex;
-    justify-content: center;
-    align-items: center;
-    min-height: 90px;
-    background: white;
-    border-radius: 8px;
-    padding: 0.65rem;
-
-    img {
-      max-width: 100%;
-      max-height: 80px;
-      object-fit: contain;
-    }
-  }
-
-  .no-image-hint {
-    font-size: 0.78rem;
-    color: #94a3b8;
-  }
-}
-
-.divider {
-  border-top: 1px solid color-mix(in srgb, var(--app-background-color) 65%, #aaa);
-  margin: 0.1rem 0;
-}
-
-.kasse-bg-controls {
-  display: flex;
-  flex-direction: column;
-  gap: 0.55rem;
-}
-
-.upload-hint {
-  font-size: 0.78rem;
-  color: #92400e;
-  background: #fef3c7;
-  border: 1px solid #fcd34d;
-  border-radius: 6px;
-  padding: 0.35rem 0.6rem;
-  margin: 0;
-}
-
-// ── Datenpflege ───────────────────────────────────────
-.warning-box {
-  margin: 0.75rem 0;
-  padding: 0.75rem 1rem;
-  border-radius: 10px;
-  background: #fff4e5;
-  border: 1px solid #f59e0b;
-  color: #7c2d12;
-}
-
-.access-note { font-weight: 700; }
-
-// ── Ext. Settings ─────────────────────────────────────
-.ext-settings-section {
-  --ext-primary: #3b82f6;
-  --ext-success: #10b981;
-  --ext-border: #e2e8f0;
-}
-
-.page-header {
-  margin-bottom: 0.75rem;
-  h2 { font-size: 1.25rem; color: #333; margin: 0; }
-}
-
-.ext-settings-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(360px, 1fr));
-  gap: 1rem;
-}
-
-.ext-card {
-  background: color-mix(in srgb, var(--app-background-color) 55%, white);
-  border: 1px solid color-mix(in srgb, var(--app-background-color) 65%, #777);
-  border-radius: 14px;
+.preview-body {
+  flex: 1;
   padding: 1rem;
   display: flex;
   flex-direction: column;
-  gap: 0.85rem;
+  gap: 0.5rem;
 }
 
-.ext-card-header {
-  display: flex;
-  gap: 1rem;
-  align-items: flex-start;
-
-  h3 { margin: 0 0 0.25rem; font-size: 1.05rem; color: #1e293b; }
-  p { margin: 0; font-size: 0.85rem; color: #64748b; }
-}
-
-.ext-card-icon { font-size: 2rem; flex-shrink: 0; }
-
-.layout-options { display: flex; flex-wrap: wrap; gap: 0.75rem; }
-
-.layout-option {
-  cursor: pointer;
-  .layout-radio { display: none; }
-}
-
-.layout-preview {
-  position: relative;
-  width: 100px;
-  border: 2px solid #e2e8f0;
-  border-radius: 10px;
-  padding: 0.75rem 0.5rem;
+.preview-highlight {
+  background: var(--preview-highlight);
+  color: var(--preview-highlight-contrast);
+  padding: 0.5rem 0.75rem;
+  border-radius: 6px;
+  font-weight: 600;
+  font-size: 0.8rem;
   text-align: center;
-  background: white;
-  transition: border-color 0.15s, box-shadow 0.15s;
+}
 
-  .layout-option:hover & { border-color: var(--ext-primary, #3b82f6); }
-  .layout-option.selected & {
-    border-color: var(--ext-primary, #3b82f6);
-    box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.15);
+.preview-kasse {
+  flex: 1;
+  background: var(--preview-kasse-area);
+  color: var(--preview-kasse-area-contrast);
+  border-radius: 6px;
+  padding: 0.75rem;
+  font-weight: 600;
+  font-size: 0.8rem;
+  text-align: center;
+  border: 1px dashed rgba(0,0,0,0.1);
+  display: flex; align-items: center; justify-content: center;
+}
+
+// ═══════════════════════════════════════════════════════
+// MEDIA UPLOAD
+// ═══════════════════════════════════════════════════════
+.upload-zone {
+  border: 2px dashed var(--border);
+  border-radius: 10px;
+  padding: 1.5rem;
+  text-align: center;
+  cursor: pointer;
+  transition: var(--transition);
+  background: var(--bg);
+
+  &:hover {
+    border-color: var(--primary);
+    background: var(--primary-light);
+  }
+
+  .upload-icon { font-size: 2rem; margin-bottom: 0.5rem; }
+  .upload-text { font-size: 0.85rem; color: var(--muted); }
+  .upload-hint { font-size: 0.75rem; color: var(--muted); margin-top: 0.3rem; }
+}
+
+.image-preview {
+  border-radius: 8px;
+  overflow: hidden;
+  background: var(--bg);
+  display: flex; align-items: center; justify-content: center;
+  min-height: 100px;
+
+  img { max-width: 100%; max-height: 120px; object-fit: contain; }
+
+  .no-image { color: var(--muted); font-size: 0.8rem; }
+}
+
+// ═══════════════════════════════════════════════════════
+// TOGGLE SWITCH
+// ═══════════════════════════════════════════════════════
+.toggle-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+}
+
+.toggle-switch {
+  position: relative;
+  width: 48px; height: 26px;
+  background: #cbd5e1;
+  border-radius: 13px;
+  cursor: pointer;
+  transition: var(--transition);
+  flex-shrink: 0;
+
+  &::after {
+    content: '';
+    position: absolute;
+    top: 3px; left: 3px;
+    width: 20px; height: 20px;
+    background: white;
+    border-radius: 50%;
+    transition: var(--transition);
+    box-shadow: 0 1px 3px rgba(0,0,0,0.2);
+  }
+
+  &.active {
+    background: var(--success);
+    &::after { left: 25px; }
   }
 }
 
-.layout-preview-icon { font-size: 1.8rem; margin-bottom: 0.3rem; }
-.layout-preview-name { font-size: 0.78rem; font-weight: 600; color: #334155; }
+.toggle-label-text { font-size: 0.85rem; font-weight: 500; }
 
-.layout-active-badge {
-  position: absolute;
-  top: -8px; right: -8px;
-  background: var(--ext-primary, #3b82f6);
-  color: white;
-  font-size: 0.62rem;
-  font-weight: 700;
-  padding: 2px 6px;
-  border-radius: 999px;
+// ═══════════════════════════════════════════════════════
+// RANGE WITH LABELS
+// ═══════════════════════════════════════════════════════
+.range-labels {
+  display: flex;
+  justify-content: space-between;
+  font-size: 0.7rem;
+  color: var(--muted);
+}
+
+// ═══════════════════════════════════════════════════════
+// WARNING / INFO BOXES
+// ═══════════════════════════════════════════════════════
+.warning-box {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.75rem;
+  background: var(--warning-bg);
+  border: 1px solid #fde68a;
+  border-radius: 10px;
+  padding: 0.75rem 1rem;
+
+  &.danger {
+    background: var(--danger-bg);
+    border-color: #fecaca;
+    color: #991b1b;
+  }
+
+  &.success {
+    background: var(--success-bg);
+    border-color: #86efac;
+    color: #166534;
+  }
+
+  .warning-icon { font-size: 1.2rem; flex-shrink: 0; }
+  .warning-text {
+    font-size: 0.85rem;
+    strong { display: block; margin-bottom: 0.2rem; }
+  }
+}
+
+.info-row {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 0.75rem;
+  background: var(--primary-light);
+  border-radius: 8px;
+  border: 1px solid #bfdbfe;
+
+  .info-icon { font-size: 1.2rem; }
+  .info-text {
+    font-size: 0.8rem;
+    color: #1e40af;
+    strong { display: block; color: #1e3a8a; }
+  }
+}
+
+.hint-box {
+  padding: 0.75rem;
+  background: var(--bg);
+  border-radius: 8px;
+  border: 1px solid var(--border);
+  font-size: 0.8rem;
+  color: var(--muted);
+}
+
+// ═══════════════════════════════════════════════════════
+// DIVIDER
+// ═══════════════════════════════════════════════════════
+.divider {
+  border: none;
+  border-top: 1px solid var(--border);
+  margin: 0.5rem 0;
+}
+
+// ═══════════════════════════════════════════════════════
+// DATA OVERVIEW
+// ═══════════════════════════════════════════════════════
+.data-overview {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.overview-item {
+  display: flex;
+  justify-content: space-between;
+  padding: 0.6rem 0.75rem;
+  background: var(--bg);
+  border-radius: 8px;
+  font-size: 0.85rem;
+
+  .overview-value { font-weight: 700; }
+}
+
+// ═══════════════════════════════════════════════════════
+// LAYOUT CHOOSER
+// ═══════════════════════════════════════════════════════
+.layout-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 0.75rem;
+}
+
+@media (max-width: 500px) {
+  .layout-grid { grid-template-columns: repeat(2, 1fr); }
+}
+
+.layout-card {
+  border: 2px solid var(--border);
+  border-radius: 10px;
+  padding: 1rem 0.5rem;
+  text-align: center;
+  cursor: pointer;
+  transition: var(--transition);
+  position: relative;
+  background: var(--card-bg);
+
+  &:hover { border-color: var(--primary); }
+
+  &.selected {
+    border-color: var(--primary);
+    box-shadow: 0 0 0 3px rgba(59,130,246,0.1);
+  }
+
+  .layout-icon { font-size: 1.8rem; margin-bottom: 0.4rem; }
+  .layout-name { font-size: 0.8rem; font-weight: 600; }
+  .layout-badge {
+    position: absolute;
+    top: -6px; right: -6px;
+    background: var(--primary);
+    color: white;
+    font-size: 0.62rem;
+    font-weight: 700;
+    padding: 2px 6px;
+    border-radius: 999px;
+  }
 }
 
 .layout-changed-hint {
@@ -1228,7 +1598,7 @@ onMounted(async () => {
   gap: 1rem;
   margin-top: 0.75rem;
   padding: 0.75rem 1rem;
-  background: #fffbeb;
+  background: var(--warning-bg);
   border: 1px solid #fde68a;
   border-radius: 8px;
   font-size: 0.85rem;
@@ -1236,81 +1606,102 @@ onMounted(async () => {
   flex-wrap: wrap;
 }
 
-.ext-card-controls {
+// ═══════════════════════════════════════════════════════
+// TIMER DISPLAY
+// ═══════════════════════════════════════════════════════
+.timer-display {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 0.75rem 1rem;
+  background: var(--bg);
+  border-radius: 8px;
+  border: 1px solid var(--border);
+  transition: var(--transition);
+
+  &.inactive { opacity: 0.4; }
+
+  .timer-value {
+    font-size: 1.5rem;
+    font-weight: 700;
+    color: var(--primary);
+    font-variant-numeric: tabular-nums;
+  }
+  .timer-label { font-size: 0.8rem; color: var(--muted); }
+}
+
+// ═══════════════════════════════════════════════════════
+// ACTION CARDS (Import/Export)
+// ═══════════════════════════════════════════════════════
+.action-card {
   display: flex;
   flex-direction: column;
-  gap: 1rem;
-
-  input {
-    width: 100%;
-    padding: 0.6rem 0.8rem;
-    border: 1px solid #e2e8f0;
-    border-radius: 8px;
-    font-size: 0.95rem;
-  }
-}
-
-.toggle-label {
-  display: flex;
   align-items: center;
-  gap: 0.5rem;
+  text-align: center;
+  gap: 0.75rem;
+  padding: 1.5rem;
+  border: 2px dashed var(--border);
+  border-radius: var(--radius);
   cursor: pointer;
-  font-weight: 500;
+  transition: var(--transition);
+  background: var(--card-bg);
+
+  &:hover {
+    border-color: var(--primary);
+    background: var(--primary-light);
+  }
+
+  .action-icon { font-size: 2.5rem; }
+  .action-title { font-weight: 700; font-size: 0.95rem; }
+  .action-desc { font-size: 0.8rem; color: var(--muted); }
 }
 
-.toggle-checkbox { width: 1.1rem; height: 1.1rem; cursor: pointer; }
+// ═══════════════════════════════════════════════════════
+// BUTTONS
+// ═══════════════════════════════════════════════════════
+.btn-row {
+  display: flex;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+  margin-top: auto;
+  padding-top: 0.5rem;
+}
 
-// ── Buttons ───────────────────────────────────────────
 .btn {
-  padding: 0.55rem 1.1rem;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.4rem;
+  padding: 0.6rem 1.2rem;
   border-radius: 8px;
+  border: none;
+  font-size: 0.85rem;
   font-weight: 600;
   cursor: pointer;
-  border: none;
-  font-size: 0.9rem;
+  transition: var(--transition);
+  white-space: nowrap;
   min-height: 38px;
-  transition: filter 0.15s;
 
-  &:disabled { opacity: 0.55; cursor: not-allowed; }
-  &:not(:disabled):hover { filter: brightness(1.07); }
+  &:hover { filter: brightness(1.08); transform: translateY(-1px); }
+  &:active { transform: translateY(0); }
+  &:disabled { opacity: 0.5; cursor: not-allowed; transform: none; }
 }
 
-.btn-primary   { background: #3b82f6; color: white; }
-.btn-success   { background: #10b981; color: white; }
-.btn-secondary { background: #e2e8f0; color: #475569; }
-.btn-warning   { background: #f59e0b; color: white; }
-.btn-danger {
-  background: #dc2626;
-  color: white;
-  padding: 0.75rem 1.5rem;
-  font-size: 0.95rem;
-}
+.btn-primary   { background: var(--primary); color: white; }
+.btn-success   { background: var(--success); color: white; }
+.btn-secondary { background: var(--border); color: var(--text); }
+.btn-warning   { background: var(--warning); color: white; }
+.btn-danger    { background: var(--danger); color: white; }
+.btn-outline   { background: transparent; border: 1.5px solid var(--border); color: var(--text); }
+.btn-outline:hover { border-color: var(--primary); color: var(--primary); }
+.btn-sm { padding: 0.4rem 0.8rem; font-size: 0.8rem; }
 
-.checkbox-label {
-  display: flex;
-  align-items: center;
-  gap: 0.5rem;
-  font-weight: 500;
-  cursor: pointer;
-  font-size: 0.85rem;
-}
-
-.form-checkbox {
-  width: 1rem;
-  height: 1rem;
-  accent-color: var(--app-highlight-color, #5C8F3A);
-  cursor: pointer;
-}
-
-.range-labels {
-  display: flex;
-  justify-content: space-between;
-  font-size: 0.72rem;
-  color: #64748b;
-  margin-top: 0.15rem;
-}
-
+// ═══════════════════════════════════════════════════════
+// RESPONSIVE
+// ═══════════════════════════════════════════════════════
 @media (max-width: 640px) {
-  .ext-settings-grid { grid-template-columns: 1fr; }
+  .card { padding: 1rem; }
+  .section-nav { padding: 0.5rem; }
+  .section-tab { padding: 0.35rem 0.6rem; font-size: 0.8rem; }
 }
 </style>
