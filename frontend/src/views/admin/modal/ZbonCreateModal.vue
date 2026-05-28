@@ -178,84 +178,17 @@ defineEmits([
 </script>
 
 <style scoped lang="scss">
-.confirmation-overlay {
-  position: fixed;
-  inset: 0;
-  background: rgba(15, 23, 42, 0.65);
-  backdrop-filter: blur(5px);
-  display: flex;
-  align-items: flex-start;
-  justify-content: center;
-  z-index: 1500;
-  padding: 1.5rem;
-  overflow-y: auto;
-}
-
-.kk-dialog {
-  background: #ffffff;
-  border-radius: 20px;
-  width: min(80vw, 1100px);
-  /* Override main.scss global max-height: 85dvh !important — the overlay scrolls instead */
-  max-height: none !important;
-  display: flex;
-  flex-direction: column;
-  /* Allow content to determine dialog height; overflow handled by overlay */
-  overflow: visible !important;
-  box-shadow:
-    0 32px 64px rgba(15, 23, 42, 0.28),
-    0 0 0 1px rgba(15, 23, 42, 0.06);
-  margin: auto;
-}
-
 .kk-dialog__header {
   padding: 1rem 1.4rem;
-  background: #0f766e;
   display: flex;
   justify-content: space-between;
-  align-items: flex-start;
+  align-items: center;
   gap: 1rem;
   flex-shrink: 0;
-
-  h3 {
-    margin: 0;
-    color: #ffffff;
-    font-size: 1.05rem;
-    font-weight: 600;
-    line-height: 1.3;
-  }
-}
-
-.kk-dialog__subtitle {
-  margin: 0.3rem 0 0;
-  color: rgba(255, 255, 255, 0.8);
-  font-size: 0.82rem;
-}
-
-.kk-dialog__close {
-  width: 32px;
-  height: 32px;
-  border-radius: 50%;
-  border: 1px solid rgba(255, 255, 255, 0.4);
-  background: rgba(255, 255, 255, 0.15);
-  color: #ffffff;
-  font-size: 1rem;
-  cursor: pointer;
-  display: grid;
-  place-items: center;
-  flex-shrink: 0;
-  transition: background 0.15s;
-
-  &:hover {
-    background: rgba(255, 255, 255, 0.28);
-  }
 }
 
 .kk-dialog__body {
   padding: 1.4rem;
-  /* Override main.scss global flex: 1 1 auto + min-height: 0 that causes content to shrink */
-  overflow-y: visible !important;
-  flex: 0 0 auto !important;
-  min-height: unset !important;
   display: flex;
   flex-direction: column;
   gap: 1.1rem;
@@ -497,26 +430,7 @@ defineEmits([
   cursor: not-allowed;
 }
 
-@media (max-width: 900px) {
-  .kk-dialog {
-    width: min(94vw, 1100px);
-    max-height: none !important; /* Override main.scss global max-height */
-    border-radius: 16px;
-  }
-}
-
 @media (max-width: 640px) {
-  .confirmation-overlay {
-    padding: 0.75rem;
-    align-items: flex-start;
-  }
-
-  .kk-dialog {
-    width: 100%;
-    max-height: none !important; /* Override main.scss global max-height */
-    border-radius: 14px;
-  }
-
   .kk-dialog__footer {
     flex-direction: column;
 

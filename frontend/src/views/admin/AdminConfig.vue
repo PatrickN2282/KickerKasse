@@ -267,8 +267,18 @@
               <span class="preview-title">{{ designForm.app_name }}</span>
             </div>
             <div class="preview-body">
-              <div class="preview-highlight">Highlight-Fläche</div>
-              <div class="preview-kasse">Kassenbereich</div>
+              <div class="preview-products">
+                <div class="preview-highlight-bar">Kategorien</div>
+                <div class="preview-kasse">
+                  <span class="preview-kasse-label">Produktbereich</span>
+                </div>
+              </div>
+              <div class="preview-sidebar">
+                <div class="preview-receipt-item" />
+                <div class="preview-receipt-item" />
+                <div class="preview-receipt-item preview-receipt-item--wide" />
+                <div class="preview-total">Total</div>
+              </div>
             </div>
           </div>
         </div>
@@ -670,81 +680,71 @@
           </div>
         </div>
 
-        <!-- Session-Timer -->
-        <div v-if="authStore.isTopAdmin" class="card">
-          <div class="card-header">
-            <div class="card-icon orange">⏱️</div>
-            <div>
-              <div class="card-title">Session-Timer</div>
-              <div class="card-subtitle">Automatischer Logout bei Inaktivität</div>
-            </div>
-          </div>
-          <div class="toggle-row">
-            <span class="toggle-label-text">Session-Timer aktivieren</span>
-            <div
-              class="toggle-switch"
-              :class="{ active: sessionTimer.enabled }"
-              @click="sessionTimer.enabled = !sessionTimer.enabled"
-            />
-          </div>
-          <div class="timer-display" :class="{ inactive: !sessionTimer.enabled }">
-            <div>
-              <div class="timer-value">{{ sessionTimer.minutes }}</div>
-              <div class="timer-label">Minuten</div>
-            </div>
-          </div>
-          <div class="form-group">
-            <label class="form-label">Automatische Abmeldung nach (Minuten)</label>
-            <input
-              v-model.number="sessionTimer.minutes"
-              type="number"
-              class="form-input"
-              min="1"
-              step="1"
-              inputmode="numeric"
-              :disabled="!sessionTimer.enabled"
-            />
-          </div>
-          <div class="btn-row">
-            <button
-              class="btn btn-primary"
-              :disabled="appSettingsStore.isSaving"
-              @click="saveSessionTimer"
-            >
-              💾 Session-Timer speichern
-            </button>
-          </div>
-        </div>
-
-        <!-- Deckel-Funktion -->
+        <!-- Session-Timer + Deckel: compact combined card -->
         <div v-if="authStore.isAdmin" class="card">
           <div class="card-header">
-            <div class="card-icon green">🧾</div>
+            <div class="card-icon orange">⚙️</div>
             <div>
-              <div class="card-title">Deckel-Funktion</div>
-              <div class="card-subtitle">Deckel-Button im Kassenbereich</div>
+              <div class="card-title">Funktionen</div>
+              <div class="card-subtitle">Feature-Schalter & Schnelleinstellungen</div>
             </div>
           </div>
-          <div class="toggle-row">
-            <span class="toggle-label-text">Deckel-Funktion aktivieren</span>
-            <div
-              class="toggle-switch"
-              :class="{ active: deckelEnabled }"
-              @click="deckelEnabled = !deckelEnabled"
-            />
+
+          <!-- Session-Timer row -->
+          <div v-if="authStore.isTopAdmin" class="setting-item">
+            <div class="setting-item__icon">⏱️</div>
+            <div class="setting-item__info">
+              <span class="setting-item__title">Session-Timer</span>
+              <span class="setting-item__sub">Auto-Logout nach Inaktivität</span>
+            </div>
+            <div class="setting-item__controls">
+              <div
+                class="toggle-switch"
+                :class="{ active: sessionTimer.enabled }"
+                @click="sessionTimer.enabled = !sessionTimer.enabled"
+              />
+              <input
+                v-model.number="sessionTimer.minutes"
+                type="number"
+                class="setting-item__input"
+                min="1"
+                step="1"
+                inputmode="numeric"
+                :disabled="!sessionTimer.enabled"
+                title="Minuten"
+              >
+              <span class="setting-item__unit">min</span>
+              <button
+                class="btn btn-primary btn-sm"
+                :disabled="appSettingsStore.isSaving"
+                @click="saveSessionTimer"
+              >
+                💾
+              </button>
+            </div>
           </div>
-          <div class="hint-box">
-            Wenn aktiviert, wird der Deckel-Button im Kassenbereich angezeigt und kann zur
-            Verwaltung von Deckeln verwendet werden.
-          </div>
-          <div class="btn-row">
-            <button
-              class="btn btn-primary"
-              :disabled="appSettingsStore.isSaving"
-              @click="saveDeckelSettings"
-            >
-              💾 Deckel-Einstellungen speichern
-            </button>
+
+          <!-- Deckel-Funktion row -->
+          <div class="setting-item">
+            <div class="setting-item__icon">🧾</div>
+            <div class="setting-item__info">
+              <span class="setting-item__title">Deckel-Funktion</span>
+              <span class="setting-item__sub">Deckel-Button in der Kasse</span>
+            </div>
+            <div class="setting-item__controls">
+              <div
+                class="toggle-switch"
+                :class="{ active: deckelEnabled }"
+                @click="deckelEnabled = !deckelEnabled"
+              />
+              <button
+                class="btn btn-primary btn-sm"
+                :disabled="appSettingsStore.isSaving"
+                @click="saveDeckelSettings"
+              >
+                💾
+              </button>
+            </div>
           </div>
         </div>
       </div>
@@ -1373,65 +1373,111 @@ onMounted(async () => {
   border-radius: 10px;
   overflow: hidden;
   border: 1px solid var(--border);
-  min-height: 150px;
+  aspect-ratio: 16 / 9;
   display: flex;
   flex-direction: column;
   background: var(--preview-background);
+  min-height: 160px;
 }
 
 .preview-banner {
   background: var(--preview-banner);
   color: var(--preview-banner-contrast);
   border-bottom: 2px solid var(--preview-highlight);
-  padding: 0.75rem 1rem;
+  padding: 0.4rem 0.75rem;
   display: flex;
   align-items: center;
-  gap: 0.6rem;
-  justify-content: center;
+  gap: 0.5rem;
+  flex-shrink: 0;
 
   img {
-    height: 32px;
+    height: 20px;
     object-fit: contain;
   }
 
   span {
     font-weight: 700;
-    font-size: 0.9rem;
+    font-size: 0.75rem;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
   }
 }
 
 .preview-body {
   flex: 1;
-  padding: 1rem;
   display: flex;
-  flex-direction: column;
-  gap: 0.5rem;
+  min-height: 0;
+  overflow: hidden;
 }
 
-.preview-highlight {
+.preview-products {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.preview-highlight-bar {
   background: var(--preview-highlight);
   color: var(--preview-highlight-contrast);
-  padding: 0.5rem 0.75rem;
-  border-radius: 6px;
+  padding: 0.25rem 0.5rem;
+  font-size: 0.65rem;
   font-weight: 600;
-  font-size: 0.8rem;
-  text-align: center;
+  flex-shrink: 0;
 }
 
 .preview-kasse {
   flex: 1;
-  background: var(--preview-kasse-area);
+  background-color: var(--preview-kasse-area);
   background-image: var(--preview-bg-image);
   background-size: cover;
   background-position: center;
-  color: var(--preview-kasse-area-contrast);
-  border-radius: 6px;
-  padding: 0.75rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  position: relative;
+}
+
+.preview-kasse-label {
+  font-size: 0.6rem;
   font-weight: 600;
-  font-size: 0.8rem;
+  color: var(--preview-kasse-area-contrast);
+  opacity: 0.7;
+  text-shadow: 0 1px 2px rgba(0,0,0,0.3);
+}
+
+.preview-sidebar {
+  width: 30%;
+  border-left: 1px solid rgba(0,0,0,0.1);
+  background: rgba(255,255,255,0.85);
+  display: flex;
+  flex-direction: column;
+  gap: 0.3rem;
+  padding: 0.4rem;
+  flex-shrink: 0;
+}
+
+.preview-receipt-item {
+  height: 8px;
+  background: #e2e8f0;
+  border-radius: 3px;
+
+  &--wide {
+    height: 6px;
+    width: 70%;
+  }
+}
+
+.preview-total {
+  margin-top: auto;
+  background: var(--preview-highlight);
+  color: var(--preview-highlight-contrast);
+  border-radius: 4px;
+  font-size: 0.6rem;
+  font-weight: 700;
   text-align: center;
-  border: 1px dashed rgba(0,0,0,0.1);
-  display: flex; align-items: center; justify-content: center;
+  padding: 0.2rem 0.4rem;
 }
 
 // ═══════════════════════════════════════════════════════
@@ -1661,27 +1707,81 @@ onMounted(async () => {
 }
 
 // ═══════════════════════════════════════════════════════
-// TIMER DISPLAY
+// COMPACT SETTING ITEMS
 // ═══════════════════════════════════════════════════════
-.timer-display {
+.setting-item {
   display: flex;
   align-items: center;
   gap: 0.75rem;
-  padding: 0.75rem 1rem;
-  background: var(--bg);
+  padding: 0.6rem 0.5rem;
   border-radius: 8px;
   border: 1px solid var(--border);
-  transition: var(--transition);
+  background: var(--bg);
 
-  &.inactive { opacity: 0.4; }
-
-  .timer-value {
-    font-size: 1.5rem;
-    font-weight: 700;
-    color: var(--primary);
-    font-variant-numeric: tabular-nums;
+  + .setting-item {
+    margin-top: 0.5rem;
   }
-  .timer-label { font-size: 0.8rem; color: var(--muted); }
+
+  &__icon {
+    font-size: 1.2rem;
+    flex-shrink: 0;
+    width: 28px;
+    text-align: center;
+  }
+
+  &__info {
+    flex: 1;
+    min-width: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 0.1rem;
+  }
+
+  &__title {
+    font-size: 0.88rem;
+    font-weight: 700;
+    color: var(--text);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  &__sub {
+    font-size: 0.75rem;
+    color: var(--muted);
+  }
+
+  &__controls {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    flex-shrink: 0;
+  }
+
+  &__input {
+    width: 54px;
+    padding: 0.3rem 0.4rem;
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    font-size: 0.85rem;
+    text-align: center;
+    background: white;
+
+    &:disabled {
+      opacity: 0.45;
+    }
+
+    &:focus {
+      outline: none;
+      border-color: var(--primary);
+    }
+  }
+
+  &__unit {
+    font-size: 0.78rem;
+    color: var(--muted);
+    margin-left: -0.25rem;
+  }
 }
 
 // ═══════════════════════════════════════════════════════
