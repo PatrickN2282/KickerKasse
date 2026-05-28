@@ -630,7 +630,7 @@ async def create_zbon(
     db: Session = Depends(get_db),
 ):
     """Create and archive a new immutable Z-Bon."""
-    current_user = require_roles(request, db, UserRole.ADMIN)
+    current_user = require_roles(request, db, UserRole.ADMIN, UserRole.MANAGER)
     require_password_confirmation(current_user, zbon_req.auth_password)
 
     cash_count = None

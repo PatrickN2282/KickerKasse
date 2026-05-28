@@ -53,135 +53,119 @@
     <div v-if="activeSection === 'design'" class="section-content">
       <h2>Design &amp; Logo</h2>
 
-      <section class="settings-card preview-card">
-        <h3>Vorschau</h3>
-        <div class="preview-shell" :style="previewStyle">
-          <div class="preview-banner">
-            <img :src="previewLogoUrl" alt="Logo Vorschau" class="preview-logo" />
-            <span class="preview-title">{{ designForm.app_name }}</span>
-          </div>
-          <div class="preview-highlight">Highlight-Fläche</div>
-          <div class="preview-kasse-area">Kassenbereich</div>
-        </div>
-      </section>
+      <div class="design-layout">
+        <!-- Farben + Live-Vorschau -->
+        <section class="settings-card design-colors-card">
+          <div class="design-card-body">
+            <div class="color-pickers-col">
+              <div class="card-row-header">
+                <h3>Farben</h3>
+                <button class="btn btn-secondary btn-sm" type="button" title="Farben auf Standard zurücksetzen" aria-label="Farben zurücksetzen" @click="resetDesignColors">
+                  ↺ Reset
+                </button>
+              </div>
 
-      <div class="settings-grid">
-        <section class="settings-card">
-          <h3>Farben</h3>
+              <div class="form-group">
+                <label for="appName">App-Überschrift</label>
+                <input id="appName" v-model.trim="designForm.app_name" type="text" class="form-input" maxlength="120" />
+              </div>
 
-          <div class="form-group">
-            <label for="appName">App-Überschrift</label>
-            <input id="appName" v-model.trim="designForm.app_name" type="text" class="form-input" maxlength="120" />
-          </div>
-
-          <!-- Background color -->
-          <div class="form-group">
-            <label>Hintergrundfarbe</label>
-            <div class="color-picker-field">
-              <div class="color-options">
-                <button
-                  v-for="preset in designColors"
-                  :key="preset.value"
-                  type="button"
-                  class="color-option"
-                  :class="{ selected: designForm.background_color === preset.value }"
-                  :style="{ background: preset.value }"
-                  :title="preset.label"
-                  @click="designForm.background_color = preset.value"
-                ></button>
-                <label
-                  class="color-option color-option-custom"
-                  :class="{ selected: isCustomBackground }"
-                  title="Eigene Farbe wählen"
-                >
-                  <span v-if="isCustomBackground" class="custom-color-preview" :style="{ background: designForm.background_color }"></span>
-                  <span v-else class="custom-color-icon">🎨</span>
-                  <input
-                    type="color"
-                    :value="designForm.background_color"
-                    @input="designForm.background_color = $event.target.value"
+              <!-- Background color -->
+              <div class="color-row">
+                <span class="color-row-label">Hintergrundfarbe</span>
+                <div class="color-options">
+                  <button
+                    v-for="preset in designColors"
+                    :key="preset.value"
+                    type="button"
+                    class="color-option"
+                    :class="{ selected: designForm.background_color === preset.value }"
+                    :style="{ background: preset.value }"
+                    :title="preset.label"
+                    @click="designForm.background_color = preset.value"
+                  ></button>
+                  <label
+                    class="color-option color-option-custom"
+                    :class="{ selected: isCustomBackground }"
+                    title="Eigene Farbe wählen"
                   >
-                </label>
+                    <span v-if="isCustomBackground" class="custom-color-preview" :style="{ background: designForm.background_color }"></span>
+                    <span v-else class="custom-color-icon">🎨</span>
+                    <input
+                      type="color"
+                      :value="designForm.background_color"
+                      @input="designForm.background_color = $event.target.value"
+                    >
+                  </label>
+                </div>
+                <code class="color-hex" :style="{ background: designForm.background_color, color: getContrastColor(designForm.background_color) }">{{ designForm.background_color }}</code>
               </div>
-              <div class="color-selected-preview" :style="{ background: designForm.background_color }">
-                <span :style="{ color: getContrastColor(designForm.background_color) }">{{ designForm.background_color }}</span>
-              </div>
-            </div>
-          </div>
 
-          <!-- Banner color -->
-          <div class="form-group">
-            <label>Bannerfarbe</label>
-            <div class="color-picker-field">
-              <div class="color-options">
-                <button
-                  v-for="preset in designColors"
-                  :key="preset.value"
-                  type="button"
-                  class="color-option"
-                  :class="{ selected: designForm.banner_color === preset.value }"
-                  :style="{ background: preset.value }"
-                  :title="preset.label"
-                  @click="designForm.banner_color = preset.value"
-                ></button>
-                <label
-                  class="color-option color-option-custom"
-                  :class="{ selected: isCustomBanner }"
-                  title="Eigene Farbe wählen"
-                >
-                  <span v-if="isCustomBanner" class="custom-color-preview" :style="{ background: designForm.banner_color }"></span>
-                  <span v-else class="custom-color-icon">🎨</span>
-                  <input
-                    type="color"
-                    :value="designForm.banner_color"
-                    @input="designForm.banner_color = $event.target.value"
+              <!-- Banner color -->
+              <div class="color-row">
+                <span class="color-row-label">Bannerfarbe</span>
+                <div class="color-options">
+                  <button
+                    v-for="preset in designColors"
+                    :key="preset.value"
+                    type="button"
+                    class="color-option"
+                    :class="{ selected: designForm.banner_color === preset.value }"
+                    :style="{ background: preset.value }"
+                    :title="preset.label"
+                    @click="designForm.banner_color = preset.value"
+                  ></button>
+                  <label
+                    class="color-option color-option-custom"
+                    :class="{ selected: isCustomBanner }"
+                    title="Eigene Farbe wählen"
                   >
-                </label>
+                    <span v-if="isCustomBanner" class="custom-color-preview" :style="{ background: designForm.banner_color }"></span>
+                    <span v-else class="custom-color-icon">🎨</span>
+                    <input
+                      type="color"
+                      :value="designForm.banner_color"
+                      @input="designForm.banner_color = $event.target.value"
+                    >
+                  </label>
+                </div>
+                <code class="color-hex" :style="{ background: designForm.banner_color, color: getContrastColor(designForm.banner_color) }">{{ designForm.banner_color }}</code>
               </div>
-              <div class="color-selected-preview" :style="{ background: designForm.banner_color }">
-                <span :style="{ color: getContrastColor(designForm.banner_color) }">{{ designForm.banner_color }}</span>
-              </div>
-            </div>
-          </div>
 
-          <!-- Highlight color -->
-          <div class="form-group">
-            <label>Highlight-Farbe</label>
-            <div class="color-picker-field">
-              <div class="color-options">
-                <button
-                  v-for="preset in designColors"
-                  :key="preset.value"
-                  type="button"
-                  class="color-option"
-                  :class="{ selected: designForm.highlight_color === preset.value }"
-                  :style="{ background: preset.value }"
-                  :title="preset.label"
-                  @click="designForm.highlight_color = preset.value"
-                ></button>
-                <label
-                  class="color-option color-option-custom"
-                  :class="{ selected: isCustomHighlight }"
-                  title="Eigene Farbe wählen"
-                >
-                  <span v-if="isCustomHighlight" class="custom-color-preview" :style="{ background: designForm.highlight_color }"></span>
-                  <span v-else class="custom-color-icon">🎨</span>
-                  <input
-                    type="color"
-                    :value="designForm.highlight_color"
-                    @input="designForm.highlight_color = $event.target.value"
+              <!-- Highlight color -->
+              <div class="color-row">
+                <span class="color-row-label">Highlight-Farbe</span>
+                <div class="color-options">
+                  <button
+                    v-for="preset in designColors"
+                    :key="preset.value"
+                    type="button"
+                    class="color-option"
+                    :class="{ selected: designForm.highlight_color === preset.value }"
+                    :style="{ background: preset.value }"
+                    :title="preset.label"
+                    @click="designForm.highlight_color = preset.value"
+                  ></button>
+                  <label
+                    class="color-option color-option-custom"
+                    :class="{ selected: isCustomHighlight }"
+                    title="Eigene Farbe wählen"
                   >
-                </label>
+                    <span v-if="isCustomHighlight" class="custom-color-preview" :style="{ background: designForm.highlight_color }"></span>
+                    <span v-else class="custom-color-icon">🎨</span>
+                    <input
+                      type="color"
+                      :value="designForm.highlight_color"
+                      @input="designForm.highlight_color = $event.target.value"
+                    >
+                  </label>
+                </div>
+                <code class="color-hex" :style="{ background: designForm.highlight_color, color: getContrastColor(designForm.highlight_color) }">{{ designForm.highlight_color }}</code>
               </div>
-              <div class="color-selected-preview" :style="{ background: designForm.highlight_color }">
-                <span :style="{ color: getContrastColor(designForm.highlight_color) }">{{ designForm.highlight_color }}</span>
-              </div>
-            </div>
 
-            <!-- Kasse area background color -->
-            <div class="form-group">
-              <label>Kassenbereich-Hintergrund</label>
-              <div class="color-picker-field">
+              <!-- Kasse area background color -->
+              <div class="color-row">
+                <span class="color-row-label">Kassenbereich</span>
                 <div class="color-options">
                   <button
                     v-for="preset in designColors"
@@ -207,18 +191,30 @@
                     >
                   </label>
                 </div>
-                <div class="color-selected-preview" :style="{ background: designForm.kasse_area_background_color }">
-                  <span :style="{ color: getContrastColor(designForm.kasse_area_background_color) }">{{ designForm.kasse_area_background_color }}</span>
+                <code class="color-hex" :style="{ background: designForm.kasse_area_background_color, color: getContrastColor(designForm.kasse_area_background_color) }">{{ designForm.kasse_area_background_color }}</code>
+              </div>
+
+              <button class="btn btn-primary" :disabled="appSettingsStore.isSaving" @click="saveDesignSettings">
+                Farben speichern
+              </button>
+            </div>
+
+            <!-- Live-Vorschau -->
+            <div class="design-preview-col">
+              <h3>Vorschau</h3>
+              <div class="preview-shell" :style="previewStyle">
+                <div class="preview-banner">
+                  <img :src="previewLogoUrl" alt="Logo Vorschau" class="preview-logo" />
+                  <span class="preview-title">{{ designForm.app_name }}</span>
                 </div>
+                <div class="preview-highlight">Highlight-Fläche</div>
+                <div class="preview-kasse-area">Kassenbereich</div>
               </div>
             </div>
           </div>
-
-          <button class="btn btn-primary" :disabled="appSettingsStore.isSaving" @click="saveDesignSettings">
-            Farben speichern
-          </button>
         </section>
 
+        <!-- Logo & Hintergrundbild -->
         <section class="settings-card">
           <h3>Logo</h3>
           <div class="logo-preview">
@@ -600,6 +596,21 @@ const saveDesignSettings = async () => {
   }
 }
 
+// Default colors for the Reset button
+const DESIGN_COLOR_DEFAULTS = {
+  background_color: '#D7DCE2',
+  banner_color: '#131820',
+  highlight_color: '#209529',
+  kasse_area_background_color: '#FFFFFF',
+}
+
+const resetDesignColors = () => {
+  designForm.background_color = DESIGN_COLOR_DEFAULTS.background_color
+  designForm.banner_color = DESIGN_COLOR_DEFAULTS.banner_color
+  designForm.highlight_color = DESIGN_COLOR_DEFAULTS.highlight_color
+  designForm.kasse_area_background_color = DESIGN_COLOR_DEFAULTS.kasse_area_background_color
+}
+
 const uploadLogo = async () => {
   if (!selectedLogo.value) return
   try {
@@ -872,10 +883,99 @@ onMounted(async () => {
 }
 
 // ── Design ────────────────────────────────────────────
-.settings-grid {
+.design-layout {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
   gap: 1rem;
+}
+
+.design-colors-card {
+  grid-column: 1 / -1;
+}
+
+.design-card-body {
+  display: flex;
+  gap: 1.5rem;
+  align-items: flex-start;
+
+  @media (max-width: 700px) {
+    flex-direction: column;
+  }
+}
+
+.color-pickers-col {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.6rem;
+}
+
+.design-preview-col {
+  width: 220px;
+  flex-shrink: 0;
+
+  h3 {
+    margin: 0 0 0.5rem;
+    font-size: 0.9rem;
+    font-weight: 600;
+    color: #64748b;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+  }
+
+  @media (max-width: 700px) {
+    width: 100%;
+  }
+}
+
+.card-row-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+  margin-bottom: 0.15rem;
+
+  h3 {
+    margin: 0;
+  }
+}
+
+.color-row {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+
+  .color-row-label {
+    font-size: 0.8rem;
+    font-weight: 600;
+    color: #334155;
+    min-width: 110px;
+    flex-shrink: 0;
+  }
+
+  .color-options {
+    flex: 1;
+    flex-wrap: wrap;
+    min-width: 0;
+  }
+}
+
+.color-hex {
+  font-size: 0.7rem;
+  font-family: monospace;
+  padding: 2px 7px;
+  border-radius: 4px;
+  flex-shrink: 0;
+  white-space: nowrap;
+  border: 1px solid rgba(0, 0, 0, 0.1);
+}
+
+.btn-sm {
+  padding: 0.25rem 0.65rem;
+  font-size: 0.8rem;
+  min-height: unset;
 }
 
 .settings-card {
@@ -911,12 +1011,6 @@ onMounted(async () => {
 }
 
 // Color picker
-.color-picker-field {
-  display: flex;
-  flex-direction: column;
-  gap: 0.5rem;
-}
-
 .color-options {
   display: flex;
   flex-wrap: wrap;
@@ -984,19 +1078,6 @@ onMounted(async () => {
   pointer-events: none;
 }
 
-.color-selected-preview {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  height: 28px;
-  padding: 0 0.75rem;
-  border-radius: 6px;
-  font-size: 0.78rem;
-  font-weight: 600;
-  font-family: monospace;
-  width: fit-content;
-}
-
 // Logo section
 .logo-preview {
   display: flex;
@@ -1027,15 +1108,10 @@ onMounted(async () => {
   }
 }
 
-.preview-card {
-  margin-bottom: 1rem;
-  padding: 0.75rem 1rem;
-}
-
 .preview-shell {
   background: var(--preview-background);
   border-radius: 10px;
-  padding: 0.75rem;
+  padding: 0.6rem;
 }
 
 .preview-banner {
@@ -1043,37 +1119,37 @@ onMounted(async () => {
   color: var(--preview-banner-contrast);
   border-bottom: 2px solid var(--preview-highlight);
   border-radius: 6px;
-  padding: 0.6rem 1rem;
+  padding: 0.4rem 0.75rem;
   display: flex;
   align-items: center;
-  gap: 0.75rem;
+  gap: 0.5rem;
   justify-content: center;
   flex-wrap: wrap;
 }
 
 .preview-logo {
-  width: min(200px, 100%);
-  height: 52px;
+  width: min(120px, 100%);
+  height: 36px;
   object-fit: contain;
 }
 
 .preview-title {
-  font-size: clamp(0.95rem, 1.4vw, 1.2rem);
+  font-size: 0.88rem;
   font-weight: 700;
 }
 
 .preview-highlight {
-  margin-top: 0.6rem;
+  margin-top: 0.4rem;
   background: var(--preview-highlight);
   color: var(--preview-highlight-contrast);
   border-radius: 6px;
-  padding: 0.5rem 0.75rem;
+  padding: 0.35rem 0.6rem;
   font-weight: 600;
-  font-size: 0.88rem;
+  font-size: 0.78rem;
 }
 
 .preview-kasse-area {
-  margin-top: 0.6rem;
+  margin-top: 0.4rem;
   background: var(--preview-kasse-area);
   color: var(--preview-kasse-area-contrast);
   border-radius: 6px;
