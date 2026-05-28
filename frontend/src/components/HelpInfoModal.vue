@@ -4,7 +4,7 @@
 
       <div class="modal-header">
         <div class="modal-header-title">
-          <i class="ti ti-info-circle" />
+          <span class="header-icon">ℹ️</span>
           <h3>Help &amp; Info <span class="header-pipe">|</span> <span class="header-sub">KickerKasse</span></h3>
         </div>
         <button class="close-btn" @click="emit('close')">✕</button>
@@ -15,11 +15,11 @@
         <table class="meta-table">
           <tbody>
             <tr>
-              <td><i class="ti ti-user" /> Autor</td>
+              <td><span class="meta-icon">👤</span> Autor</td>
               <td>Patrick Neuber</td>
             </tr>
             <tr>
-              <td><i class="ti ti-mail" /> E-Mail</td>
+              <td><span class="meta-icon">✉️</span> E-Mail</td>
               <td>
                 <a href="mailto:kickerkasse@patrick-neuber.de" target="_blank" rel="noopener noreferrer">
                   kickerkasse@patrick-neuber.de
@@ -27,12 +27,16 @@
               </td>
             </tr>
             <tr>
-              <td><i class="ti ti-brand-github" /> GitHub</td>
+              <td><span class="meta-icon">💻</span> GitHub</td>
               <td>
                 <a href="https://github.com/PatrickN2282/KickerKasse" target="_blank" rel="noopener noreferrer">
                   github.com/PatrickN2282/KickerKasse
                 </a>
               </td>
+            </tr>
+            <tr>
+              <td><span class="meta-icon">🧪</span> Tester</td>
+              <td>Carsten Heine <span class="tester-role">– Fehler-finden &amp; QM</span></td>
             </tr>
           </tbody>
         </table>
@@ -42,7 +46,7 @@
           <ul class="feature-list">
             <li v-for="feat in features" :key="feat.label" class="feature-item">
               <div class="feat-icon">
-                <i :class="`ti ${feat.icon}`" />
+                <span>{{ feat.icon }}</span>
               </div>
               <div>
                 <p class="feat-name">{{ feat.label }}</p>
@@ -53,7 +57,7 @@
         </div>
 
         <div class="disclaimer">
-          <i class="ti ti-alert-triangle" />
+          <span class="disclaimer-icon">⚠️</span>
           <span>
             Kein TSE-fähiges oder revisionssicheres Kassensystem. Ziel ist die Vereinfachung von
             Lagerhaltung und Kassenzugang. Ideen &amp; Bugs gern per Mail melden.
@@ -63,9 +67,10 @@
       </div>
 
       <div class="modal-footer">
+        <button class="btn btn-donate" @click="emit('donate'); emit('close')">💛 Spenden</button>
         <button class="btn btn-secondary" @click="emit('close')">Schließen</button>
         <a class="btn btn-primary" href="mailto:kickerkasse@patrick-neuber.de">
-          <i class="ti ti-mail" /> Kontakt
+          ✉️ Kontakt
         </a>
       </div>
 
@@ -77,16 +82,16 @@
 defineProps({
   show: { type: Boolean, default: false },
 })
-const emit = defineEmits(['close'])
+const emit = defineEmits(['close', 'donate'])
 
 const features = [
-  { icon: 'ti-cash-register', label: 'Kassensystem',          desc: 'Mehrere Layouts, Warenkorb, Abrechnung per Guthaben, Voucher oder Bargeld' },
-  { icon: 'ti-users',         label: 'Mitgliederverwaltung',  desc: 'Guthaben, Transaktionen, Bild-Upload pro Mitglied' },
-  { icon: 'ti-package',       label: 'Produktverwaltung',     desc: 'Preis, Kategorie, Lagerbestand mit Mindestmengen-Warnung' },
-  { icon: 'ti-ticket',        label: 'Gutscheinsystem',       desc: 'Voucher erstellen, einlösen, Übersicht aktiver und verbrauchter Codes' },
-  { icon: 'ti-chart-bar',     label: 'Finanzen',              desc: 'Einnahmen/Ausgaben-Übersicht, Export als CSV/Excel' },
-  { icon: 'ti-shield-lock',   label: 'Rollen & Rechte',       desc: 'Top-Admin, Admin, Manager, Kasse – Session-Timer konfigurierbar' },
-  { icon: 'ti-device-mobile', label: 'PWA',                   desc: 'Installierbar, offline-fähig, optimiert für Tablet & Desktop' },
+  { icon: '🖥️', label: 'Kassensystem',          desc: 'Mehrere Layouts, Warenkorb, Abrechnung per Guthaben, Voucher oder Bargeld' },
+  { icon: '👥', label: 'Mitgliederverwaltung',  desc: 'Guthaben, Transaktionen, Bild-Upload pro Mitglied' },
+  { icon: '📦', label: 'Produktverwaltung',     desc: 'Preis, Kategorie, Lagerbestand mit Mindestmengen-Warnung' },
+  { icon: '🎟️', label: 'Gutscheinsystem',       desc: 'Voucher erstellen, einlösen, Übersicht aktiver und verbrauchter Codes' },
+  { icon: '📊', label: 'Finanzen',              desc: 'Einnahmen/Ausgaben-Übersicht, Export als CSV/Excel' },
+  { icon: '🔐', label: 'Rollen & Rechte',       desc: 'Top-Admin, Admin, Manager, Kasse – Session-Timer konfigurierbar' },
+  { icon: '📱', label: 'PWA',                   desc: 'Installierbar, offline-fähig, optimiert für Tablet & Desktop' },
 ]
 </script>
 
@@ -123,17 +128,16 @@ const features = [
   justify-content: space-between;
   align-items: center;
   flex-shrink: 0;
-
-  .ti-info-circle {
-    color: #ffffff;
-    font-size: 1rem;
-  }
 }
 
 .modal-header-title {
   display: flex;
   align-items: center;
   gap: 8px;
+
+  .header-icon {
+    font-size: 1rem;
+  }
 
   h3 {
     margin: 0;
@@ -204,14 +208,9 @@ const features = [
       display: flex;
       align-items: center;
       gap: 6px;
-      width: 100px;
+      width: 110px;
       white-space: nowrap;
       padding-top: 0.6rem;
-
-      i {
-        font-size: 0.9rem;
-        color: #0f766e;
-      }
     }
 
     &:last-child {
@@ -229,6 +228,16 @@ const features = [
       }
     }
   }
+}
+
+.meta-icon {
+  font-size: 0.9rem;
+}
+
+.tester-role {
+  font-weight: 400;
+  color: #64748b;
+  font-size: 0.8rem;
 }
 
 /* Feature-Liste */
@@ -276,11 +285,7 @@ const features = [
   place-items: center;
   flex-shrink: 0;
   margin-top: 1px;
-
-  i {
-    font-size: 0.9rem;
-    color: #0f766e;
-  }
+  font-size: 0.9rem;
 }
 
 .feat-name {
@@ -309,13 +314,12 @@ const features = [
   font-size: 0.78rem;
   color: #92400e;
   line-height: 1.5;
+}
 
-  i {
-    font-size: 0.95rem;
-    color: #d97706;
-    flex-shrink: 0;
-    margin-top: 1px;
-  }
+.disclaimer-icon {
+  font-size: 0.95rem;
+  flex-shrink: 0;
+  margin-top: 1px;
 }
 
 /* Footer */
@@ -339,10 +343,6 @@ const features = [
   align-items: center;
   gap: 5px;
   text-decoration: none;
-
-  i {
-    font-size: 0.9rem;
-  }
 }
 
 .btn-secondary {
@@ -362,6 +362,17 @@ const features = [
 
   &:hover {
     background: #0d6460;
+  }
+}
+
+.btn-donate {
+  background: #fef9c3;
+  color: #92400e;
+  border: 1px solid #fde68a;
+  margin-right: auto;
+
+  &:hover {
+    background: #fef08a;
   }
 }
 </style>

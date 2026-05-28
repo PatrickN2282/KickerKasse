@@ -3,7 +3,8 @@ from pydantic import BaseModel, Field
 from sqlalchemy.orm import Session
 
 from app.core import get_db
-from app.core.auth import require_password_confirmation, require_top_admin
+from app.core.auth import require_password_confirmation, require_roles, require_top_admin
+from app.models.user import UserRole
 from app.services.data_maintenance_service import DataMaintenanceService
 
 router = APIRouter(prefix="/api/admin/data-maintenance", tags=["Admin - Data Maintenance"])
@@ -12,6 +13,16 @@ router = APIRouter(prefix="/api/admin/data-maintenance", tags=["Admin - Data Mai
 class HardResetRequest(BaseModel):
     auth_password: str = Field(..., min_length=1)
     confirmation_text: str = Field(..., min_length=1)
+
+
+@router.get("/stats")
+@router.get("/stats/")
+async def get_stats(
+    request: Request,
+    db: Session = Depends(get_db),
+):
+    require_roles(request, db, UserRole.ADMIN)
+    return DataMaintenanceService(db).get_stats()
 
 
 @router.post("/hard-reset")

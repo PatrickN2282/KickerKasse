@@ -210,6 +210,10 @@ const props = defineProps({
     type: Boolean,
     default: false,
   },
+  initialTab: {
+    type: String,
+    default: 'import',
+  },
 })
 
 const emit = defineEmits(['close', 'imported'])
@@ -275,7 +279,9 @@ const resetModalState = () => {
 }
 
 watch(() => props.show, (isVisible) => {
-  if (!isVisible) {
+  if (isVisible) {
+    activeTab.value = props.initialTab || 'import'
+  } else {
     resetModalState()
   }
 })
