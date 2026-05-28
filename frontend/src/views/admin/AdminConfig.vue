@@ -53,171 +53,167 @@
     <div v-if="activeSection === 'design'" class="section-content">
       <h2>Design &amp; Logo</h2>
 
-      <div class="design-layout">
-        <!-- Farben + Live-Vorschau -->
-        <section class="settings-card design-colors-card">
-          <div class="design-card-body">
-            <div class="color-pickers-col">
-              <div class="card-row-header">
-                <h3>Farben</h3>
-                <button class="btn btn-secondary btn-sm" type="button" title="Farben auf Standard zurücksetzen" aria-label="Farben zurücksetzen" @click="resetDesignColors">
-                  ↺ Reset
-                </button>
-              </div>
+      <div class="design-grid">
 
-              <div class="form-group">
-                <label for="appName">App-Überschrift</label>
-                <input id="appName" v-model.trim="designForm.app_name" type="text" class="form-input" maxlength="120" />
-              </div>
+        <!-- Spalte 1: Farben -->
+        <section class="settings-card colors-card">
+          <div class="card-row-header">
+            <h3>Farben</h3>
+          </div>
 
-              <!-- Background color -->
-              <div class="color-row">
-                <span class="color-row-label">Hintergrundfarbe</span>
-                <div class="color-options">
-                  <button
-                    v-for="preset in designColors"
-                    :key="preset.value"
-                    type="button"
-                    class="color-option"
-                    :class="{ selected: designForm.background_color === preset.value }"
-                    :style="{ background: preset.value }"
-                    :title="preset.label"
-                    @click="designForm.background_color = preset.value"
-                  ></button>
-                  <label
-                    class="color-option color-option-custom"
-                    :class="{ selected: isCustomBackground }"
-                    title="Eigene Farbe wählen"
-                  >
-                    <span v-if="isCustomBackground" class="custom-color-preview" :style="{ background: designForm.background_color }"></span>
-                    <span v-else class="custom-color-icon">🎨</span>
-                    <input
-                      type="color"
-                      :value="designForm.background_color"
-                      @input="designForm.background_color = $event.target.value"
-                    >
-                  </label>
-                </div>
-                <code class="color-hex" :style="{ background: designForm.background_color, color: getContrastColor(designForm.background_color) }">{{ designForm.background_color }}</code>
-              </div>
-
-              <!-- Banner color -->
-              <div class="color-row">
-                <span class="color-row-label">Bannerfarbe</span>
-                <div class="color-options">
-                  <button
-                    v-for="preset in designColors"
-                    :key="preset.value"
-                    type="button"
-                    class="color-option"
-                    :class="{ selected: designForm.banner_color === preset.value }"
-                    :style="{ background: preset.value }"
-                    :title="preset.label"
-                    @click="designForm.banner_color = preset.value"
-                  ></button>
-                  <label
-                    class="color-option color-option-custom"
-                    :class="{ selected: isCustomBanner }"
-                    title="Eigene Farbe wählen"
-                  >
-                    <span v-if="isCustomBanner" class="custom-color-preview" :style="{ background: designForm.banner_color }"></span>
-                    <span v-else class="custom-color-icon">🎨</span>
-                    <input
-                      type="color"
-                      :value="designForm.banner_color"
-                      @input="designForm.banner_color = $event.target.value"
-                    >
-                  </label>
-                </div>
-                <code class="color-hex" :style="{ background: designForm.banner_color, color: getContrastColor(designForm.banner_color) }">{{ designForm.banner_color }}</code>
-              </div>
-
-              <!-- Highlight color -->
-              <div class="color-row">
-                <span class="color-row-label">Highlight-Farbe</span>
-                <div class="color-options">
-                  <button
-                    v-for="preset in designColors"
-                    :key="preset.value"
-                    type="button"
-                    class="color-option"
-                    :class="{ selected: designForm.highlight_color === preset.value }"
-                    :style="{ background: preset.value }"
-                    :title="preset.label"
-                    @click="designForm.highlight_color = preset.value"
-                  ></button>
-                  <label
-                    class="color-option color-option-custom"
-                    :class="{ selected: isCustomHighlight }"
-                    title="Eigene Farbe wählen"
-                  >
-                    <span v-if="isCustomHighlight" class="custom-color-preview" :style="{ background: designForm.highlight_color }"></span>
-                    <span v-else class="custom-color-icon">🎨</span>
-                    <input
-                      type="color"
-                      :value="designForm.highlight_color"
-                      @input="designForm.highlight_color = $event.target.value"
-                    >
-                  </label>
-                </div>
-                <code class="color-hex" :style="{ background: designForm.highlight_color, color: getContrastColor(designForm.highlight_color) }">{{ designForm.highlight_color }}</code>
-              </div>
-
-              <!-- Kasse area background color -->
-              <div class="color-row">
-                <span class="color-row-label">Kassenbereich</span>
-                <div class="color-options">
-                  <button
-                    v-for="preset in designColors"
-                    :key="preset.value"
-                    type="button"
-                    class="color-option"
-                    :class="{ selected: designForm.kasse_area_background_color === preset.value }"
-                    :style="{ background: preset.value }"
-                    :title="preset.label"
-                    @click="designForm.kasse_area_background_color = preset.value"
-                  ></button>
-                  <label
-                    class="color-option color-option-custom"
-                    :class="{ selected: isCustomKasseArea }"
-                    title="Eigene Farbe wählen"
-                  >
-                    <span v-if="isCustomKasseArea" class="custom-color-preview" :style="{ background: designForm.kasse_area_background_color }"></span>
-                    <span v-else class="custom-color-icon">🎨</span>
-                    <input
-                      type="color"
-                      :value="designForm.kasse_area_background_color"
-                      @input="designForm.kasse_area_background_color = $event.target.value"
-                    >
-                  </label>
-                </div>
-                <code class="color-hex" :style="{ background: designForm.kasse_area_background_color, color: getContrastColor(designForm.kasse_area_background_color) }">{{ designForm.kasse_area_background_color }}</code>
-              </div>
-
-              <button class="btn btn-primary" :disabled="appSettingsStore.isSaving" @click="saveDesignSettings">
-                Farben speichern
-              </button>
-            </div>
-
-            <!-- Live-Vorschau -->
-            <div class="design-preview-col">
-              <h3>Vorschau</h3>
-              <div class="preview-shell" :style="previewStyle">
-                <div class="preview-banner">
-                  <img :src="previewLogoUrl" alt="Logo Vorschau" class="preview-logo" />
-                  <span class="preview-title">{{ designForm.app_name }}</span>
-                </div>
-                <div class="preview-highlight">Highlight-Fläche</div>
-                <div class="preview-kasse-area">Kassenbereich</div>
+          <!-- Reset-Hinweis-Box -->
+          <div class="reset-hint-box">
+            <div class="reset-hint-text">
+              <span class="reset-hint-icon">↺</span>
+              <div>
+                <strong>Standardfarben wiederherstellen</strong>
+                <span class="reset-hint-sub">Setzt alle Farben auf die Werkseinstellung zurück.</span>
               </div>
             </div>
+            <button
+              class="btn btn-reset"
+              type="button"
+              title="Farben auf Standard zurücksetzen"
+              aria-label="Farben zurücksetzen"
+              @click="resetDesignColors"
+            >
+              Reset
+            </button>
+          </div>
+
+          <div class="form-group">
+            <label for="appName">App-Überschrift</label>
+            <input id="appName" v-model.trim="designForm.app_name" type="text" class="form-input" maxlength="120" />
+          </div>
+
+          <div class="color-row">
+            <span class="color-row-label">Hintergrundfarbe</span>
+            <div class="color-options">
+              <button
+                v-for="preset in designColors"
+                :key="preset.value"
+                type="button"
+                class="color-option"
+                :class="{ selected: designForm.background_color === preset.value }"
+                :style="{ background: preset.value }"
+                :title="preset.label"
+                @click="designForm.background_color = preset.value"
+              ></button>
+              <label
+                class="color-option color-option-custom"
+                :class="{ selected: isCustomBackground }"
+                title="Eigene Farbe wählen"
+              >
+                <span v-if="isCustomBackground" class="custom-color-preview" :style="{ background: designForm.background_color }"></span>
+                <span v-else class="custom-color-icon">🎨</span>
+                <input type="color" :value="designForm.background_color" @input="designForm.background_color = $event.target.value">
+              </label>
+            </div>
+            <code class="color-hex" :style="{ background: designForm.background_color, color: getContrastColor(designForm.background_color) }">{{ designForm.background_color }}</code>
+          </div>
+
+          <div class="color-row">
+            <span class="color-row-label">Bannerfarbe</span>
+            <div class="color-options">
+              <button
+                v-for="preset in designColors"
+                :key="preset.value"
+                type="button"
+                class="color-option"
+                :class="{ selected: designForm.banner_color === preset.value }"
+                :style="{ background: preset.value }"
+                :title="preset.label"
+                @click="designForm.banner_color = preset.value"
+              ></button>
+              <label
+                class="color-option color-option-custom"
+                :class="{ selected: isCustomBanner }"
+                title="Eigene Farbe wählen"
+              >
+                <span v-if="isCustomBanner" class="custom-color-preview" :style="{ background: designForm.banner_color }"></span>
+                <span v-else class="custom-color-icon">🎨</span>
+                <input type="color" :value="designForm.banner_color" @input="designForm.banner_color = $event.target.value">
+              </label>
+            </div>
+            <code class="color-hex" :style="{ background: designForm.banner_color, color: getContrastColor(designForm.banner_color) }">{{ designForm.banner_color }}</code>
+          </div>
+
+          <div class="color-row">
+            <span class="color-row-label">Highlight-Farbe</span>
+            <div class="color-options">
+              <button
+                v-for="preset in designColors"
+                :key="preset.value"
+                type="button"
+                class="color-option"
+                :class="{ selected: designForm.highlight_color === preset.value }"
+                :style="{ background: preset.value }"
+                :title="preset.label"
+                @click="designForm.highlight_color = preset.value"
+              ></button>
+              <label
+                class="color-option color-option-custom"
+                :class="{ selected: isCustomHighlight }"
+                title="Eigene Farbe wählen"
+              >
+                <span v-if="isCustomHighlight" class="custom-color-preview" :style="{ background: designForm.highlight_color }"></span>
+                <span v-else class="custom-color-icon">🎨</span>
+                <input type="color" :value="designForm.highlight_color" @input="designForm.highlight_color = $event.target.value">
+              </label>
+            </div>
+            <code class="color-hex" :style="{ background: designForm.highlight_color, color: getContrastColor(designForm.highlight_color) }">{{ designForm.highlight_color }}</code>
+          </div>
+
+          <div class="color-row">
+            <span class="color-row-label">Kassenbereich</span>
+            <div class="color-options">
+              <button
+                v-for="preset in designColors"
+                :key="preset.value"
+                type="button"
+                class="color-option"
+                :class="{ selected: designForm.kasse_area_background_color === preset.value }"
+                :style="{ background: preset.value }"
+                :title="preset.label"
+                @click="designForm.kasse_area_background_color = preset.value"
+              ></button>
+              <label
+                class="color-option color-option-custom"
+                :class="{ selected: isCustomKasseArea }"
+                title="Eigene Farbe wählen"
+              >
+                <span v-if="isCustomKasseArea" class="custom-color-preview" :style="{ background: designForm.kasse_area_background_color }"></span>
+                <span v-else class="custom-color-icon">🎨</span>
+                <input type="color" :value="designForm.kasse_area_background_color" @input="designForm.kasse_area_background_color = $event.target.value">
+              </label>
+            </div>
+            <code class="color-hex" :style="{ background: designForm.kasse_area_background_color, color: getContrastColor(designForm.kasse_area_background_color) }">{{ designForm.kasse_area_background_color }}</code>
+          </div>
+
+          <button class="btn btn-primary" :disabled="appSettingsStore.isSaving" @click="saveDesignSettings">
+            Farben speichern
+          </button>
+        </section>
+
+        <!-- Spalte 2: Live-Vorschau -->
+        <section class="settings-card preview-card">
+          <h3>Vorschau</h3>
+          <div class="preview-shell" :style="previewStyle">
+            <div class="preview-banner">
+              <img :src="previewLogoUrl" alt="Logo Vorschau" class="preview-logo" />
+              <span class="preview-title">{{ designForm.app_name }}</span>
+            </div>
+            <div class="preview-highlight">Highlight-Fläche</div>
+            <div class="preview-kasse-area">Kassenbereich</div>
           </div>
         </section>
 
-        <!-- Logo & Hintergrundbild -->
-        <section class="settings-card">
+        <!-- Spalte 3: Logo + Kassen-Hintergrund -->
+        <section class="settings-card media-card">
+
+          <!-- Logo -->
           <h3>Logo</h3>
-          <div class="logo-preview">
+          <div class="logo-preview logo-preview--sm">
             <img :src="appSettingsStore.logoUrl" alt="Aktuelles Logo" />
           </div>
           <input type="file" accept="image/*" class="form-input" @change="handleLogoSelection" />
@@ -225,20 +221,22 @@
             Logo hochladen
           </button>
 
-          <h3>Hintergrundbild Produktbereich (Kasse)</h3>
-          <div class="logo-preview kasse-background-preview">
+          <div class="divider"></div>
+
+          <!-- Kassen-Hintergrund -->
+          <h3>Hintergrundbild Produktbereich</h3>
+          <div class="logo-preview logo-preview--sm">
             <img v-if="previewKasseBackgroundUrl" :src="previewKasseBackgroundUrl" alt="Produktbereich Hintergrund" />
-            <span v-else>Kein Hintergrundbild hochgeladen</span>
+            <span v-else class="no-image-hint">Kein Hintergrundbild</span>
           </div>
-          <p class="upload-hint">
-            ⚠️ Mindestgröße: <strong>700 × 700 Pixel</strong>. Kleinere Bilder werden abgelehnt.
-          </p>
+          <p class="upload-hint">⚠️ Mindestgröße: <strong>700 × 700 Pixel</strong>. Kleinere Bilder werden abgelehnt.</p>
           <input type="file" accept="image/*" class="form-input" @change="handleKasseBackgroundSelection" />
           <button class="btn btn-success" :disabled="!selectedKasseBackground || appSettingsStore.isSaving" @click="uploadKasseBackground">
             Hintergrundbild hochladen
           </button>
-          <div class="form-group">
-            <label for="kasse-bg-enabled" class="checkbox-label">
+
+          <div class="kasse-bg-controls">
+            <label class="checkbox-label" for="kasse-bg-enabled">
               <input
                 id="kasse-bg-enabled"
                 v-model="designForm.kasse_products_background_enabled"
@@ -247,39 +245,30 @@
               />
               Hintergrundbild anzeigen
             </label>
-          </div>
-          <div class="form-group">
-            <label for="kasse-bg-opacity">Deckkraft – Bild abschwächen ({{ designForm.kasse_products_background_opacity }}%)</label>
-            <input
-              id="kasse-bg-opacity"
-              v-model.number="designForm.kasse_products_background_opacity"
-              type="range"
-              min="0"
-              max="100"
-              step="5"
-              class="form-input"
-            >
-            <div class="range-labels">
-              <span>unsichtbar (0%)</span>
-              <span>volle Sichtbarkeit (100%)</span>
+            <div class="form-group">
+              <label for="kasse-bg-opacity">Deckkraft ({{ designForm.kasse_products_background_opacity }}%)</label>
+              <input
+                id="kasse-bg-opacity"
+                v-model.number="designForm.kasse_products_background_opacity"
+                type="range" min="0" max="100" step="5" class="form-input"
+              >
+              <div class="range-labels"><span>0%</span><span>100%</span></div>
+            </div>
+            <div class="form-group">
+              <label for="kasse-bg-scale">Skalierung ({{ designForm.kasse_products_background_scale }}%)</label>
+              <input
+                id="kasse-bg-scale"
+                v-model.number="designForm.kasse_products_background_scale"
+                type="range" min="10" max="300" step="5" class="form-input"
+              >
             </div>
           </div>
-          <div class="form-group">
-            <label for="kasse-bg-scale">Skalierung ({{ designForm.kasse_products_background_scale }}%)</label>
-            <input
-              id="kasse-bg-scale"
-              v-model.number="designForm.kasse_products_background_scale"
-              type="range"
-              min="10"
-              max="300"
-              step="5"
-              class="form-input"
-            >
-          </div>
+
           <button class="btn btn-primary" :disabled="appSettingsStore.isSaving" @click="saveDesignSettings">
             Einstellungen aktualisieren
           </button>
         </section>
+
       </div>
     </div>
 
@@ -341,7 +330,7 @@
       <AuditLogPanel />
     </div>
 
-    <!-- ── Ext. Settings (ADMIN / TOP_ADMIN) ──────────── -->
+    <!-- ── Ext. Settings ──────────────────────────────── -->
     <div v-if="activeSection === 'extsettings' && authStore.isAdmin" class="section-content ext-settings-section">
       <div class="page-header">
         <div class="title-row">
@@ -352,7 +341,6 @@
       </div>
 
       <div class="ext-settings-grid">
-        <!-- Business Data Card -->
         <div v-if="authStore.isTopAdmin" class="ext-card">
           <div class="ext-card-header">
             <div class="ext-card-icon">🏢</div>
@@ -366,7 +354,6 @@
           </button>
         </div>
 
-        <!-- Layout Chooser Card -->
         <div v-if="authStore.isTopAdmin" class="ext-card">
           <div class="ext-card-header">
             <div class="ext-card-icon">🖥️</div>
@@ -383,12 +370,7 @@
                 class="layout-option"
                 :class="{ selected: selectedLayout === layout.key }"
               >
-                <input
-                  v-model="selectedLayout"
-                  type="radio"
-                  :value="layout.key"
-                  class="layout-radio"
-                >
+                <input v-model="selectedLayout" type="radio" :value="layout.key" class="layout-radio">
                 <div class="layout-preview">
                   <div class="layout-preview-icon">{{ layout.icon }}</div>
                   <div class="layout-preview-name">{{ layout.name }}</div>
@@ -403,7 +385,6 @@
           </div>
         </div>
 
-        <!-- Session Timer Card -->
         <div v-if="authStore.isTopAdmin" class="ext-card">
           <div class="ext-card-header">
             <div class="ext-card-icon">⏱️</div>
@@ -426,10 +407,7 @@
               <input
                 id="session-timer-minutes"
                 v-model.number="sessionTimer.minutes"
-                type="number"
-                min="1"
-                step="1"
-                inputmode="numeric"
+                type="number" min="1" step="1" inputmode="numeric"
               >
             </div>
             <button class="btn btn-primary" type="button" :disabled="appSettingsStore.isSaving" @click="saveSessionTimer">
@@ -448,12 +426,7 @@
           </div>
           <div class="ext-card-controls">
             <label class="toggle-label" for="deckel-enabled">
-              <input
-                id="deckel-enabled"
-                v-model="deckelEnabled"
-                type="checkbox"
-                class="toggle-checkbox"
-              >
+              <input id="deckel-enabled" v-model="deckelEnabled" type="checkbox" class="toggle-checkbox">
               <span>Deckel-Funktion aktivieren</span>
             </label>
             <button class="btn btn-primary" type="button" :disabled="appSettingsStore.isSaving" @click="saveDeckelSettings">
@@ -495,10 +468,8 @@ const appSettingsStore = useAppSettingsStore()
 const notificationStore = useNotificationStore()
 const authStore = useAuthStore()
 
-// ── Section navigation ────────────────────────────────
 const activeSection = ref('design')
 
-// ── Design ────────────────────────────────────────────
 const designColors = [
   { value: '#FFFFFF', label: 'Weiß' },
   { value: '#D7DCE2', label: 'Blaugrau' },
@@ -559,6 +530,20 @@ const syncDesignForm = () => {
   designForm.kasse_products_background_enabled = appSettingsStore.settings.kasse_products_background_enabled !== false
 }
 
+const DESIGN_COLOR_DEFAULTS = {
+  background_color: '#D7DCE2',
+  banner_color: '#131820',
+  highlight_color: '#209529',
+  kasse_area_background_color: '#FFFFFF',
+}
+
+const resetDesignColors = () => {
+  designForm.background_color = DESIGN_COLOR_DEFAULTS.background_color
+  designForm.banner_color = DESIGN_COLOR_DEFAULTS.banner_color
+  designForm.highlight_color = DESIGN_COLOR_DEFAULTS.highlight_color
+  designForm.kasse_area_background_color = DESIGN_COLOR_DEFAULTS.kasse_area_background_color
+}
+
 const handleLogoSelection = (event) => {
   const [file] = event.target.files || []
   if (!file) return
@@ -573,9 +558,7 @@ const handleKasseBackgroundSelection = (event) => {
   const img = new Image()
   img.onload = () => {
     if (img.width < 700 || img.height < 700) {
-      notificationStore.error(
-        `Das Bild ist zu klein (${img.width}×${img.height}px). Mindestgröße: 700×700 Pixel.`
-      )
+      notificationStore.error(`Das Bild ist zu klein (${img.width}×${img.height}px). Mindestgröße: 700×700 Pixel.`)
       event.target.value = ''
       URL.revokeObjectURL(objectUrl)
       return
@@ -594,21 +577,6 @@ const saveDesignSettings = async () => {
   } catch (error) {
     notificationStore.error(error.response?.data?.detail || 'Fehler beim Speichern der Einstellungen')
   }
-}
-
-// Default colors for the Reset button
-const DESIGN_COLOR_DEFAULTS = {
-  background_color: '#D7DCE2',
-  banner_color: '#131820',
-  highlight_color: '#209529',
-  kasse_area_background_color: '#FFFFFF',
-}
-
-const resetDesignColors = () => {
-  designForm.background_color = DESIGN_COLOR_DEFAULTS.background_color
-  designForm.banner_color = DESIGN_COLOR_DEFAULTS.banner_color
-  designForm.highlight_color = DESIGN_COLOR_DEFAULTS.highlight_color
-  designForm.kasse_area_background_color = DESIGN_COLOR_DEFAULTS.kasse_area_background_color
 }
 
 const uploadLogo = async () => {
@@ -656,20 +624,13 @@ const handleHardReset = async ({ password, confirmationText }) => {
 
 // ── Ext. Settings ─────────────────────────────────────
 const LAYOUT_STORAGE_KEY = 'kasseLayout'
-
 const showBusinessModal = ref(false)
 const sessionTimer = ref({ enabled: false, minutes: 15 })
 const deckelEnabled = ref(false)
 
 const businessData = ref({
-  name: '',
-  street: '',
-  zip: '',
-  city: '',
-  phone: '',
-  email: '',
-  taxNumber: '',
-  registrationNumber: '',
+  name: '', street: '', zip: '', city: '',
+  phone: '', email: '', taxNumber: '', registrationNumber: '',
 })
 
 const layoutModules = import.meta.glob('@/views/kasse/Kasse*.vue')
@@ -732,9 +693,7 @@ const saveSessionTimer = async () => {
 
 const saveDeckelSettings = async () => {
   try {
-    await appSettingsStore.saveAdminSettings({
-      deckel_enabled: deckelEnabled.value,
-    })
+    await appSettingsStore.saveAdminSettings({ deckel_enabled: deckelEnabled.value })
     notificationStore.success('Deckel-Funktion gespeichert')
   } catch (error) {
     notificationStore.error(error.response?.data?.detail || 'Deckel-Funktion konnte nicht gespeichert werden')
@@ -764,7 +723,7 @@ onMounted(async () => {
     try {
       Object.assign(businessData.value, JSON.parse(saved))
     } catch {
-      // Silently ignore invalid localStorage data; user will see empty defaults
+      // Silently ignore invalid localStorage data
     }
   }
 })
@@ -807,15 +766,9 @@ onMounted(async () => {
   line-height: 1.2;
 }
 
-.title-sep {
-  color: #aaa;
-  font-weight: 300;
-}
+.title-sep { color: #aaa; font-weight: 300; }
 
-.page-subtitle {
-  color: #64748b;
-  margin: 0;
-}
+.page-subtitle { color: #64748b; margin: 0; }
 
 .section-nav-buttons {
   display: flex;
@@ -837,11 +790,7 @@ onMounted(async () => {
   cursor: pointer;
   transition: all 0.15s;
 
-  &:hover {
-    background: #f1f5f9;
-    border-color: #cbd5e1;
-  }
-
+  &:hover { background: #f1f5f9; border-color: #cbd5e1; }
   &.active {
     background: var(--app-highlight-color);
     border-color: var(--app-highlight-color);
@@ -875,57 +824,41 @@ onMounted(async () => {
   font-size: 0.9rem;
   color: #92400e;
 
-  .import-warning-icon {
-    font-size: 1.1rem;
-    flex-shrink: 0;
-    margin-top: 0.05rem;
-  }
+  .import-warning-icon { font-size: 1.1rem; flex-shrink: 0; margin-top: 0.05rem; }
 }
 
-// ── Design ────────────────────────────────────────────
-.design-layout {
+// ── Design grid: 3 columns ────────────────────────────
+.design-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
-  gap: 1rem;
-}
+  grid-template-columns: minmax(0, 1.6fr) minmax(0, 1fr) minmax(0, 1.1fr);
+  gap: 0.9rem;
+  align-items: start;
 
-.design-colors-card {
-  grid-column: 1 / -1;
-}
-
-.design-card-body {
-  display: flex;
-  gap: 1.5rem;
-  align-items: flex-start;
-
-  @media (max-width: 700px) {
-    flex-direction: column;
+  @media (max-width: 900px) {
+    grid-template-columns: 1fr 1fr;
+  }
+  @media (max-width: 600px) {
+    grid-template-columns: 1fr;
   }
 }
 
-.color-pickers-col {
-  flex: 1;
-  min-width: 0;
+// ── Settings cards ────────────────────────────────────
+.settings-card {
+  background: color-mix(in srgb, var(--app-background-color) 55%, white);
+  border: 1px solid color-mix(in srgb, var(--app-background-color) 65%, #777);
+  padding: 0.85rem;
+  border-radius: 12px;
   display: flex;
   flex-direction: column;
-  gap: 0.6rem;
-}
-
-.design-preview-col {
-  width: 220px;
-  flex-shrink: 0;
+  gap: 0.65rem;
 
   h3 {
-    margin: 0 0 0.5rem;
+    margin: 0;
     font-size: 0.9rem;
-    font-weight: 600;
-    color: #64748b;
+    font-weight: 700;
+    color: #1e293b;
     text-transform: uppercase;
     letter-spacing: 0.04em;
-  }
-
-  @media (max-width: 700px) {
-    width: 100%;
   }
 }
 
@@ -934,13 +867,83 @@ onMounted(async () => {
   align-items: center;
   justify-content: space-between;
   gap: 0.5rem;
-  margin-bottom: 0.15rem;
 
-  h3 {
-    margin: 0;
+  h3 { margin: 0; }
+}
+
+// ── Reset hint box ────────────────────────────────────
+.reset-hint-box {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  background: #fffbeb;
+  border: 1.5px solid #f59e0b;
+  border-radius: 8px;
+  padding: 0.6rem 0.75rem;
+}
+
+.reset-hint-text {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  min-width: 0;
+
+  strong {
+    display: block;
+    font-size: 0.8rem;
+    color: #78350f;
+    font-weight: 700;
+    line-height: 1.2;
   }
 }
 
+.reset-hint-icon {
+  font-size: 1.3rem;
+  flex-shrink: 0;
+  color: #b45309;
+}
+
+.reset-hint-sub {
+  display: block;
+  font-size: 0.72rem;
+  color: #92400e;
+  margin-top: 1px;
+}
+
+.btn-reset {
+  flex-shrink: 0;
+  padding: 0.35rem 0.8rem;
+  border-radius: 6px;
+  border: 1px solid #d97706;
+  background: #f59e0b;
+  color: #fff;
+  font-size: 0.8rem;
+  font-weight: 700;
+  cursor: pointer;
+  transition: filter 0.15s;
+  white-space: nowrap;
+
+  &:hover { filter: brightness(1.08); }
+  &:active { filter: brightness(0.95); }
+}
+
+// ── Form ──────────────────────────────────────────────
+.form-group {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+
+  label {
+    font-size: 0.8rem;
+    font-weight: 600;
+    color: #334155;
+  }
+}
+
+.form-input { width: 100%; }
+
+// ── Color pickers ─────────────────────────────────────
 .color-row {
   display: flex;
   align-items: center;
@@ -948,10 +951,10 @@ onMounted(async () => {
   flex-wrap: wrap;
 
   .color-row-label {
-    font-size: 0.8rem;
+    font-size: 0.78rem;
     font-weight: 600;
     color: #334155;
-    min-width: 110px;
+    min-width: 105px;
     flex-shrink: 0;
   }
 
@@ -963,65 +966,26 @@ onMounted(async () => {
 }
 
 .color-hex {
-  font-size: 0.7rem;
+  font-size: 0.68rem;
   font-family: monospace;
-  padding: 2px 7px;
+  padding: 2px 6px;
   border-radius: 4px;
   flex-shrink: 0;
   white-space: nowrap;
   border: 1px solid rgba(0, 0, 0, 0.1);
 }
 
-.btn-sm {
-  padding: 0.25rem 0.65rem;
-  font-size: 0.8rem;
-  min-height: unset;
-}
-
-.settings-card {
-  background: color-mix(in srgb, var(--app-background-color) 55%, white);
-  border: 1px solid color-mix(in srgb, var(--app-background-color) 65%, #777);
-  padding: 1rem;
-  border-radius: 12px;
-  display: flex;
-  flex-direction: column;
-  gap: 0.75rem;
-
-  h3 {
-    margin: 0;
-    font-size: 1rem;
-    color: #1e293b;
-  }
-}
-
-.form-group {
-  display: flex;
-  flex-direction: column;
-  gap: 0.4rem;
-
-  label {
-    font-size: 0.85rem;
-    font-weight: 600;
-    color: #334155;
-  }
-}
-
-.form-input {
-  width: 100%;
-}
-
-// Color picker
 .color-options {
   display: flex;
   flex-wrap: wrap;
-  gap: 0.4rem;
+  gap: 0.35rem;
   align-items: center;
 }
 
 .color-option {
-  width: 30px;
-  height: 30px;
-  border-radius: 7px;
+  width: 26px;
+  height: 26px;
+  border-radius: 6px;
   border: 2px solid transparent;
   cursor: pointer;
   transition: transform 0.12s, border-color 0.12s;
@@ -1031,14 +995,8 @@ onMounted(async () => {
   justify-content: center;
   padding: 0;
 
-  &:hover {
-    transform: scale(1.15);
-  }
-
-  &.selected {
-    border-color: #1e293b;
-    box-shadow: 0 0 0 2px white inset;
-  }
+  &:hover { transform: scale(1.15); }
+  &.selected { border-color: #1e293b; box-shadow: 0 0 0 2px white inset; }
 }
 
 .color-option-custom {
@@ -1047,10 +1005,7 @@ onMounted(async () => {
   cursor: pointer;
   overflow: visible;
 
-  &.selected {
-    border-style: solid;
-    border-color: #1e293b;
-  }
+  &.selected { border-style: solid; border-color: #1e293b; }
 
   input[type="color"] {
     position: absolute;
@@ -1068,95 +1023,114 @@ onMounted(async () => {
   width: 100%;
   height: 100%;
   display: block;
-  border-radius: 5px;
+  border-radius: 4px;
   position: absolute;
   inset: 0;
 }
 
 .custom-color-icon {
-  font-size: 0.9rem;
+  font-size: 0.85rem;
   pointer-events: none;
 }
 
-// Logo section
-.logo-preview {
-  display: flex;
-  justify-content: center;
-  align-items: center;
-  min-height: 160px;
-  background: white;
-  border-radius: 8px;
-  padding: 1rem;
+// ── Vorschau card ─────────────────────────────────────
+.preview-card {
+  .preview-shell {
+    background: var(--preview-background);
+    border-radius: 8px;
+    padding: 0.5rem;
+    flex: 1;
+  }
 
-  img {
-    max-width: 100%;
-    max-height: 130px;
+  .preview-banner {
+    background: var(--preview-banner);
+    color: var(--preview-banner-contrast);
+    border-bottom: 2px solid var(--preview-highlight);
+    border-radius: 5px;
+    padding: 0.4rem 0.65rem;
+    display: flex;
+    align-items: center;
+    gap: 0.4rem;
+    justify-content: center;
+    flex-wrap: wrap;
+  }
+
+  .preview-logo {
+    width: min(90px, 100%);
+    height: 30px;
     object-fit: contain;
   }
-}
 
-.kasse-background-preview {
-  img {
-    width: 100%;
-    max-height: 130px;
-    object-fit: contain;
+  .preview-title {
+    font-size: 0.8rem;
+    font-weight: 700;
   }
 
-  span {
-    color: #64748b;
-    font-size: 0.85rem;
+  .preview-highlight {
+    margin-top: 0.35rem;
+    background: var(--preview-highlight);
+    color: var(--preview-highlight-contrast);
+    border-radius: 5px;
+    padding: 0.3rem 0.5rem;
+    font-weight: 600;
+    font-size: 0.74rem;
+  }
+
+  .preview-kasse-area {
+    margin-top: 0.35rem;
+    background: var(--preview-kasse-area);
+    color: var(--preview-kasse-area-contrast);
+    border-radius: 5px;
+    padding: 0.5rem 0.65rem;
+    font-weight: 600;
+    font-size: 0.8rem;
+    border: 1px solid color-mix(in srgb, var(--preview-banner) 20%, transparent);
   }
 }
 
-.preview-shell {
-  background: var(--preview-background);
-  border-radius: 10px;
-  padding: 0.6rem;
+// ── Media card (Logo + Kasse BG) ──────────────────────
+.media-card {
+  .logo-preview--sm {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    min-height: 90px;
+    background: white;
+    border-radius: 8px;
+    padding: 0.65rem;
+
+    img {
+      max-width: 100%;
+      max-height: 80px;
+      object-fit: contain;
+    }
+  }
+
+  .no-image-hint {
+    font-size: 0.78rem;
+    color: #94a3b8;
+  }
 }
 
-.preview-banner {
-  background: var(--preview-banner);
-  color: var(--preview-banner-contrast);
-  border-bottom: 2px solid var(--preview-highlight);
-  border-radius: 6px;
-  padding: 0.4rem 0.75rem;
+.divider {
+  border-top: 1px solid color-mix(in srgb, var(--app-background-color) 65%, #aaa);
+  margin: 0.1rem 0;
+}
+
+.kasse-bg-controls {
   display: flex;
-  align-items: center;
-  gap: 0.5rem;
-  justify-content: center;
-  flex-wrap: wrap;
+  flex-direction: column;
+  gap: 0.55rem;
 }
 
-.preview-logo {
-  width: min(120px, 100%);
-  height: 36px;
-  object-fit: contain;
-}
-
-.preview-title {
-  font-size: 0.88rem;
-  font-weight: 700;
-}
-
-.preview-highlight {
-  margin-top: 0.4rem;
-  background: var(--preview-highlight);
-  color: var(--preview-highlight-contrast);
+.upload-hint {
+  font-size: 0.78rem;
+  color: #92400e;
+  background: #fef3c7;
+  border: 1px solid #fcd34d;
   border-radius: 6px;
   padding: 0.35rem 0.6rem;
-  font-weight: 600;
-  font-size: 0.78rem;
-}
-
-.preview-kasse-area {
-  margin-top: 0.4rem;
-  background: var(--preview-kasse-area);
-  color: var(--preview-kasse-area-contrast);
-  border-radius: 6px;
-  padding: 0.6rem 0.75rem;
-  font-weight: 600;
-  font-size: 0.85rem;
-  border: 1px solid color-mix(in srgb, var(--preview-banner) 20%, transparent);
+  margin: 0;
 }
 
 // ── Datenpflege ───────────────────────────────────────
@@ -1169,9 +1143,7 @@ onMounted(async () => {
   color: #7c2d12;
 }
 
-.access-note {
-  font-weight: 700;
-}
+.access-note { font-weight: 700; }
 
 // ── Ext. Settings ─────────────────────────────────────
 .ext-settings-section {
@@ -1182,12 +1154,7 @@ onMounted(async () => {
 
 .page-header {
   margin-bottom: 0.75rem;
-
-  h2 {
-    font-size: 1.25rem;
-    color: #333;
-    margin: 0;
-  }
+  h2 { font-size: 1.25rem; color: #333; margin: 0; }
 }
 
 .ext-settings-grid {
@@ -1211,36 +1178,17 @@ onMounted(async () => {
   gap: 1rem;
   align-items: flex-start;
 
-  h3 {
-    margin: 0 0 0.25rem;
-    font-size: 1.05rem;
-    color: #1e293b;
-  }
-
-  p {
-    margin: 0;
-    font-size: 0.85rem;
-    color: #64748b;
-  }
+  h3 { margin: 0 0 0.25rem; font-size: 1.05rem; color: #1e293b; }
+  p { margin: 0; font-size: 0.85rem; color: #64748b; }
 }
 
-.ext-card-icon {
-  font-size: 2rem;
-  flex-shrink: 0;
-}
+.ext-card-icon { font-size: 2rem; flex-shrink: 0; }
 
-.layout-options {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 0.75rem;
-}
+.layout-options { display: flex; flex-wrap: wrap; gap: 0.75rem; }
 
 .layout-option {
   cursor: pointer;
-
-  .layout-radio {
-    display: none;
-  }
+  .layout-radio { display: none; }
 }
 
 .layout-preview {
@@ -1253,31 +1201,19 @@ onMounted(async () => {
   background: white;
   transition: border-color 0.15s, box-shadow 0.15s;
 
-  .layout-option:hover & {
-    border-color: var(--ext-primary, #3b82f6);
-  }
-
+  .layout-option:hover & { border-color: var(--ext-primary, #3b82f6); }
   .layout-option.selected & {
     border-color: var(--ext-primary, #3b82f6);
     box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.15);
   }
 }
 
-.layout-preview-icon {
-  font-size: 1.8rem;
-  margin-bottom: 0.3rem;
-}
-
-.layout-preview-name {
-  font-size: 0.78rem;
-  font-weight: 600;
-  color: #334155;
-}
+.layout-preview-icon { font-size: 1.8rem; margin-bottom: 0.3rem; }
+.layout-preview-name { font-size: 0.78rem; font-weight: 600; color: #334155; }
 
 .layout-active-badge {
   position: absolute;
-  top: -8px;
-  right: -8px;
+  top: -8px; right: -8px;
   background: var(--ext-primary, #3b82f6);
   color: white;
   font-size: 0.62rem;
@@ -1322,126 +1258,7 @@ onMounted(async () => {
   font-weight: 500;
 }
 
-.toggle-checkbox {
-  width: 1.1rem;
-  height: 1.1rem;
-  cursor: pointer;
-}
-
-// ── Modal ─────────────────────────────────────────────
-.modal-overlay {
-  position: fixed;
-  inset: 0;
-  background: rgba(15, 23, 42, 0.7);
-  backdrop-filter: blur(4px);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  z-index: 1000;
-  padding: 1rem;
-}
-
-.modal-card {
-  background: white;
-  width: 100%;
-  max-width: 650px;
-  max-height: 650px;
-  border-radius: 16px;
-  display: flex;
-  flex-direction: column;
-  box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25);
-  overflow: hidden;
-}
-
-.modal-header {
-  padding: 0.9rem 1.2rem;
-  border-bottom: 1px solid #e2e8f0;
-  display: flex;
-  justify-content: space-between;
-  align-items: flex-start;
-  gap: 1rem;
-  flex-shrink: 0;
-
-  h3 {
-    margin: 0;
-    font-size: 1.1rem;
-    font-weight: 600;
-    color: #1e293b;
-  }
-}
-
-.modal-subtitle {
-  display: none;
-}
-
-.modal-form-content {
-  padding: 1rem 1.2rem;
-  overflow-y: auto;
-  flex: 1;
-  display: flex;
-  flex-direction: column;
-  gap: 0;
-}
-
-.form-row {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 1rem;
-}
-
-.modal-form-content .form-group {
-  margin-bottom: 0.6rem;
-
-  label {
-    display: block;
-    font-size: 0.85rem;
-    font-weight: 600;
-    margin-bottom: 0.25rem;
-    color: #334155;
-  }
-
-  input {
-    width: 100%;
-    padding: 0.5rem 0.7rem;
-    border: 1px solid #e2e8f0;
-    border-radius: 8px;
-    font-size: 0.9rem;
-    color: #0f172a;
-
-    &:focus {
-      outline: none;
-      border-color: var(--ext-primary, #3b82f6);
-      box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
-    }
-  }
-}
-
-.modal-footer {
-  display: flex;
-  justify-content: flex-end;
-  gap: 0.75rem;
-  padding: 0.75rem 1.2rem;
-  border-top: 1px solid #e2e8f0;
-  background: #f8fafc;
-  flex-shrink: 0;
-  margin-top: auto;
-}
-
-.modal-close {
-  border: none;
-  background: transparent;
-  font-size: 1.5rem;
-  line-height: 1;
-  cursor: pointer;
-  color: #6b7280;
-  padding: 0.25rem;
-  min-width: 36px;
-  min-height: 36px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  flex-shrink: 0;
-}
+.toggle-checkbox { width: 1.1rem; height: 1.1rem; cursor: pointer; }
 
 // ── Buttons ───────────────────────────────────────────
 .btn {
@@ -1451,59 +1268,22 @@ onMounted(async () => {
   cursor: pointer;
   border: none;
   font-size: 0.9rem;
-  min-height: 40px;
+  min-height: 38px;
+  transition: filter 0.15s;
+
+  &:disabled { opacity: 0.55; cursor: not-allowed; }
+  &:not(:disabled):hover { filter: brightness(1.07); }
 }
 
-.btn-primary {
-  background: #3b82f6;
-  color: white;
-}
-
-.btn-success {
-  background: #10b981;
-  color: white;
-}
-
-.btn-secondary {
-  background: #e2e8f0;
-  color: #475569;
-}
-
-.btn-warning {
-  background: #f59e0b;
-  color: white;
-}
-
+.btn-primary   { background: #3b82f6; color: white; }
+.btn-success   { background: #10b981; color: white; }
+.btn-secondary { background: #e2e8f0; color: #475569; }
+.btn-warning   { background: #f59e0b; color: white; }
 .btn-danger {
   background: #dc2626;
   color: white;
   padding: 0.75rem 1.5rem;
   font-size: 0.95rem;
-
-  &:disabled {
-    opacity: 0.55;
-    cursor: not-allowed;
-  }
-}
-
-@media (max-width: 640px) {
-  .form-row {
-    grid-template-columns: 1fr;
-  }
-
-  .ext-settings-grid {
-    grid-template-columns: 1fr;
-  }
-}
-
-.upload-hint {
-  font-size: 0.82rem;
-  color: #92400e;
-  background: #fef3c7;
-  border: 1px solid #fcd34d;
-  border-radius: 6px;
-  padding: 0.4rem 0.65rem;
-  margin: 0.25rem 0 0.5rem 0;
 }
 
 .checkbox-label {
@@ -1512,6 +1292,7 @@ onMounted(async () => {
   gap: 0.5rem;
   font-weight: 500;
   cursor: pointer;
+  font-size: 0.85rem;
 }
 
 .form-checkbox {
@@ -1524,8 +1305,12 @@ onMounted(async () => {
 .range-labels {
   display: flex;
   justify-content: space-between;
-  font-size: 0.78rem;
+  font-size: 0.72rem;
   color: #64748b;
-  margin-top: 0.2rem;
+  margin-top: 0.15rem;
+}
+
+@media (max-width: 640px) {
+  .ext-settings-grid { grid-template-columns: 1fr; }
 }
 </style>
