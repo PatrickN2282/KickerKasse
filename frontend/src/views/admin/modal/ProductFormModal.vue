@@ -17,39 +17,8 @@
 
               <template v-if="imagePreviewSrc">
                 <template v-if="isGif">
-                  <div class="kasse-card-preview">
-                    <div class="card-img">
-                      <span v-if="formData.memberPrice !== null && formData.memberPrice !== ''" class="card-badge discount-badge">Rabatt</span>
-                      <img
-                        :src="imagePreviewSrc"
-                        :alt="productPreviewAlt"
-                        class="preview-crop-img preview-static-img"
-                        draggable="false"
-                      >
-                      <span class="gif-badge">GIF 🎬</span>
-                    </div>
-                    <div class="card-body">
-                      <div class="card-name">{{ formData.name || 'Produktname' }}</div>
-                      <div class="card-bottom">
-                        <span class="card-price">{{ previewPriceText }}</span>
-                        <span class="card-stock">{{ formData.isUnlimitedStock ? '∞' : formData.stock }}</span>
-                      </div>
-                    </div>
-                  </div>
-                  <label class="upload-button hint-upload gif-replace-btn">
-                    Bild ersetzen
-                    <input id="image" type="file" accept="image/*" hidden @change="$emit('image-upload', $event)">
-                  </label>
-                </template>
-
-                <template v-else>
-                  <button
-                    type="button"
-                    class="image-preview-trigger"
-                    aria-label="Produktbild anpassen"
-                    @click="$emit('open-crop')"
-                  >
-                    <div class="kasse-card-preview interactive-image-card">
+                  <div class="image-preview-shell">
+                    <div class="kasse-card-preview">
                       <div class="card-img">
                         <span v-if="formData.memberPrice !== null && formData.memberPrice !== ''" class="card-badge discount-badge">Rabatt</span>
                         <img
@@ -58,7 +27,7 @@
                           class="preview-crop-img preview-static-img"
                           draggable="false"
                         >
-                        <span class="image-preview-overlay">Anpassen</span>
+                        <span class="gif-badge">GIF 🎬</span>
                       </div>
                       <div class="card-body">
                         <div class="card-name">{{ formData.name || 'Produktname' }}</div>
@@ -68,7 +37,60 @@
                         </div>
                       </div>
                     </div>
-                  </button>
+                    <button
+                      type="button"
+                      class="image-remove-btn"
+                      aria-label="Produktbild löschen"
+                      title="Bild löschen"
+                      @click.stop="$emit('remove-image')"
+                    >
+                      ✕
+                    </button>
+                  </div>
+                  <label class="upload-button hint-upload gif-replace-btn">
+                    Bild ersetzen
+                    <input id="image" type="file" accept="image/*" hidden @change="$emit('image-upload', $event)">
+                  </label>
+                </template>
+
+                <template v-else>
+                  <div class="image-preview-shell">
+                    <button
+                      type="button"
+                      class="image-preview-trigger"
+                      aria-label="Produktbild anpassen"
+                      @click="$emit('open-crop')"
+                    >
+                      <div class="kasse-card-preview interactive-image-card">
+                        <div class="card-img">
+                          <span v-if="formData.memberPrice !== null && formData.memberPrice !== ''" class="card-badge discount-badge">Rabatt</span>
+                          <img
+                            :src="imagePreviewSrc"
+                            :alt="productPreviewAlt"
+                            class="preview-crop-img preview-static-img"
+                            draggable="false"
+                          >
+                          <span class="image-preview-overlay">Anpassen</span>
+                        </div>
+                        <div class="card-body">
+                          <div class="card-name">{{ formData.name || 'Produktname' }}</div>
+                          <div class="card-bottom">
+                            <span class="card-price">{{ previewPriceText }}</span>
+                            <span class="card-stock">{{ formData.isUnlimitedStock ? '∞' : formData.stock }}</span>
+                          </div>
+                        </div>
+                      </div>
+                    </button>
+                    <button
+                      type="button"
+                      class="image-remove-btn"
+                      aria-label="Produktbild löschen"
+                      title="Bild löschen"
+                      @click.stop="$emit('remove-image')"
+                    >
+                      ✕
+                    </button>
+                  </div>
                 </template>
               </template>
 
@@ -185,7 +207,7 @@ const formData = defineModel('formData', {
   required: true,
 })
 
-defineEmits(['close', 'save', 'open-crop', 'image-upload', 'unlimited-stock-change', 'go-to-corrections'])
+defineEmits(['close', 'save', 'open-crop', 'image-upload', 'unlimited-stock-change', 'go-to-corrections', 'remove-image'])
 </script>
 
 <style scoped lang="scss">
@@ -278,6 +300,34 @@ defineEmits(['close', 'save', 'open-crop', 'image-upload', 'unlimited-stock-chan
   display: flex;
   flex-direction: column;
   align-items: stretch;
+}
+
+.image-preview-shell {
+  position: relative;
+  width: fit-content;
+}
+
+.image-remove-btn {
+  position: absolute;
+  top: -8px;
+  right: -8px;
+  width: 22px;
+  height: 22px;
+  border: none;
+  border-radius: 999px;
+  background: #dc2626;
+  color: #fff;
+  font-size: 0.85rem;
+  font-weight: 700;
+  line-height: 1;
+  display: grid;
+  place-items: center;
+  cursor: pointer;
+  box-shadow: 0 4px 12px rgba(220, 38, 38, 0.35);
+
+  &:hover {
+    background: #b91c1c;
+  }
 }
 
 .compact-avatar {

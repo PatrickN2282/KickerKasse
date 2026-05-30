@@ -136,12 +136,8 @@
           </div>
         </div>
 
-        <div v-if="cartStore.items.length === 0" class="empty-bon">
-          Keine Artikel im Bon
-        </div>
-
         <div class="bon-total">
-          <div class="total-row">
+          <div v-if="hasAppliedVoucher || hasAppliedBalance" class="total-row">
             <div class="total-label">Zwischensumme:</div>
             <div class="total-amount">{{ formatPrice(cartSubtotal) }}</div>
           </div>
@@ -240,26 +236,27 @@
                 <span class="payment-btn__emoji">💶</span>
                 <span class="payment-btn__label">Bar</span>
               </button>
+              <div class="payment-buttons-side">
+                <button
+                  @click="openPaymentConfirmation('BALANCE')"
+                  :disabled="!cartStore.selectedMemberId || cartStore.items.length === 0 || selectedMemberBalance <= 0"
+                  :style="getPaymentButtonStyle('BALANCE')"
+                  class="payment-btn payment-btn--balance"
+                >
+                  <span class="payment-btn__emoji">👤</span>
+                  <span class="payment-btn__label">Guthaben</span>
+                </button>
 
-              <button
-                @click="openPaymentConfirmation('BALANCE')"
-                :disabled="!cartStore.selectedMemberId || cartStore.items.length === 0 || selectedMemberBalance <= 0"
-                :style="getPaymentButtonStyle('BALANCE')"
-                class="payment-btn payment-btn--balance"
-              >
-                <span class="payment-btn__emoji">👤</span>
-                <span class="payment-btn__label">Guthaben</span>
-              </button>
-
-              <button
-                @click="openVoucherModal"
-                :disabled="cartStore.items.length === 0"
-                class="payment-btn voucher-btn"
-                title="Verzehrkarte"
-              >
-                <span class="payment-btn__emoji">🎟️</span>
-                <span class="payment-btn__label">Gutschein</span>
-              </button>
+                <button
+                  @click="openVoucherModal"
+                  :disabled="cartStore.items.length === 0"
+                  class="payment-btn voucher-btn"
+                  title="Verzehrkarte"
+                >
+                  <span class="payment-btn__emoji">🎟️</span>
+                  <span class="payment-btn__label">Gutschein / Verzehrkarte</span>
+                </button>
+              </div>
             </div>
           </div>
           <div class="bon-secondary-actions">
@@ -291,7 +288,7 @@
 </template>
 
 <script setup>
-import { provide } from 'vue'
+import { provide, watch, ref } from 'vue'
 import useKasse from './useKasse.js'
 import { useAppSettingsStore } from '@/stores/appSettings'
 import MemberModal from './modal/MemberModal.vue'
@@ -360,6 +357,27 @@ const {
   openDeckelOverview,
   changeCartItemQuantity,
 } = kasse
+
+// Nach einer Guthaben-Zahlung: wenn noch ein Restbetrag offen ist,
+// direkt das Bar-Zahlungs-Modal öffnen.
+const lastPaymentMethod = ref(null)
+
+const originalOpenPaymentConfirmation = openPaymentConfirmation
+kasse.openPaymentConfirmation = (method) => {
+  lastPaymentMethod.value = method
+  originalOpenPaymentConfirmation(method)
+}
+
+watch(showPaymentConfirmModal, (isOpen) => {
+  if (!isOpen && lastPaymentMethod.value === 'BALANCE') {
+    lastPaymentMethod.value = null
+    const remaining = cartStore.getTotalAmount?.() ?? 0
+    if (remaining > 0) {
+      // Kleines Timeout damit das alte Modal vollständig geschlossen ist
+      setTimeout(() => openPaymentConfirmation('CASH'), 50)
+    }
+  }
+})
 </script>
 
 <style scoped lang="scss">
@@ -788,34 +806,38 @@ const {
 .bon-content {
   display: flex;
   flex-direction: column;
-  gap: 1rem;
+  gap: 0.4rem;
   flex: 1;
   overflow: hidden;
 }
 
 .payment-section {
   flex-shrink: 0;
-  margin-top: 1.5rem;
+  margin-top: 0.5rem;
 
   .payment-buttons {
-    display: flex;
-    flex-direction: row;
+    display: grid;
+    grid-template-columns: minmax(72px, 1fr) minmax(0, 2fr);
     gap: 0.75rem;
+    align-items: stretch;
+
+    .payment-buttons-side {
+      display: flex;
+      flex-direction: column;
+      gap: 0.5rem;
+      min-width: 0;
+    }
 
     .payment-btn {
       flex: 1;
-      min-width: 0;
       font-size: 0.95rem;
-      padding: 0.8rem;
+      padding: 0.6rem 0.5rem;
       border-radius: 6px;
       font-weight: 600;
       transition: all 0.2s;
       border: none;
       cursor: pointer;
       text-align: center;
-      overflow: hidden;
-      text-overflow: ellipsis;
-      white-space: nowrap;
 
       &:disabled {
         opacity: 0.5;
@@ -837,20 +859,60 @@ const {
         color: #1b5e20;
       }
 
+      /* Guthaben + Gutschein: emoji und label nebeneinander, 1 Zeile */
       &.payment-btn--balance,
       &.voucher-btn {
-        font-size: clamp(0.72rem, 1.1vw, 0.95rem);
-        line-height: 1.2;
-        white-space: normal;
-        overflow: visible;
-        text-overflow: unset;
-        overflow-wrap: anywhere;
+        display: flex;
+        flex-direction: row;
+        align-items: center;
+        justify-content: center;
+        gap: 0.4rem;
+        white-space: nowrap;
+        overflow: hidden;
+        font-size: clamp(0.7rem, 1.2vw, 0.9rem);
+
+        .payment-btn__emoji {
+          display: inline;
+          font-size: 1.05em;
+          line-height: 1;
+          flex-shrink: 0;
+          margin-top: 0;
+        }
+
+        .payment-btn__label {
+          display: inline;
+          margin-top: 0;
+          overflow: hidden;
+          text-overflow: ellipsis;
+          white-space: nowrap;
+          line-height: 1.2;
+          min-width: 0;
+        }
       }
 
+      /* Bar: 2 Zeilen, großes Emoji oben, label unten, volle Höhe */
       &.payment-btn--cash {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        height: 100%;
         flex-shrink: 0;
-        white-space: nowrap;
-        overflow: visible;
+        gap: 0.25rem;
+
+        .payment-btn__emoji {
+          font-size: 1.7rem;
+          line-height: 1;
+          display: block;
+          margin-top: 0;
+        }
+
+        .payment-btn__label {
+          display: block;
+          font-size: 0.85rem;
+          margin-top: 0;
+          line-height: 1.2;
+        }
       }
     }
   }
@@ -860,6 +922,7 @@ const {
   display: block;
   text-align: center;
   line-height: 1;
+  flex-shrink: 0;
 }
 
 .payment-btn__label {
@@ -871,7 +934,7 @@ const {
 
 .bon-secondary-actions {
   flex-shrink: 0;
-  margin-top: 0.75rem;
+  margin-top: 0.4rem;
 }
 
 .bon-items {
@@ -879,19 +942,19 @@ const {
   overflow-y: auto;
   border: 1px solid #cfcfcf;
   border-radius: 4px;
-  padding: 0.5rem;
+  padding: 0.3rem;
   background: #e7e7e7;
   min-height: 50px;
 }
 
 .bon-item {
   display: flex;
-  gap: 0.5rem;
+  gap: 0.35rem;
   align-items: center;
   padding: var(--kasse-spacing-bon-items);
   background: white;
   border-radius: 4px;
-  margin-bottom: 0.5rem;
+  margin-bottom: 0.25rem;
 
   .item-name {
     flex: 1;
@@ -972,8 +1035,8 @@ const {
   flex-shrink: 0;
   display: flex;
   flex-direction: column;
-  gap: 0.45rem;
-  padding: 0.75rem;
+  gap: 0.3rem;
+  padding: 0.5rem 0.6rem;
   background: color-mix(in srgb, var(--app-background-color) 65%, white 35%);
   border-radius: 4px;
 
@@ -989,8 +1052,8 @@ const {
 }
 
 .receipt-number-banner {
-  margin-bottom: 0.75rem;
-  padding: 0.4rem 0.6rem; /* Reduziert von 0.65rem 0.85rem */
+  margin-bottom: 0.3rem;
+  padding: 0.3rem 0.5rem;
   background: color-mix(in srgb, var(--app-banner-color) 12%, white 88%);
   border-radius: 8px;
   color: var(--app-banner-color);
@@ -1076,11 +1139,11 @@ const {
     background: #eef1f4;
     border: 2px solid var(--app-banner-color);
     border-radius: 8px;
-    padding: 0.75rem;
+    padding: 0.5rem;
     display: flex;
     flex-direction: column;
-    gap: 0.5rem;
-    margin-bottom: 0.75rem;
+    gap: 0.35rem;
+    margin-bottom: 0.4rem;
 
     .member-card-header {
       display: flex;
@@ -1135,6 +1198,10 @@ const {
       }
     }
 
+    .btn-change {
+      display: none;
+    }
+
     .btn-remove-member {
       background: #ffebee;
       color: #c62828;
@@ -1157,27 +1224,32 @@ const {
     width: 100%;
 
     .payment-buttons {
-      display: flex;
-      flex-direction: row;
+      display: grid;
+      grid-template-columns: minmax(72px, 1fr) minmax(0, 2fr);
       gap: 0.75rem;
+      align-items: stretch;
+
+      .payment-buttons-side {
+        display: flex;
+        flex-direction: column;
+        gap: 0.5rem;
+        min-width: 0;
+      }
 
       .payment-btn {
         flex: 1;
         min-width: 0;
         font-size: 0.95rem;
-        padding: 0.8rem;
+        padding: 0.6rem 0.5rem;
         border-radius: 6px;
         font-weight: 600;
         transition: all 0.2s;
         border: none;
         cursor: pointer;
         text-align: center;
-        overflow: hidden;
-        text-overflow: ellipsis;
-        white-space: nowrap;
 
         &:disabled {
-          opacity: 0.7;
+          opacity: 0.5;
           cursor: not-allowed;
         }
 
@@ -1186,10 +1258,9 @@ const {
           box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
         }
 
-        &.payment-btn--cash {
-          flex-shrink: 0;
-          white-space: nowrap;
-          overflow: visible;
+        &.active {
+          box-shadow: 0 0 0 3px rgba(25, 118, 210, 0.3);
+          transform: scale(1.02);
         }
 
         &.voucher-btn {
@@ -1197,14 +1268,60 @@ const {
           color: #1b5e20;
         }
 
+        /* Guthaben + Gutschein: emoji und label nebeneinander, 1 Zeile */
         &.payment-btn--balance,
         &.voucher-btn {
-          font-size: clamp(0.72rem, 2vw, 0.95rem);
-          line-height: 1.2;
-          white-space: normal;
-          overflow: visible;
-          text-overflow: unset;
-          overflow-wrap: anywhere;
+          display: flex;
+          flex-direction: row;
+          align-items: center;
+          justify-content: center;
+          gap: 0.4rem;
+          white-space: nowrap;
+          overflow: hidden;
+          font-size: clamp(0.68rem, 1.5vw, 0.9rem);
+
+          .payment-btn__emoji {
+            display: inline;
+            font-size: 1.05em;
+            line-height: 1;
+            flex-shrink: 0;
+            margin-top: 0;
+          }
+
+          .payment-btn__label {
+            display: inline;
+            margin-top: 0;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+            line-height: 1.2;
+            min-width: 0;
+          }
+        }
+
+        /* Bar: 2 Zeilen, großes Emoji oben, label unten, volle Höhe */
+        &.payment-btn--cash {
+          display: flex;
+          flex-direction: column;
+          align-items: center;
+          justify-content: center;
+          height: 100%;
+          flex-shrink: 0;
+          gap: 0.25rem;
+
+          .payment-btn__emoji {
+            font-size: 1.7rem;
+            line-height: 1;
+            display: block;
+            margin-top: 0;
+          }
+
+          .payment-btn__label {
+            display: block;
+            font-size: 0.85rem;
+            margin-top: 0;
+            line-height: 1.2;
+          }
         }
       }
     }

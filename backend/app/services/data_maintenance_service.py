@@ -1,3 +1,5 @@
+import shutil
+
 from sqlalchemy import text
 from sqlalchemy.orm import Session
 
@@ -8,6 +10,7 @@ from app.constants import (
 )
 from app.models import (
     AuditLog,
+    AppSettings,
     BalanceLog,
     CashBalance,
     CashEntry,
@@ -27,7 +30,7 @@ from app.models import (
     ZBonHistory,
     product_category,
 )
-from app.services.file_service import delete_member_photo, delete_product_image
+from app.services.file_service import APP_SETTINGS_DIR, delete_member_photo, delete_product_image
 
 
 _TABLES_WITH_SEQUENCES = [
@@ -49,6 +52,7 @@ _TABLES_WITH_SEQUENCES = [
     "product_stock_correction_logs",
     "member_balance_correction_logs",
     "audit_logs",
+    "app_settings",
 ]
 
 
@@ -112,6 +116,7 @@ class DataMaintenanceService:
         self.db.query(Product).delete(synchronize_session=False)
         self.db.query(Category).delete(synchronize_session=False)
         self.db.query(AuditLog).delete(synchronize_session=False)
+        self.db.query(AppSettings).delete(synchronize_session=False)
         self.db.add(self._build_fixed_internal_material_category())
         self._reset_sequences()
         self.db.commit()
@@ -120,6 +125,12 @@ class DataMaintenanceService:
             delete_member_photo(member_id)
         for product_id in product_ids:
             delete_product_image(product_id)
+        if APP_SETTINGS_DIR.exists():
+            for path in APP_SETTINGS_DIR.iterdir():
+                if path.is_dir():
+                    shutil.rmtree(path, ignore_errors=True)
+                else:
+                    path.unlink(missing_ok=True)
 
         return {
             "deleted_users": deleted_users,

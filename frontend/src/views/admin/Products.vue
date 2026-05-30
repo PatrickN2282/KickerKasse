@@ -119,6 +119,7 @@
       @save="handleSaveProduct"
       @open-crop="openCropModalFromCurrentImage"
       @image-upload="handleImageUpload"
+      @remove-image="requestImageRemoval"
       @unlimited-stock-change="handleUnlimitedStockChange"
       @go-to-corrections="goToCorrections"
     />
