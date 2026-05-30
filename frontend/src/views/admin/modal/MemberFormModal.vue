@@ -15,9 +15,20 @@
             <div class="image-upload-section">
               <span class="section-label">Foto</span>
               <template v-if="photoPreview && isGif">
-                <div class="avatar-display compact-avatar gif-preview-frame">
-                  <img :src="photoPreview" :alt="memberPhotoAlt" class="profile-img">
-                  <span class="gif-badge">GIF 🎬</span>
+                <div class="image-preview-shell">
+                  <div class="avatar-display compact-avatar gif-preview-frame">
+                    <img :src="photoPreview" :alt="memberPhotoAlt" class="profile-img">
+                    <span class="gif-badge">GIF 🎬</span>
+                  </div>
+                  <button
+                    type="button"
+                    class="image-remove-btn"
+                    aria-label="Mitgliederbild löschen"
+                    title="Bild löschen"
+                    @click.stop="$emit('remove-photo')"
+                  >
+                    ✕
+                  </button>
                 </div>
                 <div class="image-action-buttons">
                   <label class="upload-button btn-action">
@@ -27,17 +38,28 @@
                 </div>
               </template>
               <template v-else-if="photoPreview">
-                <button
-                  type="button"
-                  class="image-preview-trigger"
-                  aria-label="Foto anpassen"
-                  @click="$emit('open-photo-editor')"
-                >
-                  <div class="avatar-display compact-avatar interactive-image-frame">
-                    <img :src="photoPreview" :alt="memberPhotoAlt" class="profile-img">
-                    <span class="image-preview-overlay">Anpassen</span>
-                  </div>
-                </button>
+                <div class="image-preview-shell">
+                  <button
+                    type="button"
+                    class="image-preview-trigger"
+                    aria-label="Foto anpassen"
+                    @click="$emit('open-photo-editor')"
+                  >
+                    <div class="avatar-display compact-avatar interactive-image-frame">
+                      <img :src="photoPreview" :alt="memberPhotoAlt" class="profile-img">
+                      <span class="image-preview-overlay">Anpassen</span>
+                    </div>
+                  </button>
+                  <button
+                    type="button"
+                    class="image-remove-btn"
+                    aria-label="Mitgliederbild löschen"
+                    title="Bild löschen"
+                    @click.stop="$emit('remove-photo')"
+                  >
+                    ✕
+                  </button>
+                </div>
               </template>
               <template v-else>
                 <div class="avatar-display compact-avatar">
@@ -167,7 +189,7 @@ const rechargeAmount = defineModel('rechargeAmount', {
   default: null,
 })
 
-defineEmits(['close', 'save', 'open-photo-editor', 'photo-upload', 'open-recharge'])
+defineEmits(['close', 'save', 'open-photo-editor', 'photo-upload', 'open-recharge', 'remove-photo'])
 </script>
 
 <style scoped lang="scss">
@@ -266,6 +288,34 @@ defineEmits(['close', 'save', 'open-photo-editor', 'photo-upload', 'open-recharg
   border: none;
   background: transparent;
   cursor: pointer;
+}
+
+.image-preview-shell {
+  position: relative;
+  width: fit-content;
+}
+
+.image-remove-btn {
+  position: absolute;
+  top: -8px;
+  right: -8px;
+  width: 22px;
+  height: 22px;
+  border: none;
+  border-radius: 999px;
+  background: #dc2626;
+  color: #fff;
+  font-size: 0.85rem;
+  font-weight: 700;
+  line-height: 1;
+  display: grid;
+  place-items: center;
+  cursor: pointer;
+  box-shadow: 0 4px 12px rgba(220, 38, 38, 0.35);
+
+  &:hover {
+    background: #b91c1c;
+  }
 }
 
 .interactive-image-frame {

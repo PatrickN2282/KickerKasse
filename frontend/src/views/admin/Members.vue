@@ -119,6 +119,7 @@
       @save="handleSaveMember"
       @open-photo-editor="openPhotoEditor"
       @photo-upload="handlePhotoUpload"
+      @remove-photo="requestPhotoRemoval"
       @open-recharge="openRechargeModal"
     />
 
