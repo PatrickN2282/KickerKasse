@@ -138,9 +138,13 @@
       :restore-source="photoRestoreSrc"
       title="Mitgliederbild bearbeiten"
       subtitle="Verschieben und zoomen, um den gewünschten Bildausschnitt festzulegen."
-      :aspect-ratio="1"
-      :frame-width="280"
-      :output-width="560"
+      preview-mode="member"
+      :member-preview-name="getMemberFullName({ first_name: formData.first_name, last_name: formData.last_name }) || 'Mitglied'"
+      :member-preview-balance="formatBalance(currentMemberBalance || 0)"
+      :member-preview-show-balance="Boolean(editingId)"
+      :aspect-ratio="memberCropAspectRatio"
+      :frame-width="memberCropFrameWidth"
+      :output-width="memberCropOutputWidth"
       :can-restore="Boolean(photoRestoreSrc)"
       restore-label="Ausgangsbild wiederherstellen"
       :can-delete="Boolean(photoPreview || persistedPhotoExists)"
@@ -186,6 +190,9 @@ const currentMemberBalance = ref(null)
 const showRechargeModal = ref(false)
 const hasExistingUserAccount = ref(false)
 const memberSearch = ref('')
+const memberCropFrameWidth = 300
+const memberCropAspectRatio = 1
+const memberCropOutputWidth = 600
 
 const formData = reactive({
   first_name: '',
@@ -292,7 +299,8 @@ const handlePhotoUpload = async (event) => {
 }
 
 const openPhotoEditor = () => {
-  const source = photoOriginalSrc.value || photoPreview.value
+  // Re-open on the latest visible state first; original stays available via restore button.
+  const source = photoPreview.value || photoOriginalSrc.value
   if (!source) return
   photoCropSource.value = source
   pendingPhotoOriginalSrc.value = null

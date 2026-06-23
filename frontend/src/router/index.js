@@ -1,6 +1,6 @@
 import { createRouter, createWebHistory } from 'vue-router'
 import { useAuthStore } from '@/stores/auth'
-import { KASSE_ROUTE_NAME, SESSION_RELOAD_FLAG_KEY } from '@/constants'
+import { INITIAL_SETUP_LOCK_KEY, KASSE_ROUTE_NAME, SESSION_RELOAD_FLAG_KEY } from '@/constants'
 
 const routes = [
   {
@@ -71,15 +71,23 @@ const routes = [
       },
       {
         path: 'settings',
-        redirect: '/admin/config',
+        redirect: '/admin/config?section=design',
       },
       {
         path: 'data-maintenance',
-        redirect: '/admin/config',
+        redirect: '/admin/config?section=datamaintenance',
       },
       {
         path: 'ext-settings',
-        redirect: '/admin/config',
+        redirect: '/admin/config?section=extsettings',
+      },
+      {
+        path: 'email-settings',
+        redirect: '/admin/config?section=emailsettings',
+      },
+      {
+        path: 'audit-log',
+        redirect: '/admin/config?section=auditlog',
       },
     ],
   },
@@ -94,6 +102,12 @@ let sessionHandled = false
 
 router.beforeEach(async (to, from, next) => {
   const authStore = useAuthStore()
+  const setupLockActive = sessionStorage.getItem(INITIAL_SETUP_LOCK_KEY) === '1'
+
+  if (setupLockActive && to.path !== '/login') {
+    next('/login')
+    return
+  }
 
   if (!sessionHandled) {
     sessionHandled = true

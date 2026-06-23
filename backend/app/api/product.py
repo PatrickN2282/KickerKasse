@@ -46,6 +46,8 @@ async def create_product(
             product_data.member_price_cents,
             product_data.is_discountable,
             product_data.stock_quantity,
+            product_data.minimum_stock_quantity,
+            product_data.notify_on_low_stock,
             product_data.is_unlimited_stock,
             product_data.warengruppe,
             product_data.is_variable_price,
@@ -183,8 +185,9 @@ async def correct_stock(
         product = service.correct_stock(
             product_id,
             correction_request.new_stock_quantity,
-            current_user.username,
-            correction_request.reason,
+            executed_by_user_id=current_user.id,
+            executed_by_username=current_user.username,
+            reason=correction_request.reason,
         )
         if not product:
             raise HTTPException(

@@ -2,13 +2,7 @@ import secrets
 from sqlalchemy.orm import Session
 from app.repositories import UserRepository
 from app.models import (
-    ClubAccountEntry,
-    CashEntry,
-    Deckel,
-    MaterialAccountEntry,
     Member,
-    Transaction,
-    Voucher,
     UserRole,
 )
 
@@ -70,10 +64,23 @@ class UserService:
             raise ValueError("Top-Admin kann nur über den initialen Setup-Flow erstellt werden")
 
         # Check if user already exists
-        if self.repo.get_by_username(username):
-            raise ValueError(f"User {username} already exists")
-        if email and self.repo.get_by_email(email):
-            raise ValueError(f"Email {email} already in use")
+        existing_user = self.repo.get_by_username(username)
+        if existing_user:
+            if existing_user.is_active:
+                raise ValueError(f"User {username} already exists")
+            raise ValueError(
+                "Es existiert bereits ein deaktivierter Benutzer mit diesem Namen. "
+                "Das Benutzerkonto muss reaktiviert werden."
+            )
+        if email:
+            existing_email_user = self.repo.get_by_email(email)
+            if existing_email_user:
+                if existing_email_user.is_active:
+                    raise ValueError(f"Email {email} already in use")
+                raise ValueError(
+                    "Die E-Mail-Adresse gehört zu einem deaktivierten Benutzer. "
+                    "Das Benutzerkonto muss reaktiviert werden."
+                )
 
         user = self.repo.create(username, email, password, role)
         self._audit("CREATED", user, performed_by_username, new_value=self._snapshot_user(user))
@@ -94,9 +101,9 @@ class UserService:
         """Get user by ID"""
         return self.repo.get_by_id(user_id)
     
-    def get_all_users(self):
+    def get_all_users(self, *, include_inactive: bool = False):
         """Get all users"""
-        return self.repo.get_visible_active_users()
+        return self.repo.get_visible_users(include_inactive=include_inactive)
 
     def get_finance_options(self):
         """Get finance actor options from users and role-based members."""
@@ -189,44 +196,58 @@ class UserService:
             )
         return updated_user
     
-    def delete_user(self, user_id: int, *, performed_by_username: str | None = None):
-        """Soft-delete a user when historical references exist."""
+    def deactivate_user(
+        self,
+        user_id: int,
+        *,
+        current_user_id: int | None = None,
+        performed_by_username: str | None = None,
+    ):
+        """Deactivate a user."""
         user = self.repo.get_by_id(user_id)
         if not user:
             return False
         if user.role == UserRole.TOP_ADMIN:
-            raise ValueError("Top-Admin kann nicht gelöscht werden")
-
-        old_snapshot = self._snapshot_user(user)
-
-        has_references = any([
-            self.db.query(Transaction.id).filter(Transaction.user_id == user.id).first(),
-            self.db.query(CashEntry.id).filter(CashEntry.user_id == user.id).first(),
-            self.db.query(ClubAccountEntry.id).filter(ClubAccountEntry.user_id == user.id).first(),
-            self.db.query(MaterialAccountEntry.id).filter(MaterialAccountEntry.user_id == user.id).first(),
-            self.db.query(Deckel.id).filter(Deckel.created_by_user_id == user.id).first(),
-            self.db.query(Voucher.id).filter(Voucher.created_by_user_id == user.id).first(),
-            self.db.query(Voucher.id).filter(Voucher.redeemed_by_user_id == user.id).first(),
-        ])
-
-        if has_references:
-            updated_user = self.repo.update(user.id, is_active=False, email=None)
-            if updated_user:
-                self._audit(
-                    "UPDATED",
-                    updated_user,
-                    performed_by_username,
-                    old_value=old_snapshot,
-                    new_value=self._snapshot_user(updated_user),
-                )
+            raise ValueError("Top-Admin kann nicht deaktiviert werden")
+        if current_user_id is not None and user.id == current_user_id:
+            raise ValueError("Du kannst dein eigenes Konto nicht deaktivieren")
+        if not user.is_active:
             return True
 
-        deleted = self.repo.delete(user_id)
-        if deleted:
+        old_snapshot = self._snapshot_user(user)
+        updated_user = self.repo.update(user.id, is_active=False, email=None)
+        if updated_user:
             self._audit(
-                "DELETED",
-                user,
+                "UPDATED",
+                updated_user,
                 performed_by_username,
                 old_value=old_snapshot,
+                new_value=self._snapshot_user(updated_user),
             )
-        return deleted
+            return True
+        return False
+
+    def reactivate_user(
+        self,
+        user_id: int,
+        *,
+        performed_by_username: str | None = None,
+    ):
+        """Reactivate a previously deactivated user."""
+        user = self.repo.get_by_id(user_id)
+        if not user:
+            return None
+        if user.is_active:
+            return user
+
+        old_snapshot = self._snapshot_user(user)
+        updated_user = self.repo.update(user.id, is_active=True)
+        if updated_user:
+            self._audit(
+                "UPDATED",
+                updated_user,
+                performed_by_username,
+                old_value=old_snapshot,
+                new_value=self._snapshot_user(updated_user),
+            )
+        return updated_user

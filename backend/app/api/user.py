@@ -1,6 +1,5 @@
 from fastapi import APIRouter, HTTPException, Depends, Request, status
 from sqlalchemy.orm import Session
-from sqlalchemy.exc import IntegrityError
 
 from app.core import get_db
 from app.core.auth import require_roles
@@ -15,10 +14,11 @@ router = APIRouter(prefix="/api/users", tags=["Users"])
 @router.get("", response_model=list[UserResponse])
 async def get_users(
     request: Request,
+    include_inactive: bool = False,
     db: Session = Depends(get_db),
 ):
     require_roles(request, db, UserRole.ADMIN)
-    return UserService(db).get_all_users()
+    return UserService(db).get_all_users(include_inactive=include_inactive)
 
 
 @router.get("/finance-options", response_model=list[UserFinanceOptionResponse])
@@ -102,25 +102,38 @@ async def update_user(
 
 @router.delete("/{user_id}", status_code=status.HTTP_204_NO_CONTENT)
 @router.delete("/{user_id}/", status_code=status.HTTP_204_NO_CONTENT)
-async def delete_user(
+async def deactivate_user(
     user_id: int,
     request: Request,
     db: Session = Depends(get_db),
 ):
     current_user = require_roles(request, db, UserRole.ADMIN)
     try:
-        deleted = UserService(db).delete_user(user_id, performed_by_username=current_user.username)
-    except IntegrityError as exc:
-        db.rollback()
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail=(
-                "Benutzer kann nicht gelöscht werden, da bereits "
-                "Transaktionen oder andere Buchungen darauf verweisen"
-            ),
-        ) from exc
+        deactivated = UserService(db).deactivate_user(
+            user_id,
+            current_user_id=current_user.id,
+            performed_by_username=current_user.username,
+        )
     except ValueError as exc:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(exc)) from exc
 
-    if not deleted:
+    if not deactivated:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="User not found")
+
+
+@router.post("/{user_id}/reactivate", response_model=UserResponse)
+@router.post("/{user_id}/reactivate/", response_model=UserResponse)
+async def reactivate_user(
+    user_id: int,
+    request: Request,
+    db: Session = Depends(get_db),
+):
+    current_user = require_roles(request, db, UserRole.ADMIN)
+    try:
+        user = UserService(db).reactivate_user(user_id, performed_by_username=current_user.username)
+    except ValueError as exc:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(exc)) from exc
+
+    if not user:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="User not found")
+    return user

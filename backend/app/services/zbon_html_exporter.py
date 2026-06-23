@@ -71,6 +71,10 @@ class ZBonHTMLExporter:
         cash_counted: float = 0,
         cash_calculated: float = 0,
         cash_difference: float = 0,
+        business_info: dict | None = None,
+        business_data_placeholder_used: bool = False,
+        report_type_label: str = "KASSENBERICHT",
+        report_is_official: bool = True,
     ) -> str:
         """
         Render Z-Bon HTML template with data
@@ -97,6 +101,8 @@ class ZBonHTMLExporter:
                     "count": count,
                     "subtotal": float(denom) * count
                 }
+
+        business_info = business_info or {}
         
         html_content = template.render(
             seq_number=seq_number,
@@ -137,6 +143,17 @@ class ZBonHTMLExporter:
             cash_counted=f"{cash_counted:.2f}",
             cash_calculated=f"{cash_calculated:.2f}",
             cash_difference=f"{cash_difference:.2f}",
+            business_name=business_info.get("name", ""),
+            business_street=business_info.get("street", ""),
+            business_zip=business_info.get("zip", ""),
+            business_city=business_info.get("city", ""),
+            business_phone=business_info.get("phone", ""),
+            business_email=business_info.get("email", ""),
+            business_tax_number=business_info.get("tax_number", ""),
+            business_registration_number=business_info.get("registration_number", ""),
+            business_data_placeholder_used=business_data_placeholder_used,
+            report_type_label=report_type_label,
+            report_is_official=report_is_official,
         )
         
         return html_content

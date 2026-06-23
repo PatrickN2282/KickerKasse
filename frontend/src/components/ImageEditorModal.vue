@@ -48,6 +48,8 @@
           <span class="zoom-pct">{{ zoomPercent }}%</span>
         </div>
 
+
+
         <div class="crop-actions">
           <button type="button" class="btn-action" :disabled="!localImageSrc" @click="resetCrop">↺ Ausrichtung zurücksetzen</button>
           <button
@@ -133,6 +135,39 @@ const props = defineProps({
     type: String,
     default: 'Bild löschen',
   },
+  // Preview props
+  previewMode: {
+    type: String,
+    default: null, // 'product' | 'member' | null
+  },
+  productPreviewName: {
+    type: String,
+    default: '',
+  },
+  productPreviewPrice: {
+    type: String,
+    default: '',
+  },
+  productPreviewStock: {
+    type: [String, Number],
+    default: '',
+  },
+  productPreviewHasDiscount: {
+    type: Boolean,
+    default: false,
+  },
+  memberPreviewName: {
+    type: String,
+    default: '',
+  },
+  memberPreviewBalance: {
+    type: String,
+    default: '',
+  },
+  memberPreviewShowBalance: {
+    type: Boolean,
+    default: false,
+  },
 })
 
 const emit = defineEmits(['close', 'apply', 'delete'])
@@ -174,6 +209,49 @@ const zoomPercent = computed(() => {
   return Math.round(cropScale.value / cropMinScale.value * 100)
 })
 
+// Live preview dimensions and styles
+// Product card preview: matches kasse card-img proportions (3:2 at 80px height → 120×80)
+const PRODUCT_PREVIEW_H = 80
+const PRODUCT_PREVIEW_W = computed(() => Math.round(PRODUCT_PREVIEW_H * props.aspectRatio))
+// Member avatar preview: 80×80 square
+const MEMBER_PREVIEW_W = 80
+const MEMBER_PREVIEW_H = 80
+
+const buildLivePreviewStyles = (previewW, previewH) => {
+  if (!localImageSrc.value || props.frameWidth <= 0 || frameHeight.value <= 0) {
+    return { viewport: {}, img: {} }
+  }
+  const scaleX = previewW / props.frameWidth
+  const scaleY = previewH / frameHeight.value
+  // Use uniform scale to keep aspect consistent
+  const s = Math.min(scaleX, scaleY)
+  const vW = Math.round(props.frameWidth * s)
+  const vH = Math.round(frameHeight.value * s)
+  return {
+    viewport: {
+      width: `${vW}px`,
+      height: `${vH}px`,
+    },
+    img: {
+      position: 'absolute',
+      left: `${cropPanX.value * s}px`,
+      top: `${cropPanY.value * s}px`,
+      width: `${cropNaturalW.value * cropScale.value * s}px`,
+      height: `${cropNaturalH.value * cropScale.value * s}px`,
+      userSelect: 'none',
+      pointerEvents: 'none',
+    },
+  }
+}
+
+const liveProductStyles = computed(() => buildLivePreviewStyles(PRODUCT_PREVIEW_W.value, PRODUCT_PREVIEW_H))
+const liveProductViewportStyle = computed(() => liveProductStyles.value.viewport)
+const liveProductImgStyle = computed(() => liveProductStyles.value.img)
+
+const liveMemberStyles = computed(() => buildLivePreviewStyles(MEMBER_PREVIEW_W, MEMBER_PREVIEW_H))
+const liveMemberViewportStyle = computed(() => liveMemberStyles.value.viewport)
+const liveMemberImgStyle = computed(() => liveMemberStyles.value.img)
+
 const removeMouseListeners = () => {
   document.removeEventListener('mousemove', onDocCropMouseMove)
   document.removeEventListener('mouseup', onDocCropMouseUp)
@@ -204,8 +282,14 @@ const centerCrop = () => {
 const clampPan = () => {
   const scaledW = cropNaturalW.value * cropScale.value
   const scaledH = cropNaturalH.value * cropScale.value
-  cropPanX.value = Math.min(0, Math.max(props.frameWidth - scaledW, cropPanX.value))
-  cropPanY.value = Math.min(0, Math.max(frameHeight.value - scaledH, cropPanY.value))
+  // When image is larger than frame: keep image covering the frame (pan clamped between negative offset and 0)
+  // When image is smaller than frame: allow centering (pan clamped between 0 and positive offset)
+  const minPanX = Math.min(0, props.frameWidth - scaledW)
+  const maxPanX = Math.max(0, props.frameWidth - scaledW)
+  cropPanX.value = Math.min(maxPanX, Math.max(minPanX, cropPanX.value))
+  const minPanY = Math.min(0, frameHeight.value - scaledH)
+  const maxPanY = Math.max(0, frameHeight.value - scaledH)
+  cropPanY.value = Math.min(maxPanY, Math.max(minPanY, cropPanY.value))
 }
 
 const loadCropImageDimensions = (source) => {
@@ -217,7 +301,7 @@ const loadCropImageDimensions = (source) => {
       cropNaturalH.value = img.naturalHeight
       const scaleToFitW = props.frameWidth / img.naturalWidth
       const scaleToFitH = frameHeight.value / img.naturalHeight
-      cropMinScale.value = Math.max(scaleToFitW, scaleToFitH)
+      cropMinScale.value = Math.min(scaleToFitW, scaleToFitH)
       cropScale.value = cropMinScale.value
       centerCrop()
       resolve(true)
@@ -353,11 +437,20 @@ const getCroppedResult = () => {
 
     const img = new Image()
     img.onload = () => {
-      const sx = Math.max(0, -cropPanX.value / cropScale.value)
-      const sy = Math.max(0, -cropPanY.value / cropScale.value)
-      const sw = Math.min(props.frameWidth / cropScale.value, img.naturalWidth - sx)
-      const sh = Math.min(frameHeight.value / cropScale.value, img.naturalHeight - sy)
-      ctx.drawImage(img, sx, sy, sw, sh, 0, 0, props.outputWidth, outputHeight.value)
+      // Fill white background (for empty space when image is smaller than frame)
+      ctx.fillStyle = '#ffffff'
+      ctx.fillRect(0, 0, props.outputWidth, outputHeight.value)
+
+      // Scale factor from editor frame to output canvas
+      const outScale = props.outputWidth / props.frameWidth
+
+      // Draw image at its panned position in the output
+      const destX = cropPanX.value * outScale
+      const destY = cropPanY.value * outScale
+      const destW = cropNaturalW.value * cropScale.value * outScale
+      const destH = cropNaturalH.value * cropScale.value * outScale
+      ctx.drawImage(img, 0, 0, img.naturalWidth, img.naturalHeight, destX, destY, destW, destH)
+
       const dataUrl = canvas.toDataURL('image/jpeg', props.jpegQuality)
       canvas.toBlob((blob) => {
         if (!blob) {
@@ -609,6 +702,128 @@ onUnmounted(() => {
 .btn-secondary {
   background: #e2e8f0;
   color: #475569;
+}
+
+// ── Live preview ────────────────────────────────────────────────────────────
+
+.live-preview-section {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.45rem;
+  width: 100%;
+}
+
+.live-preview-label {
+  font-size: 0.72rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  color: #64748b;
+  letter-spacing: 0.05em;
+}
+
+.live-crop-viewport {
+  position: relative;
+  overflow: hidden;
+  background: #eef1f7;
+  flex-shrink: 0;
+}
+
+.live-crop-img {
+  display: block;
+  max-width: none;
+  max-height: none;
+}
+
+// Product card preview
+.live-kasse-card {
+  border: 1.5px solid #e2e8f0;
+  border-radius: 10px;
+  overflow: hidden;
+  background: #fff;
+  display: inline-flex;
+  flex-direction: column;
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.08);
+
+  .live-card-img {
+    position: relative;
+    background: #eef1f7;
+    overflow: hidden;
+  }
+
+  .live-card-badge {
+    position: absolute;
+    top: 3px;
+    left: 3px;
+    z-index: 1;
+    font-size: 8px;
+    font-weight: 800;
+    padding: 1px 3px;
+    border-radius: 3px;
+
+    &.discount-badge {
+      background: #fffbeb;
+      color: #d97706;
+    }
+  }
+
+  .live-card-body {
+    padding: 4px 5px 5px;
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    min-width: 0;
+  }
+
+  .live-card-name {
+    font-size: 0.62rem;
+    font-weight: 700;
+    line-height: 1.2;
+    color: #111827;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    max-width: 120px;
+  }
+
+  .live-card-bottom {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 0.25rem;
+  }
+
+  .live-card-price {
+    font-size: 0.7rem;
+    font-weight: 800;
+    color: #3b82f6;
+  }
+
+  .live-card-stock {
+    font-size: 0.58rem;
+    color: #64748b;
+    font-weight: 500;
+  }
+}
+
+// Member avatar preview
+.live-member-avatar {
+  .live-crop-viewport {
+    border-radius: 50%;
+    border: 2px solid #e2e8f0;
+  }
+}
+
+.live-member-name {
+  font-size: 0.78rem;
+  font-weight: 600;
+  color: #334155;
+}
+
+.live-member-balance {
+  font-size: 0.72rem;
+  font-weight: 700;
+  color: #047857;
 }
 
 @media (max-width: 640px) {

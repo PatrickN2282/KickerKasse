@@ -171,6 +171,7 @@ export const useCartStore = defineStore('cart', () => {
           })),
           balance_discount_cents: appliedBalanceCents.value,
           tip_cents: tipCents.value,
+          trigger_cash_drawer: paymentMethod.value === 'CASH',
           items: items.value.map(item => ({
             product_id: item.product_id,
             quantity: item.quantity,

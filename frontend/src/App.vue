@@ -67,6 +67,14 @@
             </router-link>
 
             <button
+              v-if="canShowOpenDrawerButton"
+              class="btn-open-drawer"
+              @click="showDrawerConfirmModal = true"
+            >
+              Öffne Kasse
+            </button>
+
+            <button
               class="btn-logout"
               @click="logout"
             >
@@ -97,6 +105,16 @@
     <DonationModal
       :show="showDonationModal"
       @close="showDonationModal = false"
+    />
+
+    <PasswordConfirmModal
+      :show="showDrawerConfirmModal"
+      title="Kassenschublade öffnen"
+      message="Bitte Passwort bestätigen, um die Kassenschublade zu öffnen."
+      :username="authStore.user?.username || ''"
+      confirm-label="Jetzt öffnen"
+      @close="showDrawerConfirmModal = false"
+      @confirm="confirmOpenDrawer"
     />
 
 
@@ -189,10 +207,16 @@ import { useRoute, useRouter } from 'vue-router'
 import NotificationCenter from '@/components/NotificationCenter.vue'
 import PwaInstallButton from '@/components/PwaInstallButton.vue'
 import DonationModal from '@/components/DonationModal.vue'
+import PasswordConfirmModal from '@/components/PasswordConfirmModal.vue'
 import apiService from '@/services/api'
 
 import pkg from '../package.json'
-import { KASSE_LAYOUT_REFRESH_INTERVAL_MS, KASSE_LAYOUT_STORAGE_KEY, SESSION_RELOAD_FLAG_KEY } from '@/constants'
+import {
+  KASSE_LAYOUT_REFRESH_INTERVAL_MS,
+  KASSE_LAYOUT_STORAGE_KEY,
+  LOCAL_HARDWARE_AGENT_BASE_URL,
+  SESSION_RELOAD_FLAG_KEY
+} from '@/constants'
 
 const SESSION_ACTIVITY_RESET_THROTTLE_MS = 1000
 
@@ -209,17 +233,40 @@ const isOnAdminRoute = computed(() => route.path.startsWith('/admin'))
 
 const showLoginModal = ref(false)
 const showDonationModal = ref(false)
+const showDrawerConfirmModal = ref(false)
 const modalError = ref('')
 const availableUsernames = ref([])
 const layoutRefreshIntervalId = ref(null)
+const hardwareStatusIntervalId = ref(null)
 const refreshInFlight = ref(false)
 const sessionTimerId = ref(null)
 const lastSessionActivityAt = ref(0)
+
+const fetchLocalAgent = async (path, options = {}, timeoutMs = 1500) => {
+  const controller = new AbortController()
+  const timeoutId = window.setTimeout(() => controller.abort(), timeoutMs)
+  try {
+    return await fetch(`${LOCAL_HARDWARE_AGENT_BASE_URL}${path}`, {
+      ...options,
+      signal: controller.signal,
+    })
+  } finally {
+    window.clearTimeout(timeoutId)
+  }
+}
 
 const loginForm = reactive({
   username: '',
   password: ''
 })
+
+const hardwareServiceActive = ref(false)
+const hardwareAdapterConnected = ref(false)
+const canShowOpenDrawerButton = computed(() => (
+  authStore.hasRole('TOP_ADMIN', 'ADMIN')
+  && hardwareServiceActive.value
+  && hardwareAdapterConnected.value
+))
 
 const openLoginModal = async () => {
   showLoginModal.value = true
@@ -232,6 +279,83 @@ const openLoginModal = async () => {
   } catch (err) {
     console.error('[App] Failed to load login usernames:', err)
     availableUsernames.value = []
+  }
+}
+
+const refreshHardwareStatus = async () => {
+  if (!authStore.hasRole('TOP_ADMIN', 'ADMIN')) {
+    hardwareServiceActive.value = false
+    hardwareAdapterConnected.value = false
+    return
+  }
+
+  try {
+    const localResponse = await fetchLocalAgent('/status')
+    if (!localResponse.ok) {
+      throw new Error(`status ${localResponse.status}`)
+    }
+    const localData = await localResponse.json()
+    hardwareServiceActive.value = true
+    hardwareAdapterConnected.value = localData?.status === 'connected'
+    return
+  } catch {
+    // Fallback 1: no-cors Probe (Agent erreichbar, aber Status nicht auslesbar)
+  }
+
+  try {
+    await fetchLocalAgent('/status', { mode: 'no-cors' })
+    hardwareServiceActive.value = true
+    hardwareAdapterConnected.value = false
+    return
+  } catch {
+    // Fallback 2: serverseitiger Status (Self-Hosted-Modus)
+  }
+
+  try {
+    const { data } = await apiService.get('/hardware-agent/status')
+    hardwareServiceActive.value = !!data.service_active
+    hardwareAdapterConnected.value = !!data.adapter_connected
+  } catch {
+    hardwareServiceActive.value = false
+    hardwareAdapterConnected.value = false
+  }
+}
+
+const confirmOpenDrawer = async (password) => {
+  try {
+    const { data } = await apiService.post('/hardware-agent/open-drawer', { auth_password: password })
+    notificationStore.success(data?.detail || 'Kassenschublade wurde geöffnet')
+    showDrawerConfirmModal.value = false
+  } catch (error) {
+    const statusCode = error?.response?.status
+    if (statusCode === 503) {
+      try {
+        const localResponse = await fetchLocalAgent('/openDrawer', {
+          method: 'POST',
+        })
+        const localData = await localResponse.json().catch(() => ({}))
+        if (!localResponse.ok) {
+          throw new Error(localData?.message || `Status ${localResponse.status}`)
+        }
+        notificationStore.success(localData?.message || 'Kassenschublade wurde geöffnet')
+        showDrawerConfirmModal.value = false
+        return
+      } catch {
+        try {
+          await fetchLocalAgent('/openDrawer', {
+            method: 'POST',
+            mode: 'no-cors',
+          })
+          notificationStore.success('Öffnungsimpuls an lokalen Agent gesendet')
+          showDrawerConfirmModal.value = false
+          return
+        } catch {
+          // Fallback auf bestehende Fehlermeldung
+        }
+      }
+    }
+
+    notificationStore.error(error.response?.data?.detail || 'Kassenschublade konnte nicht geöffnet werden')
   }
 }
 
@@ -371,6 +495,14 @@ watch(
   { immediate: true }
 )
 
+watch(
+  [() => authStore.isAuthenticated, () => authStore.role],
+  () => {
+    refreshHardwareStatus()
+  },
+  { immediate: true }
+)
+
 onMounted(async () => {
   appSettingsStore.applyToDocument()
 
@@ -382,6 +514,8 @@ onMounted(async () => {
   window.addEventListener('scroll', handleUserActivity, { capture: true, passive: true })
   document.addEventListener('visibilitychange', handleVisibilityChange)
   layoutRefreshIntervalId.value = window.setInterval(refreshPublicSettings, KASSE_LAYOUT_REFRESH_INTERVAL_MS)
+  hardwareStatusIntervalId.value = window.setInterval(refreshHardwareStatus, 30000)
+  await refreshHardwareStatus()
 })
 
 onBeforeUnmount(() => {
@@ -394,6 +528,9 @@ onBeforeUnmount(() => {
   document.removeEventListener('visibilitychange', handleVisibilityChange)
   if (layoutRefreshIntervalId.value !== null) {
     window.clearInterval(layoutRefreshIntervalId.value)
+  }
+  if (hardwareStatusIntervalId.value !== null) {
+    window.clearInterval(hardwareStatusIntervalId.value)
   }
   clearSessionTimer()
 })
@@ -574,6 +711,13 @@ onBeforeUnmount(() => {
   background: #c62828;
   color: #fff;
   box-shadow: 0 2px 6px rgba(0,0,0,.28);
+}
+
+.btn-open-drawer {
+  @extend %pill;
+  background: #2e9e5b;
+  color: #fff;
+  box-shadow: 0 2px 6px rgba(0,0,0,.25);
 }
 
 

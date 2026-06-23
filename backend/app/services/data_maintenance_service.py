@@ -31,6 +31,7 @@ from app.models import (
     product_category,
 )
 from app.services.file_service import APP_SETTINGS_DIR, delete_member_photo, delete_product_image
+from app.services.user_service import UserService
 
 
 _TABLES_WITH_SEQUENCES = [
@@ -74,11 +75,21 @@ class DataMaintenanceService:
     def _reset_sequences(self) -> None:
         """Reset all auto-increment sequences for tables cleared during hard reset."""
         for table in _TABLES_WITH_SEQUENCES:
-            self.db.execute(
-                text(
-                    f"SELECT setval(pg_get_serial_sequence('{table}', 'id'), 1, false)"
+            # _TABLES_WITH_SEQUENCES is a hardcoded constant list, not user input.
+            # pg_get_serial_sequence takes the table name as a text argument,
+            # so parameterised binding is correct here.
+            seq_name = self.db.execute(
+                text("SELECT pg_get_serial_sequence(:table_name, 'id')"),
+                {"table_name": table},
+            ).scalar()
+            if seq_name:
+                # seq_name is the return value of pg_get_serial_sequence, a
+                # PostgreSQL system function – it is server-generated, not
+                # user-supplied, so the regclass cast is safe.
+                self.db.execute(
+                    text("SELECT setval(CAST(:seq_name AS regclass), 1, false)"),
+                    {"seq_name": seq_name},
                 )
-            )
 
     def get_stats(self) -> dict:
         """Return current row counts for the main data tables."""
@@ -120,6 +131,10 @@ class DataMaintenanceService:
         self.db.add(self._build_fixed_internal_material_category())
         self._reset_sequences()
         self.db.commit()
+
+        # Recreate the hidden Kasse account so the cash-register works
+        # immediately without requiring an app restart.
+        UserService(self.db).ensure_kasse_user()
 
         for member_id in member_ids:
             delete_member_photo(member_id)

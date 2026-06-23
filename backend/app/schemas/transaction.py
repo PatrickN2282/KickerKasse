@@ -39,6 +39,7 @@ class TransactionCreate(TransactionBase):
     voucher_redemptions: List[VoucherRedemptionData] = Field(default_factory=list)
     balance_discount_cents: int = Field(default=0, ge=0)
     tip_cents: int = Field(default=0, ge=0)
+    trigger_cash_drawer: bool = True
 
 
 class TransactionResponse(BaseModel):

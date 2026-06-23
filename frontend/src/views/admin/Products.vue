@@ -130,9 +130,14 @@
       :restore-source="productRestoreSrc"
       title="Produktbild bearbeiten"
       subtitle="Verschieben und zoomen, um den Ausschnitt für die Kassenkarte festzulegen."
-      :aspect-ratio="3 / 2"
-      :frame-width="320"
-      :output-width="600"
+      preview-mode="product"
+      :product-preview-name="formData.name || 'Produktname'"
+      :product-preview-price="previewPriceText"
+      :product-preview-stock="formData.isUnlimitedStock ? '∞' : String(formData.stock ?? 0)"
+      :product-preview-has-discount="formData.memberPrice !== null && formData.memberPrice !== ''"
+      :aspect-ratio="productCropAspectRatio"
+      :frame-width="productCropFrameWidth"
+      :output-width="productCropOutputWidth"
       :can-restore="Boolean(productRestoreSrc)"
       restore-label="Ausgangsbild wiederherstellen"
       :can-delete="Boolean(imagePreviewSrc || persistedImageExists)"
@@ -174,6 +179,9 @@ const imagePendingOriginalUpload = ref(false)
 const persistedImageExists = ref(false)
 const lastFiniteStock = ref(0)
 const productSearch = ref('')
+const productCropFrameWidth = 300
+const productCropAspectRatio = 3 / 2
+const productCropOutputWidth = 600
 
 const productRestoreSrc = computed(() => pendingOriginalImageSrc.value || imageOriginalSrc.value)
 
@@ -183,6 +191,8 @@ const formData = reactive({
   price: 0,
   memberPrice: null,
   stock: 0,
+  minimumStock: 0,
+  notifyOnLowStock: false,
   isUnlimitedStock: false,
   isVariablePrice: false,
 })
@@ -282,7 +292,8 @@ const checkImageExists = async (url) => {
 }
 
 const openCropModalFromCurrentImage = () => {
-  const source = imageOriginalSrc.value || imagePreviewSrc.value
+  // Re-open on the latest visible state first; original stays available via restore button.
+  const source = imagePreviewSrc.value || imageOriginalSrc.value
   if (!source) return
   cropModalImageSrc.value = source
   pendingOriginalImageSrc.value = null
@@ -371,6 +382,8 @@ const handleSaveProduct = async () => {
       price_cents: Math.round(formData.price * 100),
       member_price_cents: toMemberPriceCents(),
       stock_quantity: formData.isUnlimitedStock ? 0 : formData.stock,
+      minimum_stock_quantity: formData.isUnlimitedStock ? 0 : Math.max(Number(formData.minimumStock) || 0, 0),
+      notify_on_low_stock: formData.isUnlimitedStock ? false : !!formData.notifyOnLowStock,
       is_unlimited_stock: formData.isUnlimitedStock,
       is_variable_price: formData.isVariablePrice,
     })
@@ -390,6 +403,8 @@ const handleSaveProduct = async () => {
     price_cents: Math.round(formData.price * 100),
     member_price_cents: toMemberPriceCents(),
     stock_quantity: formData.isUnlimitedStock ? 0 : formData.stock,
+    minimum_stock_quantity: formData.isUnlimitedStock ? 0 : Math.max(Number(formData.minimumStock) || 0, 0),
+    notify_on_low_stock: formData.isUnlimitedStock ? false : !!formData.notifyOnLowStock,
     is_unlimited_stock: formData.isUnlimitedStock,
     is_variable_price: formData.isVariablePrice,
   })
@@ -506,6 +521,8 @@ const resetForm = () => {
   formData.price = 0
   formData.memberPrice = null
   formData.stock = 0
+  formData.minimumStock = 0
+  formData.notifyOnLowStock = false
   formData.isUnlimitedStock = false
   formData.isVariablePrice = false
   lastFiniteStock.value = 0
@@ -531,6 +548,8 @@ const editProduct = async (product) => {
   formData.price = product.price_cents / 100
   formData.memberPrice = hasMemberPrice(product) ? product.member_price_cents / 100 : null
   formData.stock = product.stock_quantity
+  formData.minimumStock = product.minimum_stock_quantity ?? 0
+  formData.notifyOnLowStock = !!product.notify_on_low_stock
   formData.isUnlimitedStock = !!product.is_unlimited_stock
   formData.isVariablePrice = !!product.is_variable_price
   lastFiniteStock.value = product.stock_quantity

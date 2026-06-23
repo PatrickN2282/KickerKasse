@@ -12,6 +12,7 @@ from app.models import (
     Voucher,
 )
 from app.repositories import MemberRepository, BalanceLogRepository, UserRepository
+from app.services.actor_resolution_service import resolve_actor_username
 from app.services.file_service import delete_member_photo
 
 
@@ -238,13 +239,20 @@ class MemberService:
         self,
         member_id: int,
         new_balance_cents: int,
-        executed_by_username: str,
+        executed_by_username: str | None = None,
+        executed_by_user_id: int | None = None,
         reason: str | None = None,
     ):
         """Set member balance without cash flow and create a separate correction audit log."""
         member = self.repo.get_by_id(member_id)
         if not member:
             return None
+
+        actor_username = resolve_actor_username(
+            self.db,
+            executed_by_username=executed_by_username,
+            executed_by_user_id=executed_by_user_id,
+        )
 
         old_balance = member.balance_cents
         member.balance_cents = new_balance_cents
@@ -256,14 +264,14 @@ class MemberService:
             old_balance_cents=old_balance,
             new_balance_cents=new_balance_cents,
             change_cents=new_balance_cents - old_balance,
-            executed_by_username=executed_by_username,
+            executed_by_username=actor_username or "Unbekannt",
             reason=correction_reason,
         )
         self.db.add(log)
         self._audit(
             "BALANCE_CORRECTION",
             member,
-            executed_by_username,
+            actor_username,
             old_value={"balance_cents": old_balance},
             new_value={
                 "balance_cents": new_balance_cents,

@@ -20,101 +20,136 @@
       </div>
 
       <div class="kk-dialog__body">
-        <!-- Ablauf-Hinweis -->
-        <div class="kk-info-box">
-          Kassenprüfer wählen → Kasse zählen → ggf. Abschöpfung → Kassenbericht erstellen
+        <!-- Info-Zeile 1: Ablaufschritte -->
+        <div class="kk-info-bar kk-info-bar--steps">
+          <span class="kk-step">① Kassenprüfer wählen</span>
+          <span class="kk-step-sep">→</span>
+          <span class="kk-step">② Kasse zählen</span>
+          <span class="kk-step-sep">→</span>
+          <span class="kk-step">③ ggf. Abschöpfung</span>
+          <span class="kk-step-sep">→</span>
+          <span class="kk-step">④ Kassenbericht erstellen</span>
+        </div>
+        <!-- Info-Zeile 2: E-Mail-Hinweis -->
+        <div
+          v-if="autoEmailOnCreate"
+          class="kk-info-bar kk-info-bar--mail"
+        >
+          📧 <strong>E-Mail-Versand: aktiv</strong>&nbsp;|&nbsp;Bericht wird nach Erstellung automatisch versendet.
         </div>
 
-        <!-- Benutzer-Auswahl -->
-        <div class="kk-form-grid">
-          <div class="kk-form-group">
-            <label>Erstellt von</label>
-            <button
-              class="kk-select-btn"
-              @click="$emit('open-user-picker', 'createdByUserId')"
-            >
-              {{ createdByUserName || 'Benutzer auswählen …' }}
-            </button>
-          </div>
-          <div class="kk-form-group">
-            <label>Kassenprüfer</label>
-            <div class="kk-selection-row">
+        <!-- Haupt-Spalten: Personen + Eingabe links | Finanzen rechts -->
+        <div class="kk-main-grid">
+          <!-- Linke Spalte: Benutzerauswahl + Kasseneingabe -->
+          <div class="kk-col-left">
+            <div class="kk-section-label">Benutzer</div>
+            <div class="kk-form-group">
+              <label>Erstellt von</label>
               <button
                 class="kk-select-btn"
-                @click="$emit('open-member-picker', 'verifiedByUserId')"
+                @click="$emit('open-user-picker', 'createdByUserId')"
               >
-                {{ verifiedByMemberName || 'Mitglied auswählen …' }}
+                {{ createdByUserName || 'Benutzer auswählen …' }}
               </button>
-              <button
-                v-if="verifiedByMemberName"
-                class="kk-clear-btn"
-                @click="$emit('clear-verifier')"
+            </div>
+            <div class="kk-form-group">
+              <label>Kassenprüfer</label>
+              <div class="kk-selection-row">
+                <button
+                  class="kk-select-btn"
+                  @click="$emit('open-member-picker', 'verifiedByUserId')"
+                >
+                  {{ verifiedByMemberName || 'Mitglied auswählen …' }}
+                </button>
+                <button
+                  v-if="verifiedByMemberName"
+                  class="kk-clear-btn"
+                  @click="$emit('clear-verifier')"
+                >
+                  Entfernen
+                </button>
+              </div>
+            </div>
+
+            <div class="kk-section-label kk-section-label--spaced">Kassenzählung</div>
+            <div class="kk-counted-input">
+              <label>Gezählter Kassenbestand (€)</label>
+              <input
+                :value="countedCash"
+                type="number"
+                min="0"
+                step="0.01"
+                class="form-input large"
+                placeholder="0,00"
+                @input="$emit('update:counted-cash', $event.target.value)"
               >
-                Entfernen
-              </button>
+            </div>
+
+            <div
+              v-if="showDifferenceReason"
+              class="kk-counted-input"
+            >
+              <label>Grund für die Differenz <span class="kk-label-warn">⚠ Pflichtfeld</span></label>
+              <textarea
+                :value="differenceReason"
+                class="form-input"
+                rows="3"
+                placeholder="Grund für die Abweichung zwischen SOLL und IST …"
+                @input="$emit('update:difference-reason', $event.target.value)"
+              />
+              <small class="kk-hint-text kk-hint-text--warning">Diese Angabe wird auf dem Kassenbericht vermerkt.</small>
+            </div>
+
+            <small
+              v-if="finalCashInvalid"
+              class="kk-warning-text"
+            >
+              ⚠ Der gezählte Bestand darf nicht kleiner als die im Modal vorgenommene Abschöpfung sein.
+            </small>
+          </div>
+
+          <!-- Rechte Spalte: Saldo-Übersicht + Ergebnis -->
+          <div class="kk-col-right">
+            <div class="kk-section-label">Saldo-Übersicht</div>
+            <div class="kk-balance-box">
+              <div class="kk-balance-row">
+                <span>Vorheriger Barbestand</span>
+                <strong>{{ openingBalanceDisplay }}</strong>
+              </div>
+              <div class="kk-balance-row">
+                <span>Buchungs-Range</span>
+                <strong>{{ receiptLabel }}</strong>
+              </div>
+              <div class="kk-balance-row">
+                <span>Abschöpfungen Zeitraum</span>
+                <strong class="warning">{{ withdrawalTotalDisplay }}</strong>
+              </div>
+              <div class="kk-balance-row kk-balance-row--highlight">
+                <span>Neuer Barbestand Soll</span>
+                <strong>{{ cashCalculatedDisplay }}</strong>
+              </div>
+            </div>
+
+            <div class="kk-section-label kk-section-label--spaced">Ergebnis</div>
+            <div class="kk-result-box">
+              <div class="kk-result-row">
+                <span>Abschöpfung im Modal</span>
+                <strong>{{ newWithdrawalsDisplay }}</strong>
+              </div>
+              <div class="kk-result-row">
+                <span>Neuer Ist-Bestand</span>
+                <strong>{{ newCashBalanceDisplay }}</strong>
+              </div>
+              <div
+                class="kk-result-row"
+                :class="{ error: finalCashInvalid }"
+              >
+                <span>Differenz</span>
+                <strong>{{ differenceDisplay }}</strong>
+              </div>
             </div>
           </div>
         </div>
-
-        <!-- Saldo-Übersicht -->
-        <div class="kk-balance-box">
-          <div class="kk-balance-row">
-            <span>Vorheriger Barbestand</span>
-            <strong>{{ openingBalanceDisplay }}</strong>
-          </div>
-          <div class="kk-balance-row">
-            <span>Buchungs-Range</span>
-            <strong>{{ receiptLabel }}</strong>
-          </div>
-          <div class="kk-balance-row">
-            <span>Abschöpfungen Zeitraum</span>
-            <strong class="warning">{{ withdrawalTotalDisplay }}</strong>
-          </div>
-          <div class="kk-balance-row">
-            <span>Neuer Barbestand Soll</span>
-            <strong>{{ cashCalculatedDisplay }}</strong>
-          </div>
-        </div>
-
-        <!-- Kassenbestand eingeben -->
-        <div class="kk-counted-input">
-          <label>Gezählter Kassenbestand (€)</label>
-          <input
-            :value="countedCash"
-            type="number"
-            min="0"
-            step="0.01"
-            class="form-input large"
-            placeholder="0,00"
-            @input="$emit('update:counted-cash', $event.target.value)"
-          >
-        </div>
-
-        <!-- Ergebnis -->
-        <div class="kk-result-box">
-          <div class="kk-result-row">
-            <span>Abschöpfung im Modal</span>
-            <strong>{{ newWithdrawalsDisplay }}</strong>
-          </div>
-          <div class="kk-result-row">
-            <span>Neuer Ist-Bestand</span>
-            <strong>{{ newCashBalanceDisplay }}</strong>
-          </div>
-          <div
-            class="kk-result-row"
-            :class="{ error: finalCashInvalid }"
-          >
-            <span>Differenz</span>
-            <strong>{{ differenceDisplay }}</strong>
-          </div>
-        </div>
-
-        <small
-          v-if="finalCashInvalid"
-          class="kk-warning-text"
-        >
-          Der gezählte Bestand darf nicht kleiner als die im Modal vorgenommene Abschöpfung sein.
-        </small>
       </div>
 
       <div class="kk-dialog__footer">
@@ -158,11 +193,14 @@ defineProps({
   withdrawalTotalDisplay: { type: String, default: '0,00 €' },
   cashCalculatedDisplay: { type: String, default: '-' },
   countedCash: { type: [String, Number], default: '' },
+  showDifferenceReason: { type: Boolean, default: false },
+  differenceReason: { type: String, default: '' },
   newWithdrawalsDisplay: { type: String, default: '0,00 €' },
   newCashBalanceDisplay: { type: String, default: '-' },
   differenceDisplay: { type: String, default: '-' },
   finalCashInvalid: { type: Boolean, default: false },
   canCreate: { type: Boolean, default: false },
+  autoEmailOnCreate: { type: Boolean, default: false },
 })
 
 defineEmits([
@@ -171,6 +209,7 @@ defineEmits([
   'open-member-picker',
   'clear-verifier',
   'update:counted-cash',
+  'update:difference-reason',
   'open-cash-counter',
   'open-withdrawal',
   'request-create',
@@ -178,6 +217,33 @@ defineEmits([
 </script>
 
 <style scoped lang="scss">
+.confirmation-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(15, 23, 42, 0.65);
+  backdrop-filter: blur(5px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1500;
+  padding: 1.5rem;
+  /* kein overflow-y: auto hier – Scroll bleibt im Body */
+}
+
+.kk-dialog {
+  background: #ffffff;
+  border-radius: 20px;
+  width: min(85vw, 1200px);
+  max-height: min(85vh, 900px);
+  display: flex;
+  flex-direction: column;
+  /* overflow: hidden verhindert, dass Footer wegscrollt */
+  overflow: hidden;
+  box-shadow:
+    0 32px 64px rgba(15, 23, 42, 0.28),
+    0 0 0 1px rgba(15, 23, 42, 0.06);
+}
+
 .kk-dialog__header {
   padding: 1rem 1.4rem;
   display: flex;
@@ -185,13 +251,20 @@ defineEmits([
   align-items: center;
   gap: 1rem;
   flex-shrink: 0;
+  border-bottom: 1px solid #f1f5f9;
 }
 
+/* Body scrollt intern – Header und Footer bleiben fixiert */
 .kk-dialog__body {
-  padding: 1.4rem;
+  padding: 1rem 1.4rem;
   display: flex;
   flex-direction: column;
-  gap: 1.1rem;
+  gap: 0.85rem;
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  /* Padding-bottom damit der letzte Inhalt nicht direkt am Footer klebt */
+  padding-bottom: 0.5rem;
 }
 
 .kk-dialog__footer {
@@ -205,27 +278,96 @@ defineEmits([
   flex-wrap: wrap;
 }
 
-.kk-info-box {
+/* ── Info-Zeilen: jeweils volle Breite, untereinander ── */
+.kk-info-bar {
+  display: flex;
+  align-items: center;
+  gap: 0.55rem;
+  border-radius: 10px;
+  padding: 0.5rem 1rem;
+  font-size: 0.84rem;
+  font-weight: 500;
+  flex-shrink: 0;
+  width: 100%;
+  box-sizing: border-box;
+}
+
+.kk-info-bar--steps {
   background: #eff6ff;
   border: 1px solid #bfdbfe;
   color: #1e40af;
-  padding: 0.85rem 1.1rem;
-  border-radius: 10px;
-  font-size: 0.88rem;
-  font-weight: 500;
-  line-height: 1.5;
 }
 
-.kk-form-grid {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 1rem;
+.kk-info-bar--mail {
+  background: #ecfeff;
+  border: 1px solid #99f6e4;
+  color: #0f766e;
 
-  @media (max-width: 640px) {
-    grid-template-columns: 1fr;
+  strong {
+    font-weight: 700;
   }
 }
 
+.kk-step {
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.kk-step-sep {
+  color: #93c5fd;
+  font-weight: 400;
+}
+
+/* ── Haupt-Grid ── */
+.kk-main-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 1.25rem;
+  flex: 1;
+  min-height: 0;
+}
+
+.kk-col-left {
+  display: flex;
+  flex-direction: column;
+  gap: 0.7rem;
+  min-height: 0;
+  overflow-y: auto;
+}
+
+.kk-col-right {
+  display: flex;
+  flex-direction: column;
+  gap: 0.7rem;
+  /* Rechte Spalte scrollt nicht mit – bleibt immer sichtbar */
+  position: sticky;
+  top: 0;
+  align-self: start;
+}
+
+/* ── Section Labels ── */
+.kk-section-label {
+  font-size: 0.72rem;
+  font-weight: 700;
+  color: #94a3b8;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+}
+
+.kk-section-label--spaced {
+  margin-top: 0.4rem;
+}
+
+.kk-label-warn {
+  font-size: 0.75rem;
+  color: #b45309;
+  font-weight: 700;
+  margin-left: 0.4rem;
+  text-transform: none;
+  letter-spacing: 0;
+}
+
+/* ── Formular-Gruppen ── */
 .kk-form-group {
   display: flex;
   flex-direction: column;
@@ -243,7 +385,7 @@ defineEmits([
 
 .kk-select-btn {
   width: 100%;
-  padding: 0.75rem 1rem;
+  padding: 0.7rem 1rem;
   text-align: left;
   background: #f8fafc;
   border: 1px solid #cbd5e1;
@@ -261,7 +403,7 @@ defineEmits([
 }
 
 .kk-clear-btn {
-  padding: 0.75rem 0.85rem;
+  padding: 0.7rem 0.85rem;
   background: transparent;
   border: 1px solid #e2e8f0;
   border-radius: 10px;
@@ -282,6 +424,7 @@ defineEmits([
   align-items: center;
 }
 
+/* ── Saldo-Box ── */
 .kk-balance-box {
   background: #f8fafc;
   border: 1px solid #e2e8f0;
@@ -302,6 +445,14 @@ defineEmits([
     border-bottom: none;
   }
 
+  &.kk-balance-row--highlight {
+    background: #f1f5f9;
+
+    strong {
+      color: #0f766e;
+    }
+  }
+
   strong {
     color: #1e293b;
     font-weight: 700;
@@ -312,6 +463,7 @@ defineEmits([
   }
 }
 
+/* ── Kasseneingabe ── */
 .kk-counted-input {
   label {
     display: block;
@@ -324,8 +476,8 @@ defineEmits([
   }
 
   .form-input.large {
-    font-size: 1.5rem;
-    padding: 0.85rem 1.1rem;
+    font-size: 1.3rem;
+    padding: 0.7rem 1rem;
     font-weight: 700;
     width: 100%;
     border-radius: 10px;
@@ -337,8 +489,32 @@ defineEmits([
       border-color: #0f766e;
     }
   }
+
+  .form-input {
+    width: 100%;
+    border: 1px solid #dbe3ee;
+    border-radius: 10px;
+    padding: 0.75rem 0.85rem;
+    font-size: 0.98rem;
+
+    &:focus {
+      outline: none;
+      border-color: #0f766e;
+    }
+  }
 }
 
+.kk-hint-text {
+  color: #64748b;
+  font-size: 0.8rem;
+}
+
+.kk-hint-text--warning {
+  color: #b45309;
+  font-weight: 600;
+}
+
+/* ── Ergebnis-Box ── */
 .kk-result-box {
   background: #f0fdf4;
   border: 1px solid #bbf7d0;
@@ -378,9 +554,9 @@ defineEmits([
   color: #b91c1c;
   font-size: 0.82rem;
   font-weight: 600;
-  margin-top: -0.5rem;
 }
 
+/* ── Buttons ── */
 .btn {
   padding: 0.65rem 1.25rem;
   border: none;
@@ -430,7 +606,32 @@ defineEmits([
   cursor: not-allowed;
 }
 
+/* ── Responsive ── */
 @media (max-width: 640px) {
+  .confirmation-overlay {
+    padding: 0.75rem;
+    align-items: flex-start;
+  }
+
+  .kk-dialog {
+    width: 100%;
+    max-height: calc(100dvh - 1.5rem);
+    border-radius: 14px;
+  }
+
+  .kk-main-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .kk-info-bar {
+    flex-wrap: wrap;
+    white-space: normal;
+  }
+
+  .kk-info-steps {
+    flex-wrap: wrap;
+  }
+
   .kk-dialog__footer {
     flex-direction: column;
 

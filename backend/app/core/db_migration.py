@@ -20,6 +20,22 @@ from app.services.app_settings_service import (
     DEFAULT_KASSE_PRODUCTS_BACKGROUND_SCALE,
     DEFAULT_KASSE_PRODUCTS_BACKGROUND_OPACITY,
     DEFAULT_KASSE_PRODUCTS_BACKGROUND_ENABLED,
+    DEFAULT_EMAIL_ENABLED,
+    DEFAULT_EMAIL_SENDER,
+    DEFAULT_EMAIL_RECIPIENT_ZBON,
+    DEFAULT_EMAIL_SUBJECT_SUFFIX,
+    DEFAULT_EMAIL_CRITICAL_STOCK_ENABLED,
+    DEFAULT_SMTP_HOST,
+    DEFAULT_SMTP_PORT,
+    DEFAULT_SMTP_USERNAME,
+    DEFAULT_SMTP_PASSWORD,
+    DEFAULT_SMTP_USE_TLS,
+    DEFAULT_SEND_ZBON_ON_CREATE_ENABLED,
+    DEFAULT_SCHEDULED_ZBON_ENABLED,
+    DEFAULT_SCHEDULED_ZBON_TIME,
+    DEFAULT_SCHEDULED_ZBON_REPORT_TYPE,
+    DEFAULT_SCHEDULED_DATABASE_BACKUP_ENABLED,
+    DEFAULT_SCHEDULED_DATABASE_BACKUP_TIME,
 )
 
 logger = logging.getLogger(__name__)
@@ -440,6 +456,358 @@ class DatabaseMigrator:
                         except:
                             pass
 
+                if 'business_name' not in app_settings_columns:
+                    logger.info("Adding business_name column to app_settings table...")
+                    try:
+                        conn.execute(text("ALTER TABLE app_settings ADD COLUMN business_name VARCHAR(160)"))
+                        conn.commit()
+                        logger.info("✓ Added business_name column to app_settings")
+                    except Exception as e:
+                        logger.warning(f"Could not add business_name column: {str(e)}")
+                        try:
+                            conn.rollback()
+                        except:
+                            pass
+
+                if 'business_street' not in app_settings_columns:
+                    logger.info("Adding business_street column to app_settings table...")
+                    try:
+                        conn.execute(text("ALTER TABLE app_settings ADD COLUMN business_street VARCHAR(160)"))
+                        conn.commit()
+                        logger.info("✓ Added business_street column to app_settings")
+                    except Exception as e:
+                        logger.warning(f"Could not add business_street column: {str(e)}")
+                        try:
+                            conn.rollback()
+                        except:
+                            pass
+
+                if 'business_zip' not in app_settings_columns:
+                    logger.info("Adding business_zip column to app_settings table...")
+                    try:
+                        conn.execute(text("ALTER TABLE app_settings ADD COLUMN business_zip VARCHAR(20)"))
+                        conn.commit()
+                        logger.info("✓ Added business_zip column to app_settings")
+                    except Exception as e:
+                        logger.warning(f"Could not add business_zip column: {str(e)}")
+                        try:
+                            conn.rollback()
+                        except:
+                            pass
+
+                if 'business_city' not in app_settings_columns:
+                    logger.info("Adding business_city column to app_settings table...")
+                    try:
+                        conn.execute(text("ALTER TABLE app_settings ADD COLUMN business_city VARCHAR(120)"))
+                        conn.commit()
+                        logger.info("✓ Added business_city column to app_settings")
+                    except Exception as e:
+                        logger.warning(f"Could not add business_city column: {str(e)}")
+                        try:
+                            conn.rollback()
+                        except:
+                            pass
+
+                if 'business_phone' not in app_settings_columns:
+                    logger.info("Adding business_phone column to app_settings table...")
+                    try:
+                        conn.execute(text("ALTER TABLE app_settings ADD COLUMN business_phone VARCHAR(50)"))
+                        conn.commit()
+                        logger.info("✓ Added business_phone column to app_settings")
+                    except Exception as e:
+                        logger.warning(f"Could not add business_phone column: {str(e)}")
+                        try:
+                            conn.rollback()
+                        except:
+                            pass
+
+                if 'business_email' not in app_settings_columns:
+                    logger.info("Adding business_email column to app_settings table...")
+                    try:
+                        conn.execute(text("ALTER TABLE app_settings ADD COLUMN business_email VARCHAR(160)"))
+                        conn.commit()
+                        logger.info("✓ Added business_email column to app_settings")
+                    except Exception as e:
+                        logger.warning(f"Could not add business_email column: {str(e)}")
+                        try:
+                            conn.rollback()
+                        except:
+                            pass
+
+                if 'business_tax_number' not in app_settings_columns:
+                    logger.info("Adding business_tax_number column to app_settings table...")
+                    try:
+                        conn.execute(text("ALTER TABLE app_settings ADD COLUMN business_tax_number VARCHAR(80)"))
+                        conn.commit()
+                        logger.info("✓ Added business_tax_number column to app_settings")
+                    except Exception as e:
+                        logger.warning(f"Could not add business_tax_number column: {str(e)}")
+                        try:
+                            conn.rollback()
+                        except:
+                            pass
+
+                if 'business_registration_number' not in app_settings_columns:
+                    logger.info("Adding business_registration_number column to app_settings table...")
+                    try:
+                        conn.execute(text("ALTER TABLE app_settings ADD COLUMN business_registration_number VARCHAR(120)"))
+                        conn.commit()
+                        logger.info("✓ Added business_registration_number column to app_settings")
+                    except Exception as e:
+                        logger.warning(f"Could not add business_registration_number column: {str(e)}")
+                        try:
+                            conn.rollback()
+                        except:
+                            pass
+
+                if 'email_enabled' not in app_settings_columns:
+                    logger.info("Adding email_enabled column to app_settings table...")
+                    try:
+                        conn.execute(text(
+                            "ALTER TABLE app_settings "
+                            "ADD COLUMN email_enabled BOOLEAN DEFAULT :default_email_enabled NOT NULL"
+                        ), {"default_email_enabled": DEFAULT_EMAIL_ENABLED})
+                        conn.commit()
+                        logger.info("✓ Added email_enabled column to app_settings")
+                    except Exception as e:
+                        logger.warning(f"Could not add email_enabled column: {str(e)}")
+                        try:
+                            conn.rollback()
+                        except:
+                            pass
+
+                if 'email_sender' not in app_settings_columns:
+                    logger.info("Adding email_sender column to app_settings table...")
+                    try:
+                        conn.execute(text(
+                            "ALTER TABLE app_settings ADD COLUMN email_sender VARCHAR(160) DEFAULT :default_email_sender"
+                        ), {"default_email_sender": DEFAULT_EMAIL_SENDER})
+                        conn.commit()
+                        logger.info("✓ Added email_sender column to app_settings")
+                    except Exception as e:
+                        logger.warning(f"Could not add email_sender column: {str(e)}")
+                        try:
+                            conn.rollback()
+                        except:
+                            pass
+
+                if 'email_recipient_zbon' not in app_settings_columns:
+                    logger.info("Adding email_recipient_zbon column to app_settings table...")
+                    try:
+                        conn.execute(text(
+                            "ALTER TABLE app_settings ADD COLUMN email_recipient_zbon VARCHAR(160) DEFAULT :default_email_recipient"
+                        ), {"default_email_recipient": DEFAULT_EMAIL_RECIPIENT_ZBON})
+                        conn.commit()
+                        logger.info("✓ Added email_recipient_zbon column to app_settings")
+                    except Exception as e:
+                        logger.warning(f"Could not add email_recipient_zbon column: {str(e)}")
+                        try:
+                            conn.rollback()
+                        except:
+                            pass
+
+                if 'email_subject_suffix' not in app_settings_columns:
+                    logger.info("Adding email_subject_suffix column to app_settings table...")
+                    try:
+                        conn.execute(text(
+                            "ALTER TABLE app_settings ADD COLUMN email_subject_suffix VARCHAR(120) DEFAULT :default_email_subject_suffix"
+                        ), {"default_email_subject_suffix": DEFAULT_EMAIL_SUBJECT_SUFFIX})
+                        conn.commit()
+                        logger.info("✓ Added email_subject_suffix column to app_settings")
+                    except Exception as e:
+                        logger.warning(f"Could not add email_subject_suffix column: {str(e)}")
+                        try:
+                            conn.rollback()
+                        except:
+                            pass
+
+                if 'email_critical_stock_enabled' not in app_settings_columns:
+                    logger.info("Adding email_critical_stock_enabled column to app_settings table...")
+                    try:
+                        conn.execute(text(
+                            "ALTER TABLE app_settings "
+                            "ADD COLUMN email_critical_stock_enabled BOOLEAN DEFAULT :default_email_critical_stock_enabled NOT NULL"
+                        ), {"default_email_critical_stock_enabled": DEFAULT_EMAIL_CRITICAL_STOCK_ENABLED})
+                        conn.commit()
+                        logger.info("✓ Added email_critical_stock_enabled column to app_settings")
+                    except Exception as e:
+                        logger.warning(f"Could not add email_critical_stock_enabled column: {str(e)}")
+                        try:
+                            conn.rollback()
+                        except:
+                            pass
+
+                if 'smtp_host' not in app_settings_columns:
+                    logger.info("Adding smtp_host column to app_settings table...")
+                    try:
+                        conn.execute(text(
+                            "ALTER TABLE app_settings ADD COLUMN smtp_host VARCHAR(255) DEFAULT :default_smtp_host"
+                        ), {"default_smtp_host": DEFAULT_SMTP_HOST})
+                        conn.commit()
+                        logger.info("✓ Added smtp_host column to app_settings")
+                    except Exception as e:
+                        logger.warning(f"Could not add smtp_host column: {str(e)}")
+                        try:
+                            conn.rollback()
+                        except:
+                            pass
+
+                if 'smtp_port' not in app_settings_columns:
+                    logger.info("Adding smtp_port column to app_settings table...")
+                    try:
+                        conn.execute(text(
+                            "ALTER TABLE app_settings "
+                            "ADD COLUMN smtp_port INTEGER DEFAULT :default_smtp_port NOT NULL"
+                        ), {"default_smtp_port": DEFAULT_SMTP_PORT})
+                        conn.commit()
+                        logger.info("✓ Added smtp_port column to app_settings")
+                    except Exception as e:
+                        logger.warning(f"Could not add smtp_port column: {str(e)}")
+                        try:
+                            conn.rollback()
+                        except:
+                            pass
+
+                if 'smtp_username' not in app_settings_columns:
+                    logger.info("Adding smtp_username column to app_settings table...")
+                    try:
+                        conn.execute(text(
+                            "ALTER TABLE app_settings ADD COLUMN smtp_username VARCHAR(255) DEFAULT :default_smtp_username"
+                        ), {"default_smtp_username": DEFAULT_SMTP_USERNAME})
+                        conn.commit()
+                        logger.info("✓ Added smtp_username column to app_settings")
+                    except Exception as e:
+                        logger.warning(f"Could not add smtp_username column: {str(e)}")
+                        try:
+                            conn.rollback()
+                        except:
+                            pass
+
+                if 'smtp_password' not in app_settings_columns:
+                    logger.info("Adding smtp_password column to app_settings table...")
+                    try:
+                        conn.execute(text(
+                            "ALTER TABLE app_settings ADD COLUMN smtp_password VARCHAR(255) DEFAULT :default_smtp_password"
+                        ), {"default_smtp_password": DEFAULT_SMTP_PASSWORD})
+                        conn.commit()
+                        logger.info("✓ Added smtp_password column to app_settings")
+                    except Exception as e:
+                        logger.warning(f"Could not add smtp_password column: {str(e)}")
+                        try:
+                            conn.rollback()
+                        except:
+                            pass
+
+                if 'smtp_use_tls' not in app_settings_columns:
+                    logger.info("Adding smtp_use_tls column to app_settings table...")
+                    try:
+                        conn.execute(text(
+                            "ALTER TABLE app_settings "
+                            "ADD COLUMN smtp_use_tls BOOLEAN DEFAULT :default_smtp_use_tls NOT NULL"
+                        ), {"default_smtp_use_tls": DEFAULT_SMTP_USE_TLS})
+                        conn.commit()
+                        logger.info("✓ Added smtp_use_tls column to app_settings")
+                    except Exception as e:
+                        logger.warning(f"Could not add smtp_use_tls column: {str(e)}")
+                        try:
+                            conn.rollback()
+                        except:
+                            pass
+
+                if 'send_zbon_on_create_enabled' not in app_settings_columns:
+                    logger.info("Adding send_zbon_on_create_enabled column to app_settings table...")
+                    try:
+                        conn.execute(text(
+                            "ALTER TABLE app_settings "
+                            "ADD COLUMN send_zbon_on_create_enabled BOOLEAN DEFAULT :default_send_on_create NOT NULL"
+                        ), {"default_send_on_create": DEFAULT_SEND_ZBON_ON_CREATE_ENABLED})
+                        conn.commit()
+                        logger.info("✓ Added send_zbon_on_create_enabled column to app_settings")
+                    except Exception as e:
+                        logger.warning(f"Could not add send_zbon_on_create_enabled column: {str(e)}")
+                        try:
+                            conn.rollback()
+                        except:
+                            pass
+
+                if 'scheduled_zbon_enabled' not in app_settings_columns:
+                    logger.info("Adding scheduled_zbon_enabled column to app_settings table...")
+                    try:
+                        conn.execute(text(
+                            "ALTER TABLE app_settings "
+                            "ADD COLUMN scheduled_zbon_enabled BOOLEAN DEFAULT :default_scheduled_enabled NOT NULL"
+                        ), {"default_scheduled_enabled": DEFAULT_SCHEDULED_ZBON_ENABLED})
+                        conn.commit()
+                        logger.info("✓ Added scheduled_zbon_enabled column to app_settings")
+                    except Exception as e:
+                        logger.warning(f"Could not add scheduled_zbon_enabled column: {str(e)}")
+                        try:
+                            conn.rollback()
+                        except:
+                            pass
+
+                if 'scheduled_zbon_time' not in app_settings_columns:
+                    logger.info("Adding scheduled_zbon_time column to app_settings table...")
+                    try:
+                        conn.execute(text(
+                            "ALTER TABLE app_settings ADD COLUMN scheduled_zbon_time VARCHAR(5) DEFAULT :default_scheduled_time NOT NULL"
+                        ), {"default_scheduled_time": DEFAULT_SCHEDULED_ZBON_TIME})
+                        conn.commit()
+                        logger.info("✓ Added scheduled_zbon_time column to app_settings")
+                    except Exception as e:
+                        logger.warning(f"Could not add scheduled_zbon_time column: {str(e)}")
+                        try:
+                            conn.rollback()
+                        except:
+                            pass
+
+                if 'scheduled_zbon_report_type' not in app_settings_columns:
+                    logger.info("Adding scheduled_zbon_report_type column to app_settings table...")
+                    try:
+                        conn.execute(text(
+                            "ALTER TABLE app_settings ADD COLUMN scheduled_zbon_report_type VARCHAR(32) DEFAULT :default_scheduled_report_type NOT NULL"
+                        ), {"default_scheduled_report_type": DEFAULT_SCHEDULED_ZBON_REPORT_TYPE})
+                        conn.commit()
+                        logger.info("✓ Added scheduled_zbon_report_type column to app_settings")
+                    except Exception as e:
+                        logger.warning(f"Could not add scheduled_zbon_report_type column: {str(e)}")
+                        try:
+                            conn.rollback()
+                        except:
+                            pass
+
+                if 'scheduled_database_backup_enabled' not in app_settings_columns:
+                    logger.info("Adding scheduled_database_backup_enabled column to app_settings table...")
+                    try:
+                        conn.execute(text(
+                            "ALTER TABLE app_settings "
+                            "ADD COLUMN scheduled_database_backup_enabled BOOLEAN DEFAULT :default_backup_enabled NOT NULL"
+                        ), {"default_backup_enabled": DEFAULT_SCHEDULED_DATABASE_BACKUP_ENABLED})
+                        conn.commit()
+                        logger.info("✓ Added scheduled_database_backup_enabled column to app_settings")
+                    except Exception as e:
+                        logger.warning(f"Could not add scheduled_database_backup_enabled column: {str(e)}")
+                        try:
+                            conn.rollback()
+                        except:
+                            pass
+
+                if 'scheduled_database_backup_time' not in app_settings_columns:
+                    logger.info("Adding scheduled_database_backup_time column to app_settings table...")
+                    try:
+                        conn.execute(text(
+                            "ALTER TABLE app_settings "
+                            "ADD COLUMN scheduled_database_backup_time VARCHAR(5) DEFAULT :default_backup_time NOT NULL"
+                        ), {"default_backup_time": DEFAULT_SCHEDULED_DATABASE_BACKUP_TIME})
+                        conn.commit()
+                        logger.info("✓ Added scheduled_database_backup_time column to app_settings")
+                    except Exception as e:
+                        logger.warning(f"Could not add scheduled_database_backup_time column: {str(e)}")
+                        try:
+                            conn.rollback()
+                        except:
+                            pass
+
             if 'members' in inspector.get_table_names():
                 member_columns = {col['name'] for col in inspector.get_columns('members')}
 
@@ -697,6 +1065,36 @@ class DatabaseMigrator:
                         logger.info("✓ Added tax_rate column to products")
                     except Exception as e:
                         logger.warning(f"Could not add tax_rate column: {str(e)}")
+                        try:
+                            conn.rollback()
+                        except:
+                            pass
+
+                if 'minimum_stock_quantity' not in products_columns:
+                    logger.info("Adding minimum_stock_quantity column to products table...")
+                    try:
+                        conn.execute(text(
+                            "ALTER TABLE products ADD COLUMN minimum_stock_quantity INTEGER DEFAULT 0 NOT NULL"
+                        ))
+                        conn.commit()
+                        logger.info("✓ Added minimum_stock_quantity column to products")
+                    except Exception as e:
+                        logger.warning(f"Could not add minimum_stock_quantity column: {str(e)}")
+                        try:
+                            conn.rollback()
+                        except:
+                            pass
+
+                if 'notify_on_low_stock' not in products_columns:
+                    logger.info("Adding notify_on_low_stock column to products table...")
+                    try:
+                        conn.execute(text(
+                            "ALTER TABLE products ADD COLUMN notify_on_low_stock BOOLEAN DEFAULT FALSE NOT NULL"
+                        ))
+                        conn.commit()
+                        logger.info("✓ Added notify_on_low_stock column to products")
+                    except Exception as e:
+                        logger.warning(f"Could not add notify_on_low_stock column: {str(e)}")
                         try:
                             conn.rollback()
                         except:

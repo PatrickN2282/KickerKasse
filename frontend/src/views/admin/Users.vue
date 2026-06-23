@@ -7,6 +7,10 @@
         <span class="page-subtitle">Direkte Benutzerkonten verwalten und Mitgliedskonten separat im gleichen Admin-Layout einsehen.</span>
       </div>
       <div class="page-header-actions">
+        <label class="inline-toggle">
+          <input v-model="showInactiveUsers" type="checkbox">
+          <span>Inaktive anzeigen</span>
+        </label>
         <button class="btn btn-primary" @click="openCreateModal">
           <span class="icon">+</span> Neuer Benutzer
         </button>
@@ -25,20 +29,27 @@
           </tr>
         </thead>
         <tbody>
-          <tr v-for="user in displayedUsers" :key="user.id">
+          <tr
+            v-for="user in displayedUsers"
+            :key="user.id"
+            :class="{ 'row-inactive': user.isInactive }"
+          >
             <td>
               <span :class="['badge', user.entryType === 'Benutzer' ? 'badge-success' : 'badge-light']">
                 {{ user.entryType }}
               </span>
             </td>
-            <td class="font-bold">{{ user.username }}</td>
+            <td class="font-bold">
+              {{ user.username }}
+              <span v-if="user.isInactive" class="inactive-tag">(inaktiv)</span>
+            </td>
             <td>{{ user.email || '-' }}</td>
             <td>
               <span :class="['role-tag', roleClass(user.role)]">{{ roleLabel(user.role) }}</span>
             </td>
             <td class="text-right action-cell">
               <button
-                v-if="user.deletable"
+                v-if="user.canEdit"
                 class="btn-action btn-action-icon btn-action-edit-icon"
                 type="button"
                 title="Bearbeiten"
@@ -49,14 +60,24 @@
               </button>
               <button v-if="user.canResetPassword" class="btn-action" @click="openPasswordReset(user)">Passwort setzen</button>
               <button
-                v-if="user.deletable"
+                v-if="user.canDeactivate"
                 class="btn-action btn-action-icon btn-action-danger btn-action-delete-icon"
                 type="button"
-                title="Löschen"
-                aria-label="Löschen"
-                @click="deleteUser(user.id)"
+                title="Deaktivieren"
+                aria-label="Deaktivieren"
+                @click="deactivateUser(user.id)"
               >
                 ✕
+              </button>
+              <button
+                v-if="user.canReactivate"
+                class="btn-action btn-action-icon btn-action-reactivate-icon"
+                type="button"
+                title="Reaktivieren"
+                aria-label="Reaktivieren"
+                @click="reactivateUser(user.id)"
+              >
+                ↺
               </button>
             </td>
           </tr>
@@ -92,15 +113,18 @@
 <script setup>
 import { ref, reactive, onMounted, computed } from 'vue'
 import { useNotificationStore } from '@/stores/notification'
+import { useAuthStore } from '@/stores/auth'
 import { getMemberFullName, getRoleLabel } from '@/services/member'
 import apiService from '@/services/api'
 import UserFormModal from '@/views/admin/modal/UserFormModal.vue'
 import UserPasswordResetModal from '@/views/admin/modal/UserPasswordResetModal.vue'
 
 const notificationStore = useNotificationStore()
+const authStore = useAuthStore()
 
 const users = ref([])
 const membersWithRoles = ref([])
+const showInactiveUsers = ref(false)
 const showUserModal = ref(false)
 const editingUserId = ref(null)
 const resettingPasswordFor = ref(null)
@@ -129,13 +153,24 @@ const roleClass = (role) => ({
 }[role] || 'role-tag-default')
 
 const displayedUsers = computed(() => [
-  ...users.value.map(user => ({
-    ...user,
-    entryType: 'Benutzer',
-    deletable: true,
-    canResetPassword: false,
+  ...users.value
+    .filter(user => showInactiveUsers.value || user.is_active)
+    .map(user => ({
+      ...user,
+      entryType: 'Benutzer',
+      isInactive: !user.is_active,
+      canEdit: user.is_active,
+      canDeactivate: user.is_active && user.id !== authStore.user?.id,
+      canReactivate: !user.is_active,
+      canResetPassword: user.is_active,
+    })),
+  ...membersWithRoles.value.map(member => ({
+    ...member,
+    isInactive: false,
+    canEdit: false,
+    canDeactivate: false,
+    canReactivate: false,
   })),
-  ...membersWithRoles.value,
 ])
 
 const resetForm = () => {
@@ -192,21 +227,33 @@ const handleSaveUser = async () => {
   }
 }
 
-const deleteUser = async (userId) => {
-  if (confirm('Wirklich löschen?')) {
+const deactivateUser = async (userId) => {
+  if (confirm('Wirklich deaktivieren?')) {
     try {
       await apiService.delete(`/users/${userId}`)
-      notificationStore.success('Benutzer gelöscht')
+      notificationStore.success('Benutzer deaktiviert')
       await loadUsers()
     } catch (err) {
-      notificationStore.error(err.response?.data?.detail || 'Fehler beim Löschen')
+      notificationStore.error(err.response?.data?.detail || 'Fehler beim Deaktivieren')
     }
+  }
+}
+
+const reactivateUser = async (userId) => {
+  try {
+    await apiService.post(`/users/${userId}/reactivate`)
+    notificationStore.success('Benutzer reaktiviert')
+    await loadUsers()
+  } catch (err) {
+    notificationStore.error(err.response?.data?.detail || 'Fehler beim Reaktivieren')
   }
 }
 
 const loadUsers = async () => {
   try {
-    const response = await apiService.get('/users')
+    const response = await apiService.get('/users', {
+      params: { include_inactive: true },
+    })
     users.value = response.data.filter(user => !user.member_id)
   } catch {
     notificationStore.error('Fehler beim Laden der Benutzer')
@@ -226,7 +273,6 @@ const loadRoleMembers = async () => {
         role: member.role,
         hasUserAccount: member.has_user_account,
         entryType: member.has_user_account ? 'Mitgliedskonto' : 'Mitglied',
-        deletable: false,
         canResetPassword: true,
       }))
   } catch {
@@ -319,6 +365,14 @@ onMounted(async () => {
   flex-wrap: wrap;
 }
 
+.inline-toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  font-size: 0.85rem;
+  color: #475569;
+}
+
 .page-subtitle,
 .modal-subtitle,
 .help-text {
@@ -362,6 +416,10 @@ onMounted(async () => {
     background: color-mix(in srgb, var(--app-background-color) 60%, white);
   }
 
+  tr.row-inactive td {
+    opacity: 0.6;
+  }
+
   tr:last-child td {
     border-bottom: none;
   }
@@ -382,6 +440,13 @@ onMounted(async () => {
 
 .font-bold {
   font-weight: 600;
+}
+
+.inactive-tag {
+  margin-left: 0.4rem;
+  font-size: 0.78rem;
+  color: #64748b;
+  font-weight: 500;
 }
 
 .badge,
@@ -453,6 +518,12 @@ onMounted(async () => {
   border-color: #fecaca;
   background: #fee2e2;
   color: #b91c1c;
+}
+
+.btn-action-reactivate-icon {
+  border-color: #bbf7d0;
+  background: #dcfce7;
+  color: #166534;
 }
 
 .modal-overlay {

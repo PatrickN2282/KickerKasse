@@ -75,7 +75,13 @@ export const useAuthStore = defineStore('auth', () => {
 
   const checkAuth = async () => {
     try {
-      const response = await apiService.get('/auth/me')
+      const response = await apiService.get('/auth/me', {
+        params: { _t: Date.now() },
+        headers: {
+          'Cache-Control': 'no-cache',
+          Pragma: 'no-cache',
+        },
+      })
       setUser(response.data)
       return true
     } catch {

@@ -1,6 +1,7 @@
 from sqlalchemy.orm import Session
 from app.models import ProductStockCorrectionLog
 from app.repositories import ProductRepository
+from app.services.actor_resolution_service import resolve_actor_username
 
 
 class ProductService:
@@ -30,6 +31,8 @@ class ProductService:
         self, name: str, price_cents: int, description: str = None,
         member_price_cents: int = None, is_discountable: bool = True,
         stock_quantity: int = 0,
+        minimum_stock_quantity: int = 0,
+        notify_on_low_stock: bool = False,
         is_unlimited_stock: bool = False,
         warengruppe: str = None,
         is_variable_price: bool = False,
@@ -38,7 +41,7 @@ class ProductService:
         """Create a new product"""
         product = self.repo.create(
             name, price_cents, description, member_price_cents,
-            is_discountable, stock_quantity, is_unlimited_stock, warengruppe,
+            is_discountable, stock_quantity, minimum_stock_quantity, notify_on_low_stock, is_unlimited_stock, warengruppe,
             is_variable_price,
         )
         self._audit(
@@ -111,7 +114,8 @@ class ProductService:
         self,
         product_id: int,
         new_stock_quantity: int,
-        executed_by_username: str,
+        executed_by_username: str | None = None,
+        executed_by_user_id: int | None = None,
         reason: str | None = None,
     ):
         """Set product stock without cash flow and create a separate correction audit log."""
@@ -119,6 +123,11 @@ class ProductService:
         if not product:
             return None
 
+        actor_username = resolve_actor_username(
+            self.db,
+            executed_by_username=executed_by_username,
+            executed_by_user_id=executed_by_user_id,
+        )
         old_stock_quantity = product.stock_quantity
         product.stock_quantity = new_stock_quantity
         correction_reason = (reason or "").strip() or "KORREKTURBUCHUNG"
@@ -129,14 +138,14 @@ class ProductService:
             old_stock_quantity=old_stock_quantity,
             new_stock_quantity=new_stock_quantity,
             change_quantity=new_stock_quantity - old_stock_quantity,
-            executed_by_username=executed_by_username,
+            executed_by_username=actor_username or "Unbekannt",
             reason=correction_reason,
         )
         self.db.add(log)
         self._audit(
             "STOCK_CORRECTION",
             product,
-            executed_by_username,
+            actor_username,
             old_value={"stock_quantity": old_stock_quantity},
             new_value={
                 "stock_quantity": new_stock_quantity,

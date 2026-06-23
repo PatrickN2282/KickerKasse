@@ -13,7 +13,7 @@ echo ""
 echo "⏳ STEP 1: Waiting for database connection..."
 DB_READY=0
 for i in {1..30}; do
-    if pg_isready -h ${DATABASE_HOST:-postgres} -U kassensystem > /dev/null 2>&1; then
+    if pg_isready -h ${DATABASE_HOST:-postgres} -U ${DATABASE_USER:-kassensystem-test} > /dev/null 2>&1; then
         echo "✓ Database connection successful"
         DB_READY=1
         break

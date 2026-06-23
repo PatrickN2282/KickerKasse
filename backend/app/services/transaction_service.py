@@ -3,7 +3,7 @@ from sqlalchemy import func, and_
 from datetime import date, datetime, time, timedelta
 from app.repositories import TransactionRepository, BalanceLogRepository
 from app.models import Transaction, TransactionType, PaymentMethod, Product, CashEntry, CashEntryType, ClubAccountEntry
-
+from app.utils.datetime_utils import localize_dt as _localize_dt
 
 class TransactionService:
     """Transaction service for sales and storni"""
@@ -225,7 +225,7 @@ class TransactionService:
             "voucher_type": transaction.voucher_type,
             "voucher_applied_cents": transaction.voucher_applied_cents,
             "balance_applied_cents": transaction.balance_applied_cents,
-            "created_at": transaction.created_at,
+            "created_at": _localize_dt(transaction.created_at),
             "reason": reason,
             # Snapshot fields with fallback to relationship for legacy entries
             "performed_by": (
@@ -281,7 +281,7 @@ class TransactionService:
             "voucher_type": None,
             "voucher_applied_cents": 0,
             "balance_applied_cents": 0,
-            "created_at": entry.created_at,
+            "created_at": _localize_dt(entry.created_at),
             "reason": entry.reason,
             "performed_by": entry.user.username if entry.user else None,
             "member": None,
@@ -371,7 +371,7 @@ class TransactionService:
                     "voucher_type": t.voucher_type,
                          "voucher_applied_cents": t.voucher_applied_cents,
                          "balance_applied_cents": t.balance_applied_cents,
-                    "created_at": t.created_at,
+                    "created_at": _localize_dt(t.created_at),
                     "member": {
                         "id": t.member_id,
                         "name": (

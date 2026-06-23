@@ -11,8 +11,10 @@ from app.models import (
     ClubAccountEntry,
 )
 from app.repositories import TransactionRepository
+from app.services.app_settings_service import AppSettingsService
 from app.services.material_account_service import MaterialAccountService
 from app.templates.zbon_template import ZBON_HTML_TEMPLATE
+from app.utils.datetime_utils import localize_dt as _localize_dt
 from collections import defaultdict
 import logging
 
@@ -22,6 +24,7 @@ logger = logging.getLogger(__name__)
 class ZBonService:
     """Service for generating comprehensive Z-Bon reports with full aggregations"""
     PREPAID_PRODUCT_MARKER = "VERZEHRKARTE:"
+    INITIAL_SETUP_DEPOSIT_REASON = "Initiale Kassen-Einlage beim Setup"
     
     def __init__(self, db: Session):
         self.db = db
@@ -95,7 +98,7 @@ class ZBonService:
         return {
             "id": transaction.id,
             "receipt_number": transaction.receipt_number,
-            "created_at": transaction.created_at.isoformat(),
+            "created_at": _localize_dt(transaction.created_at).isoformat(),
             "type": transaction.type.value,
             "booking_type": booking_type,
             "payment_method": transaction.payment_method.value,
@@ -110,7 +113,10 @@ class ZBonService:
             "tip_cents": getattr(transaction, 'tip_cents', 0) or 0,
             "voucher_type": transaction.voucher_type,
             "member_name": self._format_member_name(transaction.member),
-            "performed_by": transaction.user.username if transaction.user else None,
+            "performed_by": (
+                transaction.performed_by_username
+                or (transaction.user.username if transaction.user else None)
+            ),
             "reason": reason,
             "items": [
                 {
@@ -134,7 +140,7 @@ class ZBonService:
         return {
             "id": -entry.id,
             "receipt_number": entry.receipt_number,
-            "created_at": entry.created_at.isoformat(),
+            "created_at": _localize_dt(entry.created_at).isoformat(),
             "type": entry.entry_type.value,
             "booking_type": f"CASH_{entry.entry_type.value}",
             "payment_method": CashEntryType.WITHDRAWAL.value if entry.entry_type == CashEntryType.WITHDRAWAL else PaymentMethod.CASH.value,
@@ -155,7 +161,7 @@ class ZBonService:
         return {
             "id": f"pending-withdrawal-{index}",
             "receipt_number": None,
-            "created_at": created_at.isoformat(),
+            "created_at": _localize_dt(created_at).isoformat(),
             "type": CashEntryType.WITHDRAWAL.value,
             "booking_type": "CASH_WITHDRAWAL",
             "payment_method": CashEntryType.WITHDRAWAL.value,
@@ -196,22 +202,90 @@ class ZBonService:
         query = query.filter(Transaction.created_at <= period_end)
         return query.all()
 
-    def _get_opening_cash_balance(self, last_zbon: ZBonHistory | None) -> float:
+    def _get_opening_cash_balance(self, last_zbon: ZBonHistory | None, period_end: datetime) -> float:
+        """Resolve opening cash balance for current preview period.
+
+        For closed periods (last Z-Bon exists), use the last Z-Bon snapshot.
+        For the very first period, reuse the setup opening cash deposit so the
+        finance view starts with a visible Anfangsbestand. The ``period_end``
+        parameter is only relevant when no previous Z-Bon exists.
+        """
         if not last_zbon:
-            return 0.0
+            initial_deposits_cents = (
+                self.db.query(func.coalesce(func.sum(CashEntry.amount_cents), 0))
+                .filter(
+                    CashEntry.entry_type == CashEntryType.DEPOSIT,
+                    CashEntry.reason == self.INITIAL_SETUP_DEPOSIT_REASON,
+                    CashEntry.created_at <= period_end,
+                )
+                .scalar()
+            )
+            return initial_deposits_cents / 100
         if last_zbon.cash_counted is not None:
             return float(last_zbon.cash_counted)
         return float(last_zbon.cash_calculated or 0.0)
+
+    def get_business_info(self) -> dict:
+        business_info, _ = self._resolve_report_business_info()
+        return business_info
+
+    def _resolve_report_business_info(self) -> tuple[dict, bool]:
+        settings = AppSettingsService(self.db).get_or_create_settings()
+        explicit_business_data_present = any(
+            (value or "").strip()
+            for value in [
+                settings.business_name,
+                settings.business_street,
+                settings.business_zip,
+                settings.business_city,
+                settings.business_phone,
+                settings.business_email,
+                settings.business_tax_number,
+                settings.business_registration_number,
+            ]
+        )
+
+        if explicit_business_data_present:
+            return {
+                "name": (settings.business_name or "").strip(),
+                "street": (settings.business_street or "").strip(),
+                "zip": (settings.business_zip or "").strip(),
+                "city": (settings.business_city or "").strip(),
+                "phone": (settings.business_phone or "").strip(),
+                "email": (settings.business_email or "").strip(),
+                "tax_number": (settings.business_tax_number or "").strip(),
+                "registration_number": (settings.business_registration_number or "").strip(),
+            }, False
+
+        return {
+            "name": "KickerKasse by KGB-Hannover",
+            "street": "",
+            "zip": "",
+            "city": "",
+            "phone": "",
+            "email": "",
+            "tax_number": "",
+            "registration_number": "",
+        }, True
 
     def _get_cash_entry_summary(
         self,
         period_start: datetime | None,
         period_end: datetime,
         pending_withdrawals: list[dict] | None = None,
+        *,
+        exclude_initial_setup_deposits: bool = False,
     ) -> dict:
         query = self.db.query(CashEntry).filter(CashEntry.created_at <= period_end)
         if period_start:
             query = query.filter(CashEntry.created_at > period_start)
+        elif exclude_initial_setup_deposits:
+            query = query.filter(
+                ~(
+                    (CashEntry.entry_type == CashEntryType.DEPOSIT)
+                    & (CashEntry.reason == self.INITIAL_SETUP_DEPOSIT_REASON)
+                )
+            )
 
         entries = query.order_by(CashEntry.created_at.asc()).all()
         pending_entries = pending_withdrawals or []
@@ -352,11 +426,18 @@ class ZBonService:
         cash_counted_by_name: str | None = None,
         include_cash_count: dict | None = None,
         cash_count_total: float | None = None,
+        difference_reason: str | None = None,
         pending_withdrawals: list[dict] | None = None,
     ) -> dict:
         period_start, period_end, last_zbon = self._get_current_period_bounds()
         transactions = self._get_transactions_for_period(period_start, period_end)
-        cash_summary = self._get_cash_entry_summary(period_start, period_end, pending_withdrawals)
+        opening_balance = self._get_opening_cash_balance(last_zbon, period_end)
+        cash_summary = self._get_cash_entry_summary(
+            period_start,
+            period_end,
+            pending_withdrawals,
+            exclude_initial_setup_deposits=last_zbon is None,
+        )
         club_account_transaction_ids = self._get_club_account_transaction_ids(period_start, period_end)
         gift_voucher_summary = self._get_gift_voucher_summary(period_start, period_end)
         prepaid_voucher_summary = self._get_prepaid_voucher_summary(period_start, period_end)
@@ -406,9 +487,9 @@ class ZBonService:
         storno_total = sum(t.total_amount_cents for t in stornos) / 100
         tip_total = sum(getattr(t, 'tip_cents', 0) or 0 for t in sales) / 100
         tip_count = len([t for t in sales if (getattr(t, 'tip_cents', 0) or 0) > 0])
-        opening_balance = self._get_opening_cash_balance(last_zbon)
         cash_calculated = (
             opening_balance
+            + cash_summary["deposits_total"]
             + cash_sales_total
             + tip_total
             - cash_summary["withdrawals_total"]
@@ -486,6 +567,7 @@ class ZBonService:
                 "cash_calculated": cash_calculated,
                 "cash_counted": resolved_cash_count_total,
                 "cash_difference": cash_difference,
+                "cash_difference_reason": (difference_reason or "").strip() or None,
                 "receipt_number_min": min(receipt_numbers) if receipt_numbers else None,
                 "receipt_number_max": max(receipt_numbers) if receipt_numbers else None,
                 "voucher_created_count": gift_voucher_summary["created_count"],
@@ -506,7 +588,7 @@ class ZBonService:
                 "withdrawals": [
                     {
                         "receipt_number": entry.receipt_number,
-                        "created_at": entry.created_at.isoformat(),
+                        "created_at": _localize_dt(entry.created_at).isoformat(),
                         "amount": entry.amount_cents / 100,
                         "reason": entry.reason,
                         "performed_by": entry.user.username if entry.user else None,
@@ -516,7 +598,7 @@ class ZBonService:
                 ] + [
                     {
                         "receipt_number": None,
-                        "created_at": period_end.isoformat(),
+                        "created_at": _localize_dt(period_end).isoformat(),
                         "amount": entry.get("amount_cents", 0) / 100,
                         "reason": entry.get("reason"),
                         "performed_by": None,
@@ -531,7 +613,7 @@ class ZBonService:
             "product_groups": product_group_breakdown,
         }
 
-        payload["report_content"] = self._render_current_zbon_html(payload)
+        payload["report_content"] = self._render_current_zbon_html(payload, informational_only=True)
         return payload
 
     def create_zbon(
@@ -541,6 +623,7 @@ class ZBonService:
         cash_counted_by_name: str | None = None,
         include_cash_count: dict | None = None,
         cash_count_total: float | None = None,
+        difference_reason: str | None = None,
         pending_withdrawals: list[dict] | None = None,
     ) -> dict:
         payload = self.build_current_zbon_preview(
@@ -549,12 +632,13 @@ class ZBonService:
             cash_counted_by_name=cash_counted_by_name,
             include_cash_count=include_cash_count,
             cash_count_total=cash_count_total,
+            difference_reason=difference_reason,
             pending_withdrawals=pending_withdrawals,
         )
 
         summary = payload["summary"]
         report_data = json.dumps(payload, ensure_ascii=False)
-        report_content = self._render_current_zbon_html(payload)
+        report_content = self._render_current_zbon_html(payload, informational_only=False)
         history = ZBonHistory(
             sequence_number=payload["sequence_number"],
             business_date=datetime.fromisoformat(payload["business_date"]),
@@ -600,13 +684,14 @@ class ZBonService:
         payload["report_content"] = report_content
         return payload
 
-    def _render_current_zbon_html(self, payload: dict) -> str:
+    def _render_current_zbon_html(self, payload: dict, informational_only: bool = False) -> str:
         summary = payload["summary"]
         cash_count = payload.get("cash_count") or {}
         coins = cash_count.get("coins") or {}
         notes = cash_count.get("notes") or {}
         withdrawals = summary.get("withdrawals") or []
         product_groups_breakdown = (payload.get("breakdowns") or {}).get("product_groups") or {}
+        business_info, placeholder_used = self._resolve_report_business_info()
 
         template = Template(ZBON_HTML_TEMPLATE)
         return template.render(
@@ -661,6 +746,7 @@ class ZBonService:
             cash_calculated=f"{summary.get('cash_calculated', 0):.2f}",
             cash_counted=f"{summary.get('cash_counted', 0):.2f}" if summary.get("cash_counted") is not None else "-",
             cash_difference=f"{summary.get('cash_difference', 0):.2f}" if summary.get("cash_difference") is not None else None,
+            cash_difference_reason=summary.get("cash_difference_reason") or None,
             withdrawals=withdrawals,
             cash_count=bool(cash_count),
             coins={
@@ -684,8 +770,123 @@ class ZBonService:
             customer_groups={},
             customers={},
             stornos=[],
-            report_type_label="Z-BON",
+            report_type_label=("TAGESUPDATE" if informational_only else "KASSENBERICHT"),
+            business_name=business_info.get("name", ""),
+            business_street=business_info.get("street", ""),
+            business_zip=business_info.get("zip", ""),
+            business_city=business_info.get("city", ""),
+            business_phone=business_info.get("phone", ""),
+            business_email=business_info.get("email", ""),
+            business_tax_number=business_info.get("tax_number", ""),
+            business_registration_number=business_info.get("registration_number", ""),
+            business_data_placeholder_used=placeholder_used,
+            report_is_official=not informational_only,
         )
+
+    def generate_daily_html_update(self, target_date: date) -> dict:
+        transactions = self.db.query(Transaction).filter(func.date(Transaction.created_at) == target_date).all()
+        stats = self._calculate_stats(transactions)
+        meta = self._collect_meta(target_date, transactions)
+        product_group_breakdown = self._aggregate_by_warengruppe(transactions)
+        category_breakdown = self._aggregate_by_category(transactions)
+        customer_breakdown = self._aggregate_by_customer(transactions)
+        customer_group_breakdown = self._aggregate_by_customer_group(transactions)
+        storno_details = self._get_storno_details(transactions)
+        material_account_sales_count = self._count_internal_material_sales(transactions)
+
+        day_start = datetime.combine(target_date, datetime.min.time())
+        day_end = datetime.combine(target_date, datetime.max.time())
+        gift_voucher_summary = self._get_gift_voucher_summary(day_start, day_end)
+        prepaid_voucher_summary = self._get_prepaid_voucher_summary(day_start, day_end)
+
+        last_zbon = self.db.query(ZBonHistory).filter(
+            ZBonHistory.business_date < target_date
+        ).order_by(desc(ZBonHistory.sequence_number)).first()
+        seq_number = (last_zbon.sequence_number + 1) if last_zbon else 1
+
+        business_info, placeholder_used = self._resolve_report_business_info()
+        template = Template(ZBON_HTML_TEMPLATE)
+        html = template.render(
+            seq_number=seq_number,
+            business_date=meta.get("business_date"),
+            created_at=meta.get("report_generated_at"),
+            period_start=meta.get("first_tx_time") or "-",
+            period_end=meta.get("last_tx_time") or "-",
+            receipt_min=meta.get("receipt_min") or "-",
+            receipt_max=meta.get("receipt_max") or "-",
+            transaction_count_total=stats.get("total_transactions", 0),
+            created_by_name="-",
+            cash_counted_by_name="-",
+            cash_sales_count=stats.get("cash_sales_count", 0),
+            article_cash_sales_net=f"{stats.get('cash_sales_total', 0):.2f}",
+            cash_sales_tax="0.00",
+            article_cash_sales_gross=f"{stats.get('cash_sales_total', 0):.2f}",
+            balance_sales_count=stats.get("balance_sales_count", 0),
+            balance_sales_net=f"{stats.get('balance_sales_total', 0):.2f}",
+            balance_sales_tax="0.00",
+            balance_sales_gross=f"{stats.get('balance_sales_total', 0):.2f}",
+            voucher_sales_count=stats.get("gift_voucher_count", 0) + stats.get("prepaid_voucher_count", 0),
+            voucher_sales_total=f"{stats.get('voucher_total', 0):.2f}",
+            recharge_count=stats.get("recharge_count", 0),
+            recharge_total=f"{stats.get('recharge_total', 0):.2f}",
+            prepaid_voucher_sales_count=stats.get("prepaid_voucher_count", 0),
+            prepaid_voucher_sales_total=f"{stats.get('prepaid_voucher_total', 0):.2f}",
+            prepaid_voucher_redeemed_count=prepaid_voucher_summary.get("redeemed_count", 0),
+            prepaid_voucher_redeemed_total=f"{prepaid_voucher_summary.get('redeemed_total', 0):.2f}",
+            prepaid_voucher_open_count=prepaid_voucher_summary.get("open_count", 0),
+            prepaid_voucher_open_total=f"{prepaid_voucher_summary.get('open_total', 0):.2f}",
+            material_account_sales_count=material_account_sales_count,
+            member_balance_open_count=self._get_open_member_balance_count(),
+            balance_open_total=f"{self._get_open_member_balance_total():.2f}",
+            club_account_total=f"{self._get_club_account_total():.2f}",
+            total_items_count=stats.get("cash_sales_count", 0) + stats.get("balance_sales_count", 0),
+            article_sales_total=f"{(stats.get('cash_sales_total', 0) + stats.get('balance_sales_total', 0) + stats.get('voucher_total', 0)):.2f}",
+            total_revenue=f"{(stats.get('gross_revenue_cash', 0) + stats.get('gross_revenue_balance', 0)):.2f}",
+            voucher_created_count=gift_voucher_summary.get("created_count", 0),
+            voucher_created_total=f"{gift_voucher_summary.get('created_total', 0):.2f}",
+            voucher_redeemed_count=gift_voucher_summary.get("redeemed_count", 0),
+            voucher_redeemed_total=f"{gift_voucher_summary.get('redeemed_total', 0):.2f}",
+            voucher_open_count=gift_voucher_summary.get("open_count", 0),
+            voucher_open_total=f"{gift_voucher_summary.get('open_total', 0):.2f}",
+            storno_count=stats.get("storno_count", 0),
+            storno_total=f"{stats.get('storno_total', 0):.2f}",
+            tip_count=0,
+            tip_total="0.00",
+            cash_opening_balance="0.00",
+            article_cash_revenue=f"{stats.get('cash_sales_total', 0):.2f}",
+            cash_withdrawals_total="0.00",
+            cash_calculated=f"{stats.get('cash_sales_total', 0):.2f}",
+            cash_counted="-",
+            cash_difference=None,
+            withdrawals=[],
+            cash_count=False,
+            coins={},
+            notes={},
+            coins_total="0.00",
+            notes_total="0.00",
+            product_groups_breakdown=product_group_breakdown,
+            categories_breakdown=category_breakdown,
+            customer_groups=customer_group_breakdown,
+            customers=customer_breakdown,
+            stornos=storno_details,
+            report_type_label="TAGESUPDATE",
+            business_name=business_info.get("name", ""),
+            business_street=business_info.get("street", ""),
+            business_zip=business_info.get("zip", ""),
+            business_city=business_info.get("city", ""),
+            business_phone=business_info.get("phone", ""),
+            business_email=business_info.get("email", ""),
+            business_tax_number=business_info.get("tax_number", ""),
+            business_registration_number=business_info.get("registration_number", ""),
+            business_data_placeholder_used=placeholder_used,
+            report_is_official=False,
+        )
+
+        return {
+            "sequence_number": seq_number,
+            "html": html,
+            "business_date": target_date.isoformat(),
+        }
     
     def generate_zbon(
         self,
@@ -1042,8 +1243,9 @@ class ZBonService:
         
         Format based on actual Z-Bon example
         """
+        business_info = self.get_business_info()
         lines = []
-        lines.append("KGB Zentrale")
+        lines.append(business_info["name"] or "KGB Zentrale")
         
         # Get sequence number for header
         last_zbon = self.db.query(ZBonHistory).filter(
@@ -1261,14 +1463,24 @@ class ZBonService:
         lines.append("KGB - KICKERKASSE - TAGESBERICHTSPROTOKOLL")
         lines.append("=" * 70)
         lines.append("")
+        business_info = self.get_business_info()
         lines.append("Geschäftsadresse:")
-        lines.append("Krökel Gemeinschaft Badenstedt – Hannover e.V.")
-        lines.append("Davenstedter Str. 115")
-        lines.append("30453 Hannover")
-        lines.append("Vereinsregister: VR 203296")
-        lines.append("Registergericht: Amtsgericht Hannover")
-        lines.append("")
-        lines.append("Kontakt: info@kgbhannover.de")
+        lines.append(business_info["name"] or "Nicht konfiguriert")
+        if business_info["street"]:
+            lines.append(business_info["street"])
+        city_line = " ".join(part for part in [business_info["zip"], business_info["city"]] if part)
+        if city_line:
+            lines.append(city_line)
+        if business_info["registration_number"]:
+            lines.append(f"Vereinsregister: {business_info['registration_number']}")
+        if business_info["tax_number"]:
+            lines.append(f"Steuernummer: {business_info['tax_number']}")
+        if business_info["phone"] or business_info["email"]:
+            lines.append("")
+            lines.append(
+                "Kontakt: "
+                + " | ".join(part for part in [business_info["phone"], business_info["email"]] if part)
+            )
         lines.append("")
         lines.append("-" * 70)
         lines.append("")

@@ -20,16 +20,17 @@ from app.schemas import (
 from app.services import (
     DeckelService,
     EmailService,
+    HardwareAgentService,
     MaterialAccountService,
+    SchedulerService,
     TransactionService,
     VoucherService,
     ZBonService,
 )
+from app.services.app_settings_service import AppSettingsService
 from app.services.zbon_html_exporter import ZBonHTMLExporter
 from app.repositories import MemberRepository, ProductRepository, UserRepository
 from app.models import CashEntryType, PaymentMethod, Transaction, ZBonHistory, UserRole
-
-from app.services import SchedulerService
 
 logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/api/transactions", tags=["Transactions"])
@@ -49,7 +50,7 @@ class ZBonGenerateRequest(BaseModel):
 
 class ZBonEmailRequest(BaseModel):
     date: Optional[str] = None  # YYYY-MM-DD, defaults to today
-    recipient: Optional[str] = None  # defaults to EMAIL_RECIPIENT_ZBON
+    recipient: Optional[str] = None  # defaults to persisted recipient setting
     report_type: str = "full-zbon"  # "full-zbon", "short-zbon", or "daily-report"
     include_cash_count: bool = False
 
@@ -60,6 +61,7 @@ class ZBonCreateRequest(BaseModel):
     cash_counted_by_name: Optional[str] = None
     cash_count: Optional[CashCountRequest] = None
     cash_count_total: Optional[float] = None
+    difference_reason: Optional[str] = None
     pending_withdrawals: list["PendingWithdrawalRequest"] = Field(default_factory=list)
     auth_password: str
 
@@ -71,6 +73,13 @@ class ZBonPreviewRequest(BaseModel):
     cash_count: Optional[CashCountRequest] = None
     cash_count_total: Optional[float] = None
     pending_withdrawals: list["PendingWithdrawalRequest"] = Field(default_factory=list)
+
+
+class ZBonPreviewEmailRequest(BaseModel):
+    html_zbon: str
+    recipient: Optional[str] = None
+    report_date: Optional[str] = None  # YYYY-MM-DD
+    seq_number: Optional[int] = None
 
 
 class PendingWithdrawalRequest(BaseModel):
@@ -307,6 +316,11 @@ async def create_sale(
     # Final commit to ensure everything is persisted
     db.commit()
     db.refresh(transaction)
+
+    if transaction_data.trigger_cash_drawer:
+        drawer_opened, drawer_detail = HardwareAgentService.trigger_drawer_open()
+        if not drawer_opened:
+            logger.warning("Cash drawer trigger after sale failed: %s", drawer_detail)
     
     print(
         f"[API] Sale transaction created successfully: "
@@ -622,6 +636,69 @@ async def preview_current_zbon(
     )
 
 
+@router.post("/zbon/preview/send-email")
+@router.post("/zbon/preview/send-email/")
+async def send_zbon_preview_email(
+    email_req: ZBonPreviewEmailRequest,
+    request: Request,
+    db: Session = Depends(get_db),
+):
+    """Send the currently rendered Z-Bon preview HTML via email without creating a Z-Bon."""
+    _require_finance_access(request, db)
+
+    if not EmailService.is_enabled():
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail="Email service is not enabled",
+        )
+
+    html_zbon = (email_req.html_zbon or "").strip()
+    if not html_zbon:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Kein Vorschau-HTML übergeben",
+        )
+
+    recipient = email_req.recipient or AppSettingsService(db).get_email_settings().get("email_recipient_zbon")
+    if not recipient:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Kein Empfänger für den Kassenbericht konfiguriert",
+        )
+
+    target_date = date.today()
+    if email_req.report_date:
+        try:
+            target_date = datetime.strptime(email_req.report_date, "%Y-%m-%d").date()
+        except ValueError as exc:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Ungültiges Datumsformat. Verwende YYYY-MM-DD",
+            ) from exc
+
+    success = EmailService.send_zbon_html_email(
+        recipient=recipient,
+        html_zbon=html_zbon,
+        date=target_date.isoformat(),
+        seq_number=email_req.seq_number,
+        include_pdf=None,
+        informational_only=True,
+    )
+
+    if not success:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Fehler beim Versand der Vorschau per E-Mail",
+        )
+
+    return {
+        "status": "success",
+        "message": f"Vorschau per E-Mail an {recipient} gesendet",
+        "recipient": recipient,
+        "report_date": target_date.isoformat(),
+    }
+
+
 @router.post("/zbon/create")
 @router.post("/zbon/create/")
 async def create_zbon(
@@ -671,8 +748,26 @@ async def create_zbon(
         cash_counted_by_name=zbon_req.cash_counted_by_name,
         include_cash_count=cash_count,
         cash_count_total=zbon_req.cash_count_total,
+        difference_reason=zbon_req.difference_reason,
         pending_withdrawals=None,
     )
+
+    email_settings = AppSettingsService(db).get_email_settings()
+    recipient = (email_settings.get("email_recipient_zbon") or "").strip()
+    if (
+        email_settings.get("email_enabled")
+        and email_settings.get("send_zbon_on_create_enabled")
+        and recipient
+    ):
+        sent = EmailService.send_zbon_html_email(
+            recipient=recipient,
+            html_zbon=payload.get("report_content") or "",
+            date=payload.get("business_date") or date.today().isoformat(),
+            seq_number=payload.get("sequence_number"),
+            informational_only=False,
+        )
+        if not sent:
+            logger.warning("Auto-send after Z-Bon creation failed for sequence=%s", payload.get("sequence_number"))
 
     return payload
 
@@ -684,12 +779,10 @@ async def send_zbon_email(
     request: Request,
     db: Session = Depends(get_db),
 ):
-    """Send Z-Bon via email"""
+    """Send daily update via the unified full HTML report."""
     _require_finance_access(request, db)
     
     try:
-        from app.core.config import settings
-        
         if not EmailService.is_enabled():
             raise HTTPException(
                 status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
@@ -702,21 +795,22 @@ async def send_zbon_email(
         else:
             target_date = date.today()
         
-        recipient = email_req.recipient or settings.EMAIL_RECIPIENT_ZBON
+        recipient = email_req.recipient or AppSettingsService(db).get_email_settings().get("email_recipient_zbon")
+        if not recipient:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Kein Empfänger für den Kassenbericht konfiguriert",
+            )
         
-        # Generate Z-Bon first
         zbon_service = ZBonService(db)
-        zbon_result = zbon_service.generate_zbon(
-            target_date=target_date,
-            include_cash_count=None,
-            report_type=email_req.report_type,
-        )
-        
-        # Send email
-        success = EmailService.send_zbon_email(
+        zbon_result = zbon_service.generate_daily_html_update(target_date)
+
+        success = EmailService.send_zbon_html_email(
             recipient=recipient,
-            zbon_content=zbon_result["content"],
+            html_zbon=zbon_result["html"],
             date=target_date.isoformat(),
+            seq_number=zbon_result.get("sequence_number"),
+            informational_only=True,
         )
         
         if not success:
@@ -724,9 +818,9 @@ async def send_zbon_email(
         
         return {
             "status": "success",
-            "message": f"Kassenbericht sent to {recipient}",
+            "message": f"Tagesupdate gesendet an {recipient}",
             "date": target_date.isoformat(),
-            "type": email_req.report_type,
+            "type": "full-html",
         }
     except HTTPException:
         raise
@@ -797,7 +891,8 @@ async def get_zbon_html(
             receipt_max = 0
         
         logger.info(f"Z-Bon stats: cash={stats.get('cash_sales_total', 0)}, balance={stats.get('balance_sales_total', 0)}")
-        
+        business_info = zbon_service.get_business_info()
+
         # Render HTML
         html = ZBonHTMLExporter.render_html(
             seq_number=seq_number,
@@ -831,6 +926,7 @@ async def get_zbon_html(
             customers=customer_breakdown or {},
             stornos=storno_details or [],
             material_account_sales_count=material_account_sales_count,
+            business_info=business_info,
         )
         
         logger.info(f"Z-Bon HTML generated successfully ({len(html)} bytes)")
@@ -904,7 +1000,8 @@ async def get_zbon_pdf(
             receipt_max = 0
         
         logger.info(f"Z-Bon stats: cash={stats.get('cash_sales_total', 0)}, balance={stats.get('balance_sales_total', 0)}")
-        
+        business_info = zbon_service.get_business_info()
+
         # Render HTML
         html = ZBonHTMLExporter.render_html(
             seq_number=seq_number,
@@ -938,6 +1035,7 @@ async def get_zbon_pdf(
             customers=customer_breakdown or {},
             stornos=storno_details or [],
             material_account_sales_count=material_account_sales_count,
+            business_info=business_info,
         )
         
         logger.info(f"Z-Bon HTML generated successfully ({len(html)} bytes) for PDF export")
@@ -1011,62 +1109,10 @@ async def send_zbon_email(
         else:
             target_date = date.today()
         
-        # Generate Z-Bon data
         zbon_service = ZBonService(db)
-        transactions = db.query(Transaction).filter(
-            func.date(Transaction.created_at) == target_date
-        ).all()
-        
-        stats = zbon_service._calculate_stats(transactions)
-        meta = zbon_service._collect_meta(target_date, transactions)
-        product_breakdown = zbon_service._aggregate_by_product(transactions)
-        product_group_breakdown = zbon_service._aggregate_by_warengruppe(transactions)
-        category_breakdown = zbon_service._aggregate_by_category(transactions)
-        customer_breakdown = zbon_service._aggregate_by_customer(transactions)
-        customer_group_breakdown = zbon_service._aggregate_by_customer_group(transactions)
-        storno_details = zbon_service._get_storno_details(transactions)
-        material_account_sales_count = zbon_service._count_internal_material_sales(transactions)
-        
-        # Get last Z-Bon number
-        last_zbon = db.query(ZBonHistory).filter(
-            ZBonHistory.business_date < target_date
-        ).order_by(desc(ZBonHistory.sequence_number)).first()
-        seq_number = (last_zbon.sequence_number + 1) if last_zbon else 1
-        
-        # Render HTML
-        html = ZBonHTMLExporter.render_html(
-            seq_number=seq_number,
-            business_date=meta['business_date'],
-            created_at=meta['report_generated_at'],
-            period_start=meta['first_tx_time'],
-            period_end=meta['last_tx_time'],
-            receipt_min=meta['receipt_min'],
-            receipt_max=meta['receipt_max'],
-            cash_sales_count=stats['cash_sales_count'],
-            cash_sales_net=stats['cash_sales_total'],
-            cash_sales_tax=0.0,
-            cash_sales_gross=stats['cash_sales_total'],
-            balance_sales_count=stats['balance_sales_count'],
-            balance_sales_net=stats['balance_sales_total'],
-            balance_sales_tax=0.0,
-            balance_sales_gross=stats['balance_sales_total'],
-            recharge_count=stats['recharge_count'],
-            recharge_total=stats['recharge_total'],
-            total_items_count=stats['cash_sales_count'] + stats['balance_sales_count'],
-            total_net=stats['cash_sales_total'] + stats['balance_sales_total'],
-            total_tax=0.0,
-            total_gross=stats['cash_sales_total'] + stats['balance_sales_total'] + stats['recharge_total'],
-            cash_revenue=stats['cash_sales_total'] + stats['recharge_total'],
-            guthaben_net=stats['balance_sales_total'],
-            guthaben_gross=stats['balance_sales_total'],
-            total_revenue=stats['gross_revenue_cash'] + stats['gross_revenue_balance'],
-            product_groups_breakdown=product_group_breakdown,
-            categories_breakdown=category_breakdown,
-            customer_groups=customer_group_breakdown,
-            customers=customer_breakdown,
-            stornos=storno_details,
-            material_account_sales_count=material_account_sales_count,
-        )
+        update_payload = zbon_service.generate_daily_html_update(target_date)
+        html = update_payload["html"]
+        seq_number = update_payload.get("sequence_number")
         
         # Optional: Generate PDF if requested
         pdf_bytes = None
@@ -1086,6 +1132,7 @@ async def send_zbon_email(
             date=target_date.strftime("%Y-%m-%d"),
             seq_number=seq_number,
             include_pdf=pdf_bytes,
+            informational_only=True,
         )
         
         if success:

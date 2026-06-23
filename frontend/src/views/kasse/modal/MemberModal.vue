@@ -245,16 +245,17 @@ const sortedMembers = computed(() =>
   width: 100%;
   height: 85%;
   flex-shrink: 0;
-  background: #eef1f7;
+  background: transparent; /* Geändert: Von #eef1f7 auf transparent (oder #fff) */
   display: flex;
   align-items: center;
   justify-content: center;
   overflow: hidden;
   position: relative;
+
   img {
     width: 100%;
     height: 100%;
-    object-fit: cover;
+    object-fit: contain; /* Geändert: Von 'cover' auf 'contain' */
   }
 }
 .member-card-img-placeholder { font-size: 1.8rem; }

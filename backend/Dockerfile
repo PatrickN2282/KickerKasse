@@ -16,6 +16,7 @@ WORKDIR /app
 # Install minimal system dependencies (avoid complex WeasyPrint deps in slim image)
 RUN apt-get update && apt-get install -y --no-install-recommends \
     postgresql-client \
+    tzdata \
     && rm -rf /var/lib/apt/lists/*
 
 # Upgrade pip for better wheel compilation
@@ -28,6 +29,9 @@ RUN pip install --no-cache-dir -r requirements.txt || true
 # Copy backend code
 COPY backend/app app/
 COPY backend/main.py .
+
+# Copy installer/service files for hardware agent download endpoint
+COPY backend/services services/
 
 # Create frontend directory for copying dist
 RUN mkdir -p /app/app/frontend

@@ -92,6 +92,13 @@
                     </button>
                   </div>
                 </template>
+
+                <p
+                  v-if="isGif"
+                  class="gif-hint"
+                >
+                  Animierte GIFs bleiben erhalten und werden deshalb aktuell nicht im Editor zugeschnitten oder skaliert.
+                </p>
               </template>
 
               <template v-else>
@@ -141,40 +148,68 @@
           </div>
 
           <div class="options-form-grid">
-            <div class="checkbox-group-wrapper">
-              <label class="checkbox-card compact-cb">
+            <div class="toggle-row">
+              <label class="toggle-switch">
                 <input id="unlimited-stock" v-model="formData.isUnlimitedStock" type="checkbox" @change="$emit('unlimited-stock-change')">
-                <div class="checkbox-content">
+                <span class="toggle-track"><span class="toggle-thumb"></span></span>
+                <span class="toggle-label">
                   <span class="label">Unendlich verfügbar</span>
                   <span class="desc">Für immaterielle Artikel (z.B. Eintritte oder Umlagen)</span>
-                </div>
+                </span>
               </label>
 
-              <label class="checkbox-card compact-cb">
+              <label class="toggle-switch">
                 <input id="variable-price" v-model="formData.isVariablePrice" type="checkbox">
-                <div class="checkbox-content">
+                <span class="toggle-track"><span class="toggle-thumb"></span></span>
+                <span class="toggle-label">
                   <span class="label">Variabler Endpreis</span>
                   <span class="desc">Der Preis wird erst beim Bonieren abgefragt</span>
-                </div>
+                </span>
               </label>
             </div>
 
             <div class="summary-card compact-summary">
-              <div class="summary-text-layout">
+              <!-- Zeile 1: Lagerbestand + Menge + Korrekturen-Button -->
+              <div class="stock-row">
                 <span class="label">Lagerbestand</span>
                 <span class="value">{{ formData.isUnlimitedStock ? '∞' : formData.stock }}</span>
+                <button
+                  v-if="editingId && showCorrectionsShortcut"
+                  type="button"
+                  class="corrections-jump-btn"
+                  title="Bestandskorrekturen erfolgen über das Finanzen-Modul"
+                  aria-label="Zu Finanzen → Korrekturen wechseln"
+                  @click="$emit('go-to-corrections')"
+                >
+                  ↗ Korrekturen
+                </button>
               </div>
-              <span class="desc">Bestandskorrekturen erfolgen über das Finanzen-Modul.</span>
-              <button
-                v-if="editingId && showCorrectionsShortcut"
-                type="button"
-                class="corrections-jump-btn"
-                title="Zu Finanzen → Korrekturen wechseln"
-                aria-label="Zu Finanzen → Korrekturen wechseln"
-                @click="$emit('go-to-corrections')"
-              >
-                ↗ Korrekturen
-              </button>
+              <!-- Zeile 2: Mindestbestand + E-Mail-Toggle -->
+              <div class="stock-row">
+                <div class="form-group minimum-stock-group">
+                  <label for="minimum-stock">Mindestbestand</label>
+                  <input
+                    id="minimum-stock"
+                    v-model.number="formData.minimumStock"
+                    type="number"
+                    min="0"
+                    step="1"
+                    :disabled="formData.isUnlimitedStock"
+                  >
+                </div>
+                <label class="toggle-switch toggle-switch--inner">
+                  <input
+                    id="notify-on-low-stock"
+                    v-model="formData.notifyOnLowStock"
+                    type="checkbox"
+                    :disabled="formData.isUnlimitedStock"
+                  >
+                  <span class="toggle-track"><span class="toggle-thumb"></span></span>
+                  <span class="toggle-label">
+                    <span class="label">E-Mail bei Unterschreitung</span>
+                  </span>
+                </label>
+              </div>
             </div>
           </div>
         </div>
@@ -413,6 +448,13 @@ defineEmits(['close', 'save', 'open-crop', 'image-upload', 'unlimited-stock-chan
   color: #92400e;
 }
 
+.gif-hint {
+  margin: 0.45rem 0 0;
+  font-size: 0.73rem;
+  line-height: 1.35;
+  color: #92400e;
+}
+
 .fields-section {
   display: flex;
   flex-direction: column;
@@ -456,47 +498,74 @@ defineEmits(['close', 'save', 'open-crop', 'image-upload', 'unlimited-stock-chan
 }
 
 .options-form-grid {
-  display: grid;
-  grid-template-columns: 1fr 200px;
-  gap: 1rem;
-  border-top: 1px dashed var(--border);
-  padding-top: 1.25rem;
-}
-
-.checkbox-group-wrapper {
   display: flex;
   flex-direction: column;
-  gap: 0.65rem;
+  gap: 0.85rem;
+  border-top: 1px dashed var(--border);
+  padding-top: 1.1rem;
 }
 
-.compact-cb {
-  padding: 0.65rem 0.85rem;
-  background: #f8fafc;
+.toggle-row {
   display: flex;
-  gap: 0.6rem;
-  border-radius: 8px;
-  border: 1px solid var(--border);
-  cursor: pointer;
-  align-items: flex-start;
-  transition: background-color 0.15s ease, border-color 0.15s ease;
+  gap: 1.25rem;
+  flex-wrap: wrap;
+}
 
-  &:hover {
-    background: #f1f5f9;
-    border-color: #cbd5e1;
-  }
+.toggle-switch {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  cursor: pointer;
+  user-select: none;
+  flex: 1;
+  min-width: 180px;
 
   input {
-    margin-top: 0.2rem;
+    position: absolute;
+    opacity: 0;
+    width: 0;
+    height: 0;
   }
 
-  .checkbox-content {
+  .toggle-track {
+    flex-shrink: 0;
+    width: 36px;
+    height: 20px;
+    border-radius: 999px;
+    background: #cbd5e1;
+    position: relative;
+    transition: background 0.18s ease;
+
+    .toggle-thumb {
+      position: absolute;
+      top: 3px;
+      left: 3px;
+      width: 14px;
+      height: 14px;
+      border-radius: 50%;
+      background: #fff;
+      box-shadow: 0 1px 3px rgba(0,0,0,0.2);
+      transition: transform 0.18s ease;
+    }
+  }
+
+  input:checked ~ .toggle-track {
+    background: #10b981;
+    .toggle-thumb { transform: translateX(16px); }
+  }
+
+  input:disabled ~ .toggle-track {
+    opacity: 0.45;
+    cursor: not-allowed;
+  }
+
+  .toggle-label {
     .label {
       display: block;
       font-size: 0.85rem;
       font-weight: 600;
       color: #1e293b;
     }
-
     .desc {
       display: block;
       font-size: 0.72rem;
@@ -507,45 +576,63 @@ defineEmits(['close', 'save', 'open-crop', 'image-upload', 'unlimited-stock-chan
   }
 }
 
+.toggle-switch--inner {
+  margin-bottom: 0.35rem;
+  flex: none;
+}
+
 .compact-summary {
   background: #ecfdf5;
   border: 1px solid #a7f3d0;
-  padding: 0.75rem 1rem;
   border-radius: 8px;
-  display: flex;
-  flex-direction: column;
-  justify-content: center;
+  padding: 0.65rem 0.85rem;
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0.5rem 1.25rem;
 
-  .summary-text-layout {
+  .stock-row {
     display: flex;
-    justify-content: space-between;
-    align-items: baseline;
+    align-items: center;
+    gap: 0.6rem;
   }
 
   .label {
-    font-size: 0.7rem;
+    font-size: 0.75rem;
     text-transform: uppercase;
     color: #065f46;
-    font-weight: 700;
+    font-weight: 600;
     letter-spacing: 0.02em;
+    white-space: nowrap;
   }
 
   .value {
-    font-size: 1.3rem;
-    font-weight: 800;
+    font-size: 0.95rem;
+    font-weight: 700;
     color: #047857;
     margin: 0;
     line-height: 1;
   }
+}
 
-  .desc {
-    font-size: 0.7rem;
+.minimum-stock-group {
+  margin: 0;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+
+  label {
+    font-size: 0.75rem;
     color: #065f46;
-    margin-top: 0.35rem;
-    line-height: 1.2;
-    opacity: 0.85;
+    font-weight: 600;
+    white-space: nowrap;
+    margin: 0;
+  }
+
+  input {
+    width: 70px;
   }
 }
+
 
 .corrections-jump-btn {
   margin-top: 0.5rem;
@@ -618,7 +705,7 @@ defineEmits(['close', 'save', 'open-crop', 'image-upload', 'unlimited-stock-chan
   box-shadow: 0 1px 4px rgba(0, 0, 0, 0.07);
 
   .card-img {
-    height: 62px;
+    height: 80px;
     overflow: hidden;
     background: #eef1f7;
     position: relative;
@@ -730,8 +817,12 @@ defineEmits(['close', 'save', 'open-crop', 'image-upload', 'unlimited-stock-chan
   }
 
   .options-form-grid {
-    grid-template-columns: 1fr;
-    gap: 1rem;
+    gap: 0.75rem;
+  }
+
+  .toggle-row {
+    flex-direction: column;
+    gap: 0.65rem;
   }
 
   .modal-footer {

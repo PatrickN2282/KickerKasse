@@ -389,44 +389,6 @@
           </div>
         </div>
 
-        <!-- Scheduler Info -->
-        <section class="scheduler-section zbon-section">
-          <h4>⏱️ Automatischer Email-Versand</h4>
-          <div class="scheduler-status">
-            <div class="status-item">
-              <span>Status:</span>
-              <span
-                v-if="schedulerStatus.running"
-                class="status-badge running"
-              >
-                ● Läuft
-              </span>
-              <span
-                v-else
-                class="status-badge stopped"
-              >
-                ● Gestoppt
-              </span>
-            </div>
-            <div
-              v-if="schedulerStatus.next_run"
-              class="status-item"
-            >
-              <span>Nächster Versand:</span>
-              <span class="next-run">{{ formatTime(schedulerStatus.next_run) }}</span>
-            </div>
-          </div>
-          <p class="scheduler-info">
-            Der automatische Kassenbericht-Versand muss in der .env-Datei konfiguriert werden:
-          </p>
-          <ul class="config-list">
-            <li><code>SCHEDULED_ZBON_ENABLED=true</code></li>
-            <li><code>SCHEDULED_ZBON_TIME=23:59</code> (HH:MM Format)</li>
-            <li><code>SCHEDULED_ZBON_REPORT_TYPE=zbon</code> (oder "daily-report")</li>
-            <li><code>EMAIL_ENABLED=true</code></li>
-            <li>SMTP-Einstellungen konfigurieren</li>
-          </ul>
-        </section>
       </div>
     </div>
 
@@ -1306,6 +1268,7 @@
     ════════════════════════════════════════════════════════════ -->
     <ZbonCreateModal
       :show="showZbonCreateModal"
+      :auto-email-on-create="autoEmailOnCreate"
       :created-by-user-name="getSelectedUserName(zbonForm.createdByUserId, '')"
       :verified-by-member-name="getSelectedVerifierName(zbonForm.verifiedByUserId, '')"
       :opening-balance-display="formatEuroValue(dailyStats.opening_balance)"
@@ -1313,6 +1276,8 @@
       :withdrawal-total-display="formatPrice(zbonModalWithdrawalTotalCents)"
       :cash-calculated-display="zbonModalCashCalculatedDisplay"
       :counted-cash="zbonCountedCash"
+      :show-difference-reason="hasZbonDifference"
+      :difference-reason="zbonDifferenceReason"
       :new-withdrawals-display="formatPrice(newWithdrawalsCents)"
       :new-cash-balance-display="zbonNewCashBalanceDisplay"
       :difference-display="zbonDifferenceDisplay"
@@ -1323,6 +1288,7 @@
       @open-member-picker="openMemberPicker"
       @clear-verifier="zbonForm.verifiedByUserId = null"
       @update:counted-cash="zbonCountedCash = $event"
+      @update:difference-reason="zbonDifferenceReason = $event"
       @open-cash-counter="openCashCounterModal"
       @open-withdrawal="openWithdrawalModal"
       @request-create="requestZBonCreate"
@@ -1371,8 +1337,10 @@
       :show="showZbonPreviewModal"
       :z-bon-html="zBonHtml"
       :title="zbonHtmlModalTitle"
+      :can-send-email="true"
       @close="showZbonPreviewModal = false"
       @download="downloadCurrentZbonHtml"
+      @send-email="sendPreviewHtmlByEmail"
     />
 
     <!-- Password Confirm Modal (bleibt unverändert) -->
@@ -1399,6 +1367,7 @@ import { useNotificationStore } from '@/stores/notification'
 import { useMemberStore } from '@/stores/member'
 import { getMemberFullName, getMemberSearchText, getMemberShortName } from '@/services/member'
 import { useAuthStore } from '@/stores/auth'
+import { useAppSettingsStore } from '@/stores/appSettings'
 import Corrections from '@/views/admin/Corrections.vue'
 import ZbonCreateModal from '@/views/admin/modal/ZbonCreateModal.vue'
 import WithdrawalModal from '@/views/admin/modal/WithdrawalModal.vue'
@@ -1408,6 +1377,7 @@ import ZbonPreviewModal from '@/views/admin/modal/ZbonPreviewModal.vue'
 const notificationStore = useNotificationStore()
 const memberStore = useMemberStore()
 const authStore = useAuthStore()
+const appSettingsStore = useAppSettingsStore()
 const route = useRoute()
 const router = useRouter()
 const financeHeader = ref(null)
@@ -1438,6 +1408,7 @@ const memberSearch = ref('')
 const financeUsers = ref([])
 const zbonHtmlModalTitle = ref('📋 Kassenbericht-Vorschau')
 const zbonHtmlDownloadMeta = ref(null)
+const isSendingPreviewEmail = ref(false)
 const clubAccount = ref({ balance_cents: 0, entries: [] })
 const materialAccount = ref({ total_quantity: 0, entries: [] })
 const zbonForm = ref({
@@ -1445,6 +1416,7 @@ const zbonForm = ref({
   verifiedByUserId: null,
 })
 const zbonCountedCash = ref('')
+const zbonDifferenceReason = ref('')
 const withdrawalForm = ref({
   amount: '',
   userId: null,
@@ -1539,6 +1511,8 @@ const tabLabels = {
   internalAccounts: '🏦 Interne Konten',
   corrections: '🧾 Korrekturen',
 }
+
+const autoEmailOnCreate = computed(() => !!appSettingsStore.settings.send_zbon_on_create_enabled)
 
 // Scheduler configuration
 const schedulerStatus = ref({
@@ -1650,6 +1624,11 @@ const zbonDifferenceValue = computed(() => {
   return zbonFinalCashValue.value - zbonModalCashCalculatedValue.value
 })
 
+const hasZbonDifference = computed(() => (
+  zbonDifferenceValue.value !== null
+  && Math.abs(zbonDifferenceValue.value) >= 0.01
+))
+
 const zbonDifferenceDisplay = computed(() => {
   return zbonDifferenceValue.value === null ? '-' : formatEuroValue(zbonDifferenceValue.value)
 })
@@ -1662,6 +1641,7 @@ const canCreateZbon = computed(() => (
   !!zbonForm.value.createdByUserId
   && !!zbonForm.value.verifiedByUserId
   && zbonFinalCashValue.value !== null
+  && (!hasZbonDifference.value || !!zbonDifferenceReason.value.trim())
 ))
 
 const isUserPickerTarget = computed(() => ['createdByUserId', 'withdrawalUserId'].includes(memberPickerTarget.value))
@@ -1860,7 +1840,7 @@ const loadDailyStats = async () => {
       receipt_max: preview.summary?.receipt_number_max,
       report_content: preview.report_content || '',
       transactions: [...(preview.transactions || [])].sort((left, right) => {
-        const dateDiff = right.created_at.localeCompare(left.created_at)
+        const dateDiff = new Date(right.created_at) - new Date(left.created_at)
         if (dateDiff !== 0) return dateDiff
 
         const rightSortKey = getSortableTransactionId(right)
@@ -2198,6 +2178,7 @@ const openZbonCreateModal = async () => {
   pendingWithdrawals.value = []
   await loadDailyStats()
   zbonCountedCash.value = ''
+  zbonDifferenceReason.value = ''
   zbonHtmlDownloadMeta.value = {
     period_end: dailyStats.value.period_end,
   }
@@ -2312,6 +2293,11 @@ const createZBon = async (password) => {
     return
   }
 
+  if (hasZbonDifference.value && !zbonDifferenceReason.value.trim()) {
+    notificationStore.error('Bitte einen Grund fuer die Differenz angeben')
+    return
+  }
+
   try {
     loading.value = true
     await apiService.post('/transactions/zbon/create', {
@@ -2319,6 +2305,7 @@ const createZBon = async (password) => {
       cash_counted_by_name: checkerName,
       auth_password: password,
       cash_count_total: zbonFinalCashValue.value,
+      difference_reason: hasZbonDifference.value ? zbonDifferenceReason.value.trim() : null,
       pending_withdrawals: pendingWithdrawals.value,
     })
     notificationStore.success('Kassenbericht erfolgreich erstellt')
@@ -2330,6 +2317,7 @@ const createZBon = async (password) => {
     pendingWithdrawals.value = []
     cashCountData.value = null
     zbonCountedCash.value = ''
+    zbonDifferenceReason.value = ''
     await loadDailyStats()
     if (activeTab.value === 'zbons') {
       await loadZbonsHistory()
@@ -2412,6 +2400,38 @@ const triggerHtmlDownload = (html, filename) => {
 
 const downloadCurrentZbonHtml = async () => {
   await handleDownloadZBon()
+}
+
+const resolvePreviewReportDate = () => {
+  const explicitDate = zbonHtmlDownloadMeta.value?.business_date || zbonHtmlDownloadMeta.value?.period_end
+  return formatDateForFilename(explicitDate)
+}
+
+const sendPreviewHtmlByEmail = async () => {
+  if (isSendingPreviewEmail.value) {
+    return
+  }
+
+  if (!zBonHtml.value) {
+    notificationStore.error('Keine Vorschau zum Versenden verfügbar')
+    return
+  }
+
+  try {
+    isSendingPreviewEmail.value = true
+    const response = await apiService.post('/transactions/zbon/preview/send-email', {
+      html_zbon: zBonHtml.value,
+      report_date: resolvePreviewReportDate(),
+      seq_number: zbonHtmlDownloadMeta.value?.sequence_number || null,
+      recipient: null,
+    })
+    notificationStore.success(response.data?.message || 'Vorschau per E-Mail gesendet')
+  } catch (error) {
+    console.error('Error sending preview HTML by email:', error)
+    notificationStore.error(error.response?.data?.detail || 'Fehler beim E-Mail-Versand der Vorschau')
+  } finally {
+    isSendingPreviewEmail.value = false
+  }
 }
 
 const openZbonHistoryModal = async (zbon) => {

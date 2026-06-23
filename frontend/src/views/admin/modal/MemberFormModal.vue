@@ -75,6 +75,13 @@
                 </div>
               </template>
 
+              <p
+                v-if="photoPreview && isGif"
+                class="gif-hint"
+              >
+                Animierte GIFs bleiben erhalten und werden deshalb aktuell nicht im Editor zugeschnitten oder skaliert.
+              </p>
+
               <label class="checkbox-card compact-cb">
                 <input v-model="formData.has_discount" type="checkbox">
                 <div class="checkbox-content">
@@ -133,16 +140,17 @@
 
             <div v-if="formData.role" class="password-box">
               <div class="form-group">
-                <label>{{ hasExistingUserAccount ? 'Passwort überschreiben' : 'Initial-Passwort festlegen*' }}</label>
+                <label>{{ hasExistingUserAccount ? 'Passwort überschreiben' : 'Initial-Passwort festlegen *' }}</label>
                 <input
                   v-model="formData.account_password"
                   type="password"
-                  :required="!hasExistingUserAccount"
+                  :required="!hasExistingUserAccount && !formData.account_password"
                   minlength="8"
+                  :placeholder="hasExistingUserAccount ? 'Leer lassen = Passwort unverändert' : 'Mind. 8 Zeichen'"
                 >
               </div>
-              <p class="help-text">
-                {{ hasExistingUserAccount ? 'Nur ausfüllen, wenn das Passwort neu gesetzt werden soll.' : 'Erforderlich für den ersten System-Login.' }}
+              <p class="help-text" :style="!hasExistingUserAccount ? 'color: #e94560; font-weight: 600;' : ''">
+                {{ hasExistingUserAccount ? 'Nur ausfüllen, wenn das Passwort neu gesetzt werden soll.' : '⚠ Pflichtfeld: Erforderlich für den ersten System-Login (mind. 8 Zeichen).' }}
               </p>
             </div>
           </div>
@@ -390,6 +398,13 @@ defineEmits(['close', 'save', 'open-photo-editor', 'photo-upload', 'open-recharg
   padding: 2px 5px;
   border-radius: 3px;
   background: #fef3c7;
+  color: #92400e;
+}
+
+.gif-hint {
+  margin: 0;
+  font-size: 0.73rem;
+  line-height: 1.35;
   color: #92400e;
 }
 

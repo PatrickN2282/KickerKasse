@@ -347,8 +347,9 @@ async def correct_member_balance(
         member = service.correct_balance(
             member_id,
             correction_request.new_balance_cents,
-            current_user.username,
-            correction_request.reason,
+            executed_by_user_id=current_user.id,
+            executed_by_username=current_user.username,
+            reason=correction_request.reason,
         )
         if not member:
             raise HTTPException(

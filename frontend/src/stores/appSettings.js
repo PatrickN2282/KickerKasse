@@ -4,7 +4,7 @@ import apiService from '@/services/api'
 import { getContrastColor } from '@/services/utils'
 
 const fallbackSettings = {
-  app_name: 'KGB - KickerKasse',
+  app_name: 'KGB - KickerKasse Test',
   background_color: '#D7DCE2',
   banner_color: '#131820',
   highlight_color: '#5C8F3A',
@@ -27,6 +27,28 @@ const fallbackSettings = {
   session_timer_enabled: false,
   session_timer_minutes: 15,
   deckel_enabled: true,
+  business_name: '',
+  business_street: '',
+  business_zip: '',
+  business_city: '',
+  business_phone: '',
+  business_email: '',
+  business_tax_number: '',
+  business_registration_number: '',
+  email_enabled: false,
+  email_sender: 'noreply@kassensystem.local',
+  email_recipient_zbon: '',
+  email_subject_suffix: '',
+  email_critical_stock_enabled: false,
+  smtp_host: '',
+  smtp_port: 587,
+  smtp_username: '',
+  smtp_password: '',
+  smtp_use_tls: true,
+  send_zbon_on_create_enabled: false,
+  scheduled_zbon_enabled: false,
+  scheduled_zbon_time: '23:59',
+  scheduled_zbon_report_type: 'full-zbon',
 }
 
 const setLinkTag = (id, rel, href, type = null, attributes = {}) => {
@@ -122,25 +144,10 @@ export const useAppSettingsStore = defineStore('app-settings', () => {
     return mergeAndApply(response.data)
   }
 
-  const buildAdminPayload = (payload = {}) => ({
-    app_name: payload.app_name ?? settings.value.app_name,
-    background_color: payload.background_color ?? settings.value.background_color,
-    banner_color: payload.banner_color ?? settings.value.banner_color,
-    highlight_color: payload.highlight_color ?? settings.value.highlight_color,
-    kasse_area_background_color: payload.kasse_area_background_color ?? settings.value.kasse_area_background_color,
-    kasse_layout: payload.kasse_layout ?? settings.value.kasse_layout,
-    session_timer_enabled: payload.session_timer_enabled ?? settings.value.session_timer_enabled,
-    session_timer_minutes: payload.session_timer_minutes ?? settings.value.session_timer_minutes,
-    deckel_enabled: payload.deckel_enabled ?? settings.value.deckel_enabled,
-    kasse_products_background_scale: payload.kasse_products_background_scale ?? settings.value.kasse_products_background_scale,
-    kasse_products_background_opacity: payload.kasse_products_background_opacity ?? settings.value.kasse_products_background_opacity,
-    kasse_products_background_enabled: payload.kasse_products_background_enabled ?? settings.value.kasse_products_background_enabled,
-  })
-
   const saveAdminSettings = async (payload) => {
     isSaving.value = true
     try {
-      const response = await apiService.put('/app-settings', buildAdminPayload(payload))
+      const response = await apiService.put('/app-settings', payload)
       return mergeAndApply(response.data)
     } finally {
       isSaving.value = false
@@ -162,7 +169,6 @@ export const useAppSettingsStore = defineStore('app-settings', () => {
       isSaving.value = false
     }
   }
-
 
   const uploadKasseProductsBackground = async (file) => {
     isSaving.value = true

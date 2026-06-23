@@ -12,6 +12,8 @@ from .material_account_service import MaterialAccountService
 from .deckel_service import DeckelService
 from .import_export_service import ImportExportService
 from .audit_log_service import AuditLogService
+from .hardware_agent_service import HardwareAgentService
+from .database_backup_service import DatabaseBackupService
 
 from .scheduler_service import SchedulerService
 __all__ = [
@@ -29,5 +31,7 @@ __all__ = [
     "DeckelService",
     "ImportExportService",
     "AuditLogService",
+    "HardwareAgentService",
+    "DatabaseBackupService",
     "SchedulerService",
 ]

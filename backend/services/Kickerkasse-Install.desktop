@@ -1,0 +1,8 @@
+[Desktop Entry]
+Name=Kickerkasse Setup
+Comment=Installiert den Kickerkasse Hardware Connector
+Exec=bash -c 'cd "$(dirname "%k")" && env DISPLAY=:0 XAUTHORITY=$XAUTHORITY python3 setup_wizard.py'
+Icon=applications-system
+Type=Application
+Terminal=false
+Categories=System;Settings;

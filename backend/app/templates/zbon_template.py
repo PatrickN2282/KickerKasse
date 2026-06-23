@@ -310,13 +310,17 @@ ZBON_HTML_TEMPLATE = """
     <div class="container">
         <!-- Header -->
         <div class="header">
-            <h1>KGB Zentrale</h1>
+            <h1>{{ business_name or "KGB Zentrale" }}</h1>
             <div class="subtitle">KickerKasse - Tagesabschluss</div>
             <div class="zbon-number">Kassenbericht {{ seq_number }}</div>
             <div class="business-info">
-                <div>Krökel Gemeinschaft Badenstedt – Hannover e.V.</div>
-                <div>Davenstedter Str. 115 | 30453 Hannover</div>
-                <div>Vereinsregister: VR 203296</div>
+                {% if business_name %}<div>{{ business_name }}</div>{% endif %}
+                {% if business_street or business_zip or business_city %}
+                <div>{{ business_street }}{% if business_street and (business_zip or business_city) %} | {% endif %}{{ business_zip }} {{ business_city }}</div>
+                {% endif %}
+                {% if business_registration_number %}<div>Vereinsregister: {{ business_registration_number }}</div>{% endif %}
+                {% if business_tax_number %}<div>Steuernummer: {{ business_tax_number }}</div>{% endif %}
+                {% if business_phone or business_email %}<div>{{ business_phone }}{% if business_phone and business_email %} | {% endif %}{{ business_email }}</div>{% endif %}
             </div>
         </div>
         
@@ -598,6 +602,12 @@ ZBON_HTML_TEMPLATE = """
                     <td>Differenz</td>
                     <td class="amount">{{ cash_difference }}</td>
                 </tr>
+                {% if cash_difference_reason %}
+                <tr>
+                    <td>Grund fuer Differenz</td>
+                    <td class="amount text-left">{{ cash_difference_reason }}</td>
+                </tr>
+                {% endif %}
                 {% endif %}
             </tbody>
         </table>
@@ -832,8 +842,17 @@ ZBON_HTML_TEMPLATE = """
             <div class="footer-text">Vielen Dank für Deinen Besuch!</div>
             <div class="footer-text">Berichtstyp: {{ report_type_label|default("KASSENBERICHT") }} | Geschäftsjahr 2026</div>
             <div class="footer-text">Erzeugt: {{ created_at }}</div>
+            {% if business_data_placeholder_used %}
+            <div class="footer-text" style="color: #b45309; font-weight: 700; margin-top: 10px;">
+                Hinweis: Geschaeftsdaten sind nicht gepflegt. Bitte im Adminbereich hinterlegen.
+            </div>
+            {% endif %}
             <div class="footer-text" style="margin-top: 15px; color: #999; font-size: 10px;">
+                {% if report_is_official %}
                 Dieser Kassenbericht wurde automatisch generiert und archiviert.
+                {% else %}
+                Dieses Tagesupdate dient nur der Information und ersetzt keinen manuell erstellten Kassenbericht mit Kassenzaehlung und Sichtkontrolle.
+                {% endif %}
             </div>
         </div>
     </div>

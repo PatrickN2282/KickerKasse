@@ -10,14 +10,15 @@
         <button
           :class="['section-tab', { active: activeSection === 'design' }]"
           type="button"
-          @click="activeSection = 'design'"
+          @click="switchSection('design')"
         >
           <span class="tab-icon">🎨</span> Design
         </button>
         <button
+          v-if="authStore.isTopAdmin"
           :class="['section-tab', { active: activeSection === 'datamaintenance' }]"
           type="button"
-          @click="activeSection = 'datamaintenance'"
+          @click="switchSection('datamaintenance')"
         >
           <span class="tab-icon">🧹</span> Datenpflege
         </button>
@@ -25,7 +26,7 @@
           v-if="authStore.isAdmin"
           :class="['section-tab', { active: activeSection === 'importexport' }]"
           type="button"
-          @click="activeSection = 'importexport'"
+          @click="switchSection('importexport')"
         >
           <span class="tab-icon">🔄</span> Import / Export
         </button>
@@ -33,15 +34,23 @@
           v-if="authStore.isAdmin"
           :class="['section-tab', { active: activeSection === 'extsettings' }]"
           type="button"
-          @click="activeSection = 'extsettings'"
+          @click="switchSection('extsettings')"
         >
           <span class="tab-icon">⚙️</span> Erweitert
         </button>
         <button
           v-if="authStore.isTopAdmin"
+          :class="['section-tab', { active: activeSection === 'emailsettings' }]"
+          type="button"
+          @click="switchSection('emailsettings')"
+        >
+          <span class="tab-icon">✉️</span> E-Mail
+        </button>
+        <button
+          v-if="authStore.isTopAdmin"
           :class="['section-tab', { active: activeSection === 'auditlog' }]"
           type="button"
-          @click="activeSection = 'auditlog'"
+          @click="switchSection('auditlog')"
         >
           <span class="tab-icon">🔍</span> Audit-Log
         </button>
@@ -192,7 +201,7 @@
       </div>
     </div>
 
-    <div v-if="activeSection === 'datamaintenance'" class="section-content">
+    <div v-if="activeSection === 'datamaintenance' && authStore.isTopAdmin" class="section-content">
       <div class="section-title">
         <div class="title-icon">🧹</div>
         Datenpflege
@@ -266,6 +275,90 @@
         </div>
       </div>
 
+      <div class="grid-2 mt-compact">
+        <div class="card">
+          <div class="card-header">
+            <div class="card-icon blue">🗂️</div>
+            <div>
+              <div class="card-title">Datenbank-Backup</div>
+              <div class="card-subtitle">Vollständige Sicherung herunterladen</div>
+            </div>
+          </div>
+          <p class="text-muted mb-compact">
+            Erstellt ein vollständiges Backup der Datenbank als ZIP-Datei.
+          </p>
+          <div class="btn-row mt-auto">
+            <button class="btn btn-primary w-100" :disabled="dataMaintenanceBusy" @click="handleBackupDownload">
+              ⬇️ Datenbank-Backup herunterladen
+            </button>
+          </div>
+        </div>
+
+        <div class="card">
+          <div class="card-header">
+            <div class="card-icon orange">✉️</div>
+            <div>
+              <div class="card-title">Backup-Zeitplan</div>
+              <div class="card-subtitle">Automatischer Versand per E-Mail</div>
+            </div>
+          </div>
+          <label class="inline-checkbox mb-compact">
+            <input
+              v-model="backupSchedule.enabled"
+              type="checkbox"
+              :disabled="!authStore.isTopAdmin || dataMaintenanceBusy"
+            >
+            <span>Automatischen Backup-Versand aktivieren</span>
+          </label>
+          <div class="form-group mb-compact">
+            <label class="form-label" for="backup-time">Uhrzeit</label>
+            <input
+              id="backup-time"
+              v-model="backupSchedule.time"
+              class="form-input"
+              type="time"
+              :disabled="!authStore.isTopAdmin || dataMaintenanceBusy"
+            >
+          </div>
+          <div class="btn-row">
+            <button
+              class="btn btn-primary w-100"
+              :disabled="!authStore.isTopAdmin || dataMaintenanceBusy"
+              @click="saveBackupSchedule"
+            >
+              💾 Backup-Zeitplan speichern
+            </button>
+          </div>
+        </div>
+      </div>
+
+      <div class="card mt-compact">
+        <div class="card-header">
+          <div class="card-icon gray">♻️</div>
+          <div>
+            <div class="card-title">Datenbank wiederherstellen</div>
+            <div class="card-subtitle">Backup einspielen und aktuelle Daten ersetzen</div>
+          </div>
+        </div>
+        <p class="text-muted mb-compact">
+          Stellt die komplette Datenbank aus einer Backup-ZIP wieder her und überschreibt alle aktuellen Daten.
+        </p>
+        <div class="form-group mb-compact">
+          <label class="form-label" for="restore-file">Backup-ZIP auswählen</label>
+          <input id="restore-file" type="file" class="form-input" accept=".zip" @change="handleRestoreFileChange">
+        </div>
+        <p v-if="restoreFile" class="text-muted mb-compact">Gewählt: {{ restoreFile.name }}</p>
+        <div class="btn-row">
+          <button
+            class="btn btn-warning w-100"
+            :disabled="!authStore.isTopAdmin || !restoreFile || dataMaintenanceBusy"
+            @click="showRestoreModal = true"
+          >
+            ♻️ Datenbank wiederherstellen
+          </button>
+        </div>
+      </div>
+
       <CredentialConfirmModal
         :show="showResetModal"
         title="Hard-Reset bestätigen"
@@ -276,6 +369,16 @@
         confirmation-placeholder="RESET"
         @close="showResetModal = false"
         @confirm="handleHardReset"
+      />
+
+      <CredentialConfirmModal
+        :show="showRestoreModal"
+        title="Datenbank-Wiederherstellung bestätigen"
+        message="Bitte Top-Admin-Passwort eingeben. Die aktuelle Datenbank wird vollständig überschrieben."
+        :username="authStore.user?.username || ''"
+        confirm-label="Wiederherstellung starten"
+        @close="showRestoreModal = false"
+        @confirm="handleRestore"
       />
     </div>
 
@@ -428,6 +531,66 @@
               </div>
             </div>
           </div>
+
+          <div v-if="authStore.isAdmin" class="card">
+            <div class="card-header">
+              <div class="card-icon gray">🧰</div>
+              <div>
+                <div class="card-title">Hardware-Service</div>
+                <div class="card-subtitle">USB-Kassenadapter · systemd-Dienst · Kassen-PC</div>
+              </div>
+              <button class="btn btn-outline btn-icon btn-sm ms-auto" title="Aktualisieren" @click="refreshHardwareStatus">🔄</button>
+            </div>
+
+            <div class="status-grid">
+              <div class="status-item">
+                <span :class="['status-dot', hardwareStatus.local_agent_reachable ? 'status-dot--green' : 'status-dot--red']"></span>
+                <span>Agent erreichbar</span>
+              </div>
+              <div class="status-item">
+                <span :class="['status-dot', hardwareStatus.adapter_connected === true ? 'status-dot--green' : hardwareStatus.adapter_connected === false ? 'status-dot--red' : 'status-dot--gray']"></span>
+                <span>USB-Adapter{{ hardwareStatus.adapter_connected === null && hardwareStatus.local_agent_reachable ? ' (Status unbekannt)' : '' }}</span>
+              </div>
+              <div class="status-item" v-if="hardwareStatus.service_detail">
+                <span class="status-dot status-dot--gray"></span>
+                <span style="font-size:0.8em;color:var(--color-muted)">{{ hardwareStatus.service_detail }}</span>
+              </div>
+            </div>
+
+            <!-- Agent erreichbar: nur Service-Steuerung anzeigen -->
+            <template v-if="hardwareStatus.local_agent_reachable">
+              <div class="warning-box compact-box mt-compact" style="border-color: var(--color-success)">
+                <span class="warning-icon">✅</span>
+                <div class="warning-text">Agent läuft auf diesem PC (127.0.0.1:8765).</div>
+              </div>
+              <div v-if="authStore.isTopAdmin" class="btn-row mt-compact">
+                <button class="btn btn-outline btn-sm" @click="executeHardwareServiceAction('restart')">Neustart</button>
+                <button class="btn btn-outline btn-sm" @click="executeHardwareServiceAction('stop')">Stoppen</button>
+              </div>
+            </template>
+
+            <!-- Agent nicht erreichbar: Download + Installationsanleitung -->
+            <template v-else>
+              <div class="warning-box compact-box mt-compact">
+                <span class="warning-icon">⚠️</span>
+                <div class="warning-text">
+                  Agent nicht erreichbar. Öffne diesen Browser auf dem Kassen-PC
+                  oder installiere den Agent dort zuerst.
+                </div>
+              </div>
+
+              <div v-if="authStore.isTopAdmin" class="mt-compact">
+                <div class="btn-row mt-compact">
+                  <button class="btn btn-primary btn-sm" @click="showHardwareInstallModal = true">
+                    🧭 Installationshilfe öffnen
+                  </button>
+                  <button class="btn btn-outline btn-sm" @click="downloadInstallerPackage">
+                    ⬇ Installationspaket herunterladen
+                  </button>
+                </div>
+              </div>
+            </template>
+          </div>
         </div>
 
       </div>
@@ -438,33 +601,310 @@
         @close="showBusinessModal = false"
         @save="saveBusinessData"
       />
+
+      <div
+        v-if="showHardwareInstallModal"
+        class="setup-modal-overlay"
+        @click.self="showHardwareInstallModal = false"
+      >
+        <div class="setup-modal-card">
+          <div class="setup-modal-header">
+            <h3>Hardware-Service auf dem Vereins-PC einrichten</h3>
+            <button class="btn btn-outline btn-sm" @click="showHardwareInstallModal = false">✕</button>
+          </div>
+          <p class="setup-modal-text">
+            Dein Backend kann den lokalen USB-Adapter am Vereins-PC nicht direkt sehen.
+            Deshalb muss der Agent lokal auf genau diesem PC installiert werden.
+          </p>
+          <ol class="setup-step-list">
+            <li>Installationspaket hier herunterladen und auf dem Vereins-PC entpacken.</li>
+            <li>
+              Auf dem Vereins-PC ausführen – empfohlen: Doppelklick auf
+              <code>Kickerkasse-Install.desktop</code> (grafischer Assistent).<br>
+              Alternativ im Terminal: <code>python3 setup_wizard.py</code>
+            </li>
+            <li>Diese Seite im Browser auf dem Vereins-PC öffnen und mit 🔄 prüfen.</li>
+          </ol>
+          <div class="setup-download-grid">
+            <button class="btn btn-primary btn-sm" @click="downloadInstallerPackage">
+              ⬇ Komplettes Installationspaket (ZIP)
+            </button>
+            <button
+              v-for="file in installerDownloadFiles"
+              :key="file"
+              class="btn btn-outline btn-sm"
+              @click="downloadInstallerFile(file)"
+            >
+              ⬇ {{ file }}
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div v-if="activeSection === 'emailsettings' && authStore.isTopAdmin" class="section-content">
+      <div class="section-title">
+        <div class="title-icon">✉️</div>
+        E-Mail-Konfiguration
+      </div>
+
+      <div class="grid-2">
+        <div class="card">
+          <div class="card-header">
+            <div class="card-icon blue">📬</div>
+            <div>
+              <div class="card-title">Kassenbericht-Versand</div>
+              <div class="card-subtitle">Empfänger, Versand und Automatik</div>
+            </div>
+          </div>
+
+          <div class="settings-list">
+            <div class="setting-item">
+              <span class="setting-item__icon">✉️</span>
+              <div class="setting-item__info">
+                <span class="setting-item__title">E-Mail-Versand aktiv</span>
+              </div>
+              <div class="setting-item__controls">
+                <div class="toggle-switch small" :class="{ active: emailForm.email_enabled }" @click="emailForm.email_enabled = !emailForm.email_enabled" />
+              </div>
+            </div>
+            <div class="setting-item">
+              <span class="setting-item__icon">⏱️</span>
+              <div class="setting-item__info">
+                <span class="setting-item__title">Automatik aktiv</span>
+              </div>
+              <div class="setting-item__controls">
+                <div class="toggle-switch small" :class="{ active: emailForm.scheduled_zbon_enabled }" @click="emailForm.scheduled_zbon_enabled = !emailForm.scheduled_zbon_enabled" />
+              </div>
+            </div>
+            <div class="setting-item">
+              <span class="setting-item__icon">📉</span>
+              <div class="setting-item__info">
+                <span class="setting-item__title">E-Mail bei kritischen Lagerbeständen</span>
+              </div>
+              <div class="setting-item__controls">
+                <div class="toggle-switch small" :class="{ active: emailForm.email_critical_stock_enabled }" @click="emailForm.email_critical_stock_enabled = !emailForm.email_critical_stock_enabled" />
+              </div>
+            </div>
+          </div>
+
+          <div class="grid-2-compact mt-compact">
+            <div class="form-group">
+              <label class="form-label">Empfänger</label>
+              <input v-model.trim="emailForm.email_recipient_zbon" type="email" class="form-input" placeholder="kassenbericht@verein.de" />
+            </div>
+            <div class="form-group">
+              <label class="form-label">Absender</label>
+              <input v-model.trim="emailForm.email_sender" type="email" class="form-input" placeholder="noreply@verein.de" />
+            </div>
+            <div class="form-group">
+              <label class="form-label">Versandzeit</label>
+              <input v-model="emailForm.scheduled_zbon_time" type="time" class="form-input" />
+            </div>
+            <div class="form-group">
+              <label class="form-label">Titel / Zusatzinformation</label>
+              <input v-model.trim="emailForm.email_subject_suffix" type="text" class="form-input" maxlength="120" placeholder="z. B. Standort A" />
+            </div>
+          </div>
+
+          <div class="settings-list mt-compact">
+            <div class="setting-item">
+              <span class="setting-item__icon">📤</span>
+              <div class="setting-item__info">
+                <span class="setting-item__title">Beim Erstellen automatisch senden</span>
+              </div>
+              <div class="setting-item__controls">
+                <div class="toggle-switch small" :class="{ active: emailForm.send_zbon_on_create_enabled }" @click="emailForm.send_zbon_on_create_enabled = !emailForm.send_zbon_on_create_enabled" />
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="card">
+          <div class="card-header">
+            <div class="card-icon purple">📡</div>
+            <div>
+              <div class="card-title">SMTP-Server</div>
+              <div class="card-subtitle">Zugangsdaten für den Mailversand</div>
+            </div>
+          </div>
+
+          <div class="grid-2-compact">
+            <div class="form-group">
+              <label class="form-label">SMTP-Host</label>
+              <input v-model.trim="emailForm.smtp_host" type="text" class="form-input" placeholder="smtp.example.org" />
+            </div>
+            <div class="form-group">
+              <label class="form-label">SMTP-Port</label>
+              <input v-model.number="emailForm.smtp_port" type="number" min="1" max="65535" class="form-input" />
+            </div>
+            <div class="form-group">
+              <label class="form-label">SMTP-Benutzer</label>
+              <input v-model.trim="emailForm.smtp_username" type="text" class="form-input" placeholder="optional" />
+            </div>
+            <div class="form-group">
+              <label class="form-label">SMTP-Passwort</label>
+              <input v-model="emailForm.smtp_password" type="password" class="form-input" placeholder="optional" />
+            </div>
+          </div>
+
+          <div class="settings-list mt-compact">
+            <div class="setting-item">
+              <span class="setting-item__icon">🔒</span>
+              <div class="setting-item__info">
+                <span class="setting-item__title">TLS verwenden</span>
+              </div>
+              <div class="setting-item__controls">
+                <div class="toggle-switch small" :class="{ active: emailForm.smtp_use_tls }" @click="emailForm.smtp_use_tls = !emailForm.smtp_use_tls" />
+              </div>
+            </div>
+          </div>
+
+          <div class="warning-box compact-box mt-compact">
+            <span class="warning-icon">ℹ️</span>
+            <div class="warning-text">
+              Diese Werte werden direkt in der Anwendung gespeichert und ersetzen die bisherige `.env`-Konfiguration.
+            </div>
+          </div>
+
+          <div class="btn-row mt-auto">
+            <button
+              class="btn btn-outline"
+              :disabled="appSettingsStore.isSaving || isTestingEmailConnection"
+              @click="testEmailConnection"
+            >
+              {{ isTestingEmailConnection ? 'Teste Verbindung...' : '🧪 Verbindung testen' }}
+            </button>
+            <button
+              class="btn btn-outline"
+              :disabled="appSettingsStore.isSaving || isSendingTestEmail"
+              @click="sendTestEmail"
+            >
+              {{ isSendingTestEmail ? 'Sende Testmail...' : '📨 Testmail senden' }}
+            </button>
+            <button class="btn btn-primary" :disabled="appSettingsStore.isSaving" @click="saveEmailSettings">💾 E-Mail-Einstellungen speichern</button>
+          </div>
+        </div>
+      </div>
     </div>
   </div>
 </template>
 
 <script setup>
-import { computed, onMounted, reactive, ref } from 'vue'
+import { computed, onMounted, reactive, ref, watch } from 'vue'
 import AuditLogPanel from '@/components/admin/AuditLogPanel.vue'
 import ImportExportModal from '@/components/ImportExportModal.vue'
 import { useAppSettingsStore } from '@/stores/appSettings'
 import { useNotificationStore } from '@/stores/notification'
 import { useAuthStore } from '@/stores/auth'
 import { getContrastColor } from '@/services/utils'
-import { SESSION_RELOAD_FLAG_KEY } from '@/constants'
+import { LOCAL_HARDWARE_AGENT_BASE_URL, SESSION_RELOAD_FLAG_KEY } from '@/constants'
 import apiService from '@/services/api'
 import CredentialConfirmModal from '@/components/CredentialConfirmModal.vue'
 import BusinessDataModal from '@/views/admin/modal/BusinessDataModal.vue'
+import { useRoute, useRouter } from 'vue-router'
 
 const appSettingsStore = useAppSettingsStore()
 const notificationStore = useNotificationStore()
 const authStore = useAuthStore()
+const route = useRoute()
+const router = useRouter()
+const fetchLocalAgent = async (path, options = {}, timeoutMs = 1500) => {
+  const controller = new AbortController()
+  const timeoutId = window.setTimeout(() => controller.abort(), timeoutMs)
+  try {
+    return await fetch(`${LOCAL_HARDWARE_AGENT_BASE_URL}${path}`, {
+      ...options,
+      signal: controller.signal,
+    })
+  } finally {
+    window.clearTimeout(timeoutId)
+  }
+}
 
 const activeSection = ref('design')
+
+const sectionPriority = ['design', 'datamaintenance', 'importexport', 'extsettings', 'emailsettings', 'auditlog']
+
+const canAccessSection = (section) => {
+  if (section === 'importexport' || section === 'extsettings') {
+    return authStore.isAdmin
+  }
+  if (section === 'emailsettings' || section === 'auditlog') {
+    return authStore.isTopAdmin
+  }
+  if (section === 'datamaintenance') {
+    return authStore.isTopAdmin
+  }
+  return section === 'design'
+}
+
+const getDefaultSection = () => {
+  const allowed = sectionPriority.find(canAccessSection)
+  return allowed || 'design'
+}
+
+const normalizeSection = (rawSection) => {
+  const section = typeof rawSection === 'string' ? rawSection : ''
+  if (!sectionPriority.includes(section)) {
+    return getDefaultSection()
+  }
+  if (!canAccessSection(section)) {
+    return getDefaultSection()
+  }
+  return section
+}
+
+const syncRouteSection = async (section) => {
+  const querySection = typeof route.query.section === 'string' ? route.query.section : null
+  if (querySection === section) {
+    return
+  }
+
+  const nextQuery = {
+    ...route.query,
+    section,
+  }
+
+  await router.replace({
+    path: route.path,
+    query: nextQuery,
+  })
+}
+
+const switchSection = async (targetSection) => {
+  const normalized = normalizeSection(targetSection)
+  if (activeSection.value !== normalized) {
+    activeSection.value = normalized
+  }
+  await syncRouteSection(normalized)
+}
+
+watch(
+  () => [route.path, route.query.section],
+  () => {
+    const normalized = normalizeSection(route.query.section)
+    if (activeSection.value !== normalized) {
+      activeSection.value = normalized
+    }
+  },
+  { immediate: true }
+)
+
+watch(
+  () => authStore.role,
+  () => {
+    const normalized = normalizeSection(activeSection.value)
+    if (normalized !== activeSection.value) {
+      switchSection(normalized)
+    }
+  }
+)
 
 // ── Design Colors ─────────────────────────────────────
 // Reduziert auf interne Logik, UI nutzt jetzt native Color-Picker für Platzersparnis
 const designForm = reactive({
-  app_name: 'KGB - KickerKasse',
+  app_name: 'KGB - KickerKasse Test',
   background_color: '#D7DCE2',
   banner_color: '#131820',
   highlight_color: '#5C8F3A',
@@ -504,7 +944,7 @@ const previewKasseBackgroundUrl = computed(() => (
 ))
 
 const syncDesignForm = () => {
-  designForm.app_name = appSettingsStore.settings.app_name || 'KGB - KickerKasse'
+  designForm.app_name = appSettingsStore.settings.app_name || 'KGB - KickerKasse Test'
   designForm.background_color = appSettingsStore.settings.background_color || '#D7DCE2'
   designForm.banner_color = appSettingsStore.settings.banner_color || '#131820'
   designForm.highlight_color = appSettingsStore.settings.highlight_color || '#5C8F3A'
@@ -590,15 +1030,139 @@ const uploadKasseBackground = async () => {
 
 // ── Datenpflege ───────────────────────────────────────
 const showResetModal = ref(false)
+const showRestoreModal = ref(false)
 const showImportExportModal = ref(false)
 const dataStats = ref({})
+const dataMaintenanceBusy = ref(false)
+const restoreFile = ref(null)
+const backupSchedule = reactive({
+  enabled: false,
+  time: '03:00',
+})
+
+const createNoCacheConfig = () => ({
+  params: { _t: Date.now() },
+  headers: {
+    'Cache-Control': 'no-cache',
+    Pragma: 'no-cache',
+  },
+})
+
+const extractFilename = (headerValue, fallbackName) => {
+  const header = headerValue || ''
+  const filenameStarMatch = /filename\*\s*=\s*(?:UTF-8''|)([^;]+)/i.exec(header)
+  if (filenameStarMatch?.[1]) {
+    const encoded = filenameStarMatch[1].trim().replace(/^"|"$/g, '')
+    try {
+      return decodeURIComponent(encoded)
+    } catch {
+      return encoded
+    }
+  }
+
+  const quotedMatch = /filename\s*=\s*"((?:[^"\\]|\\.)*)"/i.exec(header)
+  if (quotedMatch?.[1]) {
+    return quotedMatch[1].replace(/\\"/g, '"')
+  }
+
+  const unquotedMatch = /filename\s*=\s*([^;]+)/i.exec(header)
+  if (unquotedMatch?.[1]) {
+    return unquotedMatch[1].trim().replace(/^"|"$/g, '')
+  }
+
+  return fallbackName
+}
+
+const triggerDownload = (blob, fileName) => {
+  const url = URL.createObjectURL(blob)
+  const link = document.createElement('a')
+  link.href = url
+  link.download = fileName
+  document.body.appendChild(link)
+  link.click()
+  link.remove()
+  URL.revokeObjectURL(url)
+}
 
 const loadDataStats = async () => {
   try {
-    const response = await apiService.get('/admin/data-maintenance/stats')
+    const response = await apiService.get('/admin/data-maintenance/stats', createNoCacheConfig())
     dataStats.value = response.data
   } catch (e) {
     console.error('Daten-Übersicht konnte nicht geladen werden:', e)
+  }
+}
+
+const loadBackupSchedule = async () => {
+  try {
+    const response = await apiService.get('/app-settings', createNoCacheConfig())
+    backupSchedule.enabled = !!response.data.scheduled_database_backup_enabled
+    backupSchedule.time = response.data.scheduled_database_backup_time || '03:00'
+  } catch (error) {
+    notificationStore.error(error.response?.data?.detail || 'Backup-Einstellungen konnten nicht geladen werden')
+  }
+}
+
+const handleBackupDownload = async () => {
+  dataMaintenanceBusy.value = true
+  try {
+    const response = await apiService.post('/admin/data-maintenance/database-backup/export', {}, {
+      responseType: 'blob',
+    })
+    const fileName = extractFilename(response.headers['content-disposition'], 'kickerkasse-db-backup.zip')
+    triggerDownload(response.data, fileName)
+    notificationStore.success('Datenbank-Backup wurde heruntergeladen')
+  } catch (error) {
+    notificationStore.error(error.response?.data?.detail || 'Datenbank-Backup fehlgeschlagen')
+  } finally {
+    dataMaintenanceBusy.value = false
+  }
+}
+
+const handleRestoreFileChange = (event) => {
+  const [file] = event.target.files || []
+  restoreFile.value = file || null
+  event.target.value = ''
+}
+
+const handleRestore = async ({ password }) => {
+  showRestoreModal.value = false
+  if (!restoreFile.value) {
+    notificationStore.error('Bitte zuerst eine Backup-ZIP auswählen')
+    return
+  }
+
+  dataMaintenanceBusy.value = true
+  try {
+    const formData = new FormData()
+    formData.append('auth_password', password)
+    formData.append('backup_file', restoreFile.value)
+    await apiService.post('/admin/data-maintenance/database-backup/restore', formData, {
+      headers: { 'Content-Type': 'multipart/form-data' },
+    })
+    notificationStore.success('Datenbank wurde aus dem Backup wiederhergestellt')
+    restoreFile.value = null
+    await authStore.logout()
+    window.location.href = '/login'
+  } catch (error) {
+    notificationStore.error(error.response?.data?.detail || 'Wiederherstellung fehlgeschlagen')
+  } finally {
+    dataMaintenanceBusy.value = false
+  }
+}
+
+const saveBackupSchedule = async () => {
+  dataMaintenanceBusy.value = true
+  try {
+    await apiService.put('/app-settings', {
+      scheduled_database_backup_enabled: backupSchedule.enabled,
+      scheduled_database_backup_time: backupSchedule.time || '03:00',
+    })
+    notificationStore.success('Backup-Zeitplan gespeichert')
+  } catch (error) {
+    notificationStore.error(error.response?.data?.detail || 'Backup-Zeitplan konnte nicht gespeichert werden')
+  } finally {
+    dataMaintenanceBusy.value = false
   }
 }
 
@@ -623,12 +1187,47 @@ const importExportInitialTab = ref('import')
 // ── Ext. Settings ─────────────────────────────────────
 const LAYOUT_STORAGE_KEY = 'kasseLayout'
 const showBusinessModal = ref(false)
+const showHardwareInstallModal = ref(false)
 const sessionTimer = ref({ enabled: false, minutes: 15 })
 const deckelEnabled = ref(false)
+const installerDownloadFiles = [
+  'agent.py',
+  'install_agent_service.py',
+  'kickerkasse_bootstrapper.py',
+  'setup_wizard.py',
+  'Kickerkasse-Install.desktop',
+  'README.txt',
+]
 
 const businessData = ref({
   name: '', street: '', zip: '', city: '',
   phone: '', email: '', taxNumber: '', registrationNumber: '',
+})
+const emailForm = reactive({
+  email_enabled: false,
+  email_sender: 'noreply@kassensystem.local',
+  email_recipient_zbon: '',
+  email_subject_suffix: '',
+  email_critical_stock_enabled: false,
+  smtp_host: '',
+  smtp_port: 587,
+  smtp_username: '',
+  smtp_password: '',
+  smtp_use_tls: true,
+  send_zbon_on_create_enabled: false,
+  scheduled_zbon_enabled: false,
+  scheduled_zbon_time: '23:59',
+})
+const isTestingEmailConnection = ref(false)
+const isSendingTestEmail = ref(false)
+const hardwareStatus = reactive({
+  service_active: false,
+  adapter_connected: null,
+  service_detail: '',
+  manual_install_command: '',
+  local_agent_reachable: false,
+  installing: false,
+  install_log: '',
 })
 
 const layoutModules = import.meta.glob('@/views/kasse/Kasse*.vue')
@@ -657,6 +1256,35 @@ const syncSessionTimer = () => {
 
 const syncDeckelSetting = () => {
   deckelEnabled.value = !!appSettingsStore.settings.deckel_enabled
+}
+
+const syncBusinessData = () => {
+  businessData.value = {
+    name: appSettingsStore.settings.business_name || '',
+    street: appSettingsStore.settings.business_street || '',
+    zip: appSettingsStore.settings.business_zip || '',
+    city: appSettingsStore.settings.business_city || '',
+    phone: appSettingsStore.settings.business_phone || '',
+    email: appSettingsStore.settings.business_email || '',
+    taxNumber: appSettingsStore.settings.business_tax_number || '',
+    registrationNumber: appSettingsStore.settings.business_registration_number || '',
+  }
+}
+
+const syncEmailForm = () => {
+  emailForm.email_enabled = !!appSettingsStore.settings.email_enabled
+  emailForm.email_sender = appSettingsStore.settings.email_sender || 'noreply@kassensystem.local'
+  emailForm.email_recipient_zbon = appSettingsStore.settings.email_recipient_zbon || ''
+  emailForm.email_subject_suffix = appSettingsStore.settings.email_subject_suffix || ''
+  emailForm.email_critical_stock_enabled = !!appSettingsStore.settings.email_critical_stock_enabled
+  emailForm.smtp_host = appSettingsStore.settings.smtp_host || ''
+  emailForm.smtp_port = Number(appSettingsStore.settings.smtp_port) || 587
+  emailForm.smtp_username = appSettingsStore.settings.smtp_username || ''
+  emailForm.smtp_password = appSettingsStore.settings.smtp_password || ''
+  emailForm.smtp_use_tls = appSettingsStore.settings.smtp_use_tls !== false
+  emailForm.send_zbon_on_create_enabled = !!appSettingsStore.settings.send_zbon_on_create_enabled
+  emailForm.scheduled_zbon_enabled = !!appSettingsStore.settings.scheduled_zbon_enabled
+  emailForm.scheduled_zbon_time = appSettingsStore.settings.scheduled_zbon_time || '23:59'
 }
 
 const applyLayout = async () => {
@@ -698,32 +1326,171 @@ const saveDeckelSettings = async () => {
   }
 }
 
-const saveBusinessData = () => {
-  localStorage.setItem('businessData', JSON.stringify(businessData.value))
-  notificationStore.success('Geschäftsdaten gespeichert.')
-  showBusinessModal.value = false
+const saveBusinessData = async () => {
+  try {
+    await appSettingsStore.saveAdminSettings({
+      business_name: businessData.value.name || null,
+      business_street: businessData.value.street || null,
+      business_zip: businessData.value.zip || null,
+      business_city: businessData.value.city || null,
+      business_phone: businessData.value.phone || null,
+      business_email: businessData.value.email || null,
+      business_tax_number: businessData.value.taxNumber || null,
+      business_registration_number: businessData.value.registrationNumber || null,
+    })
+    syncBusinessData()
+    notificationStore.success('Geschäftsdaten gespeichert.')
+    showBusinessModal.value = false
+  } catch (error) {
+    notificationStore.error(error.response?.data?.detail || 'Geschäftsdaten konnten nicht gespeichert werden')
+  }
+}
+
+const saveEmailSettings = async () => {
+  try {
+    await appSettingsStore.saveAdminSettings({
+      email_enabled: emailForm.email_enabled,
+      email_sender: emailForm.email_sender || null,
+      email_recipient_zbon: emailForm.email_recipient_zbon || null,
+      email_subject_suffix: emailForm.email_subject_suffix || null,
+      email_critical_stock_enabled: emailForm.email_critical_stock_enabled,
+      smtp_host: emailForm.smtp_host || null,
+      smtp_port: Number(emailForm.smtp_port) || 587,
+      smtp_username: emailForm.smtp_username || null,
+      smtp_password: emailForm.smtp_password || null,
+      smtp_use_tls: emailForm.smtp_use_tls,
+      send_zbon_on_create_enabled: emailForm.send_zbon_on_create_enabled,
+      scheduled_zbon_enabled: emailForm.scheduled_zbon_enabled,
+      scheduled_zbon_time: emailForm.scheduled_zbon_time,
+      scheduled_zbon_report_type: 'full-zbon',
+    })
+    syncEmailForm()
+    notificationStore.success('E-Mail-Einstellungen gespeichert')
+  } catch (error) {
+    notificationStore.error(error.response?.data?.detail || 'E-Mail-Einstellungen konnten nicht gespeichert werden')
+  }
+}
+
+const refreshHardwareStatus = async () => {
+  hardwareStatus.local_agent_reachable = false
+  try {
+    const localResponse = await fetchLocalAgent('/status')
+    if (!localResponse.ok) {
+      throw new Error(`status ${localResponse.status}`)
+    }
+    const localData = await localResponse.json()
+    hardwareStatus.service_active = true
+    hardwareStatus.adapter_connected = localData?.status === 'connected'
+    hardwareStatus.service_detail = localData?.device
+      ? `Lokaler Agent erreichbar (${localData.device})`
+      : 'Lokaler Agent erreichbar'
+    hardwareStatus.local_agent_reachable = true
+    return
+  } catch {
+    // Fallback 1: no-cors Probe (Agent erreichbar, aber Antwort nicht auslesbar)
+  }
+
+  try {
+    await fetchLocalAgent('/status', { mode: 'no-cors' })
+    hardwareStatus.service_active = true
+    hardwareStatus.adapter_connected = null
+    hardwareStatus.service_detail = 'Lokaler Agent erreichbar (CORS blockiert Statusdetails – Schublade funktioniert trotzdem)'
+    hardwareStatus.local_agent_reachable = true
+    return
+  } catch {
+    // Fallback 2: serverseitiger Status (Self-Hosted-Modus)
+  }
+
+  try {
+    const { data } = await apiService.get('/hardware-agent/status')
+    hardwareStatus.service_active = !!data.service_active
+    hardwareStatus.adapter_connected = !!data.adapter_connected
+    hardwareStatus.service_detail = data.service_detail || ''
+    hardwareStatus.manual_install_command = data.manual_install_command || ''
+  } catch (error) {
+    notificationStore.error(error.response?.data?.detail || 'Hardware-Status konnte nicht geladen werden')
+  }
+}
+
+const executeHardwareServiceAction = async (action) => {
+  if (hardwareStatus.local_agent_reachable) {
+    notificationStore.info('Lokaler Agent läuft auf diesem Client. Service-Aktionen bitte lokal ausführen.')
+    return
+  }
+  try {
+    const { data } = await apiService.post('/hardware-agent/service-action', { action })
+    notificationStore.success(data?.detail || 'Service-Aktion erfolgreich')
+    await refreshHardwareStatus()
+  } catch (error) {
+    notificationStore.error(error.response?.data?.detail || 'Service-Aktion fehlgeschlagen')
+  }
+}
+
+const downloadInstallerPackage = () => {
+  // Direkt-Download vom Backend – ZIP enthält agent.py, install_agent_service.py,
+  // kickerkasse_bootstrapper.py und README.txt
+  window.open('/api/hardware-agent/download-installer', '_blank')
+}
+
+const downloadInstallerFile = (fileName) => {
+  window.open(`/api/hardware-agent/download-installer-file/${encodeURIComponent(fileName)}`, '_blank')
+}
+
+const testEmailConnection = async () => {
+  isTestingEmailConnection.value = true
+  try {
+    const response = await apiService.post('/app-settings/email/test-connection', {
+      email_sender: emailForm.email_sender || null,
+      smtp_host: emailForm.smtp_host || null,
+      smtp_port: Number(emailForm.smtp_port) || 587,
+      smtp_username: emailForm.smtp_username || null,
+      smtp_password: emailForm.smtp_password || null,
+      smtp_use_tls: emailForm.smtp_use_tls,
+    })
+    notificationStore.success(response.data?.detail || 'SMTP-Verbindung erfolgreich getestet')
+  } catch (error) {
+    notificationStore.error(error.response?.data?.detail || 'SMTP-Verbindung fehlgeschlagen')
+  } finally {
+    isTestingEmailConnection.value = false
+  }
+}
+
+const sendTestEmail = async () => {
+  isSendingTestEmail.value = true
+  try {
+    const response = await apiService.post('/app-settings/email/send-test', {
+      email_sender: emailForm.email_sender || null,
+      recipient: emailForm.email_recipient_zbon || null,
+      smtp_host: emailForm.smtp_host || null,
+      smtp_port: Number(emailForm.smtp_port) || 587,
+      smtp_username: emailForm.smtp_username || null,
+      smtp_password: emailForm.smtp_password || null,
+      smtp_use_tls: emailForm.smtp_use_tls,
+    })
+    notificationStore.success(response.data?.detail || 'Testmail erfolgreich gesendet')
+  } catch (error) {
+    notificationStore.error(error.response?.data?.detail || 'Testmail konnte nicht gesendet werden')
+  } finally {
+    isSendingTestEmail.value = false
+  }
 }
 
 onMounted(async () => {
   await appSettingsStore.loadAdminSettings()
+  await switchSection(route.query.section)
   syncDesignForm()
   syncSessionTimer()
   syncDeckelSetting()
+  syncBusinessData()
+  syncEmailForm()
+  refreshHardwareStatus()
   loadDataStats()
+  loadBackupSchedule()
 
   const serverLayout = appSettingsStore.settings.kasse_layout
   if (serverLayout) {
     selectedLayout.value = serverLayout
     initialLayout.value = serverLayout
-  }
-
-  const saved = localStorage.getItem('businessData')
-  if (saved) {
-    try {
-      Object.assign(businessData.value, JSON.parse(saved))
-    } catch {
-      // Ignore
-    }
   }
 })
 </script>
@@ -859,6 +1626,36 @@ onMounted(async () => {
   display: flex;
   flex-direction: column;
 }
+
+.status-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.45rem;
+}
+
+.status-item {
+  display: flex;
+  align-items: center;
+  gap: 0.45rem;
+  font-size: 0.8rem;
+  color: var(--text);
+  background: #f8fafc;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 0.45rem 0.55rem;
+}
+
+.status-dot {
+  width: 10px;
+  height: 10px;
+  border-radius: 999px;
+  display: inline-block;
+  border: 1px solid #cbd5e1;
+}
+
+.status-dot--green { background: #22c55e; }
+.status-dot--red { background: #ef4444; }
+.status-dot--gray { background: #94a3b8; }
 
 .card-header {
   display: flex;
@@ -1115,5 +1912,62 @@ onMounted(async () => {
   .action-icon { font-size: 2rem; }
   .action-title { font-weight: 700; font-size: 0.9rem; }
   .action-desc { font-size: 0.75rem; color: var(--muted); }
+}
+
+.setup-modal-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(15, 23, 42, 0.65);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1300;
+  padding: 0.75rem;
+}
+
+.setup-modal-card {
+  width: min(720px, 100%);
+  max-height: 90vh;
+  overflow: auto;
+  background: #fff;
+  border-radius: 10px;
+  border: 1px solid var(--border);
+  box-shadow: 0 20px 40px rgba(15, 23, 42, 0.28);
+  padding: 0.9rem;
+}
+
+.setup-modal-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  margin-bottom: 0.5rem;
+
+  h3 {
+    margin: 0;
+    font-size: 1rem;
+  }
+}
+
+.setup-modal-text {
+  margin: 0 0 0.6rem;
+  color: var(--text);
+  font-size: 0.82rem;
+}
+
+.setup-step-list {
+  margin: 0 0 0.7rem;
+  padding-left: 1.2rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+  font-size: 0.8rem;
+  color: var(--text);
+}
+
+.setup-download-grid {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem;
 }
 </style>

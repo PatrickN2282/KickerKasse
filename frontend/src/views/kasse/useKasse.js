@@ -7,6 +7,7 @@ import { useAuthStore } from '@/stores/auth'
 import { formatPrice, formatBalance } from '@/services/utils'
 import { getMemberFullName, getMemberShortName, getMemberSearchText } from '@/services/member'
 import apiService from '@/services/api'
+import { LOCAL_HARDWARE_AGENT_BASE_URL } from '@/constants'
 
 export default function useKasse() {
 const productStore = useProductStore()
@@ -816,6 +817,7 @@ const handleDeckelPayment = async () => {
   try {
     const response = await apiService.post(`/deckel/${activePaymentDeckel.value.id}/pay`)
     notificationStore.success(`Deckel "${activePaymentDeckel.value.name}" wurde bezahlt`)
+    openCashDrawer()
     await Promise.all([productStore.getProducts(), memberStore.getMembers(), loadDeckelList(), loadNextReceiptNumber()])
     return response.data
   } catch (error) {
@@ -891,12 +893,56 @@ const loadNextReceiptNumber = async () => {
   }
 }
 
+const openCashDrawer = async () => {
+  const controller = new AbortController()
+  const timeoutId = window.setTimeout(() => controller.abort(), 2000)
+  try {
+    const response = await fetch(`${LOCAL_HARDWARE_AGENT_BASE_URL}/openDrawer`, {
+      method: 'POST',
+      signal: controller.signal,
+    })
+    if (!response.ok) {
+      console.warn('[Kasse] Cash drawer agent responded with error:', response.status)
+    } else {
+      console.log('[Kasse] Cash drawer opened successfully.')
+    }
+  } catch (err) {
+    try {
+      const fallbackController = new AbortController()
+      const fallbackTimeoutId = window.setTimeout(() => fallbackController.abort(), 2000)
+      await fetch(`${LOCAL_HARDWARE_AGENT_BASE_URL}/openDrawer`, {
+        method: 'POST',
+        mode: 'no-cors',
+        signal: fallbackController.signal,
+      })
+      window.clearTimeout(fallbackTimeoutId)
+      console.log('[Kasse] Cash drawer trigger sent in no-cors mode.')
+    } catch (fallbackErr) {
+      // Kein harter Fehler – Verkauf war erfolgreich, Schublade optional
+      console.warn('[Kasse] Cash drawer trigger failed (agent not reachable?):', fallbackErr?.message || err?.message)
+    }
+  } finally {
+    window.clearTimeout(timeoutId)
+  }
+}
+
 const handleCheckout = async (successMessage = 'Verkauf abgeschlossen') => {
   try {
     console.log('[Kasse] Starting checkout...')
+    // Zahlungsart VOR dem Checkout sichern – checkout() setzt paymentMethod zurück auf 'CASH'
+    const paymentMethod = cartStore.paymentMethod
     const transaction = await cartStore.checkout(authStore.user.id)
     console.log('[Kasse] Checkout successful, transaction:', transaction)
     notificationStore.success(successMessage)
+
+    // Kassenschublade öffnen: nur wenn tatsächlich Bargeld fließt.
+    // Reine Guthabenzahlung (BALANCE) → kein Bargeld → Schublade bleibt zu.
+    // Gemischte Zahlung (Guthaben reicht nicht) → handlePaymentAndCheckout setzt paymentMethod
+    // bereits auf 'CASH', bevor handleCheckout aufgerufen wird → Schublade öffnet.
+    if (paymentMethod === 'CASH') {
+      openCashDrawer()
+    }
+
     // Reload members to update balances
     await Promise.all([memberStore.getMembers(), productStore.getProducts(), loadNextReceiptNumber(), loadDeckelList()])
     return transaction

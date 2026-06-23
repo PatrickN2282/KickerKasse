@@ -45,6 +45,23 @@ def get_user_id(request: Request) -> int:
     return user_id
 
 
+def require_voucher_confirmation(
+    db: Session,
+    current_user,
+    *,
+    auth_password: str,
+    auth_username: str | None = None,
+) -> None:
+    """Validate the confirmation step without changing log attribution."""
+    resolve_confirmation_user(
+        db,
+        current_user,
+        auth_password,
+        username=auth_username,
+        allow_top_admin_override=False,
+    )
+
+
 # ============================================================================
 # ADMIN ROUTES - /api/admin/vouchers
 # ============================================================================
@@ -67,12 +84,11 @@ async def create_gift_voucher(
 ):
     """Create a gift voucher (no payment, loss recording on redemption)"""
     current_user = require_roles(request, db, UserRole.ADMIN, UserRole.MANAGER)
-    confirmation_user = resolve_confirmation_user(
+    require_voucher_confirmation(
         db,
         current_user,
-        voucher_data.auth_password,
-        username=voucher_data.auth_username,
-        allow_top_admin_override=True,
+        auth_password=voucher_data.auth_password,
+        auth_username=voucher_data.auth_username,
     )
     
     try:
@@ -80,7 +96,7 @@ async def create_gift_voucher(
         voucher = service.create_gift_voucher(
             value_cents=voucher_data.value_cents,
             reason=voucher_data.reason,
-            created_by_user_id=confirmation_user.id,
+            created_by_user_id=current_user.id,
         )
         logger.debug(f"[DEBUG] Voucher object after create: id={voucher.id}, voucher_code={voucher.voucher_code}")
         
@@ -89,7 +105,7 @@ async def create_gift_voucher(
         logger.debug(f"[DEBUG] Response object: voucher_code={response.voucher_code}")
         logger.info(
             f"[ADMIN] Created GIFT voucher {voucher.voucher_code} "
-            f"(value: {voucher.value_cents} cents) by user {confirmation_user.id}"
+            f"(value: {voucher.value_cents} cents) by user {current_user.id}"
         )
         return response
     except ValueError as e:
@@ -122,24 +138,23 @@ async def create_prepaid_voucher(
 ):
     """Create one or more prepaid vouchers (sold later in the register)."""
     current_user = require_roles(request, db, UserRole.ADMIN)
-    confirmation_user = resolve_confirmation_user(
+    require_voucher_confirmation(
         db,
         current_user,
-        voucher_data.auth_password,
-        username=voucher_data.auth_username,
-        allow_top_admin_override=True,
+        auth_password=voucher_data.auth_password,
+        auth_username=voucher_data.auth_username,
     )
     
     try:
         service = VoucherService(db)
         vouchers, product = service.create_prepaid_vouchers(
             value_cents=voucher_data.value_cents,
-            created_by_user_id=confirmation_user.id,
+            created_by_user_id=current_user.id,
             quantity=voucher_data.quantity,
         )
         logger.info(
             f"[ADMIN] Created {len(vouchers)} PREPAID vouchers "
-            f"(value: {voucher_data.value_cents} cents) by user {confirmation_user.id}"
+            f"(value: {voucher_data.value_cents} cents) by user {current_user.id}"
         )
         return VoucherBatchCreateResponse(
             vouchers=[VoucherResponse.from_orm(voucher) for voucher in vouchers],
@@ -262,12 +277,11 @@ async def top_up_club_account(
     db: Session = Depends(get_db),
 ):
     current_user = require_roles(request, db, UserRole.ADMIN)
-    resolve_confirmation_user(
+    require_voucher_confirmation(
         db,
         current_user,
-        payload.auth_password,
-        username=payload.auth_username,
-        allow_top_admin_override=True,
+        auth_password=payload.auth_password,
+        auth_username=payload.auth_username,
     )
     return VoucherService(db).top_up_club_account(payload.amount_cents, current_user.id)
 
@@ -313,12 +327,11 @@ async def update_voucher(
 ):
     """Update editable voucher fields before redemption."""
     current_user = require_roles(request, db, UserRole.ADMIN)
-    confirmation_user = resolve_confirmation_user(
+    require_voucher_confirmation(
         db,
         current_user,
-        voucher_data.auth_password,
-        username=voucher_data.auth_username,
-        allow_top_admin_override=True,
+        auth_password=voucher_data.auth_password,
+        auth_username=voucher_data.auth_username,
     )
 
     try:
@@ -329,7 +342,7 @@ async def update_voucher(
             reason=voucher_data.reason,
             description=voucher_data.description,
         )
-        logger.info(f"[ADMIN] Updated voucher {voucher_id} by user {confirmation_user.id}")
+        logger.info(f"[ADMIN] Updated voucher {voucher_id} by user {current_user.id}")
         return VoucherResponse.from_orm(voucher)
     except ValueError as e:
         raise HTTPException(

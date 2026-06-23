@@ -80,13 +80,19 @@ class UserRepository:
             User.username.notin_(BLIND_USERNAMES),
         ).all()
 
-    def get_visible_active_users(self) -> list[User]:
-        """Get all active users except hidden system accounts."""
-        return self.db.query(User).filter(
-            User.is_active.is_(True),
+    def get_visible_users(self, *, include_inactive: bool = False) -> list[User]:
+        """Get all visible users except hidden system accounts."""
+        filters = [
             User.role != UserRole.TOP_ADMIN,
             User.username.notin_(BLIND_USERNAMES),
-        ).all()
+        ]
+        if not include_inactive:
+            filters.append(User.is_active.is_(True))
+        return self.db.query(User).filter(*filters).all()
+
+    def get_visible_active_users(self) -> list[User]:
+        """Get all active users except hidden system accounts."""
+        return self.get_visible_users(include_inactive=False)
 
     def get_top_admin(self) -> User | None:
         """Get the single top admin account if it exists."""

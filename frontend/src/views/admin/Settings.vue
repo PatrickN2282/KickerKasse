@@ -79,7 +79,7 @@ const appSettingsStore = useAppSettingsStore()
 const notificationStore = useNotificationStore()
 
 const form = reactive({
-  app_name: 'KGB - KickerKasse',
+  app_name: 'KGB - KickerKasse Test',
   background_color: '#D7DCE2',
   banner_color: '#131820',
   highlight_color: '#5C8F3A',

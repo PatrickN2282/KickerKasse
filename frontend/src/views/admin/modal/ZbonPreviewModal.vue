@@ -45,6 +45,13 @@
         >
           ⬇️ HTML herunterladen
         </button>
+        <button
+          v-if="canSendEmail"
+          class="btn btn-primary"
+          @click="$emit('send-email')"
+        >
+          ✉️ Vorschau per E-Mail senden
+        </button>
       </div>
     </div>
   </div>
@@ -55,9 +62,10 @@ defineProps({
   show: { type: Boolean, required: true },
   zBonHtml: { type: String, default: '' },
   title: { type: String, default: '📋 Kassenbericht-Vorschau' },
+  canSendEmail: { type: Boolean, default: false },
 })
 
-defineEmits(['close', 'download'])
+defineEmits(['close', 'download', 'send-email'])
 </script>
 
 <style scoped lang="scss">
@@ -200,6 +208,15 @@ defineEmits(['close', 'download'])
 
   &:hover {
     background: #45a049;
+  }
+}
+
+.btn-primary {
+  background: #2563eb;
+  color: white;
+
+  &:hover {
+    background: #1d4ed8;
   }
 }
 

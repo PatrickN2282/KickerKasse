@@ -11,6 +11,8 @@ class ProductBase(BaseModel):
     member_price_cents: Optional[int] = Field(None, ge=0)
     is_discountable: bool = True
     stock_quantity: int = Field(default=0, ge=0)
+    minimum_stock_quantity: int = Field(default=0, ge=0)
+    notify_on_low_stock: bool = False
     is_unlimited_stock: bool = False
     is_variable_price: bool = False
 
@@ -27,6 +29,8 @@ class ProductUpdate(BaseModel):
     member_price_cents: Optional[int] = None
     is_discountable: Optional[bool] = None
     stock_quantity: Optional[int] = None
+    minimum_stock_quantity: Optional[int] = Field(default=None, ge=0)
+    notify_on_low_stock: Optional[bool] = None
     is_unlimited_stock: Optional[bool] = None
     is_variable_price: Optional[bool] = None
     is_active: Optional[bool] = None

@@ -32,6 +32,8 @@ class ProductRepository:
         member_price_cents: int = None,
         is_discountable: bool = True,
         stock_quantity: int = 0,
+        minimum_stock_quantity: int = 0,
+        notify_on_low_stock: bool = False,
         is_unlimited_stock: bool = False,
         warengruppe: str = None,
         is_variable_price: bool = False,
@@ -45,6 +47,8 @@ class ProductRepository:
             "member_price_cents": member_price_cents,
             "is_discountable": is_discountable,
             "stock_quantity": stock_quantity,
+            "minimum_stock_quantity": minimum_stock_quantity,
+            "notify_on_low_stock": notify_on_low_stock,
             "is_unlimited_stock": is_unlimited_stock,
             "is_variable_price": is_variable_price,
         }
