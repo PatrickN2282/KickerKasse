@@ -1497,7 +1497,24 @@ class DatabaseMigrator:
                         except:
                             pass
                         raise
-
+if 'is_visible_in_kasse' not in products_columns:
+    logger.info("Adding is_visible_in_kasse column to products table...")
+    try:
+        conn.execute(text(
+            "ALTER TABLE products "
+            "ADD COLUMN is_visible_in_kasse BOOLEAN DEFAULT TRUE NOT NULL"
+        ))
+        conn.commit()
+        logger.info("✓ Added is_visible_in_kasse column to products")
+    except Exception as e:
+        logger.warning(
+            f"Could not add is_visible_in_kasse column: {str(e)}"
+        )
+        try:
+            conn.rollback()
+        except:
+            pass
+        raise
                 if 'is_unlimited_stock' not in products_columns:
                     logger.info("Adding is_unlimited_stock column to products table...")
                     try:
