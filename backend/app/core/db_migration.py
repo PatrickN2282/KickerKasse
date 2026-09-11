@@ -81,6 +81,7 @@ class DatabaseMigrator:
                 ("2.3.0", "mail_schedule_and_delivery_status", lambda: migrate_mail_status(self.engine)),
                 ("2.6.0", "mail_subject_info_fields", self._add_email_subject_info_columns),
                 ("2.6.4", "product_kasse_visibility", self._add_product_kasse_visibility_column),
+                ("2.7.1", "recheck_legacy_columns", self._add_missing_columns),
             ])
 
             logger.info("=" * 70)

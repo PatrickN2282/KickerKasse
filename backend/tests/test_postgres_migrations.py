@@ -22,10 +22,28 @@ def journal(engine):
         return conn.execute(text("SELECT version,step,applied_at FROM schema_migrations ORDER BY version,step")).all()
 
 
+PRE_271_STEPS = [
+    ("1.6.5", "create_tables"),
+    ("1.6.5", "enum_types"),
+    ("1.6.5", "legacy_columns"),
+    ("1.6.5", "integrity_indexes"),
+    ("1.6.6", "data_constraints"),
+    ("1.6.7", "access_sessions_and_limits"),
+    ("1.6.10", "voucher_redemptions"),
+    ("1.6.11", "sale_guest_positions"),
+    ("1.6.12", "receipt_counter_and_closures"),
+    ("1.6.13", "booking_operations"),
+    ("1.6.14", "history_snapshots_and_member_archive"),
+    ("2.3.0", "mail_schedule_and_delivery_status"),
+    ("2.6.0", "mail_subject_info_fields"),
+    ("2.6.4", "product_kasse_visibility"),
+]
+
+
 def test_fresh_install_and_repeat_preserve_journal_and_data(pg_engine):
     assert run_migrations(pg_engine)
     before = journal(pg_engine)
-    assert len(before) == 11
+    assert len(before) == 15
     with Session(pg_engine) as db:
         db.add(Product(name="Wasser", price_cents=0, stock_quantity=25))
         db.commit()
@@ -142,7 +160,26 @@ def test_parallel_restock_and_stale_session_preserve_quantities(pg_engine):
 def test_parallel_startup_applies_each_migration_once(pg_engine):
     with ThreadPoolExecutor(max_workers=2) as pool:
         assert list(pool.map(lambda _: run_migrations(pg_engine), range(2))) == [True, True]
-    assert len(journal(pg_engine)) == 11
+    assert len(journal(pg_engine)) == 15
+
+
+def test_recheck_legacy_columns_repairs_journaled_old_schema(pg_engine):
+    assert run_migrations(pg_engine)
+    with pg_engine.begin() as conn:
+        conn.execute(text("DELETE FROM schema_migrations"))
+        for version, step in PRE_271_STEPS:
+            conn.execute(
+                text("INSERT INTO schema_migrations(version, step) VALUES (:version, :step)"),
+                {"version": version, "step": step},
+            )
+        conn.execute(text("ALTER TABLE zbon_history DROP COLUMN tip_donations_cents"))
+    before = journal(pg_engine)
+    assert [(version, step) for version, step, _ in before] == sorted(PRE_271_STEPS)
+    assert run_migrations(pg_engine)
+    after = journal(pg_engine)
+    columns = {column["name"] for column in inspect(pg_engine).get_columns("zbon_history")}
+    assert ("2.7.1", "recheck_legacy_columns") in [(version, step) for version, step, _ in after]
+    assert "tip_donations_cents" in columns
 
 
 def test_missing_voucher_value_columns_backfill_once_even_after_interruption(pg_engine):
