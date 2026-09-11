@@ -15,6 +15,15 @@ pre-release markers for the `0.9.x` stabilization phase.
 - Ongoing changes should continue to use Conventional Commits so `feat` maps to `MINOR`,
   `fix` maps to `PATCH`, and `feat!` or `BREAKING CHANGE` maps to `MAJOR`.
 
+## [2.7.1] - 2026-09-11
+
+### Fixed
+- Die Startmigration führt die bestehende Spalte-Nachrüstung einmalig erneut aus, wenn Alt-Datenbanken aus einem bereits journalisierten 1.6.x/2.6.x-Pfad noch Pflichtspalten aus der später erweiterten Legacy-Migration vermissen.
+
+### Validation
+- PostgreSQL-Migrationstests erfolgreich: `backend/tests/test_postgres_migrations.py` inklusive Altpfad-Fall für bereits journalisierte Schemata.
+- Ergänzende Backend-Tests erfolgreich: `backend/tests/test_stage19_mail_automation.py` und `backend/tests/test_product_kasse_visibility.py`.
+
 ## [2.7.0] - 2026-09-11
 
 ### Added
