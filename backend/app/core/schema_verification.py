@@ -1,9 +1,32 @@
 """Small, explicit postconditions for the existing startup migrations."""
-import re
 
 from sqlalchemy import CheckConstraint, Enum, String, inspect, text
 
 from app.models import Base
+
+
+CONSTRAINT_COLUMN_DEPENDENCIES = {
+    "products": {
+        "ck_products_price_nonnegative": {"price_cents"},
+        "ck_products_member_price_nonnegative": {"member_price_cents"},
+        "ck_products_stock_nonnegative": {"stock_quantity"},
+        "ck_products_minimum_stock_nonnegative": {"minimum_stock_quantity"},
+        "ck_products_tax_rate_range": {"tax_rate"},
+        "ck_products_name_not_blank": {"name"},
+    },
+    "members": {
+        "ck_members_balance_nonnegative": {"balance_cents"},
+        "ck_members_name_not_blank": {"name"},
+        "ck_members_combined_name_length": {"first_name", "last_name"},
+    },
+    "categories": {
+        "ck_categories_name_not_blank": {"name"},
+    },
+}
+
+
+def _constraint_dependencies(table_name, constraint_name):
+    return CONSTRAINT_COLUMN_DEPENDENCIES.get(table_name, {}).get(constraint_name, set())
 
 
 def verify_schema(engine):
@@ -49,10 +72,9 @@ def validate_existing_data(engine):
                 if isinstance(column.type, String) and not isinstance(column.type, Enum) and column.type.length:
                     rules.append((column.name + "_length", f'length("{column.name}") <= {column.type.length}'))
             for name, expression in rules:
-                referenced_columns = {
-                    column.name for column in table.columns
-                    if re.search(rf'(^|[^A-Za-z0-9_])"?{re.escape(column.name)}"?([^A-Za-z0-9_]|$)', expression)
-                }
+                referenced_columns = _constraint_dependencies(table_name, name)
+                if name.endswith("_required") or name.endswith("_length"):
+                    referenced_columns = {name.rsplit("_", 1)[0]}
                 if not referenced_columns <= existing_columns:
                     continue
                 ids = conn.execute(text(f'SELECT id FROM "{table_name}" WHERE NOT ({expression}) ORDER BY id LIMIT 20')).scalars().all()
@@ -77,13 +99,7 @@ def ensure_data_constraints(engine):
             for constraint in Base.metadata.tables[table_name].constraints:
                 if not isinstance(constraint, CheckConstraint):
                     continue
-                referenced_columns = {
-                    column.name for column in Base.metadata.tables[table_name].columns
-                    if re.search(
-                        rf'(^|[^A-Za-z0-9_])"?{re.escape(column.name)}"?([^A-Za-z0-9_]|$)',
-                        str(constraint.sqltext),
-                    )
-                }
+                referenced_columns = _constraint_dependencies(table_name, constraint.name)
                 if not referenced_columns <= columns.keys():
                     continue
                 if constraint.name not in existing:
