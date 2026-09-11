@@ -48,7 +48,12 @@ CONSTRAINT_PREDICATES = {
 
 
 def _constraint_dependencies(table_name, constraint_name):
-    return CONSTRAINT_COLUMN_DEPENDENCIES.get(table_name, {}).get(constraint_name, set())
+    try:
+        return CONSTRAINT_COLUMN_DEPENDENCIES[table_name][constraint_name]
+    except KeyError as exc:
+        raise RuntimeError(
+            f"Missing validation dependency mapping for {table_name}.{constraint_name}"
+        ) from exc
 
 
 def _constraint_predicate(table_name, constraint_name, table):
