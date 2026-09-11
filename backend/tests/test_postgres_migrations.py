@@ -150,8 +150,12 @@ def test_recheck_legacy_columns_repairs_journaled_old_schema(pg_engine):
     with pg_engine.begin() as conn:
         conn.execute(text("DELETE FROM schema_migrations WHERE version='2.7.1' AND step='recheck_legacy_columns'"))
         conn.execute(text("ALTER TABLE zbon_history DROP COLUMN tip_donations_cents"))
+    before = journal(pg_engine)
+    assert ("2.7.1", "recheck_legacy_columns") not in [(version, step) for version, step, _ in before]
     assert run_migrations(pg_engine)
+    after = journal(pg_engine)
     columns = {column["name"] for column in inspect(pg_engine).get_columns("zbon_history")}
+    assert ("2.7.1", "recheck_legacy_columns") in [(version, step) for version, step, _ in after]
     assert "tip_donations_cents" in columns
 
 
