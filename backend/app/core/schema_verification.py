@@ -38,7 +38,7 @@ CONSTRAINT_PREDICATES = {
         "ck_members_balance_nonnegative": lambda table: table.c.balance_cents >= 0,
         "ck_members_name_not_blank": lambda table: func.length(func.trim(table.c.name)) > 0,
         "ck_members_combined_name_length": lambda table: func.length(
-            func.trim(table.c.first_name) + literal(" ") + func.trim(table.c.last_name)
+            func.trim(table.c.first_name).concat(literal(" ")).concat(func.trim(table.c.last_name))
         ) <= 120,
     },
     "categories": {
