@@ -1,3 +1,4 @@
+from app.core.atomic import audited_change
 import secrets
 from sqlalchemy.orm import Session
 from app.repositories import UserRepository
@@ -5,6 +6,7 @@ from app.models import (
     Member,
     UserRole,
 )
+from app.models.user import parse_user_role
 
 
 class UserService:
@@ -33,22 +35,21 @@ class UserService:
         old_value: dict | None = None,
         new_value: dict | None = None,
     ) -> None:
-        try:
-            from app.services.audit_log_service import AuditLogService
+        from app.services.audit_log_service import AuditLogService
 
-            AuditLogService(self.db).log(
-                entity_type="user",
-                action=action,
-                user_username=performed_by_username,
-                entity_id=user.id,
-                entity_name=user.username,
-                old_value=old_value,
-                new_value=new_value,
-            )
-            self.db.commit()
-        except Exception:
-            self.db.rollback()
-    
+        AuditLogService(self.db).log(
+            entity_type="user",
+            action=action,
+            user_username=performed_by_username,
+            entity_id=user.id,
+            entity_name=user.username,
+            old_value=old_value,
+            new_value=new_value,
+        )
+        self.db.commit()
+
+
+    @audited_change
     def create_user(
         self,
         username: str,
@@ -59,7 +60,7 @@ class UserService:
         performed_by_username: str | None = None,
     ):
         """Create a new user"""
-        normalized_role = getattr(role, "value", role)
+        normalized_role = parse_user_role(role)
         if normalized_role == UserRole.TOP_ADMIN.value:
             raise ValueError("Top-Admin kann nur über den initialen Setup-Flow erstellt werden")
 
@@ -86,6 +87,7 @@ class UserService:
         self._audit("CREATED", user, performed_by_username, new_value=self._snapshot_user(user))
         return user
 
+    @audited_change
     def create_top_admin(self, username: str, email: str | None, password: str):
         """Create the single top admin account during initial setup."""
         if self.repo.has_top_admin():
@@ -95,7 +97,9 @@ class UserService:
         if email and self.repo.get_by_email(email):
             raise ValueError(f"Email {email} already in use")
 
-        return self.repo.create(username, email, password, UserRole.TOP_ADMIN.value)
+        user = self.repo.create(username, email, password, UserRole.TOP_ADMIN.value)
+        self._audit("CREATED", user, username, new_value=self._snapshot_user(user))
+        return user
     
     def get_user(self, user_id: int):
         """Get user by ID"""
@@ -122,6 +126,7 @@ class UserService:
 
         members_with_roles = self.db.query(Member).filter(
             Member.role.in_([UserRole.TOP_ADMIN, UserRole.ADMIN, UserRole.MANAGER]),
+            Member.archived_at.is_(None),
         ).all()
         for member in members_with_roles:
             linked_user = getattr(member, "linked_user", None)
@@ -143,30 +148,53 @@ class UserService:
         existing_user = self.repo.get_by_username("Kasse")
         if existing_user:
             if existing_user.role != UserRole.VERKAUF or not existing_user.is_active:
-                return self.repo.update(
+                existing_user = self.repo.update(
                     existing_user.id,
                     role=UserRole.VERKAUF,
                     is_active=True,
                     email=None,
                 )
+
+            # A cookie from an earlier installation must not match the newly
+            # initialized cash-register account merely because its ID is reused.
+            if not self.repo.has_top_admin():
+                existing_user.session_version = secrets.randbelow(2_000_000_000) + 1
+                self.db.commit()
+                self.db.refresh(existing_user)
             return existing_user
 
-        return self.repo.create(
+        user = self.repo.create(
             username="Kasse",
             email=None,
             password=secrets.token_urlsafe(24),
             role=UserRole.VERKAUF.value,
             is_active=True,
         )
+        if not self.repo.has_top_admin():
+            user.session_version = secrets.randbelow(2_000_000_000) + 1
+            self.db.commit()
+            self.db.refresh(user)
+        return user
     
+    @staticmethod
+    def _validate_management_target(user, *, password_only: bool = False, current_user_id: int | None = None, deactivating: bool = False):
+        if user.role == UserRole.TOP_ADMIN:
+            raise ValueError("Top-Admin kann nicht über die Benutzerverwaltung geändert werden")
+        if deactivating and user.id == current_user_id:
+            raise ValueError("Du kannst dein eigenes Konto nicht deaktivieren")
+        if user.member_id is not None and not password_only:
+            raise ValueError("Mitgliedskonten werden über die Rollenvergabe der Mitgliederverwaltung verwaltet")
+
+    @audited_change
     def update_user(self, user_id: int, *, performed_by_username: str | None = None, **kwargs):
         """Update user"""
         user = self.repo.get_by_id(user_id)
         if not user:
             return None
 
-        if user.role == UserRole.TOP_ADMIN:
-            raise ValueError("Top-Admin kann nicht über die Benutzerverwaltung geändert werden")
+        self._validate_management_target(user, password_only=set(kwargs) <= {"password"})
+        if set(kwargs) - {"username", "email", "role", "password"}:
+            raise ValueError("Kontozustand und Verknüpfung dürfen nicht über allgemeine Benutzerupdates geändert werden")
 
         old_snapshot = self._snapshot_user(user)
 
@@ -176,7 +204,7 @@ class UserService:
             if existing_user and existing_user.id != user_id:
                 raise ValueError(f"User {username} already exists")
 
-        role = getattr(kwargs.get("role"), "value", kwargs.get("role"))
+        role = parse_user_role(kwargs.get("role"))
         if role == UserRole.TOP_ADMIN.value:
             raise ValueError("Top-Admin kann nicht über die Benutzerverwaltung vergeben werden")
 
@@ -192,10 +220,11 @@ class UserService:
                 updated_user,
                 performed_by_username,
                 old_value=old_snapshot,
-                new_value=self._snapshot_user(updated_user),
+                new_value={**self._snapshot_user(updated_user), "password_changed": "password" in kwargs},
             )
         return updated_user
     
+    @audited_change
     def deactivate_user(
         self,
         user_id: int,
@@ -207,10 +236,7 @@ class UserService:
         user = self.repo.get_by_id(user_id)
         if not user:
             return False
-        if user.role == UserRole.TOP_ADMIN:
-            raise ValueError("Top-Admin kann nicht deaktiviert werden")
-        if current_user_id is not None and user.id == current_user_id:
-            raise ValueError("Du kannst dein eigenes Konto nicht deaktivieren")
+        self._validate_management_target(user, current_user_id=current_user_id, deactivating=True)
         if not user.is_active:
             return True
 
@@ -227,6 +253,7 @@ class UserService:
             return True
         return False
 
+    @audited_change
     def reactivate_user(
         self,
         user_id: int,
@@ -237,6 +264,7 @@ class UserService:
         user = self.repo.get_by_id(user_id)
         if not user:
             return None
+        self._validate_management_target(user)
         if user.is_active:
             return user
 

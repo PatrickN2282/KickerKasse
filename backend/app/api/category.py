@@ -1,3 +1,5 @@
+from app.core.atomic import audited_change
+from app.core.auth import require_authenticated_user, require_roles
 from fastapi import APIRouter, HTTPException, Depends, Request, status
 from sqlalchemy.orm import Session
 from sqlalchemy.exc import IntegrityError
@@ -12,21 +14,7 @@ router = APIRouter(prefix="/api/categories", tags=["Categories"])
 
 
 def _require_admin(request: Request, db: Session):
-    user_id = request.session.get("user_id")
-    if not user_id:
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Not authenticated",
-        )
-
-    current_user = UserRepository(db).get_by_id(user_id)
-    if not current_user or not current_user.is_admin:
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail="Insufficient permissions",
-        )
-
-    return current_user
+    return require_roles(request, db, UserRole.ADMIN)
 
 
 def _is_fixed_category(category) -> bool:
@@ -66,6 +54,7 @@ def _log_category_change(
         db.commit()
     except Exception:
         db.rollback()
+        raise
 
 
 @router.get("/", response_model=list[CategoryResponse])
@@ -76,11 +65,7 @@ async def get_categories(
     db: Session = Depends(get_db),
 ):
     """Get all categories"""
-    if not request.session.get("user_id"):
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Not authenticated",
-        )
+    require_authenticated_user(request, db)
     
     repo = CategoryRepository(db)
     return repo.get_all(only_active=only_active)
@@ -94,11 +79,7 @@ async def get_category(
     db: Session = Depends(get_db),
 ):
     """Get category by ID"""
-    if not request.session.get("user_id"):
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Not authenticated",
-        )
+    require_authenticated_user(request, db)
     
     repo = CategoryRepository(db)
     category = repo.get_by_id(category_id)
@@ -113,6 +94,7 @@ async def get_category(
 
 @router.post("/", response_model=CategoryResponse, status_code=status.HTTP_201_CREATED)
 @router.post("", response_model=CategoryResponse, status_code=status.HTTP_201_CREATED)
+@audited_change
 async def create_category(
     category_data: CategoryCreate,
     request: Request,
@@ -149,6 +131,7 @@ async def create_category(
 
 @router.put("/{category_id}", response_model=CategoryResponse)
 @router.put("/{category_id}/", response_model=CategoryResponse)
+@audited_change
 async def update_category(
     category_id: int,
     category_data: CategoryUpdate,
@@ -200,6 +183,7 @@ async def update_category(
 
 @router.delete("/{category_id}", status_code=status.HTTP_204_NO_CONTENT)
 @router.delete("/{category_id}/", status_code=status.HTTP_204_NO_CONTENT)
+@audited_change
 async def delete_category(
     category_id: int,
     request: Request,
@@ -233,6 +217,7 @@ async def delete_category(
 
 @router.post("/{category_id}/products")
 @router.post("/{category_id}/products/")
+@audited_change
 async def assign_products_to_category(
     category_id: int,
     product_ids: list[int],
@@ -252,6 +237,7 @@ async def assign_products_to_category(
         )
 
     assigned = 0
+    assigned_ids = []
     for product_id in set(product_ids):
         product = db.query(Product).filter(Product.id == product_id).first()
         if not product:
@@ -259,6 +245,7 @@ async def assign_products_to_category(
         if category not in product.categories:
             product.categories.append(category)
             assigned += 1
+            assigned_ids.append(product.id)
 
     db.commit()
     if assigned:
@@ -270,7 +257,7 @@ async def assign_products_to_category(
             entity_name=category.name,
             new_value={
                 "operation": "assign_products",
-                "assigned_product_ids": sorted(set(product_ids)),
+                "assigned_product_ids": sorted(assigned_ids),
                 "assigned_count": assigned,
             },
         )
@@ -279,6 +266,7 @@ async def assign_products_to_category(
 
 @router.delete("/{category_id}/products/{product_id}")
 @router.delete("/{category_id}/products/{product_id}/")
+@audited_change
 async def remove_product_from_category(
     category_id: int,
     product_id: int,

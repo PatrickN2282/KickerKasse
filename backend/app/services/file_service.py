@@ -88,7 +88,7 @@ def get_product_original_image_path(product_id: int) -> Path | None:
     product_folder = _resolve_entity_directory(PRODUCTS_DIR, product_id)
     if not product_folder.exists():
         return None
-    for ext in (".jpg", ".jpeg", ".png", ".webp", ".gif"):
+    for ext in (".jpg", ".jpeg", ".png", ".webp", ".gif", ".bmp", ".avif"):
         candidate = product_folder / f"original{ext}"
         if candidate.exists():
             return candidate
@@ -134,7 +134,7 @@ def get_member_original_photo_path(member_id: int) -> Path | None:
     member_folder = _resolve_entity_directory(MEMBERS_DIR, member_id)
     if not member_folder.exists():
         return None
-    for ext in (".jpg", ".jpeg", ".png", ".webp", ".gif"):
+    for ext in (".jpg", ".jpeg", ".png", ".webp", ".gif", ".bmp", ".avif"):
         candidate = member_folder / f"original{ext}"
         if candidate.exists():
             return candidate

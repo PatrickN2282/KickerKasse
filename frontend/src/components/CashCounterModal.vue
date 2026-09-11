@@ -192,11 +192,16 @@ const totalCashCount = computed(() => {
 })
 
 const formatCurrency = (value) => {
-  return `${Number(value).toFixed(2)} EUR`
+  return new Intl.NumberFormat('de-DE', { style: 'currency', currency: 'EUR' }).format(Number(value))
 }
 
 const formatDenomination = (value) => {
-  return `${Number(value).toFixed(value < 1 ? 2 : 0)} EUR`
+  return new Intl.NumberFormat('de-DE', {
+    style: 'currency',
+    currency: 'EUR',
+    minimumFractionDigits: value < 1 ? 2 : 0,
+    maximumFractionDigits: value < 1 ? 2 : 0,
+  }).format(Number(value))
 }
 
 const incrementCoin = (denom) => {

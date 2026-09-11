@@ -1,12 +1,12 @@
 <template>
-  <div v-if="show" class="modal-overlay" @click.self="$emit('close')">
-    <div class="modal-card modal-compact">
+  <div v-if="show" class="modal-overlay">
+    <div ref="dialogRef" class="modal-card modal-compact" role="dialog" aria-modal="true" aria-labelledby="member-dialog-title">
       <header class="modal-header">
         <div>
-          <h3>{{ editingId ? 'Mitglied bearbeiten' : 'Neues Mitglied anlegen' }}</h3>
+          <h3 id="member-dialog-title">{{ editingId ? 'Mitglied bearbeiten' : 'Neues Mitglied anlegen' }}</h3>
           <p class="modal-subtitle">Stammdaten und Berechtigungen verwalten.</p>
         </div>
-        <button class="close-btn" @click="$emit('close')">✕</button>
+        <button type="button" class="close-btn" aria-label="Mitgliedsdialog schließen" @click="requestClose">✕</button>
       </header>
 
       <form class="modal-compact-layout" @submit.prevent="$emit('save')">
@@ -149,8 +149,20 @@
                   :placeholder="hasExistingUserAccount ? 'Leer lassen = Passwort unverändert' : 'Mind. 8 Zeichen'"
                 >
               </div>
+              <div class="form-group">
+                <label>{{ hasExistingUserAccount ? 'Neues Passwort wiederholen' : 'Initial-Passwort wiederholen *' }}</label>
+                <input
+                  v-model="formData.account_password_confirm"
+                  type="password"
+                  :required="!hasExistingUserAccount || Boolean(formData.account_password)"
+                  minlength="8"
+                  :class="{ 'input-error': passwordMismatch }"
+                  placeholder="Passwort erneut eingeben"
+                >
+                <small v-if="passwordMismatch" class="help-text help-text-error">Die Passwörter stimmen nicht überein.</small>
+              </div>
               <p class="help-text" :style="!hasExistingUserAccount ? 'color: #e94560; font-weight: 600;' : ''">
-                {{ hasExistingUserAccount ? 'Nur ausfüllen, wenn das Passwort neu gesetzt werden soll.' : '⚠ Pflichtfeld: Erforderlich für den ersten System-Login (mind. 8 Zeichen).' }}
+                {{ hasExistingUserAccount ? 'Nur ausfüllen, wenn das Passwort neu gesetzt werden soll.' : '⚠ Pflichtfeld: Erforderlich für die erste Anmeldung (mind. 8 Zeichen).' }}
               </p>
             </div>
           </div>
@@ -165,8 +177,8 @@
         </div>
 
         <footer class="modal-footer">
-          <button type="button" class="btn btn-secondary" @click="$emit('close')">Abbrechen</button>
-          <button type="submit" class="btn btn-success">
+          <button type="button" class="btn btn-secondary" @click="requestClose">Abbrechen</button>
+          <button type="submit" class="btn btn-success" :disabled="passwordMismatch">
             {{ editingId ? 'Änderungen speichern' : 'Mitglied anlegen' }}
           </button>
         </footer>
@@ -176,7 +188,10 @@
 </template>
 
 <script setup>
-defineProps({
+import { computed, ref, toRef, watch } from 'vue'
+import { useModalFocus } from '@/composables/useModalFocus'
+
+const props = defineProps({
   show: { type: Boolean, required: true },
   editingId: { type: [Number, String], default: null },
   authIsTopAdmin: { type: Boolean, default: false },
@@ -197,7 +212,19 @@ const rechargeAmount = defineModel('rechargeAmount', {
   default: null,
 })
 
-defineEmits(['close', 'save', 'open-photo-editor', 'photo-upload', 'open-recharge', 'remove-photo'])
+const emit = defineEmits(['close', 'save', 'open-photo-editor', 'photo-upload', 'open-recharge', 'remove-photo'])
+const dialogRef = ref(null)
+const passwordMismatch = computed(() => (
+  !!formData.value.role
+  && (formData.value.account_password || formData.value.account_password_confirm)
+  && formData.value.account_password !== formData.value.account_password_confirm
+))
+let initialForm = ''
+watch(() => props.show, (show) => { if (show) initialForm = JSON.stringify(formData.value) }, { immediate: true })
+const { requestClose } = useModalFocus(toRef(props, 'show'), dialogRef, {
+  canClose: () => JSON.stringify(formData.value) === initialForm || window.confirm('Ungespeicherte Änderungen verwerfen?'),
+  onClose: () => emit('close'),
+})
 </script>
 
 <style scoped lang="scss">
@@ -530,6 +557,8 @@ defineEmits(['close', 'save', 'open-photo-editor', 'photo-upload', 'open-recharg
 }
 
 .password-box { margin-top: 1rem; padding-top: 1rem; border-top: 1px dashed #bae6fd; }
+.input-error { border-color: #dc2626 !important; box-shadow: 0 0 0 3px rgba(220, 38, 38, .1) !important; }
+.help-text-error { color: #b91c1c !important; font-weight: 600; }
 .help-text { font-size: 0.75rem; color: #64748b; margin-top: 0.4rem; }
 
 .modal-footer {

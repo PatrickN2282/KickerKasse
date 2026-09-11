@@ -1,3 +1,4 @@
+from app.core.atomic import audited_change, audited_media
 from pathlib import Path
 import re
 
@@ -9,7 +10,7 @@ from app.services.file_service import APP_SETTINGS_DIR, get_full_path, save_app_
 
 HEX_COLOR_RE = re.compile(r"^#[0-9A-Fa-f]{6}$")
 TIME_RE = re.compile(r"^([01]\d|2[0-3]):[0-5]\d$")
-DEFAULT_APP_NAME = "KGB - KickerKasse Test"
+DEFAULT_APP_NAME = "KickerKasse"
 DEFAULT_BACKGROUND_COLOR = "#d7dce2"
 DEFAULT_BANNER_COLOR = "#131820"
 DEFAULT_HIGHLIGHT_COLOR = "#5c8f3a"
@@ -17,13 +18,17 @@ DEFAULT_KASSE_AREA_BACKGROUND_COLOR = "#ffffff"
 DEFAULT_LOGO_RELATIVE_PATH = "app_settings/logo.png"
 DEFAULT_SESSION_TIMER_ENABLED = False
 DEFAULT_SESSION_TIMER_MINUTES = 15
+DEFAULT_KASSE_DIRECT_LOGIN_ENABLED = True
 DEFAULT_DECKEL_ENABLED = True
+DEFAULT_GUEST_LIST_ENABLED = True
 DEFAULT_KASSE_PRODUCTS_BACKGROUND_SCALE = 100
 DEFAULT_KASSE_PRODUCTS_BACKGROUND_OPACITY = 100
 DEFAULT_KASSE_PRODUCTS_BACKGROUND_ENABLED = True
 DEFAULT_EMAIL_ENABLED = False
 DEFAULT_EMAIL_SENDER = "noreply@kassensystem.local"
 DEFAULT_EMAIL_RECIPIENT_ZBON = ""
+DEFAULT_EMAIL_RECIPIENT_STOCK = ""
+DEFAULT_EMAIL_RECIPIENT_BACKUP = ""
 DEFAULT_EMAIL_SUBJECT_SUFFIX = ""
 DEFAULT_EMAIL_CRITICAL_STOCK_ENABLED = False
 DEFAULT_SMTP_HOST = ""
@@ -35,6 +40,7 @@ DEFAULT_SEND_ZBON_ON_CREATE_ENABLED = False
 DEFAULT_SCHEDULED_ZBON_ENABLED = False
 DEFAULT_SCHEDULED_ZBON_TIME = "23:59"
 DEFAULT_SCHEDULED_ZBON_REPORT_TYPE = "full-zbon"
+DEFAULT_SCHEDULED_STOCK_WARNING_TIME = "09:00"
 DEFAULT_SCHEDULED_DATABASE_BACKUP_ENABLED = False
 DEFAULT_SCHEDULED_DATABASE_BACKUP_TIME = "03:00"
 SCHEDULED_REPORT_TYPES = {"full-zbon", "short-zbon", "daily-report"}
@@ -73,7 +79,9 @@ class AppSettingsService:
             logo_path=None,
             session_timer_enabled=DEFAULT_SESSION_TIMER_ENABLED,
             session_timer_minutes=DEFAULT_SESSION_TIMER_MINUTES,
+            kasse_direct_login_enabled=DEFAULT_KASSE_DIRECT_LOGIN_ENABLED,
             deckel_enabled=DEFAULT_DECKEL_ENABLED,
+            guest_list_enabled=DEFAULT_GUEST_LIST_ENABLED,
             kasse_products_background_path=None,
             kasse_products_background_scale=DEFAULT_KASSE_PRODUCTS_BACKGROUND_SCALE,
             kasse_products_background_opacity=DEFAULT_KASSE_PRODUCTS_BACKGROUND_OPACITY,
@@ -81,7 +89,12 @@ class AppSettingsService:
             email_enabled=DEFAULT_EMAIL_ENABLED,
             email_sender=DEFAULT_EMAIL_SENDER,
             email_recipient_zbon=DEFAULT_EMAIL_RECIPIENT_ZBON,
+            email_recipient_stock=DEFAULT_EMAIL_RECIPIENT_STOCK,
+            email_recipient_backup=DEFAULT_EMAIL_RECIPIENT_BACKUP,
             email_subject_suffix=DEFAULT_EMAIL_SUBJECT_SUFFIX,
+            email_subject_zbon_info="",
+            email_subject_stock_info="",
+            email_subject_backup_info="",
             email_critical_stock_enabled=DEFAULT_EMAIL_CRITICAL_STOCK_ENABLED,
             smtp_host=DEFAULT_SMTP_HOST,
             smtp_port=DEFAULT_SMTP_PORT,
@@ -92,6 +105,7 @@ class AppSettingsService:
             scheduled_zbon_enabled=DEFAULT_SCHEDULED_ZBON_ENABLED,
             scheduled_zbon_time=DEFAULT_SCHEDULED_ZBON_TIME,
             scheduled_zbon_report_type=DEFAULT_SCHEDULED_ZBON_REPORT_TYPE,
+            scheduled_stock_warning_time=DEFAULT_SCHEDULED_STOCK_WARNING_TIME,
             scheduled_database_backup_enabled=DEFAULT_SCHEDULED_DATABASE_BACKUP_ENABLED,
             scheduled_database_backup_time=DEFAULT_SCHEDULED_DATABASE_BACKUP_TIME,
         )
@@ -125,7 +139,9 @@ class AppSettingsService:
             "kasse_layout": settings.kasse_layout,
             "session_timer_enabled": settings.session_timer_enabled,
             "session_timer_minutes": settings.session_timer_minutes or DEFAULT_SESSION_TIMER_MINUTES,
-            "deckel_enabled": settings.deckel_enabled,
+            "kasse_direct_login_enabled": settings.kasse_direct_login_enabled if settings.kasse_direct_login_enabled is not None else DEFAULT_KASSE_DIRECT_LOGIN_ENABLED,
+            "deckel_enabled": settings.deckel_enabled if settings.deckel_enabled is not None else DEFAULT_DECKEL_ENABLED,
+            "guest_list_enabled": settings.guest_list_enabled if settings.guest_list_enabled is not None else DEFAULT_GUEST_LIST_ENABLED,
             "kasse_products_background_scale": settings.kasse_products_background_scale or DEFAULT_KASSE_PRODUCTS_BACKGROUND_SCALE,
             "kasse_products_background_opacity": settings.kasse_products_background_opacity if settings.kasse_products_background_opacity is not None else DEFAULT_KASSE_PRODUCTS_BACKGROUND_OPACITY,
             "kasse_products_background_enabled": settings.kasse_products_background_enabled if settings.kasse_products_background_enabled is not None else DEFAULT_KASSE_PRODUCTS_BACKGROUND_ENABLED,
@@ -150,7 +166,12 @@ class AppSettingsService:
             "email_enabled": settings.email_enabled if settings.email_enabled is not None else DEFAULT_EMAIL_ENABLED,
             "email_sender": settings.email_sender or DEFAULT_EMAIL_SENDER,
             "email_recipient_zbon": settings.email_recipient_zbon or DEFAULT_EMAIL_RECIPIENT_ZBON,
+            "email_recipient_stock": settings.email_recipient_stock or DEFAULT_EMAIL_RECIPIENT_STOCK,
+            "email_recipient_backup": settings.email_recipient_backup or DEFAULT_EMAIL_RECIPIENT_BACKUP,
             "email_subject_suffix": settings.email_subject_suffix or DEFAULT_EMAIL_SUBJECT_SUFFIX,
+            "email_subject_zbon_info": settings.email_subject_zbon_info or "",
+            "email_subject_stock_info": settings.email_subject_stock_info or "",
+            "email_subject_backup_info": settings.email_subject_backup_info or "",
             "email_critical_stock_enabled": settings.email_critical_stock_enabled if settings.email_critical_stock_enabled is not None else DEFAULT_EMAIL_CRITICAL_STOCK_ENABLED,
             "smtp_host": settings.smtp_host or DEFAULT_SMTP_HOST,
             "smtp_port": settings.smtp_port or DEFAULT_SMTP_PORT,
@@ -161,8 +182,16 @@ class AppSettingsService:
             "scheduled_zbon_enabled": settings.scheduled_zbon_enabled if settings.scheduled_zbon_enabled is not None else DEFAULT_SCHEDULED_ZBON_ENABLED,
             "scheduled_zbon_time": settings.scheduled_zbon_time or DEFAULT_SCHEDULED_ZBON_TIME,
             "scheduled_zbon_report_type": settings.scheduled_zbon_report_type or DEFAULT_SCHEDULED_ZBON_REPORT_TYPE,
+            "scheduled_stock_warning_time": settings.scheduled_stock_warning_time or DEFAULT_SCHEDULED_STOCK_WARNING_TIME,
             "scheduled_database_backup_enabled": settings.scheduled_database_backup_enabled if settings.scheduled_database_backup_enabled is not None else DEFAULT_SCHEDULED_DATABASE_BACKUP_ENABLED,
             "scheduled_database_backup_time": settings.scheduled_database_backup_time or DEFAULT_SCHEDULED_DATABASE_BACKUP_TIME,
+            "zbon_last_run_at": settings.zbon_last_run_at,
+            "zbon_last_run_status": settings.zbon_last_run_status,
+            "zbon_last_run_message": settings.zbon_last_run_message,
+            "zbon_last_business_date": settings.zbon_last_business_date,
+            "stock_last_run_at": settings.stock_last_run_at,
+            "stock_last_run_status": settings.stock_last_run_status,
+            "stock_last_run_message": settings.stock_last_run_message,
         })
         if not include_sensitive:
             payload["smtp_password"] = ""
@@ -171,10 +200,16 @@ class AppSettingsService:
     def get_email_settings(self, settings: AppSettings | None = None) -> dict:
         settings = settings or self.get_or_create_settings()
         return {
+            "app_name": settings.app_name or DEFAULT_APP_NAME,
             "email_enabled": settings.email_enabled if settings.email_enabled is not None else DEFAULT_EMAIL_ENABLED,
             "email_sender": settings.email_sender or DEFAULT_EMAIL_SENDER,
             "email_recipient_zbon": settings.email_recipient_zbon or DEFAULT_EMAIL_RECIPIENT_ZBON,
+            "email_recipient_stock": settings.email_recipient_stock or DEFAULT_EMAIL_RECIPIENT_STOCK,
+            "email_recipient_backup": settings.email_recipient_backup or DEFAULT_EMAIL_RECIPIENT_BACKUP,
             "email_subject_suffix": settings.email_subject_suffix or DEFAULT_EMAIL_SUBJECT_SUFFIX,
+            "email_subject_zbon_info": settings.email_subject_zbon_info or "",
+            "email_subject_stock_info": settings.email_subject_stock_info or "",
+            "email_subject_backup_info": settings.email_subject_backup_info or "",
             "email_critical_stock_enabled": settings.email_critical_stock_enabled if settings.email_critical_stock_enabled is not None else DEFAULT_EMAIL_CRITICAL_STOCK_ENABLED,
             "smtp_host": settings.smtp_host or DEFAULT_SMTP_HOST,
             "smtp_port": settings.smtp_port or DEFAULT_SMTP_PORT,
@@ -185,6 +220,7 @@ class AppSettingsService:
             "scheduled_zbon_enabled": settings.scheduled_zbon_enabled if settings.scheduled_zbon_enabled is not None else DEFAULT_SCHEDULED_ZBON_ENABLED,
             "scheduled_zbon_time": settings.scheduled_zbon_time or DEFAULT_SCHEDULED_ZBON_TIME,
             "scheduled_zbon_report_type": settings.scheduled_zbon_report_type or DEFAULT_SCHEDULED_ZBON_REPORT_TYPE,
+            "scheduled_stock_warning_time": settings.scheduled_stock_warning_time or DEFAULT_SCHEDULED_STOCK_WARNING_TIME,
             "scheduled_database_backup_enabled": settings.scheduled_database_backup_enabled if settings.scheduled_database_backup_enabled is not None else DEFAULT_SCHEDULED_DATABASE_BACKUP_ENABLED,
             "scheduled_database_backup_time": settings.scheduled_database_backup_time or DEFAULT_SCHEDULED_DATABASE_BACKUP_TIME,
         }
@@ -202,6 +238,7 @@ class AppSettingsService:
             "registration_number": settings.business_registration_number or "",
         }
 
+    @audited_change
     def update_settings(self, performed_by_username: str | None = None, **kwargs) -> AppSettings:
         settings = self.get_or_create_settings()
         tracked_fields = [
@@ -213,7 +250,9 @@ class AppSettingsService:
             "kasse_layout",
             "session_timer_enabled",
             "session_timer_minutes",
+            "kasse_direct_login_enabled",
             "deckel_enabled",
+            "guest_list_enabled",
             "kasse_products_background_scale",
             "kasse_products_background_opacity",
             "kasse_products_background_enabled",
@@ -228,7 +267,12 @@ class AppSettingsService:
             "email_enabled",
             "email_sender",
             "email_recipient_zbon",
+            "email_recipient_stock",
+            "email_recipient_backup",
             "email_subject_suffix",
+            "email_subject_zbon_info",
+            "email_subject_stock_info",
+            "email_subject_backup_info",
             "email_critical_stock_enabled",
             "smtp_host",
             "smtp_port",
@@ -239,6 +283,7 @@ class AppSettingsService:
             "scheduled_zbon_enabled",
             "scheduled_zbon_time",
             "scheduled_zbon_report_type",
+            "scheduled_stock_warning_time",
             "scheduled_database_backup_enabled",
             "scheduled_database_backup_time",
         ]
@@ -272,8 +317,14 @@ class AppSettingsService:
                 raise ValueError("Session timer minutes must be at least 1")
             settings.session_timer_minutes = minutes
 
+        if "kasse_direct_login_enabled" in kwargs and kwargs["kasse_direct_login_enabled"] is not None:
+            settings.kasse_direct_login_enabled = bool(kwargs["kasse_direct_login_enabled"])
+
         if "deckel_enabled" in kwargs and kwargs["deckel_enabled"] is not None:
             settings.deckel_enabled = bool(kwargs["deckel_enabled"])
+
+        if "guest_list_enabled" in kwargs and kwargs["guest_list_enabled"] is not None:
+            settings.guest_list_enabled = bool(kwargs["guest_list_enabled"])
 
         if "kasse_products_background_scale" in kwargs and kwargs["kasse_products_background_scale"] is not None:
             scale = int(kwargs["kasse_products_background_scale"])
@@ -301,7 +352,12 @@ class AppSettingsService:
             "business_registration_number",
             "email_sender",
             "email_recipient_zbon",
+            "email_recipient_stock",
+            "email_recipient_backup",
             "email_subject_suffix",
+            "email_subject_zbon_info",
+            "email_subject_stock_info",
+            "email_subject_backup_info",
             "smtp_host",
             "smtp_username",
             "smtp_password",
@@ -340,6 +396,12 @@ class AppSettingsService:
             # Keep backwards compatibility but enforce a single consolidated report format.
             settings.scheduled_zbon_report_type = DEFAULT_SCHEDULED_ZBON_REPORT_TYPE
 
+        if "scheduled_stock_warning_time" in kwargs and kwargs["scheduled_stock_warning_time"] is not None:
+            stock_time = str(kwargs["scheduled_stock_warning_time"]).strip()
+            if not TIME_RE.match(stock_time):
+                raise ValueError("Scheduled stock warning time must use HH:MM format")
+            settings.scheduled_stock_warning_time = stock_time
+
         if "scheduled_database_backup_enabled" in kwargs and kwargs["scheduled_database_backup_enabled"] is not None:
             settings.scheduled_database_backup_enabled = bool(kwargs["scheduled_database_backup_enabled"])
 
@@ -352,40 +414,49 @@ class AppSettingsService:
         self.db.commit()
         self.db.refresh(settings)
 
-        try:
-            from app.services.audit_log_service import AuditLogService
+        from app.services.audit_log_service import AuditLogService
 
-            new_snapshot = {
-                field_name: self._mask_sensitive(field_name, getattr(settings, field_name, None))
-                for field_name in tracked_fields
-            }
-            changed = {k: v for k, v in new_snapshot.items() if old_snapshot.get(k) != v}
-            if changed:
-                AuditLogService(self.db).log(
-                    entity_type="settings",
-                    action="UPDATED",
-                    user_username=performed_by_username,
-                    entity_id=settings.id,
-                    entity_name="AppSettings",
-                    old_value={k: old_snapshot[k] for k in changed},
-                    new_value=changed,
-                )
-                self.db.commit()
-        except Exception:
-            pass
+        new_snapshot = {
+            field_name: self._mask_sensitive(field_name, getattr(settings, field_name, None))
+            for field_name in tracked_fields
+        }
+        changed = {k: v for k, v in new_snapshot.items() if old_snapshot.get(k) != v}
+        if "smtp_password" in kwargs:
+            changed["smtp_password"] = self._mask_sensitive("smtp_password", settings.smtp_password)
+        if changed:
+            AuditLogService(self.db).log(
+                entity_type="settings",
+                action="UPDATED",
+                user_username=performed_by_username,
+                entity_id=settings.id,
+                entity_name="AppSettings",
+                old_value={k: old_snapshot[k] for k in changed},
+                new_value=changed,
+            )
+            self.db.commit()
 
         return settings
 
-    async def update_logo(self, file) -> AppSettings:
+    @audited_media("app_settings")
+    async def update_logo(self, file, performed_by_username=None) -> AppSettings:
         settings = self.get_or_create_settings()
         settings.logo_path = await save_app_logo(file)
+        from app.services.audit_log_service import AuditLogService
+        AuditLogService(self.db).log(entity_type="settings", action="IMAGE_UPDATED",
+            user_username=performed_by_username, entity_id=settings.id, entity_name="AppSettings",
+            new_value={"logo_path": settings.logo_path})
         self.db.commit()
         self.db.refresh(settings)
         return settings
 
-    async def update_kasse_products_background(self, file) -> AppSettings:
+    @audited_media("app_settings")
+    async def update_kasse_products_background(self, file, performed_by_username=None) -> AppSettings:
         settings = self.get_or_create_settings()
         settings.kasse_products_background_path = await save_kasse_products_background(file)
+        from app.services.audit_log_service import AuditLogService
+        AuditLogService(self.db).log(entity_type="settings", action="IMAGE_UPDATED",
+            user_username=performed_by_username, entity_id=settings.id, entity_name="AppSettings",
+            new_value={"kasse_products_background_path": settings.kasse_products_background_path})
         self.db.commit()
         self.db.refresh(settings)
         return settings

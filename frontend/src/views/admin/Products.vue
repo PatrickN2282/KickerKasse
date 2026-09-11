@@ -4,7 +4,7 @@
       <div class="title-row">
         <h2>Produktverwaltung</h2>
         <span class="title-sep">|</span>
-        <span class="page-subtitle">Produkte und Preise im gleichen Layout wie die Mitgliederverwaltung pflegen.</span>
+          <span class="page-subtitle">Kategorien steuern die Kassenanzeige; Warengruppen dienen der Auswertung.</span>
       </div>
       <div class="page-header-actions">
         <button class="btn btn-primary" @click="openCreateModal">
@@ -26,6 +26,11 @@
           placeholder="Nach Produktname suchen..."
           class="search-input"
         >
+        <select v-model="activeFilter" class="search-input status-filter" aria-label="Aktivstatus filtern">
+          <option value="active">Aktive Produkte</option>
+          <option value="inactive">Deaktivierte Produkte</option>
+          <option value="all">Alle Produkte</option>
+        </select>
       </div>
 
       <div class="products-table-wrapper">
@@ -35,6 +40,7 @@
               <th>Bild</th>
               <th>Name</th>
               <th>Warengruppe</th>
+              <th>Kassenkategorien</th>
               <th>Preis</th>
               <th>Mitgliedspreis</th>
               <th>Lager</th>
@@ -42,7 +48,7 @@
             </tr>
           </thead>
           <tbody>
-            <tr v-for="product in filteredProducts" :key="product.id">
+            <tr v-for="product in filteredProducts" :key="product.id" :class="{ 'inactive-row': !product.is_active }">
               <td class="product-image-cell">
                 <div class="product-thumb-frame">
                   <img
@@ -60,10 +66,16 @@
                   <div class="product-badges">
                     <span v-if="hasMemberPrice(product)" class="badge badge-info">Rabatt</span>
                     <span v-if="product.is_unlimited_stock" class="badge badge-dark">∞</span>
+                    <span v-if="!product.is_visible_in_kasse" class="badge badge-light">Kasse ausgeblendet</span>
+                    <span v-if="product.opens_small_parts_drawer" class="badge badge-warning">Kleinteile-Lager</span>
                   </div>
                 </div>
               </td>
               <td>{{ product.warengruppe || '—' }}</td>
+              <td>
+                <span v-if="!product.categories?.length" class="badge badge-light">Nicht in Kasse zugeordnet</span>
+                <span v-for="category in product.categories" v-else :key="category.id" class="badge badge-info category-badge">{{ category.name }}</span>
+              </td>
               <td>{{ formatPrice(product.price_cents) }}</td>
               <td>
                 <span :class="['badge', hasMemberPrice(product) ? 'badge-success' : 'badge-light']">
@@ -87,19 +99,29 @@
                     ✏️
                   </button>
                   <button
+                    v-if="product.is_active"
                     class="btn-action btn-action-icon btn-action-danger btn-action-delete-icon"
                     type="button"
-                    title="Löschen"
-                    aria-label="Löschen"
+                    title="Deaktivieren"
+                    aria-label="Produkt deaktivieren"
                     @click="deleteProduct(product.id)"
                   >
                     ✕
+                  </button>
+                  <button
+                    v-else
+                    class="btn-action btn-action-reactivate"
+                    type="button"
+                    title="Reaktivieren"
+                    @click="reactivateProduct(product)"
+                  >
+                    Reaktivieren
                   </button>
                 </div>
               </td>
             </tr>
             <tr v-if="filteredProducts.length === 0">
-              <td colspan="7" class="empty-state-cell">Keine Produkte gefunden</td>
+              <td colspan="8" class="empty-state-cell">Keine Produkte gefunden</td>
             </tr>
           </tbody>
         </table>
@@ -114,6 +136,8 @@
       :product-preview-alt="productPreviewAlt"
       :preview-price-text="previewPriceText"
       :warengruppe-options="warengruppeOptions"
+      :categories="categories"
+      :can-edit-categories="authStore.isAdmin"
       :show-corrections-shortcut="canAccessCorrections"
       @close="closeProductModal"
       @save="handleSaveProduct"
@@ -156,6 +180,8 @@ import { useAuthStore } from '@/stores/auth'
 import { useProductStore } from '@/stores/product'
 import { useNotificationStore } from '@/stores/notification'
 import { formatPrice } from '@/services/utils'
+import apiService from '@/services/api'
+import { openDrawerTargets } from '@/services/drawer'
 import ImageEditorModal from '@/components/ImageEditorModal.vue'
 import ProductFormModal from '@/views/admin/modal/ProductFormModal.vue'
 
@@ -178,7 +204,10 @@ const imageDeleteRequested = ref(false)
 const imagePendingOriginalUpload = ref(false)
 const persistedImageExists = ref(false)
 const lastFiniteStock = ref(0)
+const originalStockMode = ref(false)
 const productSearch = ref('')
+const activeFilter = ref('active')
+const categories = ref([])
 const productCropFrameWidth = 300
 const productCropAspectRatio = 3 / 2
 const productCropOutputWidth = 600
@@ -195,6 +224,10 @@ const formData = reactive({
   notifyOnLowStock: false,
   isUnlimitedStock: false,
   isVariablePrice: false,
+  isVisibleInKasse: true,
+  requiresGuestList: false,
+  opensSmallPartsDrawer: false,
+  categoryIds: [],
 })
 
 const canAccessCorrections = computed(() => authStore.hasRole('TOP_ADMIN', 'ADMIN'))
@@ -221,6 +254,7 @@ const getProductSearchText = (product) => {
     product?.stock_quantity,
     product?.price_cents,
     product?.member_price_cents,
+    ...(product?.categories || []).map(category => category.name),
   ]
     .filter(value => value !== null && value !== undefined && value !== '')
     .join(' ')
@@ -229,8 +263,11 @@ const getProductSearchText = (product) => {
 
 const filteredProducts = computed(() => {
   const search = productSearch.value.trim().toLowerCase()
-  if (!search) return productStore.products
-  return productStore.products.filter(product => getProductSearchText(product).includes(search))
+  return productStore.products.filter((product) => {
+    if (activeFilter.value === 'active' && !product.is_active) return false
+    if (activeFilter.value === 'inactive' && product.is_active) return false
+    return !search || getProductSearchText(product).includes(search)
+  })
 })
 
 const warengruppeOptions = computed(() => {
@@ -371,25 +408,31 @@ const requestImageRemoval = () => {
 
 const handleSaveProduct = async () => {
   if (editingId.value) {
-    const imageUploadSuccess = await syncProductImage(editingId.value)
-    if (!imageUploadSuccess) {
-      return
-    }
-
     const result = await productStore.updateProduct(editingId.value, {
       name: formData.name,
       warengruppe: formData.warengruppe || null,
       price_cents: Math.round(formData.price * 100),
       member_price_cents: toMemberPriceCents(),
-      stock_quantity: formData.isUnlimitedStock ? 0 : formData.stock,
       minimum_stock_quantity: formData.isUnlimitedStock ? 0 : Math.max(Number(formData.minimumStock) || 0, 0),
       notify_on_low_stock: formData.isUnlimitedStock ? false : !!formData.notifyOnLowStock,
-      is_unlimited_stock: formData.isUnlimitedStock,
+      ...(formData.isUnlimitedStock !== originalStockMode.value
+        ? { is_unlimited_stock: formData.isUnlimitedStock }
+        : {}),
       is_variable_price: formData.isVariablePrice,
+      is_visible_in_kasse: formData.isVisibleInKasse,
+      requires_guest_list: formData.requiresGuestList,
+      opens_small_parts_drawer: formData.opensSmallPartsDrawer,
     })
 
     if (result) {
-      notificationStore.success('Produkt erfolgreich aktualisiert')
+      await syncProductCategories(result)
+      const imageUploadSuccess = await syncProductImage(editingId.value)
+      await openDrawerTargets(result.drawer_targets)
+      if (!imageUploadSuccess) {
+        notificationStore.warning('Produktdaten wurden gespeichert, das Bild jedoch nicht. Das Formular bleibt für einen erneuten Bildversuch geöffnet.')
+        return
+      }
+      notificationStore.success('Produkt vollständig aktualisiert.')
       resetForm()
     } else {
       notificationStore.error(productStore.error)
@@ -407,13 +450,21 @@ const handleSaveProduct = async () => {
     notify_on_low_stock: formData.isUnlimitedStock ? false : !!formData.notifyOnLowStock,
     is_unlimited_stock: formData.isUnlimitedStock,
     is_variable_price: formData.isVariablePrice,
+    is_visible_in_kasse: formData.isVisibleInKasse,
+    requires_guest_list: formData.requiresGuestList,
+    opens_small_parts_drawer: formData.opensSmallPartsDrawer,
   })
 
   if (result) {
+    await syncProductCategories(result)
+    await openDrawerTargets(result.drawer_targets)
     if (imageFile.value) {
       const imageUploadSuccess = await syncProductImage(result.id)
       if (!imageUploadSuccess) {
-        notificationStore.warning('Produkt wurde erstellt, aber der Bild-Upload ist fehlgeschlagen.')
+        editingId.value = result.id
+        originalStockMode.value = !!formData.isUnlimitedStock
+        notificationStore.warning('Produkt wurde erstellt, das Bild jedoch nicht. Das Formular bleibt für einen erneuten Bildversuch geöffnet.')
+        return
       } else {
         notificationStore.success('Produkt mit Bild erfolgreich erstellt')
       }
@@ -525,6 +576,10 @@ const resetForm = () => {
   formData.notifyOnLowStock = false
   formData.isUnlimitedStock = false
   formData.isVariablePrice = false
+  formData.isVisibleInKasse = true
+  formData.requiresGuestList = false
+  formData.opensSmallPartsDrawer = false
+  formData.categoryIds = []
   lastFiniteStock.value = 0
   imageFile.value = null
   imagePreviewSrc.value = null
@@ -550,8 +605,13 @@ const editProduct = async (product) => {
   formData.stock = product.stock_quantity
   formData.minimumStock = product.minimum_stock_quantity ?? 0
   formData.notifyOnLowStock = !!product.notify_on_low_stock
-  formData.isUnlimitedStock = !!product.is_unlimited_stock
+  originalStockMode.value = !!product.is_unlimited_stock
+  formData.isUnlimitedStock = originalStockMode.value
   formData.isVariablePrice = !!product.is_variable_price
+  formData.isVisibleInKasse = product.is_visible_in_kasse !== false
+  formData.requiresGuestList = !!product.requires_guest_list
+  formData.opensSmallPartsDrawer = !!product.opens_small_parts_drawer
+  formData.categoryIds = (product.categories || []).map(category => category.id)
   lastFiniteStock.value = product.stock_quantity
   imageFile.value = null
   imagePreviewSrc.value = null
@@ -584,15 +644,33 @@ const editProduct = async (product) => {
 }
 
 const deleteProduct = async (productId) => {
-  if (confirm('Möchtest du dieses Produkt wirklich unwiderruflich löschen?')) {
+  if (confirm('Produkt deaktivieren? Es verschwindet aus der Kasse und kann hier später reaktiviert werden.')) {
     const result = await productStore.deleteProduct(productId)
     if (result) {
       if (editingId.value === productId) resetForm()
-      notificationStore.success('Produkt wurde erfolgreich gelöscht.')
+      await productStore.getProducts(false)
+      notificationStore.success('Produkt wurde deaktiviert und bleibt über den Statusfilter auffindbar.')
     } else {
       notificationStore.error(productStore.error || 'Fehler beim Löschen des Produkts.')
     }
   }
+}
+
+const reactivateProduct = async (product) => {
+  const result = await productStore.reactivateProduct(product.id)
+  if (result) notificationStore.success('Produkt reaktiviert. Zugeordnete aktive Kategorien machen es wieder in der Kasse auffindbar.')
+  else notificationStore.error(productStore.error || 'Produkt konnte nicht reaktiviert werden.')
+}
+
+const syncProductCategories = async (product) => {
+  if (!authStore.isAdmin) return
+  const selected = new Set(formData.categoryIds.map(Number))
+  const existing = new Set((product.categories || []).map(category => Number(category.id)))
+  const additions = [...selected].filter(id => !existing.has(id))
+  const removals = [...existing].filter(id => !selected.has(id))
+  if (additions.length) await apiService.post(`/products/${product.id}/categories`, additions)
+  for (const categoryId of removals) await apiService.delete(`/products/${product.id}/categories/${categoryId}`)
+  await productStore.getProducts(false)
 }
 
 const goToCorrections = async () => {
@@ -606,7 +684,10 @@ const goToCorrections = async () => {
 }
 
 onMounted(async () => {
-  await productStore.getProducts()
+  await Promise.all([
+    productStore.getProducts(false),
+    apiService.get('/categories').then(response => { categories.value = response.data }),
+  ])
 })
 </script>
 
@@ -683,8 +764,14 @@ onMounted(async () => {
 }
 
 .table-toolbar {
+  display: flex;
+  gap: .6rem;
   margin-bottom: 0.6rem;
 }
+.status-filter { max-width: 220px; background: #fff; }
+.inactive-row { opacity: .72; }
+.category-badge { margin: .1rem .2rem .1rem 0; }
+.btn-action-reactivate { color: #166534; border-color: #86efac; background: #f0fdf4; }
 
 .search-input {
   width: 100%;
@@ -814,6 +901,7 @@ onMounted(async () => {
 .badge-success { background: #dcfce7; color: #166534; }
 .badge-light { background: #f1f5f9; color: #475569; }
 .badge-info { background: #dbeafe; color: #1d4ed8; }
+.badge-warning { background: #fef3c7; color: #92400e; }
 .badge-danger { background: #fee2e2; color: #b91c1c; }
 .badge-dark { background: #e2e8f0; color: #0f172a; }
 

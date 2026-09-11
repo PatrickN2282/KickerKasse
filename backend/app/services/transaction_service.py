@@ -4,6 +4,8 @@ from datetime import date, datetime, time, timedelta
 from app.repositories import TransactionRepository, BalanceLogRepository
 from app.models import Transaction, TransactionType, PaymentMethod, Product, CashEntry, CashEntryType, ClubAccountEntry
 from app.utils.datetime_utils import localize_dt as _localize_dt
+from app.utils.cash_payment import validate_cash_payment as _validate_cash_payment
+from app.services.sale_pricing_service import resolve_catalog_unit_price_cents
 
 class TransactionService:
     """Transaction service for sales and storni"""
@@ -14,17 +16,16 @@ class TransactionService:
         self.balance_log_repo = BalanceLogRepository(db)
     
     def get_next_receipt_number(self) -> int:
-        """Gets the next sequential receipt number"""
-        last_transaction = self.db.query(Transaction).order_by(Transaction.id.desc()).first()
-        if last_transaction and last_transaction.receipt_number:
-            return last_transaction.receipt_number + 1
-        return 1
-
+        from app.core.financial_booking import next_receipt_number
+        return next_receipt_number(self.db, allocate=False)
+    
     def get_effective_price(self, product: Product, member_id: int = None) -> int:
-        """Get the effective price for a product (member price if applicable)"""
-        if member_id and product.member_price_cents:
-            return product.member_price_cents
-        return product.price_cents
+        """Get the configured effective price for a product and an eligible member."""
+        member = None
+        if member_id:
+            from app.repositories import MemberRepository
+            member = MemberRepository(self.db).get_by_id(member_id)
+        return resolve_catalog_unit_price_cents(product, member)
     
     def create_sale_transaction(
         self,
@@ -40,6 +41,9 @@ class TransactionService:
         voucher_applied_cents: int = 0,
         balance_applied_cents: int = 0,
         tip_cents: int = 0,
+        cash_received_cents: int = None,
+        change_given_cents: int = None,
+        commit: bool = True,
     ) -> Transaction:
         """Create a sale transaction"""
         payment_enum = PaymentMethod[payment_method]
@@ -58,11 +62,29 @@ class TransactionService:
             voucher_applied_cents=voucher_applied_cents,
             balance_applied_cents=balance_applied_cents,
             tip_cents=tip_cents or 0,
+            cash_received_cents=cash_received_cents,
+            change_given_cents=change_given_cents,
+            commit=commit,
         )
         
         return transaction
-    
-    def process_sale_payment(self, transaction: Transaction, member_repo=None):
+
+    @staticmethod
+    def validate_cash_payment(
+        payment_method: str,
+        payable_amount_cents: int,
+        tip_cents: int = 0,
+        cash_received_cents: int | None = None,
+    ) -> int | None:
+        """Validate a cash payment and return the change to be paid out."""
+        return _validate_cash_payment(
+            payment_method,
+            payable_amount_cents,
+            tip_cents,
+            cash_received_cents,
+        )
+
+    def process_sale_payment(self, transaction: Transaction, member_repo=None, commit: bool = True):
         """Process payment and update balances"""
         if transaction.member_id and transaction.balance_applied_cents > 0:
             if not member_repo:
@@ -70,7 +92,7 @@ class TransactionService:
                 member_repo = MemberRepository(self.db)
             
             # Deduct from member balance
-            if not member_repo.deduct_balance(transaction.member_id, transaction.balance_applied_cents):
+            if not member_repo.deduct_balance(transaction.member_id, transaction.balance_applied_cents, commit=commit):
                 raise ValueError("Insufficient balance")
             
             # Log balance change
@@ -81,6 +103,7 @@ class TransactionService:
                 new_balance_cents=member.balance_cents,
                 reason="SALE",
                 transaction_id=transaction.id,
+                commit=commit,
             )
     
     def create_storno_transaction(
@@ -93,6 +116,12 @@ class TransactionService:
         original = self.transaction_repo.get_by_id(original_transaction_id)
         if not original:
             raise ValueError("Original transaction not found")
+        existing_storno = self.db.query(Transaction.id).filter(
+            Transaction.type == TransactionType.STORNO,
+            Transaction.reference_transaction_id == original_transaction_id,
+        ).first()
+        if existing_storno:
+            raise ValueError("Original transaction has already been reversed")
         
         # Create storno transaction with same amount
         storno = self.transaction_repo.create(
@@ -165,7 +194,14 @@ class TransactionService:
     
     def get_all_transactions(self, skip: int = 0, limit: int = 100) -> list[Transaction]:
         """Get all transactions"""
-        return self.transaction_repo.get_all(skip=skip, limit=limit)
+        return (
+            self.db.query(Transaction)
+            .filter(Transaction.type != TransactionType.VOUCHER_CREATE)
+            .order_by(Transaction.created_at.desc(), Transaction.id.desc())
+            .offset(skip)
+            .limit(limit)
+            .all()
+        )
 
     def _get_club_account_transaction_ids(self, start_datetime: datetime, end_datetime: datetime) -> set[int]:
         rows = self.db.query(ClubAccountEntry.transaction_id).filter(
@@ -178,10 +214,8 @@ class TransactionService:
     @staticmethod
     def _get_booking_type(transaction: Transaction, club_account_transaction_ids: set[int]) -> str:
         if transaction.type == TransactionType.RECHARGE:
-            if transaction.id in club_account_transaction_ids:
-                return "CLUB_ACCOUNT_TOP_UP"
-            if transaction.member_id:
-                return "MEMBER_BALANCE_RECHARGE"
+            from app.services.history_snapshot import booking_type
+            return booking_type(transaction, club_account_transaction_ids)
         if transaction.type == TransactionType.VOUCHER_CREATE:
             if transaction.voucher_type == "GIFT":
                 return "GIFT_VOUCHER_CREATE"
@@ -225,8 +259,12 @@ class TransactionService:
             "voucher_type": transaction.voucher_type,
             "voucher_applied_cents": transaction.voucher_applied_cents,
             "balance_applied_cents": transaction.balance_applied_cents,
+            "tip_cents": transaction.tip_cents or 0,
+            "cash_received_cents": transaction.cash_received_cents,
+            "change_given_cents": transaction.change_given_cents,
             "created_at": _localize_dt(transaction.created_at),
             "reason": reason,
+            "member_name": transaction.member_name,
             # Snapshot fields with fallback to relationship for legacy entries
             "performed_by": (
                 transaction.performed_by_username
@@ -245,7 +283,7 @@ class TransactionService:
                     transaction.member_name
                     or (transaction.member.name if transaction.member else None)
                 ),
-            } if transaction.member_id else None,
+            } if transaction.member_id or transaction.member_name else None,
             "items": [
                 {
                     "id": item.id,
@@ -318,7 +356,6 @@ class TransactionService:
             Transaction.type.in_([
                 TransactionType.SALE,
                 TransactionType.RECHARGE,
-                TransactionType.VOUCHER_CREATE,
                 TransactionType.VOUCHER_REDEMPTION,
                 TransactionType.VOUCHER_SALE,
             ])
@@ -350,6 +387,8 @@ class TransactionService:
                 elif transaction.voucher_type == "PREPAID":
                     total_voucher_prepaid += transaction.voucher_applied_cents
             count += 1
+
+        club_account_transaction_ids = self._get_club_account_transaction_ids(start_datetime, end_datetime)
         
         return {
             "cash_total": total_cash,
@@ -361,43 +400,7 @@ class TransactionService:
             "total_amount": total_cash + total_balance,
             "transaction_count": count,
             "transactions": [
-                {
-                    "id": t.id,
-                    "receipt_number": t.receipt_number,
-                    "total_amount_cents": t.total_amount_cents,
-                    "payment_method": t.payment_method.value,
-                    "type": t.type.value,
-                    "voucher_code": t.voucher_code,
-                    "voucher_type": t.voucher_type,
-                         "voucher_applied_cents": t.voucher_applied_cents,
-                         "balance_applied_cents": t.balance_applied_cents,
-                    "created_at": _localize_dt(t.created_at),
-                    "member": {
-                        "id": t.member_id,
-                        "name": (
-                            t.member_name
-                            or (t.member.name if t.member else None)
-                        ),
-                    } if t.member_id else None,
-                    "items": [
-                        {
-                            "id": item.id,
-                            "quantity": item.quantity,
-                            "unit_price_cents": item.unit_price_cents,
-                            "total_price_cents": item.total_price_cents,
-                            "is_internal_material": item.is_internal_material,
-                            "note": item.note,
-                            "product": {
-                                "id": item.product_id,
-                                "name": (
-                                    item.product_name
-                                    or (item.product.name if item.product else None)
-                                ),
-                            }
-                        }
-                        for item in t.items
-                    ]
-                }
+                self._serialize_transaction(t, club_account_transaction_ids)
                 for t in transactions
             ],
         }
@@ -423,7 +426,6 @@ class TransactionService:
             Transaction.type.in_([
                 TransactionType.SALE,
                 TransactionType.RECHARGE,
-                TransactionType.VOUCHER_CREATE,
                 TransactionType.VOUCHER_REDEMPTION,
                 TransactionType.VOUCHER_SALE,
             ])
@@ -440,12 +442,13 @@ class TransactionService:
         club_account_transaction_ids = self._get_club_account_transaction_ids(start_datetime, end_datetime)
 
         cash_entries_query = self.db.query(CashEntry).options(joinedload(CashEntry.user)).filter(
-            CashEntry.entry_type == CashEntryType.WITHDRAWAL,
             CashEntry.created_at >= start_datetime,
             CashEntry.created_at <= end_datetime,
         )
         if payment_method == CashEntryType.WITHDRAWAL.value:
-            cash_entries = cash_entries_query.order_by(CashEntry.created_at.desc(), CashEntry.id.desc()).all()
+            cash_entries = cash_entries_query.filter(
+                CashEntry.entry_type == CashEntryType.WITHDRAWAL,
+            ).order_by(CashEntry.created_at.desc(), CashEntry.id.desc()).all()
         elif payment_method and payment_method != PaymentMethod.CASH.value:
             cash_entries = []
         else:
@@ -460,7 +463,7 @@ class TransactionService:
         total_amount = sum(
             row["total_amount_cents"]
             for row in rows
-            if row.get("booking_type") != "CLUB_ACCOUNT_TOP_UP"
+            if row.get("booking_type") not in {"CLUB_ACCOUNT_TOP_UP", "CASH_DEPOSIT"}
         )
 
         return {

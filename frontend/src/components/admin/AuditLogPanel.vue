@@ -109,8 +109,9 @@ const auditActionLabel = (action) => {
     STOCK_CORRECTION: 'Bestand korrigiert',
     CLUB_ACCOUNT_TOPUP: 'Konto aufgeladen',
     IMAGE_UPDATED: 'Bild geändert',
+    CATEGORIES_UPDATED: 'Kategorien geändert',
   }
-  return map[action] || action
+  return map[String(action || '').toUpperCase()] || action
 }
 
 const auditEntityLabel = (type) => {
@@ -120,6 +121,7 @@ const auditEntityLabel = (type) => {
     settings: 'Einstellungen',
     user: 'Benutzer',
     category: 'Kategorie',
+    is_visible_in_kasse: 'In der Kasse anzeigen',
     voucher: 'Gutschein / Verzehrkarte',
   }
   return map[type] || type
@@ -243,6 +245,11 @@ onMounted(() => {
   }
 
   &--updated {
+    background: #fef9c3;
+    color: #854d0e;
+  }
+
+  &--categories_updated {
     background: #fef9c3;
     color: #854d0e;
   }

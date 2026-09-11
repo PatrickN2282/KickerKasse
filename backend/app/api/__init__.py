@@ -11,6 +11,7 @@ from .data_maintenance import router as data_maintenance_router
 from .import_export import router as import_export_router
 from .audit_log import router as audit_log_router
 from .hardware_agent import router as hardware_agent_router
+from .guest_list import router as guest_list_router
 
 __all__ = [
     "auth_router",
@@ -27,4 +28,5 @@ __all__ = [
     "import_export_router",
     "audit_log_router",
     "hardware_agent_router",
+    "guest_list_router",
 ]

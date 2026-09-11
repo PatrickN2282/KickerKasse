@@ -4,6 +4,12 @@
     class="app"
   >
     <NotificationCenter />
+    <PendingBookings v-if="authStore.isAuthenticated" />
+    <div v-if="waitingUpdateWorker" class="update-banner" role="status">
+      <span v-if="cartStore.hasDraft">Update verfügbar – wird nach Abschluss des offenen Bons freigegeben.</span>
+      <span v-else>Update verfügbar.</span>
+      <button type="button" :disabled="cartStore.hasDraft" @click="applyWaitingUpdate">Jetzt aktualisieren</button>
+    </div>
 
     <nav
       v-if="authStore.isAuthenticated"
@@ -44,7 +50,7 @@
               class="btn-login"
               @click="openLoginModal"
             >
-              Login
+              Anmelden
             </button>
           </template>
 
@@ -78,7 +84,7 @@
               class="btn-logout"
               @click="logout"
             >
-              Logout
+              Abmelden
             </button>
           </template>
 
@@ -107,108 +113,53 @@
       @close="showDonationModal = false"
     />
 
-    <PasswordConfirmModal
+    <AuthCredentialModal
       :show="showDrawerConfirmModal"
       title="Kassenschublade öffnen"
       message="Bitte Passwort bestätigen, um die Kassenschublade zu öffnen."
       :username="authStore.user?.username || ''"
+      :usernames="availableUsernames"
+      allow-username-edit
       confirm-label="Jetzt öffnen"
-      @close="showDrawerConfirmModal = false"
+      :error="drawerConfirmError"
+      @close="showDrawerConfirmModal = false; drawerConfirmError = ''"
       @confirm="confirmOpenDrawer"
+      @update:usernames="availableUsernames = $event"
     />
 
-
-    <div
-      v-if="showLoginModal"
-      class="modal-overlay"
-    >
-      <div class="modal-dialog">
-        <div class="modal-header">
-          <div class="modal-header-title">
-            <h3>Benutzer anmelden <span class="header-pipe">|</span> <span class="header-sub">Zugangsdaten eingeben</span></h3>
-          </div>
-          <button
-            class="close-btn"
-            @click="closeLoginModal"
-          >
-            ✕
-          </button>
-        </div>
-
-        <div class="modal-body">
-          <div class="form-group">
-            <label>Benutzername</label>
-            <input
-              v-model="loginForm.username"
-              type="text"
-              list="login-usernames-list"
-              class="form-input"
-              placeholder="Benutzername eingeben oder auswählen"
-              autocomplete="username"
-            >
-            <datalist id="login-usernames-list">
-              <option
-                v-for="name in availableUsernames"
-                :key="name"
-                :value="name"
-              />
-            </datalist>
-          </div>
-
-          <div class="form-group">
-            <label>Passwort</label>
-            <input
-              v-model="loginForm.password"
-              type="password"
-              class="form-input"
-              placeholder="Passwort eingeben"
-              autocomplete="current-password"
-              @keyup.enter="loginFromModal"
-            >
-          </div>
-
-          <p
-            v-if="modalError"
-            class="modal-error"
-          >
-            {{ modalError }}
-          </p>
-        </div>
-
-        <div class="modal-footer">
-          <button
-            class="btn btn-secondary"
-            @click="closeLoginModal"
-          >
-            Abbrechen
-          </button>
-          <button
-            class="btn btn-primary"
-            :disabled="!loginForm.username.trim() || !loginForm.password"
-            @click="loginFromModal"
-          >
-            Login
-          </button>
-        </div>
-      </div>
-    </div>
+    <AuthCredentialModal
+      :show="showLoginModal"
+      title="Benutzer anmelden"
+      subtitle="Zugangsdaten eingeben"
+      :username="authStore.user?.username || ''"
+      :usernames="availableUsernames"
+      allow-username-edit
+      confirm-label="Anmelden"
+      :error="modalError"
+      @close="closeLoginModal"
+      @confirm="loginFromModal"
+      @update:usernames="availableUsernames = $event"
+    />
 
   </div>
 </template>
 
 
 <script setup>
-import { computed, onBeforeUnmount, onMounted, reactive, ref, watch } from 'vue'
+import PendingBookings from '@/components/PendingBookings.vue'
+import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { useAuthStore } from '@/stores/auth'
 import { useAppSettingsStore } from '@/stores/appSettings'
 import { useNotificationStore } from '@/stores/notification'
+import { useCartStore } from '@/stores/cart'
 import { useRoute, useRouter } from 'vue-router'
 
 import NotificationCenter from '@/components/NotificationCenter.vue'
 import PwaInstallButton from '@/components/PwaInstallButton.vue'
 import DonationModal from '@/components/DonationModal.vue'
-import PasswordConfirmModal from '@/components/PasswordConfirmModal.vue'
+import AuthCredentialModal from '@/components/AuthCredentialModal.vue'
 import apiService from '@/services/api'
+import { failedDrawerTargets, openDrawerTargets } from '@/services/drawer'
 
 import pkg from '../package.json'
 import {
@@ -223,6 +174,7 @@ const SESSION_ACTIVITY_RESET_THROTTLE_MS = 1000
 const authStore = useAuthStore()
 const appSettingsStore = useAppSettingsStore()
 const notificationStore = useNotificationStore()
+const cartStore = useCartStore()
 const router = useRouter()
 const route = useRoute()
 
@@ -234,13 +186,16 @@ const isOnAdminRoute = computed(() => route.path.startsWith('/admin'))
 const showLoginModal = ref(false)
 const showDonationModal = ref(false)
 const showDrawerConfirmModal = ref(false)
+const drawerConfirmError = ref('')
 const modalError = ref('')
 const availableUsernames = ref([])
 const layoutRefreshIntervalId = ref(null)
 const hardwareStatusIntervalId = ref(null)
 const refreshInFlight = ref(false)
 const sessionTimerId = ref(null)
+const sessionWarningTimerId = ref(null)
 const lastSessionActivityAt = ref(0)
+const waitingUpdateWorker = ref(null)
 
 const fetchLocalAgent = async (path, options = {}, timeoutMs = 1500) => {
   const controller = new AbortController()
@@ -255,11 +210,6 @@ const fetchLocalAgent = async (path, options = {}, timeoutMs = 1500) => {
   }
 }
 
-const loginForm = reactive({
-  username: '',
-  password: ''
-})
-
 const hardwareServiceActive = ref(false)
 const hardwareAdapterConnected = ref(false)
 const canShowOpenDrawerButton = computed(() => (
@@ -271,8 +221,10 @@ const canShowOpenDrawerButton = computed(() => (
 const openLoginModal = async () => {
   showLoginModal.value = true
   modalError.value = ''
-  loginForm.username = authStore.user?.username || ''
-  loginForm.password = ''
+  await loadAvailableUsernames()
+}
+
+const loadAvailableUsernames = async () => {
   try {
     const response = await apiService.get('/auth/usernames')
     availableUsernames.value = response.data ?? []
@@ -280,6 +232,14 @@ const openLoginModal = async () => {
     console.error('[App] Failed to load login usernames:', err)
     availableUsernames.value = []
   }
+}
+
+const getErrorMessage = (error, fallback) => {
+  const detail = error?.response?.data?.detail
+  if (detail && typeof detail === 'object') {
+    return detail.message || fallback
+  }
+  return detail || error?.message || fallback
 }
 
 const refreshHardwareStatus = async () => {
@@ -321,41 +281,25 @@ const refreshHardwareStatus = async () => {
   }
 }
 
-const confirmOpenDrawer = async (password) => {
+const confirmOpenDrawer = async (credentials) => {
+  drawerConfirmError.value = ''
   try {
-    const { data } = await apiService.post('/hardware-agent/open-drawer', { auth_password: password })
-    notificationStore.success(data?.detail || 'Kassenschublade wurde geöffnet')
+    const { data } = await apiService.post('/hardware-agent/open-drawer', {
+      auth_password: credentials.password,
+    })
+    const results = await openDrawerTargets(data?.drawer_targets)
+    if (failedDrawerTargets(results).length) {
+      throw new Error('Der lokale Hardware-Agent konnte die Kassenschublade nicht öffnen')
+    }
+    notificationStore.success('Kassenschublade wurde geöffnet')
     showDrawerConfirmModal.value = false
   } catch (error) {
     const statusCode = error?.response?.status
-    if (statusCode === 503) {
-      try {
-        const localResponse = await fetchLocalAgent('/openDrawer', {
-          method: 'POST',
-        })
-        const localData = await localResponse.json().catch(() => ({}))
-        if (!localResponse.ok) {
-          throw new Error(localData?.message || `Status ${localResponse.status}`)
-        }
-        notificationStore.success(localData?.message || 'Kassenschublade wurde geöffnet')
-        showDrawerConfirmModal.value = false
-        return
-      } catch {
-        try {
-          await fetchLocalAgent('/openDrawer', {
-            method: 'POST',
-            mode: 'no-cors',
-          })
-          notificationStore.success('Öffnungsimpuls an lokalen Agent gesendet')
-          showDrawerConfirmModal.value = false
-          return
-        } catch {
-          // Fallback auf bestehende Fehlermeldung
-        }
-      }
+    if (statusCode === 401 || statusCode === 403) {
+      drawerConfirmError.value = getErrorMessage(error, 'Passwort ist falsch')
+      return
     }
-
-    notificationStore.error(error.response?.data?.detail || 'Kassenschublade konnte nicht geöffnet werden')
+    notificationStore.error(getErrorMessage(error, 'Kassenschublade konnte nicht geöffnet werden'))
   }
 }
 
@@ -367,14 +311,16 @@ const logout = async () => {
 const closeLoginModal = () => {
   showLoginModal.value = false
   modalError.value = ''
-  loginForm.username = ''
-  loginForm.password = ''
 }
 
 const clearSessionTimer = () => {
   if (sessionTimerId.value !== null) {
     window.clearTimeout(sessionTimerId.value)
     sessionTimerId.value = null
+  }
+  if (sessionWarningTimerId.value !== null) {
+    window.clearTimeout(sessionWarningTimerId.value)
+    sessionWarningTimerId.value = null
   }
 }
 
@@ -395,15 +341,27 @@ const handleSessionTimeout = async () => {
   clearSessionTimer()
   if (!authStore.isAuthenticated) return
 
+  if (cartStore.hasDraft) {
+    notificationStore.info('Session bleibt aktiv: Bitte den offenen Bon abschließen oder leeren.')
+    resetSessionTimer()
+    return
+  }
+
   closeLoginModal()
   await authStore.logout()
-  notificationStore.info('Session-Timer: Benutzer wurde automatisch abgemeldet')
+  notificationStore.info('Sitzungszeitlimit: Benutzer wurde automatisch abgemeldet')
   router.replace('/login')
 }
 
 const resetSessionTimer = () => {
   clearSessionTimer()
   if (sessionTimerDelayMs.value == null) return
+  const warningDelay = sessionTimerDelayMs.value - 60000
+  if (warningDelay > 0) {
+    sessionWarningTimerId.value = window.setTimeout(() => {
+      notificationStore.info('Die Sitzung endet in einer Minute. Eine Eingabe verlängert sie.')
+    }, warningDelay)
+  }
   sessionTimerId.value = window.setTimeout(handleSessionTimeout, sessionTimerDelayMs.value)
 }
 
@@ -419,17 +377,17 @@ const handleUserActivity = () => {
   resetSessionTimer()
 }
 
-const loginFromModal = async () => {
+const loginFromModal = async (credentials) => {
   modalError.value = ''
 
   const success = await authStore.login(
-    loginForm.username,
-    loginForm.password
+    credentials.username,
+    credentials.password
   )
 
   if (!success) {
     modalError.value =
-      authStore.error || 'Login fehlgeschlagen'
+      authStore.error || 'Anmeldung fehlgeschlagen'
     return
   }
 
@@ -437,10 +395,24 @@ const loginFromModal = async () => {
   router.push(authStore.canAccessAdminPanel ? '/admin' : '/')
 }
 
-const handleBeforeUnload = () => {
+const handleBeforeUnload = (event) => {
   sessionStorage.setItem(SESSION_RELOAD_FLAG_KEY, '1')
-  clearSessionTimer()
-  authStore.clearClientSession()
+  if (cartStore.hasDraft) {
+    event.preventDefault()
+    event.returnValue = ''
+  }
+}
+
+const handlePwaUpdateReady = (event) => {
+  waitingUpdateWorker.value = event.detail?.worker || null
+}
+
+const applyWaitingUpdate = () => {
+  if (!waitingUpdateWorker.value || cartStore.hasDraft) return
+  sessionStorage.setItem(SESSION_RELOAD_FLAG_KEY, '1')
+  window.dispatchEvent(new CustomEvent('kicker:pwa-update-apply', {
+    detail: { worker: waitingUpdateWorker.value },
+  }))
 }
 
 const syncLayoutStorage = (layout) => {
@@ -507,6 +479,7 @@ onMounted(async () => {
   appSettingsStore.applyToDocument()
 
   window.addEventListener('beforeunload', handleBeforeUnload)
+  window.addEventListener('kicker:pwa-update-ready', handlePwaUpdateReady)
   window.addEventListener('focus', refreshPublicSettings)
   window.addEventListener('pointerdown', handleUserActivity)
   window.addEventListener('keydown', handleUserActivity)
@@ -520,6 +493,7 @@ onMounted(async () => {
 
 onBeforeUnmount(() => {
   window.removeEventListener('beforeunload', handleBeforeUnload)
+  window.removeEventListener('kicker:pwa-update-ready', handlePwaUpdateReady)
   window.removeEventListener('focus', refreshPublicSettings)
   window.removeEventListener('pointerdown', handleUserActivity)
   window.removeEventListener('keydown', handleUserActivity)
@@ -547,6 +521,33 @@ onBeforeUnmount(() => {
   position: relative;
   background-color: var(--app-background-color);
   overflow: hidden;
+}
+
+.update-banner {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: .75rem;
+  padding: .55rem 1rem;
+  color: #4a3600;
+  background: #fff3bf;
+  border-bottom: 1px solid #e4c85c;
+  font-size: .9rem;
+  z-index: 1300;
+
+  button {
+    padding: .35rem .7rem;
+    border: 0;
+    border-radius: 6px;
+    color: #fff;
+    background: #725b00;
+    cursor: pointer;
+
+    &:disabled {
+      opacity: .5;
+      cursor: not-allowed;
+    }
+  }
 }
 
 
@@ -918,23 +919,26 @@ onBeforeUnmount(() => {
 /* ── Responsive ──────────────────────────────────────────── */
 @media (max-width: 700px) {
   .navbar-content {
-    grid-template-columns: 1fr;
-    grid-template-rows: auto auto auto;
-    gap: .3rem;
-    padding: .4rem .85rem;
-    min-height: unset;
+    grid-template-columns: auto minmax(0, 1fr) auto;
+    grid-template-rows: 46px;
+    gap: .35rem;
+    padding: 0 .45rem;
+    min-height: 46px;
   }
 
   .navbar-col {
-    justify-content: center;
-
-    &--logo { order: 1; }
-    &--title { order: 2; }
+    min-width: 0;
+    &--logo { justify-content: flex-start; }
+    &--title { justify-content: flex-start; overflow: hidden; }
     &--actions {
-      order: 3;
-      flex-wrap: wrap;
-      justify-content: center;
+      flex-wrap: nowrap;
+      justify-content: flex-end;
     }
   }
+  .navbar-logo { max-height: 40px; max-width: 64px; }
+  .navbar-title { overflow: hidden; text-overflow: ellipsis; font-size: .92rem; }
+  .user-chip { display: none; }
+  .navbar-col--actions :is(.nav-link, .btn-login, .btn-logout, .btn-open-drawer) { min-height: 40px; padding: .35rem .55rem; font-size: .7rem; letter-spacing: 0; }
+  .btn-open-drawer { display: none; }
 }
 </style>

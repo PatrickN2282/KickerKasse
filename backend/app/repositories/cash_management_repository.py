@@ -43,10 +43,8 @@ class CashEntryRepository:
         return entry
 
     def get_next_receipt_number(self) -> int:
-        """Get the next sequential receipt number across transactions and cash entries."""
-        transaction_max = self.db.query(func.max(Transaction.receipt_number)).scalar() or 0
-        cash_entry_max = self.db.query(func.max(CashEntry.receipt_number)).scalar() or 0
-        return max(transaction_max, cash_entry_max) + 1
+        from app.core.financial_booking import next_receipt_number
+        return next_receipt_number(self.db)
     
     def get_by_id(self, entry_id: int) -> CashEntry:
         """Get entry by ID"""

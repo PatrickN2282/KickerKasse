@@ -1,3 +1,7 @@
+from app.core.atomic import audited_media
+from app.core.atomic import audited_change
+from app.core.auth import require_session
+from app.core.auth import require_authenticated_user, require_roles
 from fastapi import APIRouter, HTTPException, Depends, Request, status, File, UploadFile
 from fastapi.responses import FileResponse
 from sqlalchemy.orm import Session
@@ -8,6 +12,7 @@ from app.schemas import (
     ProductCreate,
     ProductUpdate,
     ProductResponse,
+    ProductMutationResponse,
     ProductStockCorrectionRequest,
     ProductStockCorrectionLogResponse,
 )
@@ -23,12 +28,13 @@ from app.services.file_service import (
 )
 from app.repositories import ProductRepository, UserRepository
 from app.models import UserRole
+from app.utils.drawer import drawer_targets_for_stock_change
 
 router = APIRouter(prefix="/api/products", tags=["Products"])
 
 
-@router.post("/", response_model=ProductResponse, status_code=status.HTTP_201_CREATED)
-@router.post("", response_model=ProductResponse, status_code=status.HTTP_201_CREATED)
+@router.post("/", response_model=ProductMutationResponse, status_code=status.HTTP_201_CREATED)
+@router.post("", response_model=ProductMutationResponse, status_code=status.HTTP_201_CREATED)
 async def create_product(
     product_data: ProductCreate,
     request: Request,
@@ -51,8 +57,12 @@ async def create_product(
             product_data.is_unlimited_stock,
             product_data.warengruppe,
             product_data.is_variable_price,
+            product_data.is_visible_in_kasse,
+            product_data.requires_guest_list,
+            product_data.opens_small_parts_drawer,
             performed_by_username=current_user.username,
         )
+        product.drawer_targets = drawer_targets_for_stock_change(product, 0, product.stock_quantity)
         return product
     except IntegrityError:
         db.rollback()
@@ -79,17 +89,14 @@ async def list_stock_corrections(
 async def get_products(
     request: Request,
     only_active: bool = True,
+    only_visible_in_kasse: bool = False,
     db: Session = Depends(get_db),
 ):
     """Get all products"""
-    if not request.session.get("user_id"):
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Not authenticated",
-        )
+    require_authenticated_user(request, db)
     
     service = ProductService(db)
-    return service.get_all_products(only_active)
+    return service.get_all_products(only_active, only_visible_in_kasse)
 
 
 @router.get("/{product_id}", response_model=ProductResponse)
@@ -100,11 +107,7 @@ async def get_product(
     db: Session = Depends(get_db),
 ):
     """Get product by ID"""
-    if not request.session.get("user_id"):
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Not authenticated",
-        )
+    require_authenticated_user(request, db)
     
     service = ProductService(db)
     product = service.get_product(product_id)
@@ -117,8 +120,8 @@ async def get_product(
     return product
 
 
-@router.put("/{product_id}", response_model=ProductResponse)
-@router.put("/{product_id}/", response_model=ProductResponse)
+@router.put("/{product_id}", response_model=ProductMutationResponse)
+@router.put("/{product_id}/", response_model=ProductMutationResponse)
 async def update_product(
     product_id: int,
     product_data: ProductUpdate,
@@ -130,6 +133,8 @@ async def update_product(
     
     try:
         service = ProductService(db)
+        existing = service.get_product(product_id)
+        old_stock_quantity = existing.stock_quantity if existing else 0
         update_dict = product_data.dict(exclude_unset=True)
         product = service.update_product(product_id, performed_by_username=current_user.username, **update_dict)
         if not product:
@@ -138,7 +143,15 @@ async def update_product(
                 detail="Product not found",
             )
         
+        product.drawer_targets = drawer_targets_for_stock_change(
+            product,
+            old_stock_quantity,
+            product.stock_quantity,
+        )
         return product
+    except ValueError as e:
+        db.rollback()
+        raise HTTPException(status_code=400, detail=str(e)) from e
     except IntegrityError as e:
         db.rollback()
         raise HTTPException(
@@ -159,18 +172,25 @@ async def adjust_stock(
     current_user = require_roles(request, db, UserRole.ADMIN, UserRole.MANAGER)
     
     service = ProductService(db)
-    product = service.adjust_stock(product_id, quantity, current_user.username)
+    existing = service.get_product(product_id)
+    old_stock_quantity = existing.stock_quantity if existing else 0
+    try:
+        product = service.adjust_stock(product_id, quantity, current_user.username)
+    except ValueError as e:
+        db.rollback()
+        raise HTTPException(status_code=400, detail=str(e)) from e
     if not product:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="Product not found or insufficient stock",
         )
     
+    product.drawer_targets = drawer_targets_for_stock_change(product, old_stock_quantity, product.stock_quantity)
     return product
 
 
-@router.post("/{product_id}/stock-correction", response_model=ProductResponse)
-@router.post("/{product_id}/stock-correction/", response_model=ProductResponse)
+@router.post("/{product_id}/stock-correction", response_model=ProductMutationResponse)
+@router.post("/{product_id}/stock-correction/", response_model=ProductMutationResponse)
 async def correct_stock(
     product_id: int,
     correction_request: ProductStockCorrectionRequest,
@@ -182,6 +202,8 @@ async def correct_stock(
 
     try:
         service = ProductService(db)
+        existing = service.get_product(product_id)
+        old_stock_quantity = existing.stock_quantity if existing else 0
         product = service.correct_stock(
             product_id,
             correction_request.new_stock_quantity,
@@ -194,9 +216,18 @@ async def correct_stock(
                 status_code=status.HTTP_404_NOT_FOUND,
                 detail="Product not found",
             )
+        product.drawer_targets = drawer_targets_for_stock_change(
+            product,
+            old_stock_quantity,
+            product.stock_quantity,
+            open_for_decrease=correction_request.open_small_parts_drawer,
+        )
         return product
     except HTTPException:
         raise
+    except ValueError as e:
+        db.rollback()
+        raise HTTPException(status_code=400, detail=str(e)) from e
     except Exception as e:
         db.rollback()
         raise HTTPException(
@@ -225,6 +256,7 @@ async def delete_product(
 
 @router.post("/{product_id}/image")
 @router.post("/{product_id}/image/")
+@audited_media("products", "product_id")
 async def upload_product_image(
     product_id: int,
     file: UploadFile = File(...),
@@ -282,13 +314,14 @@ async def upload_product_image(
 
 @router.delete("/{product_id}/image")
 @router.delete("/{product_id}/image/")
+@audited_media("products", "product_id")
 async def delete_product_image_file(
     product_id: int,
     request: Request,
     db: Session = Depends(get_db),
 ):
     """Delete product image and reset stored image path."""
-    require_roles(request, db, UserRole.ADMIN, UserRole.MANAGER)
+    current_user = require_roles(request, db, UserRole.ADMIN, UserRole.MANAGER)
 
     product_repo = ProductRepository(db)
     product = product_repo.get_by_id(product_id)
@@ -303,16 +336,20 @@ async def delete_product_image_file(
     db.commit()
     db.refresh(product)
 
+    AuditLogService(db).log(entity_type="product", action="IMAGE_DELETED",
+        user_username=current_user.username, entity_id=product_id, entity_name=product.name)
     return {"status": "success", "product_id": product_id}
 
 
-@router.get("/{product_id}/image")
-@router.get("/{product_id}/image/")
+@router.get("/{product_id}/image", dependencies=[Depends(require_session)])
+@router.get("/{product_id}/image/", dependencies=[Depends(require_session)])
 async def get_product_image(
     product_id: int,
+    request: Request,
     db: Session = Depends(get_db),
 ):
     """Get product image file"""
+    require_authenticated_user(request, db)
     product_repo = ProductRepository(db)
     product = product_repo.get_by_id(product_id)
     if not product or not product.image_path:
@@ -332,8 +369,10 @@ async def get_product_image(
     return FileResponse(file_path, media_type=get_media_type(file_path))
 
 
+
 @router.post("/{product_id}/original-image")
 @router.post("/{product_id}/original-image/")
+@audited_media("products", "product_id")
 async def upload_product_original_image(
     product_id: int,
     file: UploadFile = File(...),
@@ -341,7 +380,7 @@ async def upload_product_original_image(
     db: Session = Depends(get_db),
 ):
     """Upload original (uncropped) product image for reset purposes"""
-    require_roles(request, db, UserRole.ADMIN, UserRole.MANAGER)
+    current_user = require_roles(request, db, UserRole.ADMIN, UserRole.MANAGER)
 
     product_repo = ProductRepository(db)
     product = product_repo.get_by_id(product_id)
@@ -365,16 +404,20 @@ async def upload_product_original_image(
 
     await file.seek(0)
     await save_product_original_image(file, product_id)
+    AuditLogService(db).log(entity_type="product", action="ORIGINAL_IMAGE_UPDATED",
+        user_username=current_user.username, entity_id=product_id, entity_name=product.name)
     return {"status": "success", "product_id": product_id}
 
 
-@router.get("/{product_id}/original-image")
-@router.get("/{product_id}/original-image/")
+@router.get("/{product_id}/original-image", dependencies=[Depends(require_session)])
+@router.get("/{product_id}/original-image/", dependencies=[Depends(require_session)])
 async def get_product_original_image(
     product_id: int,
+    request: Request,
     db: Session = Depends(get_db),
 ):
     """Get original (uncropped) product image"""
+    require_authenticated_user(request, db)
     file_path = get_product_original_image_path(product_id)
     if not file_path or not file_path.exists():
         raise HTTPException(
@@ -384,8 +427,10 @@ async def get_product_original_image(
     return FileResponse(file_path, media_type=get_media_type(file_path))
 
 
+
 @router.post("/{product_id}/categories")
 @router.post("/{product_id}/categories/")
+@audited_change
 async def add_category_to_product(
     product_id: int,
     category_ids: list[int],
@@ -393,20 +438,7 @@ async def add_category_to_product(
     db: Session = Depends(get_db),
 ):
     """Add categories to a product (admin only)"""
-    user_id = request.session.get("user_id")
-    if not user_id:
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Not authenticated",
-        )
-    
-    # Check if admin
-    current_user = UserRepository(db).get_by_id(user_id)
-    if not current_user or not current_user.is_admin:
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail="Insufficient permissions",
-        )
+    current_user = require_roles(request, db, UserRole.ADMIN)
     
     product_repo = ProductRepository(db)
     product = product_repo.get_by_id(product_id)
@@ -419,6 +451,7 @@ async def add_category_to_product(
     # Import Category here to avoid circular imports
     from app.models import Category
     
+    old_categories = sorted(category.id for category in product.categories)
     # Get all categories by IDs
     try:
         for category_id in category_ids:
@@ -431,6 +464,10 @@ async def add_category_to_product(
             if category not in product.categories:
                 product.categories.append(category)
         
+        AuditLogService(db).log(entity_type="product", action="CATEGORIES_UPDATED",
+            user_username=current_user.username, entity_id=product.id, entity_name=product.name,
+            old_value={"category_ids": old_categories},
+            new_value={"category_ids": sorted(category.id for category in product.categories)})
         db.commit()
         db.refresh(product)
         return product
@@ -444,6 +481,7 @@ async def add_category_to_product(
 
 @router.delete("/{product_id}/categories/{category_id}")
 @router.delete("/{product_id}/categories/{category_id}/")
+@audited_change
 async def remove_category_from_product(
     product_id: int,
     category_id: int,
@@ -451,20 +489,7 @@ async def remove_category_from_product(
     db: Session = Depends(get_db),
 ):
     """Remove a category from a product (admin only)"""
-    user_id = request.session.get("user_id")
-    if not user_id:
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Not authenticated",
-        )
-    
-    # Check if admin
-    current_user = UserRepository(db).get_by_id(user_id)
-    if not current_user or not current_user.is_admin:
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail="Insufficient permissions",
-        )
+    current_user = require_roles(request, db, UserRole.ADMIN)
     
     product_repo = ProductRepository(db)
     product = product_repo.get_by_id(product_id)
@@ -485,7 +510,12 @@ async def remove_category_from_product(
         )
     
     if category in product.categories:
+        old_categories = sorted(item.id for item in product.categories)
         product.categories.remove(category)
+        AuditLogService(db).log(entity_type="product", action="CATEGORIES_UPDATED",
+            user_username=current_user.username, entity_id=product.id, entity_name=product.name,
+            old_value={"category_ids": old_categories},
+            new_value={"category_ids": sorted(item.id for item in product.categories)})
         db.commit()
     
     return {"status": "success"}

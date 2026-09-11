@@ -56,6 +56,9 @@
         </button>
       </div>
     </div>
+    <div v-if="appSettingsStore.isSaving || hasUnsavedSettings" class="save-state" role="status">
+      {{ appSettingsStore.isSaving ? 'Änderungen werden gespeichert …' : 'Ungespeicherte Änderungen in diesem Bereich' }}
+    </div>
 
     <div v-if="activeSection === 'design'" class="section-content">
       <div class="section-title">
@@ -71,7 +74,12 @@
               <div class="card-title">Farben</div>
               <div class="card-subtitle">Farbpalette der App</div>
             </div>
-            <button class="btn btn-warning btn-icon btn-sm ms-auto" title="Reset" @click="resetDesignColors">
+            <button
+              class="btn btn-warning btn-icon btn-sm ms-auto"
+              title="Standard wiederherstellen: Setzt alle Farbanpassungen auf die Standardwerte der Anwendung zurück."
+              aria-label="Standard wiederherstellen"
+              @click="resetDesignColors"
+            >
               ↺
             </button>
           </div>
@@ -145,7 +153,7 @@
           <div class="compact-upload">
             <div class="upload-preview bg-preview">
               <img v-if="previewKasseBackgroundUrl" :src="previewKasseBackgroundUrl" alt="Background" />
-              <span v-else>BG</span>
+              <span v-else>Hintergrund</span>
             </div>
             <div class="upload-actions">
               <button class="btn btn-outline btn-sm" @click="$refs.bgInput.click()">Durchsuchen...</button>
@@ -156,8 +164,8 @@
 
           <div class="bg-settings-grid mt-compact">
             <div class="toggle-row compact">
-              <span class="toggle-label-text">BG Aktiv</span>
-              <div class="toggle-switch" :class="{ active: designForm.kasse_products_background_enabled }" @click="designForm.kasse_products_background_enabled = !designForm.kasse_products_background_enabled" />
+              <span class="toggle-label-text">Hintergrund aktiv</span>
+              <button type="button" class="toggle-switch" :class="{ active: designForm.kasse_products_background_enabled }" :aria-pressed="designForm.kasse_products_background_enabled" aria-label="Produkthintergrund ein- oder ausschalten" @click="designForm.kasse_products_background_enabled = !designForm.kasse_products_background_enabled" />
             </div>
             <div class="form-group compact">
               <label class="form-label">Deckkraft <span class="hint">{{ designForm.kasse_products_background_opacity }}%</span></label>
@@ -285,7 +293,7 @@
             </div>
           </div>
           <p class="text-muted mb-compact">
-            Erstellt ein vollständiges Backup der Datenbank als ZIP-Datei.
+            Sichert Datenbank, Konten, Belege, Produktbilder, Mitgliederfotos und Designmedien gemeinsam als ZIP (Format v2). Währenddessen sind andere Zugriffe kurz gesperrt.
           </p>
           <div class="btn-row mt-auto">
             <button class="btn btn-primary w-100" :disabled="dataMaintenanceBusy" @click="handleBackupDownload">
@@ -341,7 +349,7 @@
           </div>
         </div>
         <p class="text-muted mb-compact">
-          Stellt die komplette Datenbank aus einer Backup-ZIP wieder her und überschreibt alle aktuellen Daten.
+          Ersetzt Datenbank und Medien durch eine vollständige v2-Sicherung mit passendem Schema. Alte v1- und Teilarchive werden abgewiesen. Maximal 256 MiB ZIP / 512 MiB entpackt. Alle Benutzer müssen sich anschließend erneut anmelden.
         </p>
         <div class="form-group mb-compact">
           <label class="form-label" for="restore-file">Backup-ZIP auswählen</label>
@@ -359,7 +367,7 @@
         </div>
       </div>
 
-      <CredentialConfirmModal
+      <AuthCredentialModal
         :show="showResetModal"
         title="Hard-Reset bestätigen"
         message="Bitte Top-Admin-Passwort eingeben und zusätzlich RESET bestätigen."
@@ -367,17 +375,19 @@
         confirm-label="Hard-Reset ausführen"
         confirmation-label="Bestätigung"
         confirmation-placeholder="RESET"
-        @close="showResetModal = false"
+        :error="resetModalError"
+        @close="showResetModal = false; resetModalError = ''"
         @confirm="handleHardReset"
       />
 
-      <CredentialConfirmModal
+      <AuthCredentialModal
         :show="showRestoreModal"
         title="Datenbank-Wiederherstellung bestätigen"
         message="Bitte Top-Admin-Passwort eingeben. Die aktuelle Datenbank wird vollständig überschrieben."
         :username="authStore.user?.username || ''"
         confirm-label="Wiederherstellung starten"
-        @close="showRestoreModal = false"
+        :error="restoreModalError"
+        @close="showRestoreModal = false; restoreModalError = ''"
         @confirm="handleRestore"
       />
     </div>
@@ -481,14 +491,17 @@
               </div>
             </div>
             <div class="layout-grid-compact">
-              <div
+              <button
                 v-for="layout in availableLayouts" :key="layout.key"
+                type="button"
                 class="layout-card-sm" :class="{ selected: selectedLayout === layout.key }"
+                :aria-pressed="selectedLayout === layout.key"
+                :aria-label="`${layout.name} als Kassenansicht auswählen`"
                 @click="selectedLayout = layout.key"
               >
                 <span>{{ layout.icon }} {{ layout.name }}</span>
                 <span v-if="selectedLayout === layout.key" class="layout-badge-sm">Aktiv</span>
-              </div>
+              </button>
             </div>
             <div v-if="layoutChanged" class="layout-changed-hint compact-box">
               <span>⚠️ Geändert.</span>
@@ -509,13 +522,13 @@
               <div v-if="authStore.isTopAdmin" class="setting-item">
                 <span class="setting-item__icon">⏱️</span>
                 <div class="setting-item__info">
-                  <span class="setting-item__title">Session-Timer</span>
+                  <span class="setting-item__title">Sitzungszeitlimit</span>
                 </div>
                 <div class="setting-item__controls">
-                  <div class="toggle-switch small" :class="{ active: sessionTimer.enabled }" @click="sessionTimer.enabled = !sessionTimer.enabled" />
+                  <button type="button" class="toggle-switch small" :class="{ active: sessionTimer.enabled }" :aria-pressed="sessionTimer.enabled" aria-label="Sitzungszeitlimit ein- oder ausschalten" @click="sessionTimer.enabled = !sessionTimer.enabled" />
                   <input v-model.number="sessionTimer.minutes" type="number" class="setting-item__input" min="1" step="1" :disabled="!sessionTimer.enabled" title="Minuten" />
                   <span class="setting-item__unit">min</span>
-                  <button class="btn btn-primary btn-sm btn-icon" :disabled="appSettingsStore.isSaving" @click="saveSessionTimer">💾</button>
+                  <button class="btn btn-primary btn-sm" :disabled="appSettingsStore.isSaving" @click="saveSessionTimer">Speichern</button>
                 </div>
               </div>
 
@@ -525,8 +538,29 @@
                   <span class="setting-item__title">Deckel-Funktion</span>
                 </div>
                 <div class="setting-item__controls">
-                  <div class="toggle-switch small" :class="{ active: deckelEnabled }" @click="deckelEnabled = !deckelEnabled" />
-                  <button class="btn btn-primary btn-sm btn-icon" :disabled="appSettingsStore.isSaving" @click="saveDeckelSettings">💾</button>
+                  <button type="button" class="toggle-switch small" :class="{ active: deckelEnabled }" :aria-pressed="deckelEnabled" aria-label="Deckelfunktion ein- oder ausschalten" @click="deckelEnabled = !deckelEnabled" />
+                  <button class="btn btn-primary btn-sm" :disabled="appSettingsStore.isSaving" @click="saveKasseSettings">Speichern</button>
+                </div>
+              </div>
+              <div class="setting-item">
+                <span class="setting-item__icon">📋</span>
+                <div class="setting-item__info">
+                  <span class="setting-item__title">Gästeliste</span>
+                </div>
+                <div class="setting-item__controls">
+                  <button type="button" class="toggle-switch small" :class="{ active: guestListEnabled }" :aria-pressed="guestListEnabled" aria-label="Gästeliste ein- oder ausschalten" @click="guestListEnabled = !guestListEnabled" />
+                  <button class="btn btn-primary btn-sm" :disabled="appSettingsStore.isSaving" @click="saveKasseSettings">Speichern</button>
+                </div>
+              </div>
+
+              <div v-if="authStore.isTopAdmin" class="setting-item">
+                <span class="setting-item__icon">🔐</span>
+                <div class="setting-item__info">
+                  <span class="setting-item__title">Direktanmeldung "Kasse"</span>
+                </div>
+                <div class="setting-item__controls">
+                  <button type="button" class="toggle-switch small" :class="{ active: kasseDirectLoginEnabled }" :aria-pressed="kasseDirectLoginEnabled" aria-label="Direktanmeldung der Kasse ein- oder ausschalten" @click="kasseDirectLoginEnabled = !kasseDirectLoginEnabled" />
+                  <button class="btn btn-primary btn-sm" :disabled="appSettingsStore.isSaving" @click="saveKasseSettings">Speichern</button>
                 </div>
               </div>
             </div>
@@ -545,11 +579,15 @@
             <div class="status-grid">
               <div class="status-item">
                 <span :class="['status-dot', hardwareStatus.local_agent_reachable ? 'status-dot--green' : 'status-dot--red']"></span>
-                <span>Agent erreichbar</span>
+                <span>Agent: {{ hardwareStatus.local_agent_reachable ? 'erreichbar' : 'nicht erreichbar' }}</span>
               </div>
               <div class="status-item">
                 <span :class="['status-dot', hardwareStatus.adapter_connected === true ? 'status-dot--green' : hardwareStatus.adapter_connected === false ? 'status-dot--red' : 'status-dot--gray']"></span>
-                <span>USB-Adapter{{ hardwareStatus.adapter_connected === null && hardwareStatus.local_agent_reachable ? ' (Status unbekannt)' : '' }}</span>
+                <span>Hauptschublade: {{ hardwareStatus.adapter_connected === true ? 'verbunden' : hardwareStatus.adapter_connected === false ? 'nicht verbunden' : 'Status unbekannt' }}</span>
+              </div>
+              <div class="status-item">
+                <span :class="['status-dot', hardwareStatus.small_parts_adapter_connected === true ? 'status-dot--green' : hardwareStatus.small_parts_adapter_connected === false ? 'status-dot--red' : 'status-dot--gray']"></span>
+                <span>Kleinteile-Lager: {{ hardwareStatus.small_parts_adapter_connected === true ? 'verbunden' : hardwareStatus.small_parts_adapter_connected === false ? 'nicht verbunden' : 'Status unbekannt / Agent aktualisieren' }}</span>
               </div>
               <div class="status-item" v-if="hardwareStatus.service_detail">
                 <span class="status-dot status-dot--gray"></span>
@@ -557,11 +595,147 @@
               </div>
             </div>
 
-            <!-- Agent erreichbar: nur Service-Steuerung anzeigen -->
+            <div v-if="authStore.isTopAdmin" class="btn-row mt-compact">
+              <button class="btn btn-outline btn-sm" @click="requestManualDrawerOpen('main')">
+                💶 Hauptschublade öffnen
+              </button>
+              <button class="btn btn-outline btn-sm" @click="requestManualDrawerOpen('small_parts')">
+                📦 Kleinteile-Lager öffnen
+              </button>
+            </div>
+
+            <div v-if="authStore.isTopAdmin" class="local-hardware-config mt-compact">
+              <div class="warning-box compact-box">
+                <span class="warning-icon">🔧</span>
+                <div class="warning-text">
+                  Der aktuelle Hardware-Service kann jederzeit neu installiert oder aktualisiert werden.
+                  Vorhandene Adapterzuordnungen und der lokale Konfigurationscode bleiben dabei erhalten.
+                </div>
+              </div>
+              <div class="btn-row mt-compact">
+                <button class="btn btn-primary btn-sm" @click="showHardwareInstallModal = true">
+                  🧭 Dienst installieren / aktualisieren
+                </button>
+                <button class="btn btn-outline btn-sm" @click="downloadInstallerPackage">
+                  ⬇ Aktuelles Installationspaket
+                </button>
+              </div>
+            </div>
+
+            <!-- Agent erreichbar: Status, Zuordnung und Service-Steuerung anzeigen -->
             <template v-if="hardwareStatus.local_agent_reachable">
               <div class="warning-box compact-box mt-compact" style="border-color: var(--color-success)">
                 <span class="warning-icon">✅</span>
                 <div class="warning-text">Agent läuft auf diesem PC (127.0.0.1:8765).</div>
+              </div>
+              <div v-if="hardwareStatus.multi_drawer" class="warning-box compact-box mt-compact">
+                <span class="warning-icon">ℹ️</span>
+                <div class="warning-text">
+                  Die Adapter werden direkt auf diesem Kassen-PC erkannt und konfiguriert.
+                  Der externe Server hat keinen Zugriff auf die lokalen USB-Geräte.
+                </div>
+              </div>
+              <div
+                v-if="authStore.isTopAdmin && hardwareStatus.drawer_configuration && hardwareStatus.configuration_protected"
+                class="local-hardware-config mt-compact"
+              >
+                <div class="form-group">
+                  <label class="form-label" for="hardware-config-token">Lokaler Konfigurationscode</label>
+                  <input
+                    id="hardware-config-token"
+                    v-model.trim="hardwareConfig.token"
+                    class="form-input"
+                    type="password"
+                    autocomplete="off"
+                    placeholder="Code aus der Agent-Installation"
+                  >
+                  <span class="form-hint">
+                    Der Code wird nur an den Agenten auf 127.0.0.1 gesendet und nicht auf dem Server gespeichert.
+                  </span>
+                </div>
+
+                <div class="hardware-mapping-grid mt-compact">
+                  <div class="form-group">
+                    <label class="form-label" for="main-drawer-device">Hauptschublade</label>
+                    <select id="main-drawer-device" v-model="hardwareConfig.main_device" class="form-input">
+                      <option value="">Adapter auswählen</option>
+                      <option v-for="device in hardwareStatus.available_devices" :key="`main-${device}`" :value="device">
+                        {{ device }}
+                      </option>
+                    </select>
+                    <button
+                      class="btn btn-outline btn-sm"
+                      :disabled="hardwareConfigBusy || !hardwareConfig.main_device || !hardwareConfig.token"
+                      @click="testHardwareDevice(hardwareConfig.main_device, 'Hauptschublade')"
+                    >
+                      🔔 Auswahl testen
+                    </button>
+                  </div>
+
+                  <div class="form-group">
+                    <label class="form-label" for="small-parts-drawer-device">Kleinteile-Lager</label>
+                    <select id="small-parts-drawer-device" v-model="hardwareConfig.small_parts_device" class="form-input">
+                      <option value="">Adapter auswählen</option>
+                      <option v-for="device in hardwareStatus.available_devices" :key="`small-${device}`" :value="device">
+                        {{ device }}
+                      </option>
+                    </select>
+                    <button
+                      class="btn btn-outline btn-sm"
+                      :disabled="hardwareConfigBusy || !hardwareConfig.small_parts_device || !hardwareConfig.token"
+                      @click="testHardwareDevice(hardwareConfig.small_parts_device, 'Kleinteile-Lager')"
+                    >
+                      🔔 Auswahl testen
+                    </button>
+                  </div>
+                </div>
+
+                <div class="btn-row mt-compact">
+                  <button
+                    class="btn btn-primary btn-sm"
+                    :disabled="hardwareConfigBusy || !canSaveHardwareMapping"
+                    @click="saveHardwareMapping"
+                  >
+                    💾 Zuordnung auf diesem Client speichern
+                  </button>
+                </div>
+              </div>
+              <div
+                v-else-if="authStore.isTopAdmin && hardwareStatus.cors_blocked"
+                class="local-hardware-config mt-compact"
+              >
+                <div class="warning-box compact-box">
+                  <span class="warning-icon">🔗</span>
+                  <div class="warning-text">
+                    Der Agent läuft auf diesem Vereins-PC, aber die aktuell verwendete PWA-Adresse
+                    <code>{{ currentBrowserOrigin }}</code> ist noch nicht freigegeben.
+                  </div>
+                </div>
+                <div class="form-group mt-compact">
+                  <label class="form-label" for="hardware-pair-token">Lokaler Konfigurationscode</label>
+                  <input
+                    id="hardware-pair-token"
+                    v-model.trim="hardwareConfig.token"
+                    class="form-input"
+                    type="password"
+                    autocomplete="off"
+                    placeholder="Code aus der Agent-Installation"
+                  >
+                </div>
+                <button
+                  class="btn btn-primary btn-sm mt-compact"
+                  :disabled="hardwareConfigBusy || !hardwareConfig.token"
+                  @click="pairLocalHardwareAgent"
+                >
+                  🔗 Diesen Browser mit dem lokalen Agenten verbinden
+                </button>
+              </div>
+              <div
+                v-else-if="authStore.isTopAdmin && hardwareStatus.multi_drawer"
+                class="warning-box compact-box mt-compact"
+              >
+                <span class="warning-icon">⚠️</span>
+                <div class="warning-text">Für die Zuordnung im Adminbereich muss der lokale Hardware-Agent aktualisiert werden.</div>
               </div>
               <div v-if="authStore.isTopAdmin" class="btn-row mt-compact">
                 <button class="btn btn-outline btn-sm" @click="executeHardwareServiceAction('restart')">Neustart</button>
@@ -579,15 +753,30 @@
                 </div>
               </div>
 
-              <div v-if="authStore.isTopAdmin" class="mt-compact">
-                <div class="btn-row mt-compact">
-                  <button class="btn btn-primary btn-sm" @click="showHardwareInstallModal = true">
-                    🧭 Installationshilfe öffnen
-                  </button>
-                  <button class="btn btn-outline btn-sm" @click="downloadInstallerPackage">
-                    ⬇ Installationspaket herunterladen
-                  </button>
+              <div v-if="authStore.isTopAdmin" class="local-hardware-config mt-compact">
+                <div class="form-group">
+                  <label class="form-label" for="hardware-pair-token-offline">
+                    Agent bereits installiert? Lokalen Konfigurationscode eingeben
+                  </label>
+                  <input
+                    id="hardware-pair-token-offline"
+                    v-model.trim="hardwareConfig.token"
+                    class="form-input"
+                    type="password"
+                    autocomplete="off"
+                    placeholder="Code aus der Agent-Installation"
+                  >
+                  <span class="form-hint">
+                    Damit wird ausschließlich {{ currentBrowserOrigin }} auf diesem Vereins-PC freigegeben.
+                  </span>
                 </div>
+                <button
+                  class="btn btn-primary btn-sm mt-compact"
+                  :disabled="hardwareConfigBusy || !hardwareConfig.token"
+                  @click="pairLocalHardwareAgent"
+                >
+                  🔗 Verbindung zum lokalen Agenten herstellen
+                </button>
               </div>
             </template>
           </div>
@@ -605,38 +794,40 @@
       <div
         v-if="showHardwareInstallModal"
         class="setup-modal-overlay"
-        @click.self="showHardwareInstallModal = false"
       >
         <div class="setup-modal-card">
           <div class="setup-modal-header">
-            <h3>Hardware-Service auf dem Vereins-PC einrichten</h3>
+            <h3>Hardware-Service installieren oder aktualisieren</h3>
             <button class="btn btn-outline btn-sm" @click="showHardwareInstallModal = false">✕</button>
           </div>
           <p class="setup-modal-text">
             Dein Backend kann den lokalen USB-Adapter am Vereins-PC nicht direkt sehen.
-            Deshalb muss der Agent lokal auf genau diesem PC installiert werden.
+            Deshalb muss der Agent lokal auf genau diesem PC installiert beziehungsweise aktualisiert werden.
+          </p>
+          <p class="setup-modal-requirement">
+            ℹ️ Voraussetzung: <strong>Python 3.9 oder neuer</strong> muss auf dem Vereins-PC installiert sein.
+            Der Installationsassistent prüft dies automatisch und installiert fehlende Python-Pakete selbstständig.
           </p>
           <ol class="setup-step-list">
-            <li>Installationspaket hier herunterladen und auf dem Vereins-PC entpacken.</li>
+            <li>Aktuelles Installationspaket hier herunterladen und auf dem Vereins-PC entpacken.</li>
             <li>
               Auf dem Vereins-PC ausführen – empfohlen: Doppelklick auf
               <code>Kickerkasse-Install.desktop</code> (grafischer Assistent).<br>
               Alternativ im Terminal: <code>python3 setup_wizard.py</code>
             </li>
+            <li>
+              Der Assistent ersetzt eine vorhandene Agent-Version, startet den systemd-Dienst neu und
+              erhält die bestehende Adapterzuordnung sowie den lokalen Konfigurationscode.
+            </li>
             <li>Diese Seite im Browser auf dem Vereins-PC öffnen und mit 🔄 prüfen.</li>
           </ol>
           <div class="setup-download-grid">
             <button class="btn btn-primary btn-sm" @click="downloadInstallerPackage">
-              ⬇ Komplettes Installationspaket (ZIP)
+              ⬇ Aktuelles Installationspaket herunterladen (ZIP)
             </button>
-            <button
-              v-for="file in installerDownloadFiles"
-              :key="file"
-              class="btn btn-outline btn-sm"
-              @click="downloadInstallerFile(file)"
-            >
-              ⬇ {{ file }}
-            </button>
+            <p class="setup-download-hint">
+              Enthält alle benötigten Komponenten zur Installation.
+            </p>
           </div>
         </div>
       </div>
@@ -648,145 +839,111 @@
         E-Mail-Konfiguration
       </div>
 
-      <div class="grid-2">
-        <div class="card">
+      <div class="grid-2 email-settings-grid">
+        <div class="card email-card email-card--smtp">
           <div class="card-header">
-            <div class="card-icon blue">📬</div>
+            <div class="card-icon purple">📡</div>
             <div>
-              <div class="card-title">Kassenbericht-Versand</div>
-              <div class="card-subtitle">Empfänger, Versand und Automatik</div>
+              <div class="card-title">SMTP-Server</div>
+              <div class="card-subtitle">Versand aktivieren und Serverzugang konfigurieren</div>
             </div>
           </div>
 
-          <div class="settings-list">
+          <div class="settings-list email-primary-switches">
             <div class="setting-item">
               <span class="setting-item__icon">✉️</span>
-              <div class="setting-item__info">
-                <span class="setting-item__title">E-Mail-Versand aktiv</span>
-              </div>
+              <div class="setting-item__info"><span class="setting-item__title">E-Mail-Versand aktiv</span></div>
               <div class="setting-item__controls">
-                <div class="toggle-switch small" :class="{ active: emailForm.email_enabled }" @click="emailForm.email_enabled = !emailForm.email_enabled" />
+                <button type="button" class="toggle-switch small" :class="{ active: emailForm.email_enabled }" :aria-pressed="emailForm.email_enabled" aria-label="E-Mail-Versand ein- oder ausschalten" @click="emailForm.email_enabled = !emailForm.email_enabled" />
               </div>
             </div>
             <div class="setting-item">
               <span class="setting-item__icon">⏱️</span>
-              <div class="setting-item__info">
-                <span class="setting-item__title">Automatik aktiv</span>
-              </div>
+              <div class="setting-item__info"><span class="setting-item__title">Kassenbericht-Automatik aktiv</span></div>
               <div class="setting-item__controls">
-                <div class="toggle-switch small" :class="{ active: emailForm.scheduled_zbon_enabled }" @click="emailForm.scheduled_zbon_enabled = !emailForm.scheduled_zbon_enabled" />
-              </div>
-            </div>
-            <div class="setting-item">
-              <span class="setting-item__icon">📉</span>
-              <div class="setting-item__info">
-                <span class="setting-item__title">E-Mail bei kritischen Lagerbeständen</span>
-              </div>
-              <div class="setting-item__controls">
-                <div class="toggle-switch small" :class="{ active: emailForm.email_critical_stock_enabled }" @click="emailForm.email_critical_stock_enabled = !emailForm.email_critical_stock_enabled" />
+                <button type="button" class="toggle-switch small" :class="{ active: emailForm.scheduled_zbon_enabled }" :aria-pressed="emailForm.scheduled_zbon_enabled" aria-label="Automatischen Kassenbericht ein- oder ausschalten" @click="emailForm.scheduled_zbon_enabled = !emailForm.scheduled_zbon_enabled" />
               </div>
             </div>
           </div>
 
           <div class="grid-2-compact mt-compact">
-            <div class="form-group">
-              <label class="form-label">Empfänger</label>
-              <input v-model.trim="emailForm.email_recipient_zbon" type="email" class="form-input" placeholder="kassenbericht@verein.de" />
-            </div>
-            <div class="form-group">
-              <label class="form-label">Absender</label>
-              <input v-model.trim="emailForm.email_sender" type="email" class="form-input" placeholder="noreply@verein.de" />
-            </div>
-            <div class="form-group">
-              <label class="form-label">Versandzeit</label>
-              <input v-model="emailForm.scheduled_zbon_time" type="time" class="form-input" />
-            </div>
-            <div class="form-group">
-              <label class="form-label">Titel / Zusatzinformation</label>
-              <input v-model.trim="emailForm.email_subject_suffix" type="text" class="form-input" maxlength="120" placeholder="z. B. Standort A" />
-            </div>
-          </div>
-
-          <div class="settings-list mt-compact">
-            <div class="setting-item">
-              <span class="setting-item__icon">📤</span>
-              <div class="setting-item__info">
-                <span class="setting-item__title">Beim Erstellen automatisch senden</span>
-              </div>
-              <div class="setting-item__controls">
-                <div class="toggle-switch small" :class="{ active: emailForm.send_zbon_on_create_enabled }" @click="emailForm.send_zbon_on_create_enabled = !emailForm.send_zbon_on_create_enabled" />
-              </div>
-            </div>
-          </div>
-        </div>
-
-        <div class="card">
-          <div class="card-header">
-            <div class="card-icon purple">📡</div>
-            <div>
-              <div class="card-title">SMTP-Server</div>
-              <div class="card-subtitle">Zugangsdaten für den Mailversand</div>
-            </div>
-          </div>
-
-          <div class="grid-2-compact">
-            <div class="form-group">
-              <label class="form-label">SMTP-Host</label>
-              <input v-model.trim="emailForm.smtp_host" type="text" class="form-input" placeholder="smtp.example.org" />
-            </div>
-            <div class="form-group">
-              <label class="form-label">SMTP-Port</label>
-              <input v-model.number="emailForm.smtp_port" type="number" min="1" max="65535" class="form-input" />
-            </div>
-            <div class="form-group">
-              <label class="form-label">SMTP-Benutzer</label>
-              <input v-model.trim="emailForm.smtp_username" type="text" class="form-input" placeholder="optional" />
-            </div>
-            <div class="form-group">
-              <label class="form-label">SMTP-Passwort</label>
-              <input v-model="emailForm.smtp_password" type="password" class="form-input" placeholder="optional" />
-            </div>
+            <div class="form-group"><label class="form-label">SMTP-Host</label><input v-model.trim="emailForm.smtp_host" type="text" class="form-input" placeholder="smtp.example.org" /></div>
+            <div class="form-group"><label class="form-label">SMTP-Port</label><input v-model.number="emailForm.smtp_port" type="number" min="1" max="65535" class="form-input" /></div>
+            <div class="form-group"><label class="form-label">SMTP-Benutzer</label><input v-model.trim="emailForm.smtp_username" type="text" class="form-input" placeholder="optional" /></div>
+            <div class="form-group"><label class="form-label">SMTP-Passwort</label><input v-model="emailForm.smtp_password" type="password" class="form-input" placeholder="optional" /></div>
+            <div class="form-group"><label class="form-label">Absender</label><input v-model.trim="emailForm.email_sender" type="email" class="form-input" placeholder="noreply@verein.de" /></div>
           </div>
 
           <div class="settings-list mt-compact">
             <div class="setting-item">
               <span class="setting-item__icon">🔒</span>
-              <div class="setting-item__info">
-                <span class="setting-item__title">TLS verwenden</span>
-              </div>
-              <div class="setting-item__controls">
-                <div class="toggle-switch small" :class="{ active: emailForm.smtp_use_tls }" @click="emailForm.smtp_use_tls = !emailForm.smtp_use_tls" />
-              </div>
+              <div class="setting-item__info"><span class="setting-item__title">TLS verwenden</span></div>
+              <div class="setting-item__controls"><button type="button" class="toggle-switch small" :class="{ active: emailForm.smtp_use_tls }" :aria-pressed="emailForm.smtp_use_tls" aria-label="TLS für SMTP ein- oder ausschalten" @click="emailForm.smtp_use_tls = !emailForm.smtp_use_tls" /></div>
             </div>
           </div>
 
-          <div class="warning-box compact-box mt-compact">
-            <span class="warning-icon">ℹ️</span>
-            <div class="warning-text">
-              Diese Werte werden direkt in der Anwendung gespeichert und ersetzen die bisherige `.env`-Konfiguration.
-            </div>
-          </div>
-
+          <div class="warning-box compact-box mt-compact"><span class="warning-icon">ℹ️</span><div class="warning-text">Diese Werte werden direkt in der Anwendung gespeichert und ersetzen die bisherige <code>.env</code>-Konfiguration.</div></div>
           <div class="btn-row mt-auto">
-            <button
-              class="btn btn-outline"
-              :disabled="appSettingsStore.isSaving || isTestingEmailConnection"
-              @click="testEmailConnection"
-            >
-              {{ isTestingEmailConnection ? 'Teste Verbindung...' : '🧪 Verbindung testen' }}
-            </button>
-            <button
-              class="btn btn-outline"
-              :disabled="appSettingsStore.isSaving || isSendingTestEmail"
-              @click="sendTestEmail"
-            >
-              {{ isSendingTestEmail ? 'Sende Testmail...' : '📨 Testmail senden' }}
-            </button>
+            <button class="btn btn-outline" :disabled="appSettingsStore.isSaving || isTestingEmailConnection" @click="testEmailConnection">{{ isTestingEmailConnection ? 'Teste Verbindung...' : '🧪 Verbindung testen' }}</button>
+            <button class="btn btn-outline" :disabled="appSettingsStore.isSaving || isSendingTestEmail" @click="sendTestEmail">{{ isSendingTestEmail ? 'Sende Testmail...' : '📨 Testmail senden' }}</button>
             <button class="btn btn-primary" :disabled="appSettingsStore.isSaving" @click="saveEmailSettings">💾 E-Mail-Einstellungen speichern</button>
+          </div>
+        </div>
+
+        <div class="card email-card">
+          <div class="card-header"><div class="card-icon blue">📬</div><div><div class="card-title">Kassenbericht</div><div class="card-subtitle">Empfänger und Versandzeitpunkt</div></div></div>
+          <div class="settings-list">
+            <div class="setting-item">
+              <span class="setting-item__icon">📤</span><div class="setting-item__info"><span class="setting-item__title">Beim Erstellen automatisch senden</span></div>
+              <div class="setting-item__controls"><button type="button" class="toggle-switch small" :class="{ active: emailForm.send_zbon_on_create_enabled }" :aria-pressed="emailForm.send_zbon_on_create_enabled" aria-label="Kassenbericht nach Abschluss ein- oder ausschalten" @click="emailForm.send_zbon_on_create_enabled = !emailForm.send_zbon_on_create_enabled" /></div>
+            </div>
+          </div>
+          <div class="grid-2-compact mt-compact">
+            <div class="form-group"><label class="form-label">Empfänger</label><input v-model.trim="emailForm.email_recipient_zbon" type="email" class="form-input" placeholder="kassenbericht@verein.de" /></div>
+            <div class="form-group"><label class="form-label">Automatischer Versand für Vortag</label><input v-model="emailForm.scheduled_zbon_time" type="time" class="form-input" /><small class="form-hint">Versendet den vollständigen Bericht des vorherigen Kalendertags.</small></div>
+            <div class="form-group"><label class="form-label">Betreff-Info (optional)</label><input v-model.trim="emailForm.email_subject_zbon_info" type="text" class="form-input" maxlength="120" placeholder="z. B. Kasse 1" /><small class="form-hint">{{ emailSubjectPreview('Kassenbericht', emailForm.email_subject_zbon_info) }}</small></div>
+          </div>
+          <div class="warning-box compact-box mt-compact"><span class="warning-icon">{{ deliveryStatusIcon(appSettingsStore.settings.zbon_last_run_status) }}</span><div class="warning-text"><strong>Letzter automatischer Versand</strong><br>{{ formatDeliveryRun(appSettingsStore.settings.zbon_last_run_at, appSettingsStore.settings.zbon_last_run_status) }}<span v-if="appSettingsStore.settings.zbon_last_business_date"> · Berichtstag {{ appSettingsStore.settings.zbon_last_business_date }}</span><br>{{ appSettingsStore.settings.zbon_last_run_message || 'Noch kein Versandlauf protokolliert.' }}</div></div>
+        </div>
+
+        <div class="card email-card">
+          <div class="card-header"><div class="card-icon blue">📉</div><div><div class="card-title">Warenbestand</div><div class="card-subtitle">Automatische Warnung bei kritischem Bestand</div></div></div>
+          <div class="settings-list">
+            <div class="setting-item">
+              <span class="setting-item__icon">📉</span><div class="setting-item__info"><span class="setting-item__title">Lagerwarnungen aktiv</span></div>
+              <div class="setting-item__controls"><button type="button" class="toggle-switch small" :class="{ active: emailForm.email_critical_stock_enabled }" :aria-pressed="emailForm.email_critical_stock_enabled" aria-label="Lagerwarnungen ein- oder ausschalten" @click="emailForm.email_critical_stock_enabled = !emailForm.email_critical_stock_enabled" /></div>
+            </div>
+          </div>
+          <div class="grid-2-compact mt-compact">
+            <div class="form-group"><label class="form-label">Empfänger (optional)</label><input v-model.trim="emailForm.email_recipient_stock" type="email" class="form-input" placeholder="lager@verein.de" /><small class="form-hint">Leer = Empfänger des Kassenberichts</small></div>
+            <div class="form-group"><label class="form-label">Tägliche Prüfzeit</label><input v-model="emailForm.scheduled_stock_warning_time" type="time" class="form-input" /><small class="form-hint">Ohne kritischen Bestand wird keine Mail versendet.</small></div>
+            <div class="form-group"><label class="form-label">Betreff-Info (optional)</label><input v-model.trim="emailForm.email_subject_stock_info" type="text" class="form-input" maxlength="120" placeholder="z. B. Kühlschrank" /><small class="form-hint">{{ emailSubjectPreview('Lagerwarnung', emailForm.email_subject_stock_info) }}</small></div>
+          </div>
+          <div v-if="emailForm.email_critical_stock_enabled && !emailForm.email_enabled" class="warning-box compact-box mt-compact"><span class="warning-icon">⚠️</span><div class="warning-text">Lagerwarnungen benötigen den aktivierten E-Mail-Versand.</div></div>
+          <div v-if="emailForm.email_critical_stock_enabled && !emailForm.email_recipient_stock && !emailForm.email_recipient_zbon" class="warning-box compact-box mt-compact"><span class="warning-icon">⚠️</span><div class="warning-text">Für Lagerwarnungen fehlt ein Lager- oder Kassenbericht-Empfänger.</div></div>
+          <div class="warning-box compact-box mt-compact"><span class="warning-icon">{{ deliveryStatusIcon(appSettingsStore.settings.stock_last_run_status) }}</span><div class="warning-text"><strong>Letzte automatische Lagerprüfung</strong><br>{{ formatDeliveryRun(appSettingsStore.settings.stock_last_run_at, appSettingsStore.settings.stock_last_run_status) }}<br>{{ appSettingsStore.settings.stock_last_run_message || 'Noch kein Prüflauf protokolliert.' }}</div></div>
+        </div>
+
+        <div class="card email-card">
+          <div class="card-header"><div class="card-icon purple">🗄️</div><div><div class="card-title">Datenbanksicherung</div><div class="card-subtitle">Empfänger für automatische Sicherungen</div></div></div>
+          <div class="grid-2-compact">
+            <div class="form-group"><label class="form-label">Empfänger (optional)</label><input v-model.trim="emailForm.email_recipient_backup" type="email" class="form-input" placeholder="backup@verein.de" /><small class="form-hint">Leer = Empfänger des Kassenberichts. Zeitplan und Aktivierung werden unter Datenpflege verwaltet.</small></div>
+            <div class="form-group"><label class="form-label">Betreff-Info (optional)</label><input v-model.trim="emailForm.email_subject_backup_info" type="text" class="form-input" maxlength="120" placeholder="z. B. Vollsicherung" /><small class="form-hint">{{ emailSubjectPreview('DB-Backup', emailForm.email_subject_backup_info) }}</small></div>
           </div>
         </div>
       </div>
     </div>
+
+    <AuthCredentialModal
+      :show="!!manualDrawerTarget"
+      :title="manualDrawerTarget === 'small_parts' ? 'Kleinteile-Lager öffnen' : 'Hauptschublade öffnen'"
+      message="Bitte Top-Admin-Passwort bestätigen."
+      :username="authStore.user?.username || ''"
+      confirm-label="Jetzt öffnen"
+      :error="manualDrawerError"
+      @close="manualDrawerTarget = null; manualDrawerError = ''"
+      @confirm="confirmManualDrawerOpen"
+    />
   </div>
 </template>
 
@@ -794,13 +951,16 @@
 import { computed, onMounted, reactive, ref, watch } from 'vue'
 import AuditLogPanel from '@/components/admin/AuditLogPanel.vue'
 import ImportExportModal from '@/components/ImportExportModal.vue'
+import { getErrorDetailMessage } from '@/services/errorMessage'
+const getErrorMessage = getErrorDetailMessage
 import { useAppSettingsStore } from '@/stores/appSettings'
 import { useNotificationStore } from '@/stores/notification'
 import { useAuthStore } from '@/stores/auth'
 import { getContrastColor } from '@/services/utils'
 import { LOCAL_HARDWARE_AGENT_BASE_URL, SESSION_RELOAD_FLAG_KEY } from '@/constants'
 import apiService from '@/services/api'
-import CredentialConfirmModal from '@/components/CredentialConfirmModal.vue'
+import { failedDrawerTargets, openDrawerTargets } from '@/services/drawer'
+import AuthCredentialModal from '@/components/AuthCredentialModal.vue'
 import BusinessDataModal from '@/views/admin/modal/BusinessDataModal.vue'
 import { useRoute, useRouter } from 'vue-router'
 
@@ -809,6 +969,8 @@ const notificationStore = useNotificationStore()
 const authStore = useAuthStore()
 const route = useRoute()
 const router = useRouter()
+const manualDrawerTarget = ref(null)
+const manualDrawerError = ref('')
 const fetchLocalAgent = async (path, options = {}, timeoutMs = 1500) => {
   const controller = new AbortController()
   const timeoutId = window.setTimeout(() => controller.abort(), timeoutMs)
@@ -874,6 +1036,10 @@ const syncRouteSection = async (section) => {
 
 const switchSection = async (targetSection) => {
   const normalized = normalizeSection(targetSection)
+  if (activeSection.value !== normalized && hasUnsavedSettings.value) {
+    if (!window.confirm('Ungespeicherte Änderungen verwerfen und den Bereich wechseln?')) return
+    discardActiveChanges()
+  }
   if (activeSection.value !== normalized) {
     activeSection.value = normalized
   }
@@ -903,12 +1069,24 @@ watch(
 
 // ── Design Colors ─────────────────────────────────────
 // Reduziert auf interne Logik, UI nutzt jetzt native Color-Picker für Platzersparnis
-const designForm = reactive({
-  app_name: 'KGB - KickerKasse Test',
+//
+// Einzige Quelle der Wahrheit für die Anwendungs-Standardfarben. Sowohl der initiale
+// Ladewert (falls noch keine Einstellungen vom Server vorliegen) als auch der
+// "Standard wiederherstellen"-Button verwenden dieselben Werte, damit beide nicht
+// mehr auseinanderlaufen können.
+const DESIGN_COLOR_DEFAULTS = {
   background_color: '#D7DCE2',
   banner_color: '#131820',
-  highlight_color: '#5C8F3A',
+  highlight_color: '#209529',
   kasse_area_background_color: '#FFFFFF',
+}
+
+const designForm = reactive({
+  app_name: 'KickerKasse',
+  background_color: DESIGN_COLOR_DEFAULTS.background_color,
+  banner_color: DESIGN_COLOR_DEFAULTS.banner_color,
+  highlight_color: DESIGN_COLOR_DEFAULTS.highlight_color,
+  kasse_area_background_color: DESIGN_COLOR_DEFAULTS.kasse_area_background_color,
   kasse_products_background_scale: 100,
   kasse_products_background_opacity: 100,
   kasse_products_background_enabled: true,
@@ -918,6 +1096,9 @@ const selectedLogo = ref(null)
 const selectedLogoPreview = ref('')
 const selectedKasseBackground = ref(null)
 const selectedKasseBackgroundPreview = ref('')
+const deckelEnabled = ref(true)
+const guestListEnabled = ref(true)
+const kasseDirectLoginEnabled = ref(true)
 
 const previewStyle = computed(() => {
   const bgImage = previewKasseBackgroundUrl.value
@@ -944,21 +1125,18 @@ const previewKasseBackgroundUrl = computed(() => (
 ))
 
 const syncDesignForm = () => {
-  designForm.app_name = appSettingsStore.settings.app_name || 'KGB - KickerKasse Test'
-  designForm.background_color = appSettingsStore.settings.background_color || '#D7DCE2'
-  designForm.banner_color = appSettingsStore.settings.banner_color || '#131820'
-  designForm.highlight_color = appSettingsStore.settings.highlight_color || '#5C8F3A'
-  designForm.kasse_area_background_color = appSettingsStore.settings.kasse_area_background_color || '#FFFFFF'
+  designForm.app_name = appSettingsStore.settings.app_name || 'KickerKasse'
+  designForm.background_color = appSettingsStore.settings.background_color || DESIGN_COLOR_DEFAULTS.background_color
+  designForm.banner_color = appSettingsStore.settings.banner_color || DESIGN_COLOR_DEFAULTS.banner_color
+  designForm.highlight_color = appSettingsStore.settings.highlight_color || DESIGN_COLOR_DEFAULTS.highlight_color
+  designForm.kasse_area_background_color = appSettingsStore.settings.kasse_area_background_color || DESIGN_COLOR_DEFAULTS.kasse_area_background_color
   designForm.kasse_products_background_scale = appSettingsStore.settings.kasse_products_background_scale || 100
   designForm.kasse_products_background_opacity = appSettingsStore.settings.kasse_products_background_opacity ?? 100
   designForm.kasse_products_background_enabled = appSettingsStore.settings.kasse_products_background_enabled !== false
-}
-
-const DESIGN_COLOR_DEFAULTS = {
-  background_color: '#D7DCE2',
-  banner_color: '#131820',
-  highlight_color: '#209529',
-  kasse_area_background_color: '#FFFFFF',
+  deckelEnabled.value = appSettingsStore.settings.deckel_enabled !== false
+  guestListEnabled.value = appSettingsStore.settings.guest_list_enabled !== false
+  kasseDirectLoginEnabled.value = appSettingsStore.settings.kasse_direct_login_enabled !== false
+  savedSnapshots.design = serverDesignSnapshot()
 }
 
 const resetDesignColors = () => {
@@ -996,10 +1174,30 @@ const handleKasseBackgroundSelection = (event) => {
 const saveDesignSettings = async () => {
   try {
     await appSettingsStore.saveAdminSettings({ ...designForm })
-    syncDesignForm()
+    savedSnapshots.design = serverDesignSnapshot()
     notificationStore.success('Einstellungen gespeichert')
   } catch (error) {
-    notificationStore.error(error.response?.data?.detail || 'Fehler beim Speichern der Einstellungen')
+    notificationStore.error(getErrorMessage(error, 'Fehler beim Speichern der Einstellungen'))
+  }
+}
+
+const saveKasseSettings = async () => {
+  try {
+    const payload = {
+      deckel_enabled: deckelEnabled.value,
+      guest_list_enabled: guestListEnabled.value,
+    }
+    if (authStore.isTopAdmin) {
+      payload.kasse_direct_login_enabled = kasseDirectLoginEnabled.value
+    }
+    await appSettingsStore.saveAdminSettings(payload)
+    deckelEnabled.value = appSettingsStore.settings.deckel_enabled !== false
+    guestListEnabled.value = appSettingsStore.settings.guest_list_enabled !== false
+    kasseDirectLoginEnabled.value = appSettingsStore.settings.kasse_direct_login_enabled !== false
+    savedSnapshots.design = serverDesignSnapshot()
+    notificationStore.success('Kassenfunktionen gespeichert')
+  } catch (error) {
+    notificationStore.error(getErrorMessage(error, 'Fehler beim Speichern der Kassenfunktionen'))
   }
 }
 
@@ -1031,6 +1229,8 @@ const uploadKasseBackground = async () => {
 // ── Datenpflege ───────────────────────────────────────
 const showResetModal = ref(false)
 const showRestoreModal = ref(false)
+const resetModalError = ref('')
+const restoreModalError = ref('')
 const showImportExportModal = ref(false)
 const dataStats = ref({})
 const dataMaintenanceBusy = ref(false)
@@ -1099,7 +1299,7 @@ const loadBackupSchedule = async () => {
     backupSchedule.enabled = !!response.data.scheduled_database_backup_enabled
     backupSchedule.time = response.data.scheduled_database_backup_time || '03:00'
   } catch (error) {
-    notificationStore.error(error.response?.data?.detail || 'Backup-Einstellungen konnten nicht geladen werden')
+    notificationStore.error(getErrorMessage(error, 'Backup-Einstellungen konnten nicht geladen werden'))
   }
 }
 
@@ -1111,9 +1311,9 @@ const handleBackupDownload = async () => {
     })
     const fileName = extractFilename(response.headers['content-disposition'], 'kickerkasse-db-backup.zip')
     triggerDownload(response.data, fileName)
-    notificationStore.success('Datenbank-Backup wurde heruntergeladen')
+    notificationStore.success('Vollständige Sicherung mit Medien wurde heruntergeladen')
   } catch (error) {
-    notificationStore.error(error.response?.data?.detail || 'Datenbank-Backup fehlgeschlagen')
+    notificationStore.error(getErrorMessage(error, 'Datenbank-Backup fehlgeschlagen'))
   } finally {
     dataMaintenanceBusy.value = false
   }
@@ -1126,8 +1326,9 @@ const handleRestoreFileChange = (event) => {
 }
 
 const handleRestore = async ({ password }) => {
-  showRestoreModal.value = false
+  restoreModalError.value = ''
   if (!restoreFile.value) {
+    showRestoreModal.value = false
     notificationStore.error('Bitte zuerst eine Backup-ZIP auswählen')
     return
   }
@@ -1140,12 +1341,14 @@ const handleRestore = async ({ password }) => {
     await apiService.post('/admin/data-maintenance/database-backup/restore', formData, {
       headers: { 'Content-Type': 'multipart/form-data' },
     })
-    notificationStore.success('Datenbank wurde aus dem Backup wiederhergestellt')
+    showRestoreModal.value = false
+    notificationStore.success('Datenbank und Medien wurden wiederhergestellt. Bitte erneut anmelden.')
     restoreFile.value = null
     await authStore.logout()
     window.location.href = '/login'
   } catch (error) {
-    notificationStore.error(error.response?.data?.detail || 'Wiederherstellung fehlgeschlagen')
+    // Anforderung 10: Fehler direkt im Passwortdialog anzeigen statt nur als Toast.
+    restoreModalError.value = getErrorMessage(error, 'Wiederherstellung fehlgeschlagen')
   } finally {
     dataMaintenanceBusy.value = false
   }
@@ -1160,44 +1363,37 @@ const saveBackupSchedule = async () => {
     })
     notificationStore.success('Backup-Zeitplan gespeichert')
   } catch (error) {
-    notificationStore.error(error.response?.data?.detail || 'Backup-Zeitplan konnte nicht gespeichert werden')
+    notificationStore.error(getErrorMessage(error, 'Backup-Zeitplan konnte nicht gespeichert werden'))
   } finally {
     dataMaintenanceBusy.value = false
   }
 }
 
 const handleHardReset = async ({ password, confirmationText }) => {
-  showResetModal.value = false
+  resetModalError.value = ''
   try {
     await apiService.post('/admin/data-maintenance/hard-reset', {
       auth_password: password,
       confirmation_text: confirmationText,
     })
+    showResetModal.value = false
     notificationStore.success('Hard-Reset erfolgreich durchgeführt')
     await authStore.logout()
     window.location.href = '/login'
   } catch (error) {
-    notificationStore.error(error.response?.data?.detail || 'Hard-Reset fehlgeschlagen')
+    // Anforderung 10: Fehler direkt im Passwortdialog anzeigen statt nur als Toast.
+    resetModalError.value = getErrorMessage(error, 'Hard-Reset fehlgeschlagen')
   }
 }
 
 // ── Import / Export ───────────────────────────────────
 const importExportInitialTab = ref('import')
 
-// ── Ext. Settings ─────────────────────────────────────
+// ── Erweiterte Einstellungen ──────────────────────────
 const LAYOUT_STORAGE_KEY = 'kasseLayout'
 const showBusinessModal = ref(false)
 const showHardwareInstallModal = ref(false)
 const sessionTimer = ref({ enabled: false, minutes: 15 })
-const deckelEnabled = ref(false)
-const installerDownloadFiles = [
-  'agent.py',
-  'install_agent_service.py',
-  'kickerkasse_bootstrapper.py',
-  'setup_wizard.py',
-  'Kickerkasse-Install.desktop',
-  'README.txt',
-]
 
 const businessData = ref({
   name: '', street: '', zip: '', city: '',
@@ -1207,7 +1403,11 @@ const emailForm = reactive({
   email_enabled: false,
   email_sender: 'noreply@kassensystem.local',
   email_recipient_zbon: '',
-  email_subject_suffix: '',
+  email_recipient_stock: '',
+  email_recipient_backup: '',
+  email_subject_zbon_info: '',
+  email_subject_stock_info: '',
+  email_subject_backup_info: '',
   email_critical_stock_enabled: false,
   smtp_host: '',
   smtp_port: 587,
@@ -1217,18 +1417,90 @@ const emailForm = reactive({
   send_zbon_on_create_enabled: false,
   scheduled_zbon_enabled: false,
   scheduled_zbon_time: '23:59',
+  scheduled_stock_warning_time: '09:00',
 })
+const savedSnapshots = reactive({ design: '', emailsettings: '' })
+const designSnapshot = () => JSON.stringify({
+  ...designForm,
+  deckel_enabled: deckelEnabled.value,
+  guest_list_enabled: guestListEnabled.value,
+  kasse_direct_login_enabled: kasseDirectLoginEnabled.value,
+  session_timer: sessionTimer.value,
+})
+const emailSnapshot = () => JSON.stringify(emailForm)
+const serverDesignSnapshot = () => JSON.stringify({
+  app_name: appSettingsStore.settings.app_name || 'KickerKasse',
+  background_color: appSettingsStore.settings.background_color || DESIGN_COLOR_DEFAULTS.background_color,
+  banner_color: appSettingsStore.settings.banner_color || DESIGN_COLOR_DEFAULTS.banner_color,
+  highlight_color: appSettingsStore.settings.highlight_color || DESIGN_COLOR_DEFAULTS.highlight_color,
+  kasse_area_background_color: appSettingsStore.settings.kasse_area_background_color || DESIGN_COLOR_DEFAULTS.kasse_area_background_color,
+  kasse_products_background_scale: appSettingsStore.settings.kasse_products_background_scale || 100,
+  kasse_products_background_opacity: appSettingsStore.settings.kasse_products_background_opacity ?? 100,
+  kasse_products_background_enabled: appSettingsStore.settings.kasse_products_background_enabled !== false,
+  deckel_enabled: appSettingsStore.settings.deckel_enabled !== false,
+  guest_list_enabled: appSettingsStore.settings.guest_list_enabled !== false,
+  kasse_direct_login_enabled: appSettingsStore.settings.kasse_direct_login_enabled !== false,
+  session_timer: {
+    enabled: !!appSettingsStore.settings.session_timer_enabled,
+    minutes: Number(appSettingsStore.settings.session_timer_minutes) || 15,
+  },
+})
+const hasUnsavedSettings = computed(() => {
+  if (activeSection.value === 'design') {
+    return Boolean(savedSnapshots.design) && (
+      savedSnapshots.design !== designSnapshot()
+      || Boolean(selectedLogo.value)
+      || Boolean(selectedKasseBackground.value)
+    )
+  }
+  if (activeSection.value === 'emailsettings') {
+    return Boolean(savedSnapshots.emailsettings) && savedSnapshots.emailsettings !== emailSnapshot()
+  }
+  return false
+})
+const discardActiveChanges = () => {
+  if (activeSection.value === 'design') {
+    syncDesignForm()
+    syncSessionTimer()
+    selectedLogo.value = null
+    selectedLogoPreview.value = ''
+    selectedKasseBackground.value = null
+    selectedKasseBackgroundPreview.value = ''
+  } else if (activeSection.value === 'emailsettings') {
+    syncEmailForm()
+  }
+}
 const isTestingEmailConnection = ref(false)
 const isSendingTestEmail = ref(false)
 const hardwareStatus = reactive({
   service_active: false,
   adapter_connected: null,
+  small_parts_adapter_connected: null,
+  small_parts_device: '',
+  multi_drawer: false,
+  drawer_configuration: false,
+  configuration_protected: false,
+  available_devices: [],
   service_detail: '',
   manual_install_command: '',
   local_agent_reachable: false,
+  cors_blocked: false,
   installing: false,
   install_log: '',
 })
+const hardwareConfig = reactive({
+  token: '',
+  main_device: '',
+  small_parts_device: '',
+})
+const hardwareConfigBusy = ref(false)
+const currentBrowserOrigin = window.location.origin
+const canSaveHardwareMapping = computed(() => (
+  !!hardwareConfig.token
+  && !!hardwareConfig.main_device
+  && !!hardwareConfig.small_parts_device
+  && hardwareConfig.main_device !== hardwareConfig.small_parts_device
+))
 
 const layoutModules = import.meta.glob('@/views/kasse/Kasse*.vue')
 
@@ -1252,10 +1524,7 @@ const layoutChanged = computed(() => selectedLayout.value !== initialLayout.valu
 const syncSessionTimer = () => {
   sessionTimer.value.enabled = !!appSettingsStore.settings.session_timer_enabled
   sessionTimer.value.minutes = Number(appSettingsStore.settings.session_timer_minutes) || 15
-}
-
-const syncDeckelSetting = () => {
-  deckelEnabled.value = !!appSettingsStore.settings.deckel_enabled
+  savedSnapshots.design = serverDesignSnapshot()
 }
 
 const syncBusinessData = () => {
@@ -1275,7 +1544,11 @@ const syncEmailForm = () => {
   emailForm.email_enabled = !!appSettingsStore.settings.email_enabled
   emailForm.email_sender = appSettingsStore.settings.email_sender || 'noreply@kassensystem.local'
   emailForm.email_recipient_zbon = appSettingsStore.settings.email_recipient_zbon || ''
-  emailForm.email_subject_suffix = appSettingsStore.settings.email_subject_suffix || ''
+  emailForm.email_recipient_stock = appSettingsStore.settings.email_recipient_stock || ''
+  emailForm.email_recipient_backup = appSettingsStore.settings.email_recipient_backup || ''
+  emailForm.email_subject_zbon_info = appSettingsStore.settings.email_subject_zbon_info || ''
+  emailForm.email_subject_stock_info = appSettingsStore.settings.email_subject_stock_info || ''
+  emailForm.email_subject_backup_info = appSettingsStore.settings.email_subject_backup_info || ''
   emailForm.email_critical_stock_enabled = !!appSettingsStore.settings.email_critical_stock_enabled
   emailForm.smtp_host = appSettingsStore.settings.smtp_host || ''
   emailForm.smtp_port = Number(appSettingsStore.settings.smtp_port) || 587
@@ -1285,6 +1558,25 @@ const syncEmailForm = () => {
   emailForm.send_zbon_on_create_enabled = !!appSettingsStore.settings.send_zbon_on_create_enabled
   emailForm.scheduled_zbon_enabled = !!appSettingsStore.settings.scheduled_zbon_enabled
   emailForm.scheduled_zbon_time = appSettingsStore.settings.scheduled_zbon_time || '23:59'
+  emailForm.scheduled_stock_warning_time = appSettingsStore.settings.scheduled_stock_warning_time || '09:00'
+  savedSnapshots.emailsettings = emailSnapshot()
+}
+
+const deliveryStatusIcon = (status) => ({ SUCCESS: '✅', FAILED: '❌', SKIPPED: 'ℹ️' }[status] || '➖')
+
+const emailSubjectPreview = (functionLabel, info) => {
+  const timestamp = new Intl.DateTimeFormat('de-DE', {
+    day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit',
+  }).format(new Date()).replace(',', '')
+  const suffix = info?.trim() ? ` - ${info.trim()}` : ''
+  return `Vorschau: ${appSettingsStore.settings.app_name} - ${functionLabel} ${timestamp}h${suffix}`
+}
+
+const formatDeliveryRun = (timestamp, status) => {
+  if (!timestamp) return 'Noch kein Lauf'
+  const date = new Date(timestamp)
+  const label = { SUCCESS: 'Erfolgreich', FAILED: 'Fehlgeschlagen', SKIPPED: 'Keine Mail erforderlich' }[status] || 'Status unbekannt'
+  return `${label} · ${date.toLocaleString('de-DE')}`
 }
 
 const applyLayout = async () => {
@@ -1311,18 +1603,9 @@ const saveSessionTimer = async () => {
       session_timer_minutes: minutes,
     })
     syncSessionTimer()
-    notificationStore.success('Session-Timer gespeichert')
+    notificationStore.success('Sitzungszeitlimit gespeichert')
   } catch (error) {
-    notificationStore.error(error.response?.data?.detail || 'Session-Timer konnte nicht gespeichert werden')
-  }
-}
-
-const saveDeckelSettings = async () => {
-  try {
-    await appSettingsStore.saveAdminSettings({ deckel_enabled: deckelEnabled.value })
-    notificationStore.success('Deckel-Funktion gespeichert')
-  } catch (error) {
-    notificationStore.error(error.response?.data?.detail || 'Deckel-Funktion konnte nicht gespeichert werden')
+    notificationStore.error(getErrorMessage(error, 'Sitzungszeitlimit konnte nicht gespeichert werden'))
   }
 }
 
@@ -1352,7 +1635,11 @@ const saveEmailSettings = async () => {
       email_enabled: emailForm.email_enabled,
       email_sender: emailForm.email_sender || null,
       email_recipient_zbon: emailForm.email_recipient_zbon || null,
-      email_subject_suffix: emailForm.email_subject_suffix || null,
+      email_recipient_stock: emailForm.email_recipient_stock || null,
+      email_recipient_backup: emailForm.email_recipient_backup || null,
+      email_subject_zbon_info: emailForm.email_subject_zbon_info || null,
+      email_subject_stock_info: emailForm.email_subject_stock_info || null,
+      email_subject_backup_info: emailForm.email_subject_backup_info || null,
       email_critical_stock_enabled: emailForm.email_critical_stock_enabled,
       smtp_host: emailForm.smtp_host || null,
       smtp_port: Number(emailForm.smtp_port) || 587,
@@ -1363,26 +1650,44 @@ const saveEmailSettings = async () => {
       scheduled_zbon_enabled: emailForm.scheduled_zbon_enabled,
       scheduled_zbon_time: emailForm.scheduled_zbon_time,
       scheduled_zbon_report_type: 'full-zbon',
+      scheduled_stock_warning_time: emailForm.scheduled_stock_warning_time,
     })
     syncEmailForm()
     notificationStore.success('E-Mail-Einstellungen gespeichert')
   } catch (error) {
-    notificationStore.error(error.response?.data?.detail || 'E-Mail-Einstellungen konnten nicht gespeichert werden')
+    notificationStore.error(getErrorMessage(error, 'E-Mail-Einstellungen konnten nicht gespeichert werden'))
   }
 }
 
 const refreshHardwareStatus = async () => {
   hardwareStatus.local_agent_reachable = false
+  hardwareStatus.cors_blocked = false
+  hardwareStatus.small_parts_adapter_connected = null
+  hardwareStatus.small_parts_device = ''
+  hardwareStatus.multi_drawer = false
+  hardwareStatus.drawer_configuration = false
+  hardwareStatus.configuration_protected = false
+  hardwareStatus.available_devices = []
   try {
     const localResponse = await fetchLocalAgent('/status')
-    if (!localResponse.ok) {
+    if (!localResponse.ok && localResponse.status !== 404) {
       throw new Error(`status ${localResponse.status}`)
     }
     const localData = await localResponse.json()
     hardwareStatus.service_active = true
     hardwareStatus.adapter_connected = localData?.status === 'connected'
+    hardwareStatus.multi_drawer = Array.isArray(localData?.capabilities) && localData.capabilities.includes('multi_drawer')
+    hardwareStatus.drawer_configuration = Array.isArray(localData?.capabilities) && localData.capabilities.includes('drawer_configuration')
+    hardwareStatus.configuration_protected = localData?.configuration_protected === true
+    hardwareStatus.available_devices = Array.isArray(localData?.available_devices) ? localData.available_devices : []
+    hardwareStatus.small_parts_adapter_connected = hardwareStatus.multi_drawer
+      ? localData?.drawers?.small_parts?.status === 'connected'
+      : null
+    hardwareStatus.small_parts_device = localData?.drawers?.small_parts?.device || ''
+    hardwareConfig.main_device = localData?.drawers?.main?.device || ''
+    hardwareConfig.small_parts_device = localData?.drawers?.small_parts?.device || ''
     hardwareStatus.service_detail = localData?.device
-      ? `Lokaler Agent erreichbar (${localData.device})`
+      ? `Hauptschublade: ${localData.device}${hardwareStatus.small_parts_device ? ` · Kleinteile-Lager: ${hardwareStatus.small_parts_device}` : ''}`
       : 'Lokaler Agent erreichbar'
     hardwareStatus.local_agent_reachable = true
     return
@@ -1394,8 +1699,11 @@ const refreshHardwareStatus = async () => {
     await fetchLocalAgent('/status', { mode: 'no-cors' })
     hardwareStatus.service_active = true
     hardwareStatus.adapter_connected = null
-    hardwareStatus.service_detail = 'Lokaler Agent erreichbar (CORS blockiert Statusdetails – Schublade funktioniert trotzdem)'
+    hardwareStatus.small_parts_adapter_connected = null
+    hardwareStatus.multi_drawer = false
+    hardwareStatus.service_detail = 'Lokaler Agent erreichbar; diese PWA-Adresse muss noch lokal freigegeben werden'
     hardwareStatus.local_agent_reachable = true
+    hardwareStatus.cors_blocked = true
     return
   } catch {
     // Fallback 2: serverseitiger Status (Self-Hosted-Modus)
@@ -1409,6 +1717,116 @@ const refreshHardwareStatus = async () => {
     hardwareStatus.manual_install_command = data.manual_install_command || ''
   } catch (error) {
     notificationStore.error(error.response?.data?.detail || 'Hardware-Status konnte nicht geladen werden')
+  }
+}
+
+const pairLocalHardwareAgent = async () => {
+  if (!hardwareConfig.token) {
+    notificationStore.error('Bitte den lokalen Konfigurationscode eingeben')
+    return
+  }
+  hardwareConfigBusy.value = true
+  try {
+    const body = new URLSearchParams({ config_token: hardwareConfig.token })
+    const response = await fetchLocalAgent('/pair', { method: 'POST', body }, 4000)
+    const data = await getLocalAgentResponse(response, 'Lokaler Agent konnte nicht verbunden werden')
+    notificationStore.success(data.message || 'Lokaler Hardware-Agent verbunden')
+    await refreshHardwareStatus()
+  } catch (error) {
+    console.warn('Lokales Hardware-Pairing fehlgeschlagen', error)
+    notificationStore.error('Pairing fehlgeschlagen. Konfigurationscode und installierte Agent-Version prüfen.')
+  } finally {
+    hardwareConfigBusy.value = false
+  }
+}
+
+const getLocalAgentResponse = async (response, fallback) => {
+  let data = {}
+  try {
+    data = await response.json()
+  } catch {
+    // Verständliche Fallback-Meldung verwenden, wenn der Agent kein JSON geliefert hat.
+  }
+  if (!response.ok) {
+    throw new Error(data?.message || fallback)
+  }
+  return data
+}
+
+const createLocalConfigRequest = (payload) => ({
+  method: 'POST',
+  headers: {
+    'Content-Type': 'application/json',
+    'X-Kickerkasse-Config-Token': hardwareConfig.token,
+  },
+  body: JSON.stringify(payload),
+})
+
+const testHardwareDevice = async (device, label) => {
+  if (!device || !hardwareConfig.token) {
+    notificationStore.error('Bitte Adapter und lokalen Konfigurationscode angeben')
+    return
+  }
+  hardwareConfigBusy.value = true
+  try {
+    const response = await fetchLocalAgent('/testDevice', createLocalConfigRequest({ device }), 4000)
+    const data = await getLocalAgentResponse(response, 'Adaptertest fehlgeschlagen')
+    notificationStore.success(`${label}: ${data.message || 'Testimpuls gesendet'}`)
+  } catch (error) {
+    notificationStore.error(error.message || 'Adaptertest fehlgeschlagen')
+  } finally {
+    hardwareConfigBusy.value = false
+  }
+}
+
+const saveHardwareMapping = async () => {
+  if (!canSaveHardwareMapping.value) {
+    notificationStore.error('Bitte zwei verschiedene Adapter und den lokalen Konfigurationscode angeben')
+    return
+  }
+  hardwareConfigBusy.value = true
+  try {
+    const response = await fetchLocalAgent('/configuration', createLocalConfigRequest({
+      main_device: hardwareConfig.main_device,
+      small_parts_device: hardwareConfig.small_parts_device,
+    }), 4000)
+    const data = await getLocalAgentResponse(response, 'Adapterzuordnung konnte nicht gespeichert werden')
+    notificationStore.success(data.message || 'Adapterzuordnung lokal gespeichert')
+    await refreshHardwareStatus()
+  } catch (error) {
+    notificationStore.error(error.message || 'Adapterzuordnung konnte nicht gespeichert werden')
+  } finally {
+    hardwareConfigBusy.value = false
+  }
+}
+
+const requestManualDrawerOpen = (target) => {
+  manualDrawerError.value = ''
+  manualDrawerTarget.value = target
+}
+
+const confirmManualDrawerOpen = async ({ password }) => {
+  manualDrawerError.value = ''
+  try {
+    const { data } = await apiService.post('/hardware-agent/open-drawer', {
+      auth_password: password,
+      target: manualDrawerTarget.value,
+    })
+    const results = await openDrawerTargets(data?.drawer_targets)
+    if (failedDrawerTargets(results).length) {
+      throw new Error('Der lokale Hardware-Agent konnte die Schublade nicht öffnen')
+    }
+    notificationStore.success(
+      manualDrawerTarget.value === 'small_parts'
+        ? 'Kleinteile-Lager wurde geöffnet'
+        : 'Hauptschublade wurde geöffnet'
+    )
+    manualDrawerTarget.value = null
+  } catch (error) {
+    const detail = error?.response?.data?.detail
+    manualDrawerError.value = typeof detail === 'object'
+      ? detail.message
+      : (detail || error.message || 'Schublade konnte nicht geöffnet werden')
   }
 }
 
@@ -1427,13 +1845,11 @@ const executeHardwareServiceAction = async (action) => {
 }
 
 const downloadInstallerPackage = () => {
-  // Direkt-Download vom Backend – ZIP enthält agent.py, install_agent_service.py,
-  // kickerkasse_bootstrapper.py und README.txt
+  // Direkt-Download vom Backend – ZIP enthält alle für die Installation benötigten
+  // Komponenten (agent.py, install_agent_service.py, kickerkasse_bootstrapper.py,
+  // setup_wizard.py, Kickerkasse-Install.desktop, README.txt). Einzeldateien werden dem
+  // Nutzer bewusst nicht mehr separat angeboten (siehe Roadmap-UX-Sicherheit.md, Punkt 9).
   window.open('/api/hardware-agent/download-installer', '_blank')
-}
-
-const downloadInstallerFile = (fileName) => {
-  window.open(`/api/hardware-agent/download-installer-file/${encodeURIComponent(fileName)}`, '_blank')
 }
 
 const testEmailConnection = async () => {
@@ -1480,7 +1896,6 @@ onMounted(async () => {
   await switchSection(route.query.section)
   syncDesignForm()
   syncSessionTimer()
-  syncDeckelSetting()
   syncBusinessData()
   syncEmailForm()
   refreshHardwareStatus()
@@ -1496,6 +1911,16 @@ onMounted(async () => {
 </script>
 
 <style scoped lang="scss">
+.save-state {
+  margin: .5rem 0;
+  padding: .55rem .75rem;
+  border: 1px solid #f59e0b;
+  border-radius: 7px;
+  background: #fffbeb;
+  color: #78350f;
+  font-weight: 700;
+  font-size: .82rem;
+}
 // ═══════════════════════════════════════════════════════
 // CSS VARIABLES (Optimiert für Kompaktheit)
 // ═══════════════════════════════════════════════════════
@@ -1718,6 +2143,27 @@ onMounted(async () => {
 
 .form-input[type="range"] { padding: 0; }
 
+.local-hardware-config {
+  padding: 0.6rem;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--bg);
+}
+
+.hardware-mapping-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.6rem;
+}
+
+@media (max-width: 720px) {
+  .hardware-mapping-grid { grid-template-columns: 1fr; }
+}
+
+.form-hint {
+  font-size: 0.75rem; color: var(--muted); font-style: italic;
+}
+
 .color-grid {
   display: grid;
   grid-template-columns: 1fr 1fr;
@@ -1827,12 +2273,45 @@ onMounted(async () => {
 .toggle-row { display: flex; align-items: center; justify-content: space-between; }
 .toggle-switch {
   position: relative; width: 36px; height: 20px; background: #cbd5e1;
+  min-width: 36px; min-height: 20px; padding: 0; border: 0; appearance: none;
   border-radius: 10px; cursor: pointer; transition: var(--transition);
   &::after { content: ''; position: absolute; top: 2px; left: 2px; width: 16px; height: 16px; background: white; border-radius: 50%; transition: var(--transition); }
   &.active { background: var(--success); &::after { left: 18px; } }
-  &.small { width: 30px; height: 16px; &::after { width: 12px; height: 12px; } &.active::after { left: 16px; } }
+  &.small { width: 30px; height: 16px; min-width: 30px; min-height: 16px; &::after { width: 12px; height: 12px; } &.active::after { left: 16px; } }
+  &:focus-visible { outline: 3px solid var(--focus-ring); outline-offset: 3px; }
+}
+
+@media (max-width: 768px), (pointer: coarse) {
+  .toggle-switch,
+  .toggle-switch.small {
+    width: 44px;
+    height: 44px;
+    min-width: 44px;
+    min-height: 44px;
+    border-radius: 0;
+    background: linear-gradient(#cbd5e1, #cbd5e1) center / 36px 20px no-repeat;
+
+    &::after {
+      top: 14px;
+      left: 4px;
+      width: 16px;
+      height: 16px;
+    }
+
+    &.active {
+      background: linear-gradient(var(--success), var(--success)) center / 36px 20px no-repeat;
+
+      &::after { left: 24px; }
+    }
+  }
 }
 .toggle-label-text { font-size: 0.75rem; font-weight: 600; }
+.email-card--smtp { grid-column: 1 / -1; }
+.email-primary-switches { margin-bottom: .25rem; }
+
+@media (max-width: 900px) {
+  .email-card--smtp { grid-column: auto; }
+}
 
 // ═══════════════════════════════════════════════════════
 // DATA OVERVIEW GRID (Datenpflege)
@@ -1863,6 +2342,7 @@ onMounted(async () => {
   border: 1px solid var(--border); border-radius: 6px; padding: 0.3rem 0.6rem;
   font-size: 0.75rem; font-weight: 600; cursor: pointer; background: var(--bg);
   display: flex; align-items: center; gap: 0.4rem; position: relative;
+  color: var(--text); font-family: inherit; text-align: left;
   
   &.selected { border-color: var(--primary); background: var(--primary-light); }
 }
@@ -1955,6 +2435,16 @@ onMounted(async () => {
   font-size: 0.82rem;
 }
 
+.setup-modal-requirement {
+  margin: 0 0 0.7rem;
+  padding: 0.5rem 0.7rem;
+  border-radius: 8px;
+  background: rgba(37, 99, 235, 0.08);
+  border: 1px solid rgba(37, 99, 235, 0.25);
+  color: var(--text);
+  font-size: 0.8rem;
+}
+
 .setup-step-list {
   margin: 0 0 0.7rem;
   padding-left: 1.2rem;
@@ -1968,6 +2458,13 @@ onMounted(async () => {
 .setup-download-grid {
   display: flex;
   flex-wrap: wrap;
+  align-items: center;
   gap: 0.4rem;
+}
+
+.setup-download-hint {
+  margin: 0;
+  font-size: 0.75rem;
+  color: var(--muted);
 }
 </style>

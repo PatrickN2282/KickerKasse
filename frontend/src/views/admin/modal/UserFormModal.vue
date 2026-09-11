@@ -1,5 +1,5 @@
 <template>
-  <div v-if="show" class="modal-overlay" @click.self="$emit('close')">
+  <div v-if="show" class="modal-overlay">
     <div class="modal-card modal-compact">
       <header class="modal-header">
         <div>
@@ -36,7 +36,7 @@
               </div>
             </div>
 
-            <div class="form-row">
+            <div class="form-stack">
               <div class="form-group">
                 <label for="role">Rolle*</label>
                 <select
@@ -65,7 +65,24 @@
                 <small class="help-text">
                   {{ editingUserId
                     ? 'Leer lassen, wenn das bestehende Passwort unverändert bleiben soll.'
-                    : 'Passwort wird für den ersten Login benötigt.' }}
+                    : 'Passwort wird für die erste Anmeldung benötigt.' }}
+                </small>
+              </div>
+
+              <div class="form-group">
+                <label for="password-confirm">Passwort wiederholen{{ editingUserId ? '' : '*' }}</label>
+                <input
+                  id="password-confirm"
+                  :value="passwordConfirmValue"
+                  type="password"
+                  minlength="8"
+                  :required="!editingUserId && Boolean(passwordValue)"
+                  :class="{ 'input-error': passwordMismatch }"
+                  placeholder="Passwort erneut eingeben"
+                  @input="$emit('update:password-confirm-value', $event.target.value)"
+                >
+                <small v-if="passwordMismatch" class="help-text help-text-error">
+                  Die Passwörter stimmen nicht überein.
                 </small>
               </div>
             </div>
@@ -74,7 +91,7 @@
 
         <footer class="modal-footer">
           <button type="button" class="btn btn-secondary" @click="$emit('close')">Abbrechen</button>
-          <button type="submit" class="btn btn-success">
+          <button type="submit" class="btn btn-success" :disabled="passwordMismatch">
             {{ editingUserId ? 'Änderungen speichern' : 'Benutzer anlegen' }}
           </button>
         </footer>
@@ -84,16 +101,34 @@
 </template>
 
 <script setup>
-defineProps({
+import { computed } from 'vue'
+
+const props = defineProps({
   show: { type: Boolean, required: true },
   editingUserId: { type: [Number, String], default: null },
   username: { type: String, default: '' },
   email: { type: String, default: '' },
   passwordValue: { type: String, default: '' },
+  passwordConfirmValue: { type: String, default: '' },
   role: { type: String, default: 'VERKAUF' },
 })
 
-defineEmits(['close', 'save', 'update:username', 'update:email', 'update:password-value', 'update:role'])
+defineEmits([
+  'close',
+  'save',
+  'update:username',
+  'update:email',
+  'update:password-value',
+  'update:password-confirm-value',
+  'update:role',
+])
+
+// Echtzeit-Prüfung: nur werten, sobald ein Passwort eingegeben wurde, damit das Feld beim
+// Öffnen des Formulars nicht sofort rot markiert ist.
+const passwordMismatch = computed(() => {
+  if (!props.passwordValue && !props.passwordConfirmValue) return false
+  return props.passwordValue !== props.passwordConfirmValue
+})
 </script>
 
 <style scoped lang="scss">
@@ -126,6 +161,12 @@ defineEmits(['close', 'save', 'update:username', 'update:email', 'update:passwor
 
 .modal-compact {
   max-width: 680px;
+}
+
+.form-stack {
+  display: flex;
+  flex-direction: column;
+  gap: 0.85rem;
 }
 
 .modal-header {
@@ -218,6 +259,24 @@ defineEmits(['close', 'save', 'update:username', 'update:email', 'update:passwor
   margin-top: 0.4rem;
   font-size: 0.75rem;
   color: #64748b;
+}
+
+.help-text-error {
+  color: #c62828;
+  font-weight: 600;
+}
+
+.input-error {
+  border-color: #c62828 !important;
+  box-shadow: 0 0 0 3px rgba(198, 40, 40, 0.12) !important;
+  animation: shake 0.35s ease-in-out;
+}
+
+@keyframes shake {
+  10%, 90% { transform: translateX(-1px); }
+  20%, 80% { transform: translateX(2px); }
+  30%, 50%, 70% { transform: translateX(-4px); }
+  40%, 60% { transform: translateX(4px); }
 }
 
 .btn {

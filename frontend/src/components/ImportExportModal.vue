@@ -1,19 +1,20 @@
 <template>
-  <div v-if="show" class="modal-overlay" @click.self="closeModal">
+  <div v-if="show" class="modal-overlay">
     <div class="modal-card import-export-modal">
       <header class="modal-header">
         <div>
           <h3>Import / Export</h3>
           <p class="modal-subtitle">Produkte, Mitglieder und Kategorien als CSV oder ZIP austauschen.</p>
         </div>
-        <button class="close-btn" @click="closeModal">✕</button>
+        <button class="close-btn" :disabled="isBusy" @click="closeModal">✕</button>
       </header>
 
-      <div class="modal-body">
+      <fieldset class="modal-body" :disabled="isBusy" style="border: 0; margin: 0; min-width: 0;">
         <div class="tab-row">
           <button
             type="button"
             :class="['tab-button', { active: activeTab === 'import' }]"
+            :disabled="isBusy"
             @click="activeTab = 'import'"
           >
             ⬆️ Import
@@ -21,6 +22,7 @@
           <button
             type="button"
             :class="['tab-button', { active: activeTab === 'export' }]"
+            :disabled="isBusy"
             @click="activeTab = 'export'"
           >
             ⬇️ Export
@@ -33,15 +35,23 @@
               <h4>Import vorbereiten</h4>
               <p>
                 Lade eine CSV- oder ZIP-Datei hoch. Der Datensatz wird automatisch erkannt und kann vor dem Import
-                zuvor geprüft werden.
+                geprüft werden. Benutzerkonten werden dabei nicht importiert oder exportiert, nur Stammdaten.
               </p>
             </div>
 
             <section class="form-section">
               <h4>1. Datenquelle</h4>
+              <label for="transfer-source">Herkunft der Daten</label>
+              <select id="transfer-source" v-model="importForm.sourceMode" :disabled="isBusy">
+                <option value="foreign">Fremde Datenquelle – neue Datensätze anlegen</option>
+                <option value="same">Gleiche Installation – passende IDs aktualisieren</option>
+              </select>
+              <p class="section-copy">Fremde IDs werden nicht zugeordnet. Bei gleicher Installation müssen ID und Name passen.
+                Bestehende Guthaben, Lagerbestände und verknüpfte Konten bleiben geschützt.</p>
+              <p v-if="!authStore.isTopAdmin" class="status-box info">Importieren darf nur der TopAdmin. Analyse und Export bleiben verfügbar.</p>
               <label class="file-dropzone">
                 <span class="file-dropzone-title">Daten-Datei auswählen</span>
-                <span class="file-dropzone-hint">CSV oder ZIP mit exportierten Daten</span>
+                <span class="file-dropzone-hint">CSV oder ZIP · höchstens 128 MiB pro Datei</span>
                 <input type="file" accept=".csv,.zip" @change="handleDataFileChange" />
               </label>
               <p v-if="importForm.dataFile" class="file-chip">{{ importForm.dataFile.name }}</p>
@@ -126,6 +136,30 @@
               <p v-if="importForm.mediaFile" class="file-chip">{{ importForm.mediaFile.name }}</p>
             </section>
 
+            <section v-if="importForm.analysis" class="form-section">
+              <h4>5. Vorschau und Konflikte</h4>
+              <button type="button" class="btn btn-secondary" :disabled="isBusy" @click="analyzeImport(false)">Auswahl erneut analysieren</button>
+              <p v-if="analysisStale" class="status-box info">Auswahl geändert. Bitte die Vorschau erneut aktualisieren.</p>
+              <ul v-if="importForm.analysis.conflicts?.length" class="status-box error">
+                <li v-for="(conflict, index) in importForm.analysis.conflicts" :key="index">
+                  {{ sectionLabel(conflict.section) }}<span v-if="conflict.row">, Zeile {{ conflict.row }}</span>: {{ conflict.message }}
+                </li>
+              </ul>
+              <p v-else>Keine Konflikte in der zuletzt analysierten Auswahl.</p>
+              <p class="section-copy">Konflikte in der Quelldatei beheben oder die Bereichsauswahl ändern und erneut analysieren.
+                Der Server prüft vor dem Import nochmals. Benutzerkonten und Rollen werden nicht übertragen.</p>
+              <table><thead><tr><th>Bereich / Zeile</th><th>Datensatz</th><th>Aktion</th></tr></thead>
+                <tbody><tr v-for="record in importForm.analysis.records" :key="`${record.section}-${record.row}`">
+                  <td>{{ sectionLabel(record.section) }} / {{ record.row }}</td><td>{{ record.name }}</td>
+                  <td>{{ record.action === 'update' ? `Aktualisieren (ID ${record.target_id})` : 'Neu anlegen' }}</td>
+                </tr></tbody>
+              </table>
+              <label v-if="hasInitialValues" class="checkbox-card">
+                <input v-model="importForm.acknowledgeInitialValues" type="checkbox" :disabled="analysisStale || isBusy">
+                <span>Anfangswerte neuer Datensätze übernehmen: {{ formatPrice(importForm.analysis.initial_balance_cents) }} Guthaben,
+                  {{ importForm.analysis.initial_stock_quantity }} Stück Lagerbestand. Dies ist keine Baraufladung.</span>
+              </label>
+            </section>
             <div v-if="importError" class="status-box error">{{ importError }}</div>
           </section>
 
@@ -134,7 +168,7 @@
               <h4>Export zusammenstellen</h4>
               <p>
                 Wähle die gewünschten Bereiche aus. Einzelne Bereiche werden als CSV exportiert, Kombinationen oder
-                Medien als ZIP-Datei.
+                Medien als ZIP-Datei (Transfer-Version 2). Haupt- und Originalbilder einschließlich AVIF werden übernommen. Benutzerkonten und Rollen werden nicht mit exportiert.
               </p>
             </div>
 
@@ -173,10 +207,10 @@
             </div>
           </section>
         </div>
-      </div>
+      </fieldset>
 
       <footer class="modal-footer">
-        <button type="button" class="btn btn-secondary" @click="closeModal">Schließen</button>
+        <button type="button" class="btn btn-secondary" :disabled="isBusy" @click="closeModal">Schließen</button>
         <button
           v-if="activeTab === 'import'"
           type="button"
@@ -204,6 +238,9 @@
 import { computed, reactive, ref, watch } from 'vue'
 import apiService from '@/services/api'
 import { useNotificationStore } from '@/stores/notification'
+import { useAuthStore } from '@/stores/auth'
+import { formatPrice } from '@/services/utils'
+const authStore = useAuthStore()
 
 const props = defineProps({
   show: {
@@ -240,6 +277,8 @@ const exportForm = reactive({
 })
 
 const importForm = reactive({
+  sourceMode: 'foreign',
+  acknowledgeInitialValues: false,
   dataFile: null,
   mediaFile: null,
   analysis: null,
@@ -300,7 +339,15 @@ const detectedImportSections = computed(() => sectionOptions.filter(section => i
 
 const exportMediaAvailable = computed(() => selectedExportSections.value.some(section => ['products', 'members'].includes(section)))
 const canExport = computed(() => selectedExportSections.value.length > 0)
-const canImport = computed(() => !!importForm.dataFile && selectedImportSections.value.length > 0)
+const analysisStale = ref(false)
+const hasInitialValues = computed(() => !!(importForm.analysis?.initial_balance_cents || importForm.analysis?.initial_stock_quantity))
+const canImport = computed(() => authStore.isTopAdmin && !!importForm.analysis && !analysisStale.value
+  && !importForm.analysis.conflicts?.length && selectedImportSections.value.length > 0
+  && (!hasInitialValues.value || importForm.acknowledgeInitialValues))
+watch(() => JSON.stringify([importForm.sourceMode, importForm.selectedSections, importForm.replaceSections, importForm.importMedia]), () => {
+  analysisStale.value = true
+  importForm.acknowledgeInitialValues = false
+}, { flush: 'sync' })
 
 const shouldShowImportMedia = computed(() => {
   const mediaSections = importForm.analysis?.supports_media_sections || []
@@ -356,10 +403,10 @@ const detectedRowLabel = (key) => {
 }
 
 const closeModal = () => {
-  emit('close')
+  if (!isBusy.value) emit('close')
 }
 
-const analyzeImport = async () => {
+const analyzeImport = async (detect = false) => {
   if (!importForm.dataFile) {
     importForm.analysis = null
     return
@@ -371,6 +418,11 @@ const analyzeImport = async () => {
   try {
     const formData = new FormData()
     formData.append('data_file', importForm.dataFile)
+    formData.append('source_mode', importForm.sourceMode)
+    if (!detect) {
+      formData.append('selected_sections', JSON.stringify(selectedImportSections.value))
+      formData.append('replace_sections', JSON.stringify(selectedReplaceSections.value))
+    }
     if (importForm.mediaFile) {
       formData.append('media_file', importForm.mediaFile)
     }
@@ -380,10 +432,14 @@ const analyzeImport = async () => {
     })
 
     importForm.analysis = response.data
-    Object.keys(importForm.selectedSections).forEach((key) => {
-      importForm.selectedSections[key] = isDetected(key)
-    })
-    importForm.importMedia = !!response.data.can_import_media
+    if (detect) {
+      Object.keys(importForm.selectedSections).forEach((key) => {
+        importForm.selectedSections[key] = isDetected(key)
+      })
+      importForm.importMedia = !!response.data.can_import_media
+    }
+    importForm.acknowledgeInitialValues = false
+    analysisStale.value = false
   } catch (error) {
     importForm.analysis = null
     importError.value = error.response?.data?.detail || 'Import-Datei konnte nicht analysiert werden'
@@ -397,7 +453,7 @@ const handleDataFileChange = async (event) => {
   resetImportState()
   importForm.dataFile = file || null
   if (importForm.dataFile) {
-    await analyzeImport()
+    await analyzeImport(true)
   }
   event.target.value = ''
 }
@@ -442,7 +498,7 @@ const runExport = async () => {
     const fileName = extractFilename(response.headers['content-disposition'], 'import-export.zip')
     triggerDownload(response.data, fileName)
     notificationStore.success('Export wurde erstellt')
-    closeModal()
+    emit('close')
   } catch (error) {
     notificationStore.error(error.response?.data?.detail || 'Export fehlgeschlagen')
   } finally {
@@ -477,6 +533,8 @@ const runImport = async () => {
     formData.append('selected_sections', JSON.stringify(selectedImportSections.value))
     formData.append('replace_sections', JSON.stringify(selectedReplaceSections.value))
     formData.append('import_media', String(importForm.importMedia))
+    formData.append('source_mode', importForm.sourceMode)
+    formData.append('acknowledge_initial_values', String(importForm.acknowledgeInitialValues))
     if (importForm.mediaFile) {
       formData.append('media_file', importForm.mediaFile)
     }
@@ -487,9 +545,14 @@ const runImport = async () => {
 
     notificationStore.success(buildImportSummary(response.data))
     emit('imported', response.data)
-    closeModal()
+    emit('close')
   } catch (error) {
-    importError.value = error.response?.data?.detail || 'Import fehlgeschlagen'
+    const detail = error.response?.data?.detail
+    importError.value = typeof detail === 'string' ? detail : detail?.message || 'Import fehlgeschlagen'
+    if (detail?.conflicts) {
+      importForm.analysis = { ...importForm.analysis, ...detail }
+      analysisStale.value = true
+    }
     notificationStore.error(importError.value)
   } finally {
     isBusy.value = false

@@ -28,8 +28,11 @@ class VoucherRepository:
         created_by_user_id: int,
         reason: str = None,
         description: str = None,
+        commit: bool = True,
     ) -> Voucher:
         """Create a new voucher and generate next number"""
+        if self.db.get_bind().dialect.name == "postgresql":
+            self.db.execute(text("SELECT pg_advisory_xact_lock(716810)"))
         # Get next sequence number
         last_voucher = self.db.query(Voucher).order_by(desc(Voucher.voucher_number)).first()
         next_number = (last_voucher.voucher_number + 1) if last_voucher else 1
@@ -52,41 +55,12 @@ class VoucherRepository:
             redeemed_amount_cents=0,
         )
         
-        logger.debug(f"[DEBUG] Before add: voucher_code={voucher.voucher_code}, type={type(voucher.voucher_code)}")
-        
-        try:
-            self.db.add(voucher)
-            logger.debug(f"[DEBUG] After add (before flush): voucher_code={voucher.voucher_code}, id={getattr(voucher, 'id', 'NOT SET')}")
-            
-            self.db.flush()  # Force flush to catch errors early
-            logger.debug(f"[DEBUG] After flush: voucher_code={voucher.voucher_code}, id={voucher.id}")
-            
+        self.db.add(voucher)
+        self.db.flush()
+        if commit:
             self.db.commit()
-            logger.debug(f"[DEBUG] After commit: voucher_code={voucher.voucher_code}")
-            
             self.db.refresh(voucher)
-            logger.debug(f"[DEBUG] After refresh: voucher_code={voucher.voucher_code}, status={voucher.status}")
-            
-            # CRITICAL CHECK: Ensure voucher_code is set before returning
-            if not voucher.voucher_code:
-                logger.error(f"[CRITICAL] voucher_code is NULL after create! ID={voucher.id}")
-                logger.info(f"Setting voucher_code manually to {voucher_code}...")
-                
-                # Update the database directly to ensure it's set
-                self.db.execute(text("UPDATE vouchers SET voucher_code = :code WHERE id = :id"), 
-                               {"code": voucher_code, "id": voucher.id})
-                self.db.commit()
-                self.db.refresh(voucher)
-                
-                logger.info(f"After manual update: voucher_code={voucher.voucher_code}")
-            
-            logger.info(f"Created {voucher_type} voucher {voucher.voucher_code} (#{voucher.voucher_number}, ID:{voucher.id}) for {value_cents/100:.2f}€")
-            return voucher
-            
-        except Exception as e:
-            self.db.rollback()
-            logger.error(f"[ERROR] Error creating voucher: {str(e)}", exc_info=True)
-            raise
+        return voucher
 
     def get_by_id(self, voucher_id: int) -> Voucher:
         """Get voucher by ID"""
@@ -205,7 +179,7 @@ class VoucherRepository:
         commit: bool = True,
     ) -> Voucher:
         """Apply a partial or full redemption."""
-        voucher = self.get_by_id(voucher_id)
+        voucher = self.db.query(Voucher).filter_by(id=voucher_id).populate_existing().with_for_update().first()
         if not voucher:
             raise ValueError(f"Voucher {voucher_id} not found")
 
@@ -230,6 +204,9 @@ class VoucherRepository:
             else VoucherStatus.PARTIALLY_REDEEMED
         )
 
+        from app.models.transaction import VoucherRedemption
+        self.db.add(VoucherRedemption(transaction_id=transaction_id, voucher_id=voucher.id,
+                                     voucher_code=voucher.voucher_code, amount_cents=applied_amount_cents))
         if commit:
             self.db.commit()
             self.db.refresh(voucher)

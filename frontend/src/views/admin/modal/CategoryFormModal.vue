@@ -2,7 +2,6 @@
   <div
     v-if="show"
     class="modal-overlay"
-    @click.self="$emit('close')"
   >
     <div class="modal-card modal-compact">
       <header class="modal-header">
@@ -16,15 +15,23 @@
       <form class="modal-compact-layout" @submit.prevent="$emit('save')">
         <div class="modal-scroller">
           <section class="form-section">
-            <h4>Stammdaten</h4>
-            <div class="form-row">
+            <div class="form-row form-row-3">
               <div class="form-group">
                 <label for="name">Name</label>
                 <input id="name" v-model="formData.name" type="text" required>
               </div>
-              <div class="form-group">
-                <label for="display_order">Anzeigereihenfolge</label>
+              <div class="form-group form-group-narrow">
+                <label for="display_order">Reihenfolge</label>
                 <input id="display_order" v-model.number="formData.display_order" type="number">
+              </div>
+              <div class="form-group form-group-toggle">
+                <label for="is_active">In Kasse sichtbar</label>
+                <label class="toggle-switch" title="Die Kategorie wird direkt in der Kasse als auswählbarer Bereich angezeigt.">
+                  <input id="is_active" v-model="formData.is_active_in_kasse" type="checkbox">
+                  <span class="toggle-track">
+                    <span class="toggle-thumb"></span>
+                  </span>
+                </label>
               </div>
             </div>
             <div class="form-group">
@@ -36,8 +43,6 @@
           <section class="form-section">
             <h4>Farbe</h4>
             <div class="color-picker-section">
-              <p class="color-picker-hint">Wähle eine Farbe für diese Kategorie – sie erscheint am Chip und am Produktrahmen in der Kasse.</p>
-
               <div class="color-options">
                 <button
                   type="button"
@@ -69,29 +74,13 @@
                     @input="formData.color = $event.target.value"
                   >
                 </label>
-              </div>
 
-              <div v-if="formData.color" class="color-preview-row">
-                <span class="color-preview-chip" :style="{ borderColor: formData.color, background: formData.color + '33' }">
-                  Vorschau Chip
+                <span v-if="formData.color" class="color-preview-chip" :style="{ borderColor: formData.color, background: formData.color + '33' }">
+                  Vorschau
                 </span>
-                <span class="color-preview-card" :style="{ borderColor: formData.color }">
-                  Vorschau Karte
-                </span>
-                <button type="button" class="btn-clear-color" @click="formData.color = null">Farbe entfernen</button>
+                <button v-if="formData.color" type="button" class="btn-clear-color" @click="formData.color = null">Entfernen</button>
               </div>
             </div>
-          </section>
-
-          <section class="form-section highlight">
-            <h4>Darstellung</h4>
-            <label class="checkbox-card">
-              <input id="is_active" v-model="formData.is_active_in_kasse" type="checkbox">
-              <div class="checkbox-content">
-                <span class="label">In Kassenansicht sichtbar</span>
-                <span class="desc">Die Kategorie wird direkt in der Kasse als auswählbarer Bereich angezeigt.</span>
-              </div>
-            </label>
           </section>
         </div>
 
@@ -146,7 +135,7 @@ const isCustomColor = computed(() => (
 
   background: white;
   width: 100%;
-  max-height: 650px;
+  max-height: min(560px, 90vh);
   border-radius: 16px;
   display: flex;
   flex-direction: column;
@@ -155,7 +144,7 @@ const isCustomColor = computed(() => (
 }
 
 .modal-compact {
-  max-width: 650px;
+  max-width: 560px;
 }
 
 .modal-header {
@@ -206,12 +195,11 @@ const isCustomColor = computed(() => (
 }
 
 .modal-scroller {
-  padding: 1rem 1.2rem;
+  padding: 0.85rem 1.2rem 1.1rem;
   overflow-y: auto;
-  max-height: calc(650px - 110px);
   display: flex;
   flex-direction: column;
-  gap: 1rem;
+  gap: 0.75rem;
 }
 
 .form-section {
@@ -223,15 +211,8 @@ const isCustomColor = computed(() => (
     letter-spacing: 0.05em;
     color: #64748b;
     border-bottom: 1px solid var(--border);
-    padding-bottom: 0.35rem;
-    margin-bottom: 0.65rem;
-  }
-
-  &.highlight {
-    background: #f0f7ff;
-    padding: 0.65rem 0.9rem;
-    border-radius: 12px;
-    border: 1px solid #bae6fd;
+    padding-bottom: 0.3rem;
+    margin-bottom: 0.55rem;
   }
 }
 
@@ -241,24 +222,29 @@ const isCustomColor = computed(() => (
   gap: 0.75rem;
 }
 
+.form-row-3 {
+  grid-template-columns: 1.6fr 0.9fr 1fr;
+  align-items: end;
+}
+
 .form-group {
-  margin-bottom: 0.85rem;
+  margin-bottom: 0.65rem;
 
   label {
     display: block;
     font-size: 0.85rem;
     font-weight: 600;
-    margin-bottom: 0.35rem;
+    margin-bottom: 0.3rem;
     color: #334155;
   }
 
   input,
   textarea {
     width: 100%;
-    padding: 0.6rem 0.8rem;
+    padding: 0.5rem 0.75rem;
     border: 1px solid var(--border);
     border-radius: 8px;
-    font-size: 0.95rem;
+    font-size: 0.9rem;
     background: white;
 
     &:focus {
@@ -270,32 +256,94 @@ const isCustomColor = computed(() => (
 
   textarea {
     resize: vertical;
-    min-height: 72px;
+    min-height: 52px;
+  }
+}
+
+.form-group-narrow input {
+  padding-right: 0.4rem;
+}
+
+.form-group-toggle {
+  display: flex;
+  flex-direction: column;
+
+  label:first-child {
+    margin-bottom: 0.3rem;
+  }
+}
+
+// Toggle-Switch ersetzt die frühere Checkbox-Karte, um die Dialoghöhe zu reduzieren
+// (Referenz-Layout: Modal "Artikel zuordnen").
+.toggle-switch {
+  display: inline-flex;
+  align-items: center;
+  cursor: pointer;
+  gap: 0.65rem;
+  min-height: 38px;
+  position: relative;
+
+  input {
+    position: absolute;
+    opacity: 0;
+    width: 0;
+    height: 0;
+  }
+
+  .toggle-track {
+    width: 42px;
+    height: 24px;
+    background: #94a3b8;
+    border-radius: 999px;
+    position: relative;
+    transition: background 0.15s ease;
+    flex-shrink: 0;
+    border: 1px solid #64748b;
+    box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.25);
+  }
+
+  .toggle-thumb {
+    position: absolute;
+    top: 2px;
+    left: 2px;
+    width: 20px;
+    height: 20px;
+    border-radius: 50%;
+    background: white;
+    box-shadow: 0 1px 2px rgba(0, 0, 0, 0.25);
+    transition: transform 0.15s ease;
+  }
+
+  input:checked + .toggle-track {
+    background: #10b981;
+    border-color: #10b981;
+  }
+
+  input:checked + .toggle-track .toggle-thumb {
+    transform: translateX(18px);
+  }
+
+  input:focus-visible + .toggle-track {
+    box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.3);
   }
 }
 
 .color-picker-section {
   display: flex;
   flex-direction: column;
-  gap: 0.75rem;
-}
-
-.color-picker-hint {
-  font-size: 0.82rem;
-  color: #64748b;
-  margin: 0;
+  gap: 0.5rem;
 }
 
 .color-options {
   display: flex;
   flex-wrap: wrap;
-  gap: 0.45rem;
+  gap: 0.4rem;
   align-items: center;
 }
 
 .color-option {
-  width: 36px;
-  height: 36px;
+  width: 32px;
+  height: 32px;
   border-radius: 8px;
   border: 2px solid transparent;
   cursor: pointer;
@@ -369,14 +417,6 @@ const isCustomColor = computed(() => (
   pointer-events: none;
 }
 
-.color-preview-row {
-  display: flex;
-  align-items: center;
-  gap: 0.75rem;
-  flex-wrap: wrap;
-  margin-top: 0.25rem;
-}
-
 .color-preview-chip {
   display: inline-flex;
   align-items: center;
@@ -385,16 +425,6 @@ const isCustomColor = computed(() => (
   border: 2px solid;
   font-size: 0.8rem;
   font-weight: 600;
-}
-
-.color-preview-card {
-  display: inline-flex;
-  align-items: center;
-  padding: 0.2rem 0.7rem;
-  border-radius: 8px;
-  border: 2px solid;
-  font-size: 0.8rem;
-  background: white;
 }
 
 .btn-clear-color {
@@ -408,36 +438,6 @@ const isCustomColor = computed(() => (
 
   &:hover {
     color: #b91c1c;
-  }
-}
-
-.checkbox-card {
-  display: flex;
-  align-items: flex-start;
-  gap: 0.75rem;
-  padding: 0.8rem 0.9rem;
-  border-radius: 12px;
-  border: 1px solid #cfe8ff;
-  background: rgba(255, 255, 255, 0.75);
-
-  input {
-    margin-top: 0.2rem;
-  }
-}
-
-.checkbox-content {
-  display: flex;
-  flex-direction: column;
-  gap: 0.15rem;
-
-  .label {
-    font-weight: 700;
-    color: #0f172a;
-  }
-
-  .desc {
-    font-size: 0.82rem;
-    color: #64748b;
   }
 }
 
@@ -475,6 +475,13 @@ const isCustomColor = computed(() => (
 
   &:hover {
     background: #f1f5f9;
+  }
+}
+
+@media (max-width: 560px) {
+  .form-row,
+  .form-row-3 {
+    grid-template-columns: 1fr;
   }
 }
 </style>

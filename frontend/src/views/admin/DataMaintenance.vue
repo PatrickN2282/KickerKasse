@@ -5,7 +5,7 @@
     <div v-if="authStore.isTopAdmin" class="section-card">
       <h3>Vollständiges Datenbank-Backup</h3>
       <p class="section-copy">
-        Erstellt ein vollständiges Backup der Datenbank als ZIP-Datei.
+        Sichert Datenbank, Konten, Belege, Produktbilder, Mitgliederfotos und Designmedien gemeinsam als ZIP (Format v2). Währenddessen sind andere Zugriffe kurz gesperrt.
       </p>
       <button
         class="btn btn-primary"
@@ -19,7 +19,7 @@
     <div v-if="authStore.isTopAdmin" class="section-card">
       <h3>Datenbank wiederherstellen</h3>
       <p class="section-copy warning-copy">
-        Stellt die komplette Datenbank aus einer Backup-ZIP wieder her und überschreibt alle aktuellen Daten.
+        Ersetzt Datenbank und Medien durch eine vollständige v2-Sicherung mit passendem Schema. Alte v1- und Teilarchive werden abgewiesen. Maximal 256 MiB ZIP / 512 MiB entpackt. Alle Benutzer müssen sich anschließend erneut anmelden.
       </p>
       <label class="file-input">
         <span>Backup-ZIP auswählen</span>
@@ -86,7 +86,7 @@
       Diese kritischen Funktionen sind ausschließlich für den Top-Admin sichtbar und nutzbar.
     </div>
 
-    <CredentialConfirmModal
+    <AuthCredentialModal
       :show="showResetModal"
       title="Hard-Reset bestätigen"
       message="Bitte Top-Admin-Passwort eingeben und zusätzlich RESET bestätigen."
@@ -94,17 +94,19 @@
       confirm-label="Hard-Reset ausführen"
       confirmation-label="Bestätigung"
       confirmation-placeholder="RESET"
-      @close="showResetModal = false"
+      :error="resetModalError"
+      @close="showResetModal = false; resetModalError = ''"
       @confirm="handleHardReset"
     />
 
-    <CredentialConfirmModal
+    <AuthCredentialModal
       :show="showRestoreModal"
       title="Datenbank-Wiederherstellung bestätigen"
       message="Bitte Top-Admin-Passwort eingeben. Die aktuelle Datenbank wird vollständig überschrieben."
       :username="authStore.user?.username || ''"
       confirm-label="Wiederherstellung starten"
-      @close="showRestoreModal = false"
+      :error="restoreModalError"
+      @close="showRestoreModal = false; restoreModalError = ''"
       @confirm="handleRestore"
     />
   </div>
@@ -115,13 +117,23 @@ import { onMounted, reactive, ref } from 'vue'
 import apiService from '@/services/api'
 import { useAuthStore } from '@/stores/auth'
 import { useNotificationStore } from '@/stores/notification'
-import CredentialConfirmModal from '@/components/CredentialConfirmModal.vue'
+import AuthCredentialModal from '@/components/AuthCredentialModal.vue'
+
+const getErrorMessage = (error, fallback) => {
+  const detail = error?.response?.data?.detail
+  if (detail && typeof detail === 'object') {
+    return detail.message || fallback
+  }
+  return detail || fallback
+}
 
 const authStore = useAuthStore()
 const notificationStore = useNotificationStore()
 
 const showResetModal = ref(false)
 const showRestoreModal = ref(false)
+const resetModalError = ref('')
+const restoreModalError = ref('')
 const restoreFile = ref(null)
 const isBusy = ref(false)
 const backupSchedule = reactive({
@@ -151,7 +163,7 @@ const loadBackupSchedule = async () => {
     backupSchedule.enabled = !!response.data.scheduled_database_backup_enabled
     backupSchedule.time = response.data.scheduled_database_backup_time || '03:00'
   } catch (error) {
-    notificationStore.error(error.response?.data?.detail || 'Backup-Einstellungen konnten nicht geladen werden')
+    notificationStore.error(getErrorMessage(error, 'Backup-Einstellungen konnten nicht geladen werden'))
   }
 }
 
@@ -169,9 +181,9 @@ const handleBackupDownload = async () => {
     })
     const fileName = extractFilename(response.headers['content-disposition'], 'kickerkasse-db-backup.zip')
     triggerDownload(response.data, fileName)
-    notificationStore.success('Datenbank-Backup wurde heruntergeladen')
+    notificationStore.success('Vollständige Sicherung mit Medien wurde heruntergeladen')
   } catch (error) {
-    notificationStore.error(error.response?.data?.detail || 'Datenbank-Backup fehlgeschlagen')
+    notificationStore.error(getErrorMessage(error, 'Datenbank-Backup fehlgeschlagen'))
   } finally {
     isBusy.value = false
   }
@@ -184,8 +196,9 @@ const handleRestoreFileChange = (event) => {
 }
 
 const handleRestore = async ({ password }) => {
-  showRestoreModal.value = false
+  restoreModalError.value = ''
   if (!restoreFile.value) {
+    showRestoreModal.value = false
     notificationStore.error('Bitte zuerst eine Backup-ZIP auswählen')
     return
   }
@@ -198,12 +211,15 @@ const handleRestore = async ({ password }) => {
     await apiService.post('/admin/data-maintenance/database-backup/restore', formData, {
       headers: { 'Content-Type': 'multipart/form-data' },
     })
-    notificationStore.success('Datenbank wurde aus dem Backup wiederhergestellt')
+    showRestoreModal.value = false
+    notificationStore.success('Datenbank und Medien wurden wiederhergestellt. Bitte erneut anmelden.')
     restoreFile.value = null
     await authStore.logout()
     window.location.href = '/login'
   } catch (error) {
-    notificationStore.error(error.response?.data?.detail || 'Wiederherstellung fehlgeschlagen')
+    // Anforderung 10: Fehler direkt im Passwortdialog anzeigen statt nur als Toast,
+    // Dialog bleibt geöffnet, damit der Nutzer das Passwort erneut eingeben kann.
+    restoreModalError.value = getErrorMessage(error, 'Wiederherstellung fehlgeschlagen')
   } finally {
     isBusy.value = false
   }
@@ -218,25 +234,28 @@ const saveBackupSchedule = async () => {
     })
     notificationStore.success('Backup-Zeitplan gespeichert')
   } catch (error) {
-    notificationStore.error(error.response?.data?.detail || 'Backup-Zeitplan konnte nicht gespeichert werden')
+    notificationStore.error(getErrorMessage(error, 'Backup-Zeitplan konnte nicht gespeichert werden'))
   } finally {
     isBusy.value = false
   }
 }
 
 const handleHardReset = async ({ password, confirmationText }) => {
-  showResetModal.value = false
+  resetModalError.value = ''
 
   try {
     await apiService.post('/admin/data-maintenance/hard-reset', {
       auth_password: password,
       confirmation_text: confirmationText,
     })
+    showResetModal.value = false
     notificationStore.success('Hard-Reset erfolgreich durchgeführt')
     await authStore.logout()
     window.location.href = '/login'
   } catch (error) {
-    notificationStore.error(error.response?.data?.detail || 'Hard-Reset fehlgeschlagen')
+    // Anforderung 10: Fehler direkt im Passwortdialog anzeigen statt nur als Toast,
+    // Dialog bleibt geöffnet, damit der Nutzer das Passwort erneut eingeben kann.
+    resetModalError.value = getErrorMessage(error, 'Hard-Reset fehlgeschlagen')
   }
 }
 </script>

@@ -48,7 +48,7 @@ import { ref, watch, nextTick, inject } from 'vue'
 const kasse = inject('kasse')
 const {
   pendingVariablePriceProduct, variablePrice, isVariablePriceValid,
-  closeVariablePriceModal, confirmVariablePriceSelection, formatPrice
+  closeVariablePriceModal, confirmVariablePriceSelection
 } = kasse
 const variablePriceInput = ref(null)
 watch(() => kasse.showVariablePriceModal.value, (val) => {

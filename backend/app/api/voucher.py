@@ -1,10 +1,16 @@
+from app.core.booking_route import BookingRoute
 from fastapi import APIRouter, HTTPException, Depends, Request, status, Query
 from sqlalchemy.orm import Session
 import logging
+from datetime import datetime
+import csv
+import io
+from fastapi.responses import StreamingResponse
+from sqlalchemy.orm import joinedload
 from pydantic import BaseModel, Field
 
 from app.core import get_db
-from app.core.auth import require_roles, resolve_confirmation_user
+from app.core.auth import require_authenticated_user, require_roles, resolve_confirmation_user
 from app.schemas import (
     VoucherBatchCreateResponse,
     VoucherCreateGift,
@@ -19,13 +25,13 @@ from app.schemas import (
 )
 from app.services import MaterialAccountService, VoucherService
 from app.repositories import VoucherRepository
-from app.models import VoucherStatus, VoucherType, UserRole
+from app.models import Voucher, VoucherStatus, VoucherType, UserRole
 
 logger = logging.getLogger(__name__)
 
 # Two routers: one for admin, one for kasse
-admin_router = APIRouter(prefix="/api/admin/vouchers", tags=["Admin - Vouchers"])
-kasse_router = APIRouter(prefix="/api/transactions/voucher", tags=["Kasse - Voucher"])
+admin_router = APIRouter(route_class=BookingRoute, prefix="/api/admin/vouchers", tags=["Admin - Vouchers"])
+kasse_router = APIRouter(route_class=BookingRoute, prefix="/api/transactions/voucher", tags=["Kasse - Voucher"])
 
 
 class ClubAccountTopUpRequest(BaseModel):
@@ -34,15 +40,8 @@ class ClubAccountTopUpRequest(BaseModel):
     auth_password: str = Field(..., min_length=1)
 
 
-def get_user_id(request: Request) -> int:
-    """Extract and validate user_id from session"""
-    user_id = request.session.get("user_id")
-    if not user_id:
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Not authenticated",
-        )
-    return user_id
+def get_user_id(request: Request, db: Session) -> int:
+    return require_authenticated_user(request, db).id
 
 
 def require_voucher_confirmation(
@@ -186,7 +185,7 @@ async def list_vouchers(
     page_size: int = Query(20, ge=1, le=100),
 ):
     """List vouchers with optional filtering"""
-    user_id = get_user_id(request)
+    user_id = require_roles(request, db, UserRole.ADMIN, UserRole.MANAGER).id
     
     try:
         repo = VoucherRepository(db)
@@ -249,6 +248,81 @@ async def list_vouchers(
         )
 
 
+def _spreadsheet_safe(value) -> str:
+    text = "" if value is None else str(value)
+    if text.lstrip().startswith(("=", "+", "-", "@")):
+        return "'" + text
+    return text
+
+
+@admin_router.get("/export.csv")
+async def export_vouchers_csv(
+    request: Request,
+    db: Session = Depends(get_db),
+    status_filter: str = Query(None),
+    type_filter: str = Query(None),
+):
+    """Export the complete current filter, independent of table pagination."""
+    require_roles(request, db, UserRole.ADMIN, UserRole.MANAGER)
+    query = db.query(Voucher).options(
+        joinedload(Voucher.created_by_user),
+        joinedload(Voucher.sold_by_user),
+        joinedload(Voucher.redeemed_by_user),
+        joinedload(Voucher.sold_in_transaction),
+        joinedload(Voucher.redeemed_in_transaction),
+    )
+    if status_filter:
+        try:
+            query = query.filter(Voucher.status == VoucherStatus(status_filter))
+        except ValueError as exc:
+            raise HTTPException(status_code=400, detail="Ungültiger Gutscheinstatus") from exc
+    if type_filter:
+        try:
+            query = query.filter(Voucher.voucher_type == VoucherType(type_filter))
+        except ValueError as exc:
+            raise HTTPException(status_code=400, detail="Ungültiger Gutscheintyp") from exc
+    vouchers = query.order_by(Voucher.voucher_number.desc()).all()
+
+    output = io.StringIO(newline="")
+    output.write("\ufeff")
+    writer = csv.writer(output, delimiter=";", quoting=csv.QUOTE_ALL, lineterminator="\r\n")
+    writer.writerow([
+        "Nummer", "Typ", "Anfangswert (Cent)", "Restwert (Cent)", "Status", "Grund",
+        "Beschreibung", "Erstellt von", "Erstellt am", "Verkauft von", "Verkauft am",
+        "Verkaufsbeleg", "Eingelöst von", "Eingelöst am", "Eingelöster Betrag (Cent)",
+        "Einlösungsbeleg",
+    ])
+    for voucher in vouchers:
+        writer.writerow([
+            _spreadsheet_safe(voucher.voucher_code or voucher.voucher_number),
+            voucher.voucher_type.value,
+            voucher.original_value_cents or voucher.value_cents,
+            voucher.remaining_value_cents,
+            voucher.status.value,
+            _spreadsheet_safe(voucher.reason.value if voucher.reason else ""),
+            _spreadsheet_safe(voucher.description),
+            _spreadsheet_safe(voucher.created_by_user.username if voucher.created_by_user else voucher.created_by_user_id),
+            voucher.created_at.isoformat(sep=" ") if voucher.created_at else "",
+            _spreadsheet_safe(voucher.sold_by_user.username if voucher.sold_by_user else voucher.sold_by_user_id),
+            voucher.sold_at.isoformat(sep=" ") if voucher.sold_at else "",
+            voucher.sold_in_transaction.receipt_number if voucher.sold_in_transaction else "",
+            _spreadsheet_safe(voucher.redeemed_by_user.username if voucher.redeemed_by_user else voucher.redeemed_by_user_id),
+            voucher.redeemed_at.isoformat(sep=" ") if voucher.redeemed_at else "",
+            voucher.redeemed_amount_cents if voucher.redeemed_amount_cents is not None else "",
+            voucher.redeemed_in_transaction.receipt_number if voucher.redeemed_in_transaction else "",
+        ])
+    filename = f"Gutscheine-{datetime.now().date().isoformat()}.csv"
+    return StreamingResponse(
+        iter([output.getvalue()]),
+        media_type="text/csv; charset=utf-8",
+        headers={
+            "Content-Disposition": f'attachment; filename="{filename}"',
+            "X-Export-Count": str(len(vouchers)),
+        },
+    )
+
+
+
 @admin_router.get("/club-account")
 @admin_router.get("/club-account/")
 async def get_club_account(
@@ -267,6 +341,36 @@ async def get_material_account(
 ):
     require_roles(request, db, UserRole.ADMIN)
     return MaterialAccountService(db).get_account_summary()
+
+
+@admin_router.get("/material-transactions")
+@admin_router.get("/material-transactions/")
+async def get_material_transactions(
+    request: Request,
+    search: str | None = None,
+    entry_type: str | None = Query(None, pattern="^(SALE|STORNO)$"),
+    date_from: datetime | None = None,
+    date_to: datetime | None = None,
+    page: int = Query(1, ge=1),
+    page_size: int = Query(50, ge=1, le=100),
+    db: Session = Depends(get_db),
+):
+    require_roles(request, db, UserRole.ADMIN, UserRole.MANAGER)
+    summary = MaterialAccountService(db).get_account_summary(
+        search=search,
+        entry_type=entry_type,
+        date_from=date_from,
+        date_to=date_to,
+        page=page,
+        page_size=page_size,
+    )
+    # Preserve material value, quantity, note and receipt; omit payment details
+    # of the surrounding sale from the operational material list.
+    for entry in summary["entries"]:
+        transaction = entry.get("transaction")
+        if transaction:
+            entry["transaction"] = {"member_name": transaction.get("member_name")}
+    return summary
 
 
 @admin_router.post("/club-account/topup")
@@ -294,7 +398,7 @@ async def get_voucher_detail(
     db: Session = Depends(get_db),
 ):
     """Get voucher details by ID"""
-    user_id = get_user_id(request)
+    user_id = require_roles(request, db, UserRole.ADMIN, UserRole.MANAGER).id
     
     try:
         repo = VoucherRepository(db)
@@ -315,6 +419,7 @@ async def get_voucher_detail(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Error getting voucher: {str(e)}",
         )
+
 
 
 @admin_router.put("/{voucher_id}", response_model=VoucherResponse)
@@ -341,6 +446,7 @@ async def update_voucher(
             value_cents=voucher_data.value_cents,
             reason=voucher_data.reason,
             description=voucher_data.description,
+            performed_by_user_id=current_user.id,
         )
         logger.info(f"[ADMIN] Updated voucher {voucher_id} by user {current_user.id}")
         return VoucherResponse.from_orm(voucher)
@@ -365,7 +471,7 @@ async def get_voucher_by_number(
     db: Session = Depends(get_db),
 ):
     """Get voucher details by voucher number (e.g., V-001)"""
-    user_id = get_user_id(request)
+    user_id = require_roles(request, db, UserRole.ADMIN, UserRole.MANAGER).id
     
     try:
         repo = VoucherRepository(db)
@@ -390,6 +496,7 @@ async def get_voucher_by_number(
         )
 
 
+
 # ============================================================================
 # KASSE ROUTES - /api/transactions/voucher
 # ============================================================================
@@ -409,7 +516,7 @@ async def validate_voucher(
     db: Session = Depends(get_db),
 ):
     """Validate a voucher before redemption (displays info + validity)"""
-    user_id = get_user_id(request)
+    user_id = get_user_id(request, db)
     
     try:
         service = VoucherService(db)
@@ -466,7 +573,7 @@ async def redeem_voucher(
     - GIFT voucher: Creates a negative transaction (loss recording), value becomes 0 in balance
     - PREPAID voucher: Creates a null-amount transaction (0 cents), but logs payment method for audit
     """
-    user_id = get_user_id(request)
+    user_id = get_user_id(request, db)
     
     try:
         service = VoucherService(db)

@@ -1,0 +1,8 @@
+# Additional dependencies for running the backend test suite (backend/tests/).
+# Install with: pip install -r requirements.txt -r requirements-dev.txt
+# Default tests use in-memory SQLite; opt-in tests use TEST_POSTGRES_URL.
+
+pytest==8.3.3
+httpx==0.28.1
+Flask==2.3.3
+pyserial==3.5

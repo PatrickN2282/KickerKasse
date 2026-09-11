@@ -12,7 +12,7 @@ class AuditLog(BaseModel):
     entity_type = Column(String(50), nullable=False)   # member | product | settings
     entity_id = Column(Integer, nullable=True)
     entity_name = Column(String(255), nullable=True)   # snapshot of name at action time
-    action = Column(String(20), nullable=False)         # CREATED | UPDATED | DELETED
+    action = Column(String(64), nullable=False)         # Includes PASSWORD_RESET_COMPLETED
     old_value = Column(Text, nullable=True)             # JSON string
     new_value = Column(Text, nullable=True)             # JSON string
 

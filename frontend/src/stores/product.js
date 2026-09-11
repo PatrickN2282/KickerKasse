@@ -1,3 +1,4 @@
+import { getErrorDetailMessage } from '@/services/errorMessage'
 import { defineStore } from 'pinia'
 import { ref } from 'vue'
 import apiService from '@/services/api'
@@ -7,16 +8,21 @@ export const useProductStore = defineStore('product', () => {
   const isLoading = ref(false)
   const error = ref(null)
 
-  const getProducts = async () => {
+  const getProducts = async (onlyActive = true, onlyVisibleInKasse = false) => {
     isLoading.value = true
     error.value = null
 
     try {
-      const response = await apiService.get('/products')
+      const response = await apiService.get('/products', {
+        params: {
+          only_active: onlyActive,
+          only_visible_in_kasse: onlyVisibleInKasse,
+        },
+      })
       products.value = response.data
       return products.value
     } catch (err) {
-      error.value = err.response?.data?.detail || 'Failed to fetch products'
+      error.value = getErrorDetailMessage(err, 'Failed to fetch products')
       return []
     } finally {
       isLoading.value = false
@@ -28,7 +34,7 @@ export const useProductStore = defineStore('product', () => {
       const response = await apiService.get(`/products/${productId}`)
       return response.data
     } catch (err) {
-      error.value = err.response?.data?.detail || 'Failed to fetch product'
+      error.value = getErrorDetailMessage(err, 'Failed to fetch product')
       return null
     }
   }
@@ -41,7 +47,7 @@ export const useProductStore = defineStore('product', () => {
       products.value.push(response.data)
       return response.data
     } catch (err) {
-      error.value = err.response?.data?.detail || 'Failed to create product'
+      error.value = getErrorDetailMessage(err, 'Failed to create product')
       return null
     }
   }
@@ -57,7 +63,7 @@ export const useProductStore = defineStore('product', () => {
       }
       return response.data
     } catch (err) {
-      error.value = err.response?.data?.detail || 'Failed to update product'
+      error.value = getErrorDetailMessage(err, 'Failed to update product')
       return null
     }
   }
@@ -70,9 +76,13 @@ export const useProductStore = defineStore('product', () => {
       products.value = products.value.filter(product => product.id !== productId)
       return true
     } catch (err) {
-      error.value = err.response?.data?.detail || 'Failed to delete product'
+      error.value = getErrorDetailMessage(err, 'Failed to delete product')
       return false
     }
+  }
+
+  const reactivateProduct = async (productId) => {
+    return updateProduct(productId, { is_active: true })
   }
 
   return {
@@ -84,5 +94,6 @@ export const useProductStore = defineStore('product', () => {
     createProduct,
     updateProduct,
     deleteProduct,
+    reactivateProduct,
   }
 })

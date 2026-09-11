@@ -20,6 +20,7 @@
 
     <div v-else>
       <div class="table-toolbar">
+        <label><input v-model="showArchived" type="checkbox" @change="loadArchive"> Archivierte Mitglieder anzeigen</label>
         <input
           v-model="memberSearch"
           type="text"
@@ -31,20 +32,20 @@
         <table class="members-table">
           <thead>
             <tr>
-              <th>Foto</th>
+              <th class="optional-column">Foto</th>
               <th>Nr.</th>
-              <th>Mitgliedsnummer</th>
+              <th class="optional-column">Mitgliedsnummer</th>
               <th>Name</th>
-              <th>Rabatt</th>
-              <th v-if="authStore.isTopAdmin">Rolle</th>
-              <th v-if="authStore.isTopAdmin">Kontakt</th>
+              <th class="optional-column">Rabatt</th>
+              <th v-if="authStore.isTopAdmin" class="optional-column">Rolle</th>
+              <th v-if="authStore.isTopAdmin" class="optional-column">Kontakt</th>
               <th>Guthaben</th>
               <th class="text-right">Aktionen</th>
             </tr>
           </thead>
           <tbody>
             <tr v-for="member in filteredMembers" :key="member.id">
-              <td class="photo-cell">
+              <td class="photo-cell optional-column">
                 <div class="member-thumb-frame">
                   <img
                     v-if="member.photo_path"
@@ -58,17 +59,17 @@
                 </div>
               </td>
               <td>{{ member.member_number }}</td>
-              <td><code class="member-code">{{ member.membership_number || '-' }}</code></td>
+              <td class="optional-column"><code class="member-code">{{ member.membership_number || '-' }}</code></td>
               <td class="font-bold">{{ getMemberFullName(member) }}</td>
-              <td>
+              <td class="optional-column">
                 <span :class="['badge', member.has_discount ? 'badge-success' : 'badge-light']">
                   {{ member.has_discount ? 'Berechtigt' : 'Kein Rabatt' }}
                 </span>
               </td>
-              <td v-if="authStore.isTopAdmin">
+              <td v-if="authStore.isTopAdmin" class="optional-column">
                 <span class="role-tag">{{ getRoleLabel(member.role) }}</span>
               </td>
-              <td v-if="authStore.isTopAdmin" class="contact-cell">
+              <td v-if="authStore.isTopAdmin" class="contact-cell optional-column">
                 <div class="small-text">{{ member.email || '-' }}</div>
                 <div class="small-text text-muted">{{ member.phone || '' }}</div>
               </td>
@@ -76,6 +77,7 @@
               <td class="text-right">
                 <div class="action-cell">
                   <button
+                    v-if="!member.archived_at"
                     class="btn-action btn-action-icon btn-action-edit-icon"
                     type="button"
                     title="Bearbeiten"
@@ -88,11 +90,11 @@
                     class="btn-action btn-action-icon btn-action-danger btn-action-delete-icon"
                     type="button"
                     :disabled="!authStore.isAdmin"
-                    title="Löschen"
-                    aria-label="Löschen"
-                    @click="deleteMember(member.id)"
+                    :title="member.archived_at ? 'Wiederherstellen' : 'Archivieren'"
+                    :aria-label="member.archived_at ? 'Wiederherstellen' : 'Archivieren'"
+                    @click="member.archived_at ? restoreMember(member.id) : deleteMember(member.id)"
                   >
-                    ✕
+                    {{ member.archived_at ? '↩' : '📁' }}
                   </button>
                 </div>
               </td>
@@ -105,7 +107,7 @@
       </div>
     </div>
     <MemberFormModal
-      :show="showMemberModal"
+      :show="showMemberModal && !showRechargeModal"
       :editing-id="editingId"
       :auth-is-top-admin="authStore.isTopAdmin"
       :has-existing-user-account="hasExistingUserAccount"
@@ -123,13 +125,15 @@
       @open-recharge="openRechargeModal"
     />
 
-    <PasswordConfirmModal
+    <AuthCredentialModal
       :show="showRechargeModal"
       title="Guthaben aufladen"
       :message="rechargeModalMessage"
       :username="authStore.user?.username || ''"
+      :usernames="[]"
       confirm-label="Jetzt aufladen"
-      @close="showRechargeModal = false"
+      :error="rechargeModalError"
+      @close="showRechargeModal = false; rechargeModalError = ''"
       @confirm="handleRecharge"
     />
     <ImageEditorModal
@@ -164,9 +168,10 @@ import { useNotificationStore } from '@/stores/notification'
 import { formatBalance } from '@/services/utils'
 import { getMemberFullName, getMemberSearchText, getRoleLabel } from '@/services/member'
 import ImageEditorModal from '@/components/ImageEditorModal.vue'
-import PasswordConfirmModal from '@/components/PasswordConfirmModal.vue'
+import AuthCredentialModal from '@/components/AuthCredentialModal.vue'
 import apiService from '@/services/api'
 import MemberFormModal from '@/views/admin/modal/MemberFormModal.vue'
+import { openDrawerTargets } from '@/services/drawer'
 
 const authStore = useAuthStore()
 const memberStore = useMemberStore()
@@ -188,8 +193,18 @@ const persistedPhotoExists = ref(false)
 const rechargeAmount = ref(null)
 const currentMemberBalance = ref(null)
 const showRechargeModal = ref(false)
+const rechargeModalError = ref('')
 const hasExistingUserAccount = ref(false)
 const memberSearch = ref('')
+const showArchived = ref(false)
+const archivedMembers = ref([])
+const loadArchive = async () => {
+  if (!showArchived.value) return
+  try {
+    const response = await apiService.get('/members', { params: { include_archived: true } })
+    archivedMembers.value = response.data.filter(member => member.archived_at)
+  } catch (error) { notificationStore.error(error.response?.data?.detail || 'Archiv konnte nicht geladen werden') }
+}
 const memberCropFrameWidth = 300
 const memberCropAspectRatio = 1
 const memberCropOutputWidth = 600
@@ -204,6 +219,7 @@ const formData = reactive({
   has_discount: true,
   role: '',
   account_password: '',
+  account_password_confirm: '',
 })
 
 const rechargeModalMessage = computed(() => {
@@ -220,16 +236,18 @@ const memberPhotoAlt = computed(() => {
 const photoRestoreSrc = computed(() => pendingPhotoOriginalSrc.value || photoOriginalSrc.value)
 
 const filteredMembers = computed(() => {
+  const rows = showArchived.value ? archivedMembers.value : memberStore.members
   const search = memberSearch.value.trim().toLowerCase()
 
   if (!search) {
-    return memberStore.members
+    return rows
   }
 
-  return memberStore.members.filter(member => getMemberSearchText(member).includes(search))
+  return rows.filter(member => getMemberSearchText(member).includes(search))
 })
 
 const openCreateModal = () => {
+  showArchived.value = false
   resetForm()
   showMemberModal.value = true
 }
@@ -421,7 +439,12 @@ const dataUrlToBlob = (dataUrl) => {
 }
 
 const handleSaveMember = async () => {
+  if (formData.role && formData.account_password !== formData.account_password_confirm) {
+    notificationStore.error('Die Passwörter stimmen nicht überein')
+    return
+  }
   const payload = { ...formData }
+  delete payload.account_password_confirm
   if (!authStore.isTopAdmin) {
     ['email', 'phone', 'role', 'account_password'].forEach(key => delete payload[key])
   } else if (!payload.role) {
@@ -429,13 +452,20 @@ const handleSaveMember = async () => {
     delete payload.account_password
   }
 
+  // Vor dem Speichern merken, ob bereits ein Benutzerkonto bestand, damit nach dem Speichern
+  // erkannt werden kann, ob durch die Rollenvergabe neu ein Konto (mit automatisch erzeugtem
+  // Benutzernamen) angelegt wurde.
+  const hadAccountBefore = Boolean(editingId.value) && hasExistingUserAccount.value
+
   if (editingId.value) {
     const success = await memberStore.updateMember(editingId.value, payload)
     if (success) {
       const photoSynced = await syncMemberPhoto(editingId.value)
       if (!photoSynced) return
-      notificationStore.success('Mitglied aktualisiert')
+      notifyAccountUsername(success, hadAccountBefore, 'Mitglied aktualisiert')
       closeMemberModal()
+    } else {
+      notificationStore.error(memberStore.error || 'Mitglied konnte nicht gespeichert werden')
     }
   } else {
     const result = await memberStore.createMember(payload)
@@ -446,9 +476,23 @@ const handleSaveMember = async () => {
       } else if (!photoSynced && photoPreview.value) {
         notificationStore.warning('Mitglied wurde erstellt, aber das bisherige Bild konnte nicht übernommen werden.')
       }
-      notificationStore.success('Mitglied erstellt')
+      notifyAccountUsername(result, false, 'Mitglied erstellt')
       closeMemberModal()
+    } else {
+      notificationStore.error(memberStore.error || 'Mitglied konnte nicht erstellt werden')
     }
+  }
+}
+
+// Anforderung: Wird beim Vergeben einer Benutzerrolle automatisch ein Benutzername erzeugt
+// (Vorname.Nachname, bei Kollision Vorname.Nachname.2, .3, ...), muss der Benutzer sofort als
+// Erfolgsmeldung erfahren, welcher Benutzername vergeben wurde.
+const notifyAccountUsername = (member, hadAccountBefore, baseMessage) => {
+  const accountNewlyCreated = member?.has_user_account && !hadAccountBefore
+  if (accountNewlyCreated && member.account_username) {
+    notificationStore.success(`${baseMessage} – Benutzerkonto angelegt mit Benutzername "${member.account_username}"`)
+  } else {
+    notificationStore.success(baseMessage)
   }
 }
 
@@ -463,7 +507,8 @@ const editMember = async (member) => {
     notes: member.notes || '',
     has_discount: member.has_discount ?? true,
     role: member.role || '',
-    account_password: ''
+    account_password: '',
+    account_password_confirm: ''
   })
   const cacheBust = Date.now()
   photoPreview.value = member.photo_path ? withCacheBust(`/api/members/${member.id}/photo`, cacheBust) : null
@@ -490,27 +535,42 @@ const editMember = async (member) => {
 
 const openRechargeModal = () => { showRechargeModal.value = true }
 
-const handleRecharge = async (password) => {
-  showRechargeModal.value = false
+const handleRecharge = async (credentials) => {
+  rechargeModalError.value = ''
   const amountCents = Math.round(rechargeAmount.value * 100)
-  const updated = await memberStore.rechargeMember(editingId.value, amountCents, password)
+  const updated = await memberStore.rechargeMember(editingId.value, amountCents, credentials.password)
   if (updated) {
+    showRechargeModal.value = false
     currentMemberBalance.value = updated.balance_cents
     rechargeAmount.value = null
     notificationStore.success('Guthaben aufgeladen')
+    await openDrawerTargets(updated.drawer_targets)
+  } else {
+    // Anforderung 10: Fehler direkt im Passwortdialog anzeigen statt nur als Toast,
+    // Dialog bleibt geöffnet, damit der Nutzer das Passwort erneut eingeben kann.
+    rechargeModalError.value = memberStore.error || 'Guthaben konnte nicht aufgeladen werden'
   }
 }
 
 const deleteMember = async (id) => {
-  if (confirm('Mitglied wirklich unwiderruflich löschen?')) {
-    try {
-      await apiService.delete(`/members/${id}`)
-      notificationStore.success('Mitglied gelöscht')
-      await memberStore.getMembers()
-    } catch (error) {
-      console.error('Member delete error:', error)
-      notificationStore.error('Fehler beim Löschen')
-    }
+  if (!confirm('Mitglied archivieren? Buchungen und Historie bleiben erhalten. Ein verknüpfter Zugang wird deaktiviert. Restguthaben muss vorher geklärt sein.')) return
+  try {
+    await apiService.delete(`/members/${id}`)
+    notificationStore.success('Mitglied archiviert; Historie bleibt erhalten')
+    await memberStore.getMembers()
+  } catch (error) {
+    notificationStore.error(error.response?.data?.detail || 'Archivierung fehlgeschlagen')
+  }
+}
+
+const restoreMember = async (id) => {
+  try {
+    await apiService.post(`/members/${id}/restore`)
+    notificationStore.success('Mitglied wiederhergestellt. Ein deaktivierter Zugang bleibt deaktiviert.')
+    await loadArchive()
+    await memberStore.getMembers()
+  } catch (error) {
+    notificationStore.error(error.response?.data?.detail || 'Wiederherstellung fehlgeschlagen')
   }
 }
 
@@ -715,5 +775,20 @@ onMounted(() => memberStore.getMembers())
 }
 
 @keyframes spin { to { transform: rotate(360deg); } }
+
+@media (max-width: 760px) {
+  .admin-members { padding-inline: .35rem; overflow-x: hidden; }
+  .page-header { margin-inline: -.35rem; padding-inline: .5rem; }
+  .page-header-actions, .page-header-actions .btn { width: 100%; }
+  .table-toolbar { display: grid; gap: .5rem; }
+  .members-table { width: 100%; table-layout: fixed; font-size: .82rem; }
+  .members-table .optional-column { display: none; }
+  .members-table th, .members-table td { padding: .55rem .35rem; }
+  .members-table th:nth-child(2), .members-table td:nth-child(2) { width: 3rem; }
+  .members-table th:nth-last-child(2), .members-table td:nth-last-child(2) { width: 5.5rem; }
+  .members-table th:last-child, .members-table td:last-child { width: 5.5rem; }
+  .action-cell { flex-wrap: nowrap; gap: .3rem; }
+  .btn-action-icon { width: 42px; height: 42px; }
+}
 
 </style>

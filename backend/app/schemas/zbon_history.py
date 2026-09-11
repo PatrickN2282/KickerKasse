@@ -26,6 +26,19 @@ class ZBonHistoryResponse(BaseModel):
     cash_difference: Optional[float] = None
     cash_withdrawals: float
     cash_deposits: float
+    article_revenue_cents: Optional[int] = None
+    cash_sale_payments_cents: Optional[int] = None
+    balance_redeemed_cents: Optional[int] = None
+    voucher_redeemed_cents: Optional[int] = None
+    member_recharges_cents: Optional[int] = None
+    club_account_recharges_cents: Optional[int] = None
+    prepaid_sales_cents: Optional[int] = None
+    tip_donations_cents: Optional[int] = None
+    cash_opening_balance_cents: Optional[int] = None
+    cash_deposits_cents: Optional[int] = None
+    cash_withdrawals_cents: Optional[int] = None
+    cash_calculated_cents: Optional[int] = None
+    total_revenue_cents: Optional[int] = None
     transaction_count_sales: int
     transaction_count_recharge: int
     transaction_count_storno: int

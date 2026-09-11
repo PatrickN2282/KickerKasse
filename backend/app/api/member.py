@@ -1,14 +1,20 @@
+from app.core.atomic import audited_media
+from app.core.booking_route import BookingRoute
+from app.core.auth import require_session
 from fastapi import APIRouter, HTTPException, Depends, Request, status, File, UploadFile
 from fastapi.responses import FileResponse
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
+from app.schemas.validation import MAX_INT
 from sqlalchemy.orm import Session
 from sqlalchemy.exc import IntegrityError
 from app.core import get_db
-from app.core.auth import require_password_confirmation, require_roles
+from app.core.auth import require_authenticated_user, require_password_confirmation, require_roles
+from app.schemas.member import MemberSelectionResponse
 from app.schemas import (
     MemberCreate,
     MemberUpdate,
     MemberResponse,
+    MemberRechargeResponse,
     MemberBalanceCorrectionRequest,
     MemberBalanceCorrectionLogResponse,
 )
@@ -25,12 +31,12 @@ from app.services.file_service import (
 from app.repositories import MemberRepository, UserRepository
 from app.models import UserRole
 
-router = APIRouter(prefix="/api/members", tags=["Members"])
+router = APIRouter(route_class=BookingRoute, prefix="/api/members", tags=["Members"])
 MAX_PHOTO_SIZE_BYTES = 5 * 1024 * 1024
 
 
 class MemberRechargeRequest(BaseModel):
-    amount_cents: int
+    amount_cents: int = Field(..., gt=0, le=MAX_INT)
     auth_password: str
 
 
@@ -94,21 +100,25 @@ async def create_member(
         )
 
 
+@router.get("/selection", response_model=list[MemberSelectionResponse])
+@router.get("/selection/", response_model=list[MemberSelectionResponse])
+async def get_member_selection(request: Request, db: Session = Depends(get_db)):
+    require_authenticated_user(request, db)
+    return MemberService(db).get_all_members()
+
+
 @router.get("/", response_model=list[MemberResponse])
 @router.get("", response_model=list[MemberResponse])
 async def get_members(
     request: Request,
+    include_archived: bool = False,
     db: Session = Depends(get_db),
 ):
     """Get all members"""
-    if not request.session.get("user_id"):
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Not authenticated",
-        )
+    require_roles(request, db, UserRole.ADMIN, UserRole.MANAGER)
     
     service = MemberService(db)
-    return service.get_all_members()
+    return service.get_all_members(include_archived=include_archived)
 
 
 @router.get("/statistics")
@@ -118,12 +128,7 @@ async def get_member_statistics(
     db: Session = Depends(get_db),
 ):
     """Get member statistics"""
-    user_id = request.session.get("user_id")
-    if not user_id:
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Not authenticated",
-        )
+    require_roles(request, db, UserRole.ADMIN)
     
     try:
         from datetime import date, timedelta
@@ -195,11 +200,7 @@ async def get_member(
     db: Session = Depends(get_db),
 ):
     """Get member by ID"""
-    if not request.session.get("user_id"):
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Not authenticated",
-        )
+    require_roles(request, db, UserRole.ADMIN, UserRole.MANAGER)
     
     service = MemberService(db)
     member = service.get_member(member_id)
@@ -227,11 +228,18 @@ async def update_member(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="Nur Admin oder Top-Admin dürfen Passwörter neu vergeben",
         )
-    if member_data.role is not None and not current_user.is_top_admin:
+    if "role" in member_data.model_fields_set and not current_user.is_top_admin:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="Nur der Top-Admin darf Rollen vergeben",
         )
+
+    if member_data.account_password is not None and not current_user.is_top_admin:
+        if UserRepository(db).get_by_member_id(member_id) is None:
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="Nur der Top-Admin darf einen Mitgliedszugang erstmalig einrichten",
+            )
     
     try:
         service = MemberService(db)
@@ -263,8 +271,8 @@ async def update_member(
         )
 
 
-@router.post("/{member_id}/recharge")
-@router.post("/{member_id}/recharge/")
+@router.post("/{member_id}/recharge", response_model=MemberRechargeResponse)
+@router.post("/{member_id}/recharge/", response_model=MemberRechargeResponse)
 async def recharge_member_balance(
     member_id: int,
     recharge_request: MemberRechargeRequest,
@@ -274,61 +282,25 @@ async def recharge_member_balance(
     """Recharge member balance"""
     current_user = require_roles(request, db, UserRole.ADMIN, UserRole.MANAGER)
     user_id = current_user.id
-    require_password_confirmation(current_user, recharge_request.auth_password)
-    
-    if recharge_request.amount_cents <= 0:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Amount must be positive",
-        )
-    
-    from app.models import PaymentMethod, TransactionType
-    from app.repositories import TransactionRepository
+    require_password_confirmation(current_user, recharge_request.auth_password, db)
     
     try:
-        service = MemberService(db)
-        member = service.recharge_balance(
-            member_id,
-            recharge_request.amount_cents,
-            "RECHARGE",
-            current_user.username,
+        member = MemberService(db).recharge_balance(
+            member_id, recharge_request.amount_cents, "RECHARGE", current_user.username,
+            executed_by_user_id=user_id,
         )
-        
         if not member:
-            raise HTTPException(
-                status_code=status.HTTP_404_NOT_FOUND,
-                detail="Member not found",
-            )
-        
-        # Create RECHARGE transaction for financial tracking
-        transaction_repo = TransactionRepository(db)
-        transaction_repo.create(
-            type=TransactionType.RECHARGE,
-            payment_method=PaymentMethod.CASH,  # Recharge is recorded as cash transaction
-            total_amount_cents=recharge_request.amount_cents,
-            user_id=user_id,
-            member_id=member_id,
-            member_name=member.name,
-            performed_by_username=current_user.username,
-            items=[],  # No items for recharge
-        )
-        
-        # Ensure everything is committed
-        db.commit()
-        
-        # Refresh member to get latest balance from DB
-        db.refresh(member)
-        
-        print(f"[API] Member {member_id} recharged with {recharge_request.amount_cents} cents. New balance: {member.balance_cents}")
-        
+            raise HTTPException(status_code=404, detail="Mitglied nicht gefunden")
+        member.drawer_targets = ["main"]
         return member
-    except Exception as e:
-        print(f"[API] Error during recharge: {str(e)}")
+    except HTTPException:
+        raise
+    except ValueError as exc:
         db.rollback()
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Recharge failed: {str(e)}",
-        )
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+    except Exception as exc:
+        db.rollback()
+        raise HTTPException(status_code=500, detail="Aufladung konnte nicht bestätigt werden. Bitte Guthaben und Historie prüfen, bevor du erneut auflädst.") from exc
 
 
 @router.post("/{member_id}/balance-correction", response_model=MemberResponse)
@@ -377,16 +349,32 @@ async def delete_member(
     """Delete member"""
     current_user = require_roles(request, db, UserRole.ADMIN)
 
-    service = MemberService(db)
-    if not service.delete_member(member_id, performed_by_username=current_user.username):
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="Member not found",
-        )
+    target = MemberService(db).get_member(member_id)
+    if target and (target.role is not None or target.linked_user is not None) and not current_user.is_top_admin:
+        raise HTTPException(403, "Mitglieder mit Systemzugang darf nur der Top-Admin archivieren.")
+    try:
+        if not MemberService(db).delete_member(member_id, performed_by_username=current_user.username):
+            raise HTTPException(404, "Mitglied nicht gefunden")
+    except ValueError as exc:
+        raise HTTPException(409, str(exc)) from exc
+
+
+@router.post("/{member_id}/restore", status_code=204)
+async def restore_member(member_id: int, request: Request, db: Session = Depends(get_db)):
+    actor = require_roles(request, db, UserRole.ADMIN)
+    target = MemberService(db).get_member(member_id)
+    if target and (target.role is not None or target.linked_user is not None) and not actor.is_top_admin:
+        raise HTTPException(403, "Mitglieder mit Systemzugang darf nur der Top-Admin wiederherstellen.")
+    try:
+        if not MemberService(db).set_archived(member_id, False, actor.username):
+            raise HTTPException(404, "Mitglied nicht gefunden")
+    except ValueError as exc:
+        raise HTTPException(409, str(exc)) from exc
 
 
 @router.post("/{member_id}/photo")
 @router.post("/{member_id}/photo/")
+@audited_media("members", "member_id")
 async def upload_member_photo(
     member_id: int,
     file: UploadFile = File(...),
@@ -444,13 +432,14 @@ async def upload_member_photo(
 
 @router.post("/{member_id}/original-photo")
 @router.post("/{member_id}/original-photo/")
+@audited_media("members", "member_id")
 async def upload_member_original_photo(
     member_id: int,
     request: Request,
     file: UploadFile = File(...),
     db: Session = Depends(get_db),
 ):
-    require_roles(request, db, UserRole.ADMIN, UserRole.MANAGER)
+    current_user = require_roles(request, db, UserRole.ADMIN, UserRole.MANAGER)
 
     member_repo = MemberRepository(db)
     member = member_repo.get_by_id(member_id)
@@ -475,18 +464,21 @@ async def upload_member_original_photo(
 
     await file.seek(0)
     await save_member_original_photo(file, member_id)
+    AuditLogService(db).log(entity_type="member", action="ORIGINAL_IMAGE_UPDATED",
+        user_username=current_user.username, entity_id=member_id, entity_name=member.name)
     return {"status": "success", "member_id": member_id}
 
 
 @router.delete("/{member_id}/photo")
 @router.delete("/{member_id}/photo/")
+@audited_media("members", "member_id")
 async def delete_member_photo_file(
     member_id: int,
     request: Request,
     db: Session = Depends(get_db),
 ):
     """Delete member photo and reset stored photo path."""
-    require_roles(request, db, UserRole.ADMIN, UserRole.MANAGER)
+    current_user = require_roles(request, db, UserRole.ADMIN, UserRole.MANAGER)
 
     member_repo = MemberRepository(db)
     member = member_repo.get_by_id(member_id)
@@ -501,11 +493,13 @@ async def delete_member_photo_file(
     db.commit()
     db.refresh(member)
 
+    AuditLogService(db).log(entity_type="member", action="IMAGE_DELETED",
+        user_username=current_user.username, entity_id=member_id, entity_name=member.name)
     return {"status": "success", "member_id": member_id}
 
 
-@router.get("/{member_id}/photo")
-@router.get("/{member_id}/photo/")
+@router.get("/{member_id}/photo", dependencies=[Depends(require_session)])
+@router.get("/{member_id}/photo/", dependencies=[Depends(require_session)])
 async def get_member_photo(
     member_id: int,
     db: Session = Depends(get_db),
@@ -530,8 +524,8 @@ async def get_member_photo(
     return FileResponse(file_path, media_type=get_media_type(file_path))
 
 
-@router.get("/{member_id}/original-photo")
-@router.get("/{member_id}/original-photo/")
+@router.get("/{member_id}/original-photo", dependencies=[Depends(require_session)])
+@router.get("/{member_id}/original-photo/", dependencies=[Depends(require_session)])
 async def get_member_original_photo(
     member_id: int,
     db: Session = Depends(get_db),

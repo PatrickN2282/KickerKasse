@@ -24,6 +24,7 @@ class HardwareAgentService:
     AGENT_LOCAL_BASE_URL = "http://127.0.0.1:8765"
     AGENT_STATUS_URL = f"{AGENT_LOCAL_BASE_URL}/status"
     AGENT_OPEN_URL = f"{AGENT_LOCAL_BASE_URL}/openDrawer"
+    AGENT_OPEN_SMALL_PARTS_URL = f"{AGENT_LOCAL_BASE_URL}/openDrawer/small_parts"
 
     INSTALL_SCRIPT_PATH = Path(__file__).resolve().parents[2] / "services" / "install_agent_service.py"
 
@@ -58,6 +59,8 @@ class HardwareAgentService:
             "agent_local_url": cls.AGENT_LOCAL_BASE_URL,
             "agent_status_url": cls.AGENT_STATUS_URL,
             "agent_open_url": cls.AGENT_OPEN_URL,
+            "agent_open_small_parts_url": cls.AGENT_OPEN_SMALL_PARTS_URL,
+            "drawer_targets": ["main", "small_parts"],
             "client_must_query_directly": True,
             "install_script_path": str(cls.INSTALL_SCRIPT_PATH),
             "manual_install_command": f"sudo python3 {cls.INSTALL_SCRIPT_PATH}",
@@ -91,13 +94,17 @@ class HardwareAgentService:
             return False, "Installationsskript konnte nicht ausgeführt werden"
 
     @classmethod
-    def trigger_drawer_open(cls) -> tuple[bool, str]:
+    def trigger_drawer_open(cls, target: str = "main") -> tuple[bool, str]:
         # WICHTIG: Diese Methode funktioniert nur wenn der Aufruf vom Kassen-PC selbst kommt.
         # Vom Homeserver aus ist 127.0.0.1:8765 nicht erreichbar!
         # Empfehlung: Kassenschublade direkt im Browser-Client per fetch() öffnen,
         # nicht über diesen Server-Endpunkt.
+        normalized_target = (target or "main").strip().lower().replace("-", "_")
+        if normalized_target not in {"main", "small_parts"}:
+            return False, "Unbekanntes Schubladenziel"
+        target_url = cls.AGENT_OPEN_URL if normalized_target == "main" else cls.AGENT_OPEN_SMALL_PARTS_URL
         try:
-            response = requests.post(cls.AGENT_OPEN_URL, timeout=2.5)
+            response = requests.post(target_url, timeout=2.5)
             payload = {}
             try:
                 payload = response.json()

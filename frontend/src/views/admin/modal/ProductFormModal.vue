@@ -1,12 +1,12 @@
 <template>
-  <div v-if="show" class="modal-overlay" @click.self="$emit('close')">
-    <div class="modal-card modal-compact">
+  <div v-if="show" class="modal-overlay">
+    <div ref="dialogRef" class="modal-card modal-compact" role="dialog" aria-modal="true" aria-labelledby="product-dialog-title">
       <header class="modal-header">
         <div>
-          <h3>{{ editingId ? 'Produkt bearbeiten' : 'Neues Produkt anlegen' }}</h3>
+          <h3 id="product-dialog-title">{{ editingId ? 'Produkt bearbeiten' : 'Neues Produkt anlegen' }}</h3>
           <p class="modal-subtitle">Preise, Bild und Bestände verwalten.</p>
         </div>
-        <button type="button" class="close-btn" @click="$emit('close')">✕</button>
+        <button type="button" class="close-btn" aria-label="Produktdialog schließen" @click="requestClose">✕</button>
       </header>
 
       <form class="modal-compact-layout" @submit.prevent="$emit('save')">
@@ -117,7 +117,14 @@
             <div class="fields-section">
               <div class="form-group">
                 <label for="name">Name*</label>
-                <input id="name" v-model="formData.name" type="text" required placeholder="z.B. Fritz-Kola 0,33l">
+                <input
+                  id="name"
+                  v-model="formData.name"
+                  type="text"
+                  maxlength="120"
+                  required
+                  placeholder="z.B. Fritz-Kola 0,33l"
+                >
               </div>
 
               <div class="form-group">
@@ -132,16 +139,49 @@
                 <datalist id="warengruppe-options">
                   <option v-for="group in warengruppeOptions" :key="group" :value="group" />
                 </datalist>
+                <small>Freies Merkmal für Berichte und Auswertungen.</small>
               </div>
+
+              <fieldset class="category-fieldset">
+                <legend>Kassenkategorien</legend>
+                <small>Bestimmen, in welchen Bereichen das Produkt in der Kasse erscheint.</small>
+                <div class="category-toggle-grid">
+                  <label v-for="category in categories" :key="category.id" class="toggle-switch category-assignment-toggle">
+                    <input v-model="formData.categoryIds" type="checkbox" :value="category.id" :disabled="!canEditCategories">
+                    <span class="toggle-track"><span class="toggle-thumb"></span></span>
+                    <span class="toggle-label">
+                      <span class="label">{{ category.name }}</span>
+                      <span v-if="!category.is_active_in_kasse" class="desc">In Kasse ausgeblendet</span>
+                    </span>
+                  </label>
+                </div>
+                <small v-if="!canEditCategories">Die Zuordnung darf nur Admin/TopAdmin ändern.</small>
+              </fieldset>
 
               <div class="form-row">
                 <div class="form-group">
                   <label for="price">Preis (€)*</label>
-                  <input id="price" v-model.number="formData.price" type="number" step="0.01" required>
+                  <input
+                    id="price"
+                    v-model.number="formData.price"
+                    type="number"
+                    step="0.01"
+                    min="0"
+                    max="21474836.47"
+                    required
+                  >
                 </div>
                 <div class="form-group">
                   <label for="member-price">Mitgliedspreis (€)</label>
-                  <input id="member-price" v-model.number="formData.memberPrice" type="number" step="0.01" placeholder="Optional">
+                  <input
+                    id="member-price"
+                    v-model.number="formData.memberPrice"
+                    type="number"
+                    step="0.01"
+                    min="0"
+                    max="21474836.47"
+                    placeholder="Optional"
+                  >
                 </div>
               </div>
             </div>
@@ -154,7 +194,7 @@
                 <span class="toggle-track"><span class="toggle-thumb"></span></span>
                 <span class="toggle-label">
                   <span class="label">Unendlich verfügbar</span>
-                  <span class="desc">Für immaterielle Artikel (z.B. Eintritte oder Umlagen)</span>
+                  <span class="desc">{{ editingId ? 'Wechsel nur bei Bestand 0. Mengen vorher über Bestandskorrektur ändern.' : 'Für immaterielle Artikel (z.B. Eintritte oder Umlagen)' }}</span>
                 </span>
               </label>
 
@@ -164,6 +204,33 @@
                 <span class="toggle-label">
                   <span class="label">Variabler Endpreis</span>
                   <span class="desc">Der Preis wird erst beim Bonieren abgefragt</span>
+                </span>
+              </label>
+
+              <label class="toggle-switch">
+                <input id="visible-in-kasse" v-model="formData.isVisibleInKasse" type="checkbox">
+                <span class="toggle-track"><span class="toggle-thumb"></span></span>
+                <span class="toggle-label">
+                  <span class="label">In der Kasse anzeigen</span>
+                  <span class="desc">Ausgeschaltete Artikel bleiben aktiv und in Bestand sowie Berichten erhalten</span>
+                </span>
+              </label>
+
+              <label class="toggle-switch">
+                <input id="requires-guest-list" v-model="formData.requiresGuestList" type="checkbox">
+                <span class="toggle-track"><span class="toggle-thumb"></span></span>
+                <span class="toggle-label">
+                  <span class="label">Gästeliste</span>
+                  <span class="desc">Beim Hinzufügen zur Kasse wird ein Gastname abgefragt</span>
+                </span>
+              </label>
+
+              <label class="toggle-switch">
+                <input id="opens-small-parts-drawer" v-model="formData.opensSmallPartsDrawer" type="checkbox">
+                <span class="toggle-track"><span class="toggle-thumb"></span></span>
+                <span class="toggle-label">
+                  <span class="label">Kleinteile-Lager</span>
+                  <span class="desc">Bei Verkauf wird zusätzlich die im Hardware-Service zugeordnete Schublade des Kleinteile-Lagers geöffnet.</span>
                 </span>
               </label>
             </div>
@@ -215,7 +282,7 @@
         </div>
 
         <footer class="modal-footer">
-          <button type="button" class="btn btn-secondary" @click="$emit('close')">Abbrechen</button>
+          <button type="button" class="btn btn-secondary" @click="requestClose">Abbrechen</button>
           <button type="submit" class="btn btn-success">
             {{ editingId ? 'Änderungen speichern' : 'Produkt anlegen' }}
           </button>
@@ -226,7 +293,10 @@
 </template>
 
 <script setup>
-defineProps({
+import { ref, toRef, watch } from 'vue'
+import { useModalFocus } from '@/composables/useModalFocus'
+
+const props = defineProps({
   show: { type: Boolean, required: true },
   editingId: { type: [Number, String], default: null },
   imagePreviewSrc: { type: String, default: null },
@@ -234,6 +304,8 @@ defineProps({
   productPreviewAlt: { type: String, default: '' },
   previewPriceText: { type: String, default: '' },
   warengruppeOptions: { type: Array, required: true },
+  categories: { type: Array, default: () => [] },
+  canEditCategories: { type: Boolean, default: false },
   showCorrectionsShortcut: { type: Boolean, default: false },
 })
 
@@ -242,7 +314,14 @@ const formData = defineModel('formData', {
   required: true,
 })
 
-defineEmits(['close', 'save', 'open-crop', 'image-upload', 'unlimited-stock-change', 'go-to-corrections', 'remove-image'])
+const emit = defineEmits(['close', 'save', 'open-crop', 'image-upload', 'unlimited-stock-change', 'go-to-corrections', 'remove-image'])
+const dialogRef = ref(null)
+let initialForm = ''
+watch(() => props.show, (show) => { if (show) initialForm = JSON.stringify(formData.value) }, { immediate: true })
+const { requestClose } = useModalFocus(toRef(props, 'show'), dialogRef, {
+  canClose: () => JSON.stringify(formData.value) === initialForm || window.confirm('Ungespeicherte Änderungen verwerfen?'),
+  onClose: () => emit('close'),
+})
 </script>
 
 <style scoped lang="scss">
@@ -271,6 +350,11 @@ defineEmits(['close', 'save', 'open-crop', 'image-upload', 'unlimited-stock-chan
   box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04);
   overflow: hidden;
 }
+
+.category-fieldset { border: 1px solid var(--border); border-radius: 8px; padding: .6rem .75rem; }
+.category-fieldset legend { font-weight: 700; padding: 0 .25rem; }
+.category-toggle-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: .55rem .8rem; margin-top: .55rem; }
+.toggle-switch.category-assignment-toggle { display: flex; align-items: center; min-width: 0; margin: 0; }
 
 .modal-compact {
   max-width: 650px;

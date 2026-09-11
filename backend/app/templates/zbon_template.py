@@ -582,8 +582,12 @@ ZBON_HTML_TEMPLATE = """
                     <td class="amount">{{ recharge_total }}</td>
                 </tr>
                 <tr>
-                    <td>Einnahmen aus Verzehrkarten</td>
-                    <td class="amount">{{ prepaid_voucher_sales_total|default("0.00") }}</td>
+                    <td>Trinkgeld / Spenden</td>
+                    <td class="amount">{{ tip_donations_cash|default("0.00") }}</td>
+                </tr>
+                <tr>
+                    <td>Sonstige Einlagen</td>
+                    <td class="amount">{{ cash_deposits_total|default("0.00") }}</td>
                 </tr>
                 <tr>
                     <td>Abschöpfung</td>

@@ -1,5 +1,5 @@
 <template>
-  <div v-if="show" class="modal-overlay" @click.self="handleOverlayClick">
+  <div v-if="show" class="modal-overlay">
     <div class="modal-card wizard-card">
       <header class="modal-header">
         <div>
@@ -32,8 +32,9 @@
               <input v-model.trim="topAdmin.username" type="text" class="form-input" placeholder="topadmin" />
             </div>
             <div class="form-group">
-              <label>E-Mail</label>
-              <input v-model.trim="topAdmin.email" type="email" class="form-input" placeholder="optional" />
+              <label>E-Mail *</label>
+              <input v-model.trim="topAdmin.email" type="email" required class="form-input" placeholder="wird für Passwort-Reset benötigt" />
+              <small class="help-text">Pflichtfeld: wird für den Self-Service-Passwort-Reset benötigt.</small>
             </div>
           </div>
           <div class="form-row">
@@ -50,8 +51,20 @@
 
         <section v-else-if="step === 1" class="panel-stack">
           <div class="info-box">
-            <strong>Vereinsdaten</strong>
-            <p>Diese Angaben können später im Top-Admin-Bereich geändert werden und stehen für Berichte bereit.</p>
+            <strong>App-Überschrift und Vereinsdaten</strong>
+            <p>Die Überschrift erscheint in Kasse, Anmeldung und Berichten. Alle Angaben können später im Top-Admin-Bereich geändert werden.</p>
+          </div>
+          <div class="form-group">
+            <label for="setup-app-name">App-Überschrift *</label>
+            <input
+              id="setup-app-name"
+              v-model.trim="appName"
+              type="text"
+              maxlength="120"
+              required
+              class="form-input"
+              placeholder="KickerKasse"
+            />
           </div>
           <div class="form-row">
             <div class="form-group">
@@ -128,7 +141,7 @@
           <ul class="feature-list">
             <li><strong>E-Mail-Setup:</strong> SMTP-Zugang, Empfänger und automatische Versandzeit für Kassenberichte.</li>
             <li><strong>Design & Hintergrundbild:</strong> Farben, Logo und Kassenhintergrund im Reiter „Design“.</li>
-            <li><strong>Session-Timer & Layout:</strong> automatische Abmeldung und alternative Kassenlayouts.</li>
+            <li><strong>Sitzungszeitlimit & Kassenansicht:</strong> automatische Abmeldung und auswählbare Kassenansichten.</li>
             <li><strong>Import / Export:</strong> Sicherungen erstellen oder Datenbestände wiederherstellen.</li>
             <li><strong>Audit-Log & Hard-Reset:</strong> nur im Top-Admin-Bereich für Nachvollziehbarkeit und Neuaufsetzung.</li>
           </ul>
@@ -163,6 +176,7 @@ import ImportExportModal from '@/components/ImportExportModal.vue'
 import { useAppSettingsStore } from '@/stores/appSettings'
 import { useAuthStore } from '@/stores/auth'
 import { useNotificationStore } from '@/stores/notification'
+import { openDrawerTargets } from '@/services/drawer'
 
 const props = defineProps({
   show: {
@@ -181,13 +195,14 @@ const authStore = useAuthStore()
 const appSettingsStore = useAppSettingsStore()
 const notificationStore = useNotificationStore()
 
-const stepLabels = ['Top-Admin', 'Vereinsdaten', 'Startbetrag', 'Import', 'Hinweise']
+const stepLabels = ['Top-Admin', 'App & Verein', 'Startbetrag', 'Import', 'Hinweise']
 const step = ref(0)
 const isSubmitting = ref(false)
 const errorMessage = ref('')
 const showImportModal = ref(false)
 const hasImportedBackup = ref(false)
 const openingCashBooked = ref(false)
+const appName = ref('KickerKasse')
 
 const topAdmin = reactive({
   username: '',
@@ -223,6 +238,7 @@ const resetWizard = () => {
   showImportModal.value = false
   hasImportedBackup.value = false
   openingCashBooked.value = false
+  appName.value = appSettingsStore.settings.app_name || 'KickerKasse'
   topAdmin.username = ''
   topAdmin.email = ''
   topAdmin.password = ''
@@ -248,13 +264,23 @@ const requireTopAdminFields = () => {
   if (!topAdmin.username || !topAdmin.password || !topAdmin.passwordConfirm) {
     throw new Error('Bitte Benutzername und Passwort für den Top-Admin vollständig eingeben')
   }
+  // Anforderung 1: Ohne hinterlegte E-Mail-Adresse darf die Ersteinrichtung nicht
+  // abgeschlossen werden, da sie für den späteren Self-Service-Passwort-Reset benötigt wird.
+  if (!topAdmin.email || !topAdmin.email.includes('@')) {
+    throw new Error('Bitte eine gültige E-Mail-Adresse für den Top-Admin angeben (wird für den Passwort-Reset benötigt)')
+  }
   if (topAdmin.password !== topAdmin.passwordConfirm) {
     throw new Error('Die Top-Admin-Passwörter stimmen nicht überein')
   }
 }
 
 const persistBusinessAndCash = async () => {
+  const normalizedAppName = appName.value.trim()
+  if (!normalizedAppName) {
+    throw new Error('Bitte eine App-Überschrift festlegen')
+  }
   await appSettingsStore.saveAdminSettings({
+    app_name: normalizedAppName,
     business_name: businessData.name || null,
     business_street: businessData.street || null,
     business_zip: businessData.zip || null,
@@ -271,10 +297,11 @@ const persistBusinessAndCash = async () => {
   }
 
   if (!openingCashBooked.value && openingCash > 0) {
-    await apiService.post('/transactions/cash/deposit', {
+    const response = await apiService.post('/transactions/cash/deposit', {
       amount_cents: Math.round(openingCash * 100),
       reason: 'Initiale Kassen-Einlage beim Setup',
     })
+    await openDrawerTargets(response.data?.drawer_targets)
     openingCashBooked.value = true
   }
 }
@@ -306,11 +333,15 @@ const handleNext = async () => {
         throw new Error(authStore.error || 'Top-Admin konnte nicht erstellt werden')
       }
       await appSettingsStore.loadAdminSettings()
+      appName.value = appSettingsStore.settings.app_name || 'KickerKasse'
       step.value = 1
       return
     }
 
     if (step.value === 1) {
+      if (!appName.value.trim()) {
+        throw new Error('Bitte eine App-Überschrift festlegen')
+      }
       step.value = 2
       return
     }
@@ -348,12 +379,6 @@ const handleClose = () => {
   emit('close')
 }
 
-const handleOverlayClick = () => {
-  if (!props.dismissible) {
-    return
-  }
-  handleClose()
-}
 </script>
 
 <style scoped lang="scss">
@@ -509,6 +534,11 @@ const handleOverlayClick = () => {
     font-weight: 600;
     color: #1e293b;
   }
+}
+
+.help-text {
+  font-size: 0.78rem;
+  color: #64748b;
 }
 
 .form-input {

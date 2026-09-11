@@ -2,33 +2,40 @@ import { defineStore } from 'pinia'
 import { ref } from 'vue'
 import apiService from '@/services/api'
 
+import { getErrorDetailMessage } from '@/services/errorMessage'
+
 export const useMemberStore = defineStore('member', () => {
   const members = ref([])
   const isLoading = ref(false)
   const error = ref(null)
 
-  const getMembers = async () => {
+  const loadMembers = async (path) => {
     isLoading.value = true
     error.value = null
 
     try {
-      const response = await apiService.get('/members')
+      // Clear full administration profiles before loading the checkout selection.
+      if (path === '/members/selection') members.value = []
+      const response = await apiService.get(path)
       members.value = response.data
       return members.value
     } catch (err) {
-      error.value = err.response?.data?.detail || 'Failed to fetch members'
+      error.value = getErrorDetailMessage(err, 'Failed to fetch members')
       return []
     } finally {
       isLoading.value = false
     }
   }
 
+  const getMembers = () => loadMembers('/members')
+  const getMemberSelection = () => loadMembers('/members/selection')
+
   const getMember = async (memberId) => {
     try {
       const response = await apiService.get(`/members/${memberId}`)
       return response.data
     } catch (err) {
-      error.value = err.response?.data?.detail || 'Failed to fetch member'
+      error.value = getErrorDetailMessage(err, 'Failed to fetch member')
       return null
     }
   }
@@ -41,7 +48,7 @@ export const useMemberStore = defineStore('member', () => {
       members.value.push(response.data)
       return response.data
     } catch (err) {
-      error.value = err.response?.data?.detail || 'Failed to create member'
+      error.value = getErrorDetailMessage(err, 'Failed to create member')
       return null
     }
   }
@@ -57,7 +64,7 @@ export const useMemberStore = defineStore('member', () => {
       }
       return response.data
     } catch (err) {
-      error.value = err.response?.data?.detail || 'Failed to update member'
+      error.value = getErrorDetailMessage(err, 'Failed to update member')
       return null
     }
   }
@@ -76,7 +83,7 @@ export const useMemberStore = defineStore('member', () => {
       }
       return response.data
     } catch (err) {
-      error.value = err.response?.data?.detail || 'Failed to recharge member'
+      error.value = getErrorDetailMessage(err, 'Failed to recharge member')
       return null
     }
   }
@@ -86,6 +93,7 @@ export const useMemberStore = defineStore('member', () => {
     isLoading,
     error,
     getMembers,
+    getMemberSelection,
     getMember,
     createMember,
     updateMember,

@@ -266,6 +266,7 @@
       :product-target-stock="productTargetStock"
       :member-correction-reason="memberCorrectionReason"
       :product-correction-reason="productCorrectionReason"
+      :open-small-parts-for-decrease="openSmallPartsForDecrease"
       :member-delta-cents="memberDeltaCents"
       :product-delta="productDelta"
       :username="authStore.user?.username || ''"
@@ -276,6 +277,7 @@
       v-model:product-target-stock="productTargetStock"
       v-model:member-correction-reason="memberCorrectionReason"
       v-model:product-correction-reason="productCorrectionReason"
+      v-model:open-small-parts-for-decrease="openSmallPartsForDecrease"
       @close="closeCorrectionModal"
       @submit-member="submitMemberCorrection"
       @submit-product="submitProductCorrection"
@@ -293,6 +295,7 @@ import { useNotificationStore } from '@/stores/notification'
 import { useProductStore } from '@/stores/product'
 import { formatBalance } from '@/services/utils'
 import { getMemberFullName, getMemberSearchText } from '@/services/member'
+import { openDrawerTargets } from '@/services/drawer'
 
 const authStore = useAuthStore()
 const memberStore = useMemberStore()
@@ -313,6 +316,7 @@ const memberTargetBalanceEuro = ref(null)
 const productTargetStock = ref(null)
 const memberCorrectionReason = ref('')
 const productCorrectionReason = ref('')
+const openSmallPartsForDecrease = ref(false)
 const memberLogs = ref([])
 const productLogs = ref([])
 const isSubmitting = ref(false)
@@ -342,12 +346,15 @@ const buildProductSearchText = (product) => [product?.name, product?.warengruppe
 
 const filteredProducts = computed(() => {
   const search = productSearch.value.trim().toLowerCase()
+  const correctableProducts = productStore.products.filter(product => (
+    !String(product.description || '').startsWith('VERZEHRKARTE:')
+  ))
 
   if (!search) {
-    return productStore.products
+    return correctableProducts
   }
 
-  return productStore.products.filter(product => buildProductSearchText(product).includes(search))
+  return correctableProducts.filter(product => buildProductSearchText(product).includes(search))
 })
 
 const memberTargetBalanceCents = computed(() => (
@@ -427,6 +434,7 @@ const closeCorrectionModal = () => {
     ? (selectedProduct.value?.stock_quantity ?? null)
     : null
   productCorrectionReason.value = ''
+  openSmallPartsForDecrease.value = false
 }
 
 const loadLogs = async () => {
@@ -471,12 +479,15 @@ const submitProductCorrection = async () => {
 
   isSubmitting.value = true
   try {
-    await apiService.post(`/products/${selectedProduct.value.id}/stock-correction`, {
+    const response = await apiService.post(`/products/${selectedProduct.value.id}/stock-correction`, {
       new_stock_quantity: Number(productTargetStock.value),
       reason: productCorrectionReason.value || null,
+      open_small_parts_drawer: openSmallPartsForDecrease.value,
     })
+    await openDrawerTargets(response.data?.drawer_targets)
     await Promise.all([productStore.getProducts(), loadLogs()])
     productCorrectionReason.value = ''
+    openSmallPartsForDecrease.value = false
     showCorrectionModal.value = false
     notificationStore.success('Bestand erfolgreich korrigiert')
   } catch (error) {
@@ -492,6 +503,7 @@ watch(selectedMember, (member) => {
 
 watch(selectedProduct, (product) => {
   productTargetStock.value = product && !product.is_unlimited_stock ? product.stock_quantity : null
+  openSmallPartsForDecrease.value = false
 }, { immediate: true })
 
 onMounted(() => {

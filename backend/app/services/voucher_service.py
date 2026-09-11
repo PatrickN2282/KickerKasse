@@ -1,9 +1,10 @@
+from app.core.atomic import audited_change
 """Service for Voucher operations"""
 from datetime import date
 from typing import Optional
 import logging
 
-from sqlalchemy import func
+from sqlalchemy import func, text
 from sqlalchemy.orm import Session, joinedload
 
 from app.constants import INTERNAL_MATERIAL_CLUB_ACCOUNT_REASON_PREFIX
@@ -58,6 +59,7 @@ class VoucherService:
         created_by_user_id: int | None = None,
         old_value: dict | None = None,
         new_value: dict | None = None,
+        commit: bool = True,
     ) -> None:
         try:
             from app.services.audit_log_service import AuditLogService
@@ -71,9 +73,11 @@ class VoucherService:
                 old_value=old_value,
                 new_value=new_value,
             )
-            self.db.commit()
+            if commit:
+                self.db.commit()
         except Exception:
             self.db.rollback()
+            raise
 
     @classmethod
     def build_prepaid_product_name(cls, value_cents: int) -> str:
@@ -97,7 +101,7 @@ class VoucherService:
 
     def get_or_create_prepaid_product(self, value_cents: int) -> Product:
         marker = self.build_prepaid_product_description(value_cents)
-        prepaid_product = self.db.query(Product).filter(Product.description == marker).first()
+        prepaid_product = self.db.query(Product).filter(Product.description == marker).populate_existing().with_for_update().first()
         if prepaid_product:
             prepaid_product.name = self.build_prepaid_product_name(value_cents)
             prepaid_product.price_cents = value_cents
@@ -146,75 +150,51 @@ class VoucherService:
         last_suffix = last_code.rsplit("-", 1)[-1]
         return f"{len(voucher_codes)}x {first_code}-{last_suffix}"
 
-    def _create_voucher_creation_transaction(
-        self,
-        *,
-        vouchers: list[Voucher],
-        voucher_type: VoucherType,
-        created_by_user_id: int,
-    ) -> Transaction:
-        transaction_repo = TransactionRepository(self.db)
-        transaction = Transaction(
-            receipt_number=transaction_repo.get_next_receipt_number(),
-            type=TransactionType.VOUCHER_CREATE,
-            payment_method=(
-                PaymentMethod.VOUCHER_GIFT
-                if voucher_type == VoucherType.GIFT
-                else PaymentMethod.VOUCHER_PREPAID
-            ),
-            total_amount_cents=0,
-            user_id=created_by_user_id,
-            voucher_type=voucher_type.value,
-            voucher_code=self._format_voucher_reference(vouchers),
-        )
-        self.db.add(transaction)
-        self.db.flush()
-        return transaction
-
+    @audited_change
     def create_gift_voucher(self, value_cents: int, reason: str, created_by_user_id: int, description: str = None) -> Voucher:
         try:
-            reason_enum = VoucherReason(reason)
-        except ValueError as exc:
-            raise ValueError(f"Invalid reason: {reason}") from exc
+            try:
+                reason_enum = VoucherReason(reason)
+            except ValueError as exc:
+                raise ValueError(f"Invalid reason: {reason}") from exc
 
-        voucher = self.repository.create(
-            voucher_type=VoucherType.GIFT,
-            value_cents=value_cents,
-            created_by_user_id=created_by_user_id,
-            reason=reason_enum,
-            description=description,
-        )
+            voucher = self.repository.create(
+                voucher_type=VoucherType.GIFT,
+                value_cents=value_cents,
+                created_by_user_id=created_by_user_id,
+                reason=reason_enum,
+                description=description,
+                commit=False,
+            )
 
-        self._create_voucher_creation_transaction(
-            vouchers=[voucher],
-            voucher_type=VoucherType.GIFT,
-            created_by_user_id=created_by_user_id,
-        )
+            self.db.add(ClubAccountEntry(
+                amount_cents=-value_cents,
+                reason=f"Gutschein {self._format_voucher_identifier(voucher)} erstellt",
+                user_id=created_by_user_id,
+                voucher_id=voucher.id,
+            ))
+            self._audit_voucher(
+                "CREATED", commit=False,
+                voucher=voucher,
+                created_by_user_id=created_by_user_id,
+                new_value={
+                    "voucher_type": voucher.voucher_type.value,
+                    "voucher_code": self._format_voucher_identifier(voucher),
+                    "value_cents": voucher.value_cents,
+                    "reason": voucher.reason.value if voucher.reason else None,
+                    "description": voucher.description,
+                },
+            )
 
-        self.db.add(ClubAccountEntry(
-            amount_cents=-value_cents,
-            reason=f"Gutschein {self._format_voucher_identifier(voucher)} erstellt",
-            user_id=created_by_user_id,
-            voucher_id=voucher.id,
-        ))
-        self.db.commit()
-        self.db.refresh(voucher)
-        self._audit_voucher(
-            "CREATED",
-            voucher=voucher,
-            created_by_user_id=created_by_user_id,
-            new_value={
-                "voucher_type": voucher.voucher_type.value,
-                "voucher_code": self._format_voucher_identifier(voucher),
-                "value_cents": voucher.value_cents,
-                "reason": voucher.reason.value if voucher.reason else None,
-                "description": voucher.description,
-            },
-        )
+            self.db.commit()
+            logger.info("Created GIFT voucher #%s: %.2f€ (%s)", voucher.voucher_number, value_cents / 100, reason)
+            return voucher
 
-        logger.info("Created GIFT voucher #%s: %.2f€ (%s)", voucher.voucher_number, value_cents / 100, reason)
-        return voucher
+        except Exception:
+            self.db.rollback()
+            raise
 
+    @audited_change
     def create_prepaid_vouchers(
         self,
         value_cents: int,
@@ -222,55 +202,55 @@ class VoucherService:
         quantity: int = 1,
         description: str = None,
     ) -> tuple[list[Voucher], Product]:
-        if quantity <= 0:
-            raise ValueError("Anzahl muss größer als 0 sein")
+        try:
+            if quantity <= 0:
+                raise ValueError("Anzahl muss größer als 0 sein")
 
-        prepaid_product = self.get_or_create_prepaid_product(value_cents)
-        created_vouchers: list[Voucher] = []
+            if self.db.get_bind().dialect.name == "postgresql":
+                self.db.execute(text("SELECT pg_advisory_xact_lock(716810)"))
+            prepaid_product = self.get_or_create_prepaid_product(value_cents)
+            created_vouchers: list[Voucher] = []
 
-        for _ in range(quantity):
-            created_vouchers.append(self.repository.create(
-                voucher_type=VoucherType.PREPAID,
-                value_cents=value_cents,
+            for _ in range(quantity):
+                created_vouchers.append(self.repository.create(
+                    voucher_type=VoucherType.PREPAID,
+                    value_cents=value_cents,
+                    created_by_user_id=created_by_user_id,
+                    description=description,
+                    commit=False,
+                ))
+
+            prepaid_product.stock_quantity += quantity
+            self._audit_voucher(
+                "CREATED", commit=False,
+                voucher_reference=self._format_voucher_reference(created_vouchers),
                 created_by_user_id=created_by_user_id,
-                description=description,
-            ))
+                new_value={
+                    "voucher_type": VoucherType.PREPAID.value,
+                    "quantity": len(created_vouchers),
+                    "value_cents": value_cents,
+                    "product_id": prepaid_product.id,
+                    "product_name": prepaid_product.name,
+                    "voucher_codes": [
+                        self.format_voucher_identifier(voucher)
+                        for voucher in created_vouchers
+                    ],
+                    "description": description,
+                },
+            )
 
-        prepaid_product.stock_quantity += quantity
-        self._create_voucher_creation_transaction(
-            vouchers=created_vouchers,
-            voucher_type=VoucherType.PREPAID,
-            created_by_user_id=created_by_user_id,
-        )
-        self.db.commit()
-        self.db.refresh(prepaid_product)
-        for voucher in created_vouchers:
-            self.db.refresh(voucher)
-        self._audit_voucher(
-            "CREATED",
-            voucher_reference=self._format_voucher_reference(created_vouchers),
-            created_by_user_id=created_by_user_id,
-            new_value={
-                "voucher_type": VoucherType.PREPAID.value,
-                "quantity": len(created_vouchers),
-                "value_cents": value_cents,
-                "product_id": prepaid_product.id,
-                "product_name": prepaid_product.name,
-                "voucher_codes": [
-                    self.format_voucher_identifier(voucher)
-                    for voucher in created_vouchers
-                ],
-                "description": description,
-            },
-        )
+            self.db.commit()
+            logger.info(
+                "Created %s PREPAID vouchers with %.2f€ and increased stock of %s",
+                quantity,
+                value_cents / 100,
+                prepaid_product.name,
+            )
+            return created_vouchers, prepaid_product
 
-        logger.info(
-            "Created %s PREPAID vouchers with %.2f€ and increased stock of %s",
-            quantity,
-            value_cents / 100,
-            prepaid_product.name,
-        )
-        return created_vouchers, prepaid_product
+        except Exception:
+            self.db.rollback()
+            raise
 
     def ensure_prepaid_stock(self, requested_quantities_by_value: dict[int, int]) -> None:
         for value_cents, quantity in requested_quantities_by_value.items():
@@ -436,12 +416,14 @@ class VoucherService:
             **cart_context,
         }
 
+    @audited_change
     def update_voucher(
         self,
         voucher_id: int,
         value_cents: int,
         reason: Optional[str] = None,
         description: Optional[str] = None,
+        performed_by_user_id: int | None = None,
     ) -> Voucher:
         voucher = self.repository.get_by_id(voucher_id)
         if not voucher:
@@ -457,12 +439,17 @@ class VoucherService:
         if voucher.voucher_type == VoucherType.PREPAID:
             reason = None
 
-        return self.repository.update(
+        old_value = {"value_cents": voucher.value_cents, "reason": voucher.reason, "description": voucher.description}
+        updated = self.repository.update(
             voucher_id,
             value_cents=value_cents,
             reason=VoucherReason(reason) if reason else None,
             description=description,
         )
+        self._audit_voucher("UPDATED", voucher=updated, created_by_user_id=performed_by_user_id,
+            old_value=old_value, new_value={"value_cents": updated.value_cents,
+            "reason": updated.reason, "description": updated.description})
+        return updated
 
     def redeem_gift_voucher(self, voucher_number: str, redeemed_by: int, member_id: Optional[int] = None) -> Transaction:
         voucher = self.repository.get_by_number(voucher_number)
@@ -599,6 +586,7 @@ class VoucherService:
             ],
         }
 
+    @audited_change
     def top_up_club_account(self, amount_cents: int, user_id: int) -> dict:
         transaction = TransactionRepository(self.db).create(
             type=TransactionType.RECHARGE,

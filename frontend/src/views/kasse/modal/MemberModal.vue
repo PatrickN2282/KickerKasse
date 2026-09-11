@@ -7,15 +7,17 @@
         </div>
         <button
           class="close-btn"
-          @click="showMemberModal = false"
+          @click="closeMemberModal"
         >
           ✕
         </button>
       </div>
       <div class="modal-body">
         <input
+          ref="searchInput"
           v-model="memberSearch"
           type="text"
+          autofocus
           placeholder="Nach Name oder Nummer suchen..."
           class="member-search-input"
         >
@@ -67,7 +69,7 @@
       <div class="modal-footer">
         <button
           class="btn btn-secondary"
-          @click="showMemberModal = false"
+          @click="closeMemberModal"
         >
           Abbrechen
         </button>
@@ -77,8 +79,11 @@
 </template>
 
 <script setup>
-import { inject, computed } from 'vue'
-const { memberSearch, filteredMembers, selectMember, showMemberModal, getMemberFullName, getMemberShortName, formatBalance } = inject('kasse')
+import { inject, computed, nextTick, onMounted, ref } from 'vue'
+const { memberSearch, filteredMembers, selectMember, closeMemberModal, getMemberFullName, getMemberShortName, formatBalance } = inject('kasse')
+const searchInput = ref(null)
+
+onMounted(() => nextTick(() => searchInput.value?.focus()))
 
 const sortedMembers = computed(() =>
   [...filteredMembers.value].sort((a, b) =>

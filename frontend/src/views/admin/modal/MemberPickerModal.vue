@@ -24,8 +24,10 @@
         style="gap: 0.75rem;"
       >
         <input
+          ref="searchInput"
           :value="search"
           type="text"
+          autofocus
           :placeholder="searchPlaceholder"
           class="kk-picker-search"
           @input="$emit('update:search', $event.target.value)"
@@ -78,7 +80,9 @@
 </template>
 
 <script setup>
-defineProps({
+import { nextTick, ref, watch } from 'vue'
+
+const props = defineProps({
   show: { type: Boolean, required: true },
   title: { type: String, default: 'Auswählen' },
   searchPlaceholder: { type: String, default: 'Suchen...' },
@@ -88,6 +92,13 @@ defineProps({
 })
 
 defineEmits(['close', 'select', 'update:search'])
+
+const searchInput = ref(null)
+watch(() => props.show, async (show) => {
+  if (!show) return
+  await nextTick()
+  searchInput.value?.focus()
+}, { immediate: true })
 </script>
 
 <style scoped lang="scss">

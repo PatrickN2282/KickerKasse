@@ -9,7 +9,7 @@ from app.constants import (
     INTERNAL_MATERIAL_CATEGORY_NAME,
 )
 from app.models import (
-    AuditLog,
+    AuditLog, BookingOperation, ReceiptCounter,
     AppSettings,
     BalanceLog,
     CashBalance,
@@ -107,18 +107,20 @@ class DataMaintenanceService:
         member_ids = [member_id for (member_id,) in self.db.query(Member.id).all()]
         product_ids = [product_id for (product_id,) in self.db.query(Product.id).all()]
 
+        self.db.query(BookingOperation).delete(synchronize_session=False)
+        self.db.query(ReceiptCounter).delete(synchronize_session=False)
         self.db.execute(product_category.delete())
         self.db.query(BalanceLog).delete(synchronize_session=False)
         self.db.query(ClubAccountEntry).delete(synchronize_session=False)
         self.db.query(MaterialAccountEntry).delete(synchronize_session=False)
         self.db.query(CashEntry).delete(synchronize_session=False)
         self.db.query(CashBalance).delete(synchronize_session=False)
-        self.db.query(ZBonHistory).delete(synchronize_session=False)
         self.db.query(Voucher).delete(synchronize_session=False)
         self.db.query(DeckelItem).delete(synchronize_session=False)
         self.db.query(Deckel).delete(synchronize_session=False)
         self.db.query(TransactionItem).delete(synchronize_session=False)
         self.db.query(Transaction).delete(synchronize_session=False)
+        self.db.query(ZBonHistory).delete(synchronize_session=False)
         self.db.query(User).update({User.member_id: None}, synchronize_session=False)
         deleted_users = self.db.query(User).delete(synchronize_session=False)
         self.db.query(MemberBalanceCorrectionLog).delete(synchronize_session=False)

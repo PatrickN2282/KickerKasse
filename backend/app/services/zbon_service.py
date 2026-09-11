@@ -1,3 +1,4 @@
+from app.services.history_snapshot import historical_product, booking_type
 """Enhanced Z-Bon Generation Service with comprehensive reporting"""
 from datetime import datetime, date
 import json
@@ -8,7 +9,7 @@ from app.constants import INTERNAL_MATERIAL_CLUB_ACCOUNT_REASON_PREFIX
 from app.models import (
     Transaction, TransactionType, PaymentMethod, BalanceLog,
     ZBonHistory, Member, Product, Voucher, VoucherType, VoucherStatus, CashEntry, CashEntryType,
-    ClubAccountEntry,
+    ClubAccountEntry, MaterialAccountEntry,
 )
 from app.repositories import TransactionRepository
 from app.services.app_settings_service import AppSettingsService
@@ -29,6 +30,92 @@ class ZBonService:
     def __init__(self, db: Session):
         self.db = db
         self.trans_repo = TransactionRepository(db)
+
+    @staticmethod
+    def _euros_to_cents(value) -> int:
+        return round(float(value or 0) * 100)
+
+    @classmethod
+    def _audit_history_record(cls, history: ZBonHistory) -> dict:
+        """Recalculate an archived cash target without changing historical data."""
+        try:
+            report_data = json.loads(history.report_data) if history.report_data else {}
+        except (TypeError, ValueError, json.JSONDecodeError):
+            report_data = {}
+        summary = report_data.get("summary") if isinstance(report_data, dict) else None
+
+        base = {
+            "sequence_number": history.sequence_number,
+            "business_date": history.business_date.isoformat(),
+            "period_start": history.period_start.isoformat(),
+            "period_end": history.period_end.isoformat(),
+            "archived_cash_calculated_cents": cls._euros_to_cents(history.cash_calculated),
+            "cash_counted_cents": (
+                cls._euros_to_cents(history.cash_counted)
+                if history.cash_counted is not None else None
+            ),
+        }
+        if not isinstance(summary, dict):
+            return {
+                **base,
+                "status": "insufficient_data",
+                "difference_cents": None,
+                "message": "Archiv enthält keine auswertbaren Berechnungskomponenten",
+            }
+
+        def cents(cent_key: str, euro_key: str) -> int:
+            if summary.get(cent_key) is not None:
+                return int(summary[cent_key])
+            return cls._euros_to_cents(summary.get(euro_key))
+
+        components = {
+            "cash_opening_balance_cents": cents("cash_opening_balance_cents", "opening_cash_balance"),
+            "cash_sale_payments_cents": cents("cash_sale_payments_cents", "article_cash_sales_total"),
+            "member_recharges_cents": cents("member_recharges_cents", "recharge_total"),
+            "tip_donations_cents": cents("tip_donations_cents", "tip_total"),
+            "cash_deposits_cents": cents("cash_deposits_cents", "cash_deposits_total"),
+            "cash_withdrawals_cents": cents("cash_withdrawals_cents", "cash_withdrawals_total"),
+        }
+        recalculated_cents = (
+            components["cash_opening_balance_cents"]
+            + components["cash_sale_payments_cents"]
+            + components["member_recharges_cents"]
+            + components["tip_donations_cents"]
+            + components["cash_deposits_cents"]
+            - components["cash_withdrawals_cents"]
+        )
+        archived_cents = (
+            int(summary["cash_calculated_cents"])
+            if summary.get("cash_calculated_cents") is not None
+            else base["archived_cash_calculated_cents"]
+        )
+        difference_cents = archived_cents - recalculated_cents
+        return {
+            **base,
+            "archived_cash_calculated_cents": archived_cents,
+            "recalculated_cash_cents": recalculated_cents,
+            "difference_cents": difference_cents,
+            "components": components,
+            "status": "consistent" if difference_cents == 0 else "mismatch",
+            "message": (
+                "Archivierte Berechnung stimmt mit den Einzelkomponenten überein"
+                if difference_cents == 0
+                else "Archivierte Berechnung weicht von den Einzelkomponenten ab"
+            ),
+        }
+
+    def build_history_consistency_report(self) -> dict:
+        histories = self.db.query(ZBonHistory).order_by(ZBonHistory.sequence_number.asc()).all()
+        entries = [self._audit_history_record(history) for history in histories]
+        return {
+            "generated_at": datetime.now().isoformat(),
+            "mode": "read_only",
+            "total": len(entries),
+            "consistent": sum(entry["status"] == "consistent" for entry in entries),
+            "mismatches": sum(entry["status"] == "mismatch" for entry in entries),
+            "insufficient_data": sum(entry["status"] == "insufficient_data" for entry in entries),
+            "entries": entries,
+        }
 
     def _calculate_sale_gross_cents(self, transaction: Transaction) -> int:
         return sum(item.total_price_cents for item in transaction.items)
@@ -52,6 +139,66 @@ class ZBonService:
 
     def _calculate_non_prepaid_sale_gross_cents(self, transaction: Transaction) -> int:
         return max(self._calculate_sale_gross_cents(transaction) - self._calculate_prepaid_item_total_cents(transaction), 0)
+
+    def _build_financial_summary_cents(
+        self,
+        *,
+        sales: list[Transaction],
+        member_recharges: list[Transaction],
+        club_account_recharges: list[Transaction],
+        prepaid_voucher_sales_cents: int,
+        opening_cash_balance_cents: int,
+        cash_deposits_cents: int,
+        cash_withdrawals_cents: int,
+    ) -> dict:
+        """Build the canonical, cent-based financial summary for a Z-Bon period.
+
+        Revenue, payment allocations, and physical cash movements intentionally
+        remain separate. Club-account recharges are settled outside the cash
+        register and therefore do not affect the cash target.
+        """
+        article_revenue_cents = sum(self._calculate_non_prepaid_sale_gross_cents(t) for t in sales)
+        cash_sale_payments_cents = sum(
+            t.total_amount_cents for t in sales if t.payment_method == PaymentMethod.CASH
+        )
+        member_recharges_cents = sum(t.total_amount_cents for t in member_recharges)
+        club_account_recharges_cents = sum(t.total_amount_cents for t in club_account_recharges)
+        balance_redeemed_cents = sum(
+            (t.balance_applied_cents or 0)
+            + (t.total_amount_cents if t.payment_method == PaymentMethod.BALANCE else 0)
+            for t in sales
+        )
+        voucher_redeemed_cents = sum(t.voucher_applied_cents or 0 for t in sales)
+        tip_donations_cents = sum(getattr(t, "tip_cents", 0) or 0 for t in sales)
+        total_revenue_cents = (
+            article_revenue_cents
+            + prepaid_voucher_sales_cents
+            + member_recharges_cents
+        )
+        cash_calculated_cents = (
+            opening_cash_balance_cents
+            + cash_sale_payments_cents
+            + member_recharges_cents
+            + tip_donations_cents
+            + cash_deposits_cents
+            - cash_withdrawals_cents
+        )
+
+        return {
+            "article_revenue_cents": article_revenue_cents,
+            "cash_sale_payments_cents": cash_sale_payments_cents,
+            "balance_redeemed_cents": balance_redeemed_cents,
+            "voucher_redeemed_cents": voucher_redeemed_cents,
+            "member_recharges_cents": member_recharges_cents,
+            "club_account_recharges_cents": club_account_recharges_cents,
+            "prepaid_sales_cents": prepaid_voucher_sales_cents,
+            "tip_donations_cents": tip_donations_cents,
+            "cash_opening_balance_cents": opening_cash_balance_cents,
+            "cash_deposits_cents": cash_deposits_cents,
+            "cash_withdrawals_cents": cash_withdrawals_cents,
+            "cash_calculated_cents": cash_calculated_cents,
+            "total_revenue_cents": total_revenue_cents,
+        }
 
     @staticmethod
     def _format_member_name(member: Member | None) -> str:
@@ -80,12 +227,7 @@ class ZBonService:
 
     @staticmethod
     def _get_booking_type(transaction: Transaction, club_account_transaction_ids: set[int]) -> str:
-        if transaction.type == TransactionType.RECHARGE:
-            if transaction.id in club_account_transaction_ids:
-                return "CLUB_ACCOUNT_TOP_UP"
-            if transaction.member_id:
-                return "MEMBER_BALANCE_RECHARGE"
-        return transaction.type.value
+        return booking_type(transaction, club_account_transaction_ids)
 
     def _serialize_transaction(self, transaction: Transaction, club_account_transaction_ids: set[int]) -> dict:
         booking_type = self._get_booking_type(transaction, club_account_transaction_ids)
@@ -111,8 +253,10 @@ class ZBonService:
             "voucher_applied_cents": transaction.voucher_applied_cents or 0,
             "balance_applied_cents": transaction.balance_applied_cents or 0,
             "tip_cents": getattr(transaction, 'tip_cents', 0) or 0,
+            "cash_received_cents": getattr(transaction, "cash_received_cents", None),
+            "change_given_cents": getattr(transaction, "change_given_cents", None),
             "voucher_type": transaction.voucher_type,
-            "member_name": self._format_member_name(transaction.member),
+            "member_name": transaction.member_name or self._format_member_name(transaction.member),
             "performed_by": (
                 transaction.performed_by_username
                 or (transaction.user.username if transaction.user else None)
@@ -127,7 +271,7 @@ class ZBonService:
                     "note": item.note,
                     "product": {
                         "id": item.product.id if item.product else None,
-                        "name": item.product.name if item.product else None,
+                        "name": historical_product(item).name,
                     },
                 }
                 for item in transaction.items
@@ -196,11 +340,10 @@ class ZBonService:
         return period_start, period_end, last_zbon
 
     def _get_transactions_for_period(self, period_start: datetime | None, period_end: datetime) -> list[Transaction]:
-        query = self.db.query(Transaction).order_by(Transaction.created_at.asc())
-        if period_start:
-            query = query.filter(Transaction.created_at > period_start)
-        query = query.filter(Transaction.created_at <= period_end)
-        return query.all()
+        return self.db.query(Transaction).filter(
+            Transaction.zbon_history_id.is_(None),
+            Transaction.type != TransactionType.VOUCHER_CREATE,
+        ).order_by(Transaction.created_at.asc()).all()
 
     def _get_opening_cash_balance(self, last_zbon: ZBonHistory | None, period_end: datetime) -> float:
         """Resolve opening cash balance for current preview period.
@@ -276,10 +419,8 @@ class ZBonService:
         *,
         exclude_initial_setup_deposits: bool = False,
     ) -> dict:
-        query = self.db.query(CashEntry).filter(CashEntry.created_at <= period_end)
-        if period_start:
-            query = query.filter(CashEntry.created_at > period_start)
-        elif exclude_initial_setup_deposits:
+        query = self.db.query(CashEntry).filter(CashEntry.zbon_history_id.is_(None))
+        if not period_start and exclude_initial_setup_deposits:
             query = query.filter(
                 ~(
                     (CashEntry.entry_type == CashEntryType.DEPOSIT)
@@ -296,6 +437,11 @@ class ZBonService:
         return {
             "entries": entries,
             "pending_withdrawals": pending_entries,
+            "withdrawals_total_cents": (
+                sum(entry.amount_cents for entry in withdrawals)
+                + sum(int(entry.get("amount_cents", 0) or 0) for entry in pending_entries)
+            ),
+            "deposits_total_cents": sum(entry.amount_cents for entry in deposits),
             "withdrawals_total": (sum(entry.amount_cents for entry in withdrawals) / 100) + pending_withdrawals_total,
             "deposits_total": sum(entry.amount_cents for entry in deposits) / 100,
         }
@@ -359,14 +505,10 @@ class ZBonService:
         }
 
     def _get_prepaid_voucher_summary(self, period_start: datetime | None, period_end: datetime) -> dict:
-        sold_query = self.db.query(Voucher).filter(
-            Voucher.voucher_type == VoucherType.PREPAID,
-            Voucher.sold_at.isnot(None),
-            Voucher.sold_at <= period_end,
-        )
-        if period_start:
-            sold_query = sold_query.filter(Voucher.sold_at > period_start)
-        sold_vouchers = sold_query.all()
+        sold_vouchers = self.db.query(Voucher).join(
+            Transaction, Voucher.sold_in_transaction_id == Transaction.id
+        ).filter(Voucher.voucher_type == VoucherType.PREPAID,
+                 Transaction.zbon_history_id.is_(None)).all()
 
         redeemed_query = self.db.query(Voucher).filter(
             Voucher.voucher_type == VoucherType.PREPAID,
@@ -385,6 +527,7 @@ class ZBonService:
 
         return {
             "sold_count": len(sold_vouchers),
+            "sold_total_cents": sum(v.original_value_cents or v.value_cents for v in sold_vouchers),
             "sold_total": sum(v.original_value_cents or v.value_cents for v in sold_vouchers) / 100,
             "redeemed_count": len(redeemed_vouchers),
             "redeemed_total": sum(v.redeemed_amount_cents or 0 for v in redeemed_vouchers) / 100,
@@ -444,71 +587,59 @@ class ZBonService:
         open_balance_total = self._get_open_member_balance_total()
         open_balance_count = self._get_open_member_balance_count()
         club_account_total = self._get_club_account_total()
-        material_account_total_euros = MaterialAccountService(self.db).get_period_total_cents(period_start, period_end) / 100
+        material_account_total_euros = (self.db.query(func.coalesce(func.sum(MaterialAccountEntry.amount_cents), 0))
+            .join(Transaction, MaterialAccountEntry.transaction_id == Transaction.id)
+            .filter(Transaction.zbon_history_id.is_(None)).scalar()) / 100
 
         sales = [t for t in transactions if t.type == TransactionType.SALE]
         product_group_breakdown = self._aggregate_by_warengruppe(transactions)
         material_account_sales_count = self._count_internal_material_sales(sales)
         member_recharges = [
             t for t in transactions
-            if t.type == TransactionType.RECHARGE
-            and t.member_id is not None
-            and t.id not in club_account_transaction_ids
+            if self._get_booking_type(t, club_account_transaction_ids) == "MEMBER_BALANCE_RECHARGE"
         ]
         club_account_recharges = [
             t for t in transactions
-            if t.type == TransactionType.RECHARGE and t.id in club_account_transaction_ids
+            if self._get_booking_type(t, club_account_transaction_ids) == "CLUB_ACCOUNT_TOP_UP"
         ]
         stornos = [t for t in transactions if t.type == TransactionType.STORNO]
         first_transaction_at = transactions[0].created_at if transactions else None
         effective_period_start = period_start or first_transaction_at
 
-        gross_sales_total = sum(self._calculate_non_prepaid_sale_gross_cents(t) for t in sales) / 100
-        prepaid_voucher_sales_total = prepaid_voucher_summary["sold_total"]
-        recharge_total = sum(t.total_amount_cents for t in member_recharges) / 100
-        article_cash_sales_total = sum(
-            t.total_amount_cents
-            for t in sales if t.payment_method == PaymentMethod.CASH
-        ) / 100
-        cash_sales_total = article_cash_sales_total + recharge_total
-        total_revenue = gross_sales_total + prepaid_voucher_sales_total + recharge_total
+        prepaid_voucher_sales_cents = int(prepaid_voucher_summary.get("sold_total_cents", 0) or 0)
+        canonical = self._build_financial_summary_cents(
+            sales=sales,
+            member_recharges=member_recharges,
+            club_account_recharges=club_account_recharges,
+            prepaid_voucher_sales_cents=prepaid_voucher_sales_cents,
+            opening_cash_balance_cents=round(opening_balance * 100),
+            cash_deposits_cents=cash_summary["deposits_total_cents"],
+            cash_withdrawals_cents=cash_summary["withdrawals_total_cents"],
+        )
+        gross_sales_total = canonical["article_revenue_cents"] / 100
+        prepaid_voucher_sales_total = canonical["prepaid_sales_cents"] / 100
+        recharge_total = canonical["member_recharges_cents"] / 100
+        article_cash_sales_total = canonical["cash_sale_payments_cents"] / 100
+        cash_sales_total = (canonical["cash_sale_payments_cents"] + canonical["member_recharges_cents"]) / 100
+        total_revenue = canonical["total_revenue_cents"] / 100
         cash_sales_count = len([t for t in sales if t.payment_method == PaymentMethod.CASH])
-        balance_sales_total = sum(
-            (t.balance_applied_cents or 0)
-            + (t.total_amount_cents if t.payment_method == PaymentMethod.BALANCE else 0)
-            for t in sales
-        ) / 100
+        balance_sales_total = canonical["balance_redeemed_cents"] / 100
         balance_sales_count = len([
             t for t in sales
             if t.payment_method == PaymentMethod.BALANCE or (t.balance_applied_cents or 0) > 0
         ])
-        voucher_sales_total = sum(t.voucher_applied_cents or 0 for t in sales) / 100
+        voucher_sales_total = canonical["voucher_redeemed_cents"] / 100
         voucher_sales_count = len([t for t in sales if (t.voucher_applied_cents or 0) > 0])
         storno_total = sum(t.total_amount_cents for t in stornos) / 100
-        tip_total = sum(getattr(t, 'tip_cents', 0) or 0 for t in sales) / 100
+        tip_total = canonical["tip_donations_cents"] / 100
         tip_count = len([t for t in sales if (getattr(t, 'tip_cents', 0) or 0) > 0])
-        cash_calculated = (
-            opening_balance
-            + cash_summary["deposits_total"]
-            + cash_sales_total
-            + tip_total
-            - cash_summary["withdrawals_total"]
-        )
+        cash_calculated = canonical["cash_calculated_cents"] / 100
 
-        provided_cash_count_total = cash_count_total
-        resolved_cash_count_total = None
-        cash_difference = None
-        if include_cash_count:
-            coins = include_cash_count.get("coins", {})
-            notes = include_cash_count.get("notes", {})
-            resolved_cash_count_total = (
-                sum(float(denom) * count for denom, count in coins.items())
-                + sum(float(denom) * count for denom, count in notes.items())
-            )
-        elif provided_cash_count_total is not None:
-            resolved_cash_count_total = float(provided_cash_count_total)
-        if resolved_cash_count_total is not None:
-            cash_difference = resolved_cash_count_total - cash_calculated
+        from app.utils.cash_count import cash_count_cents
+        counted_cents = cash_count_cents(include_cash_count, cash_count_total)
+        resolved_cash_count_total = counted_cents / 100 if counted_cents is not None else None
+        difference_cents = counted_cents - canonical["cash_calculated_cents"] if counted_cents is not None else None
+        cash_difference = difference_cents / 100 if difference_cents is not None else None
 
         receipt_numbers = [
             *[t.receipt_number for t in transactions if t.receipt_number is not None],
@@ -530,6 +661,7 @@ class ZBonService:
 
         payload = {
             "sequence_number": (last_zbon.sequence_number + 1) if last_zbon else 1,
+            "history_incomplete": any(getattr(item, "snapshot_version", None) is None for transaction in transactions for item in transaction.items),
             "generated_at": period_end.isoformat(),
             "report_type": "zbon",
             "period_start": effective_period_start.isoformat() if effective_period_start else None,
@@ -540,6 +672,7 @@ class ZBonService:
             "cash_counted_by_name": cash_counted_by_name,
             "transactions": transaction_rows,
             "summary": {
+                **canonical,
                 "transaction_count": len(transaction_rows),
                 "sales_count": len(sales),
                 "recharge_count": len(member_recharges),
@@ -566,6 +699,8 @@ class ZBonService:
                 "cash_deposits_total": cash_summary["deposits_total"],
                 "cash_calculated": cash_calculated,
                 "cash_counted": resolved_cash_count_total,
+                "cash_counted_cents": counted_cents,
+                "cash_difference_cents": difference_cents,
                 "cash_difference": cash_difference,
                 "cash_difference_reason": (difference_reason or "").strip() or None,
                 "receipt_number_min": min(receipt_numbers) if receipt_numbers else None,
@@ -626,6 +761,9 @@ class ZBonService:
         difference_reason: str | None = None,
         pending_withdrawals: list[dict] | None = None,
     ) -> dict:
+        from app.core.financial_booking import lock_financial_period
+        AppSettingsService(self.db).get_or_create_settings()
+        lock_financial_period(self.db)
         payload = self.build_current_zbon_preview(
             created_by_name=created_by_name,
             skimmed_by_name=skimmed_by_name,
@@ -661,6 +799,19 @@ class ZBonService:
             cash_difference=summary["cash_difference"],
             cash_withdrawals=summary["cash_withdrawals_total"],
             cash_deposits=summary["cash_deposits_total"],
+            article_revenue_cents=summary["article_revenue_cents"],
+            cash_sale_payments_cents=summary["cash_sale_payments_cents"],
+            balance_redeemed_cents=summary["balance_redeemed_cents"],
+            voucher_redeemed_cents=summary["voucher_redeemed_cents"],
+            member_recharges_cents=summary["member_recharges_cents"],
+            club_account_recharges_cents=summary["club_account_recharges_cents"],
+            prepaid_sales_cents=summary["prepaid_sales_cents"],
+            tip_donations_cents=summary["tip_donations_cents"],
+            cash_opening_balance_cents=summary["cash_opening_balance_cents"],
+            cash_deposits_cents=summary["cash_deposits_cents"],
+            cash_withdrawals_cents=summary["cash_withdrawals_cents"],
+            cash_calculated_cents=summary["cash_calculated_cents"],
+            total_revenue_cents=summary["total_revenue_cents"],
             transaction_count_sales=summary["sales_count"],
             transaction_count_recharge=summary["recharge_count"],
             transaction_count_storno=summary["storno_count"],
@@ -678,6 +829,11 @@ class ZBonService:
             report_content=report_content,
         )
         self.db.add(history)
+        self.db.flush()
+        self.db.query(Transaction).filter(Transaction.zbon_history_id.is_(None)).update(
+            {Transaction.zbon_history_id: history.id}, synchronize_session=False)
+        self.db.query(CashEntry).filter(CashEntry.zbon_history_id.is_(None)).update(
+            {CashEntry.zbon_history_id: history.id}, synchronize_session=False)
         self.db.commit()
         self.db.refresh(history)
         payload["history_id"] = history.id
@@ -694,7 +850,7 @@ class ZBonService:
         business_info, placeholder_used = self._resolve_report_business_info()
 
         template = Template(ZBON_HTML_TEMPLATE)
-        return template.render(
+        rendered = template.render(
             seq_number=payload["sequence_number"],
             business_date=datetime.fromisoformat(payload["business_date"]).strftime("%d.%m.%Y"),
             created_at=self._format_datetime_display(payload["generated_at"]),
@@ -742,6 +898,8 @@ class ZBonService:
             tip_total=f"{summary.get('tip_total', 0):.2f}",
             cash_opening_balance=f"{summary.get('opening_cash_balance', 0):.2f}",
             article_cash_revenue=f"{summary.get('article_cash_sales_total', 0):.2f}",
+            tip_donations_cash=f"{summary.get('tip_total', 0):.2f}",
+            cash_deposits_total=f"{summary.get('cash_deposits_total', 0):.2f}",
             cash_withdrawals_total=f"{summary.get('cash_withdrawals_total', 0):.2f}",
             cash_calculated=f"{summary.get('cash_calculated', 0):.2f}",
             cash_counted=f"{summary.get('cash_counted', 0):.2f}" if summary.get("cash_counted") is not None else "-",
@@ -783,7 +941,24 @@ class ZBonService:
             report_is_official=not informational_only,
         )
 
+        if not payload.get("history_incomplete"):
+            return rendered
+        return rendered.replace("<body>", "<body><p>Historische Auswertungen: Als Altbestand gekennzeichnete Zuordnungen und Steuersätze sind nicht überliefert. Bruttobeträge bleiben erhalten; fehlende Steuerwerte werden nicht aus heutigen Stammdaten rekonstruiert.</p>", 1)
+
     def generate_daily_html_update(self, target_date: date) -> dict:
+        """Render the open Z-Bon period using the same canonical preview as Finance.
+
+        ``target_date`` is retained for API/scheduler compatibility. A Z-Bon is
+        deliberately period-based (since the last Z-Bon), not calendar-day based.
+        """
+        payload = self.build_current_zbon_preview()
+        return {
+            **payload,
+            "html": payload["report_content"],
+            "requested_date": target_date.isoformat(),
+        }
+
+        # Legacy calendar-day renderer retained below for reference only.
         transactions = self.db.query(Transaction).filter(func.date(Transaction.created_at) == target_date).all()
         stats = self._calculate_stats(transactions)
         meta = self._collect_meta(target_date, transactions)
@@ -905,6 +1080,21 @@ class ZBonService:
         Returns:
             Dict with report data and formatted text
         """
+        payload = self.build_current_zbon_preview(include_cash_count=include_cash_count)
+        return {
+            **payload,
+            "content": payload["report_content"],
+            "date": payload["business_date"],
+            "type": report_type,
+            "stats": payload["summary"],
+            "meta": {
+                "period_start": payload["period_start"],
+                "period_end": payload["period_end"],
+            },
+            "has_cash_count": include_cash_count is not None,
+        }
+
+        # Legacy calendar-day generator retained below for reference only.
         if not target_date:
             target_date = date.today()
         
@@ -1041,7 +1231,7 @@ class ZBonService:
                 continue
             
             for item in trans.items:
-                product = item.product
+                product = historical_product(item)
                 unit_price = item.unit_price_cents / 100
                 quantity = item.quantity
                 tax_rate = product.tax_rate / 100
@@ -1068,7 +1258,7 @@ class ZBonService:
                 continue
             
             for item in trans.items:
-                product = item.product
+                product = historical_product(item)
                 quantity = item.quantity
                 unit_price = item.unit_price_cents / 100
                 tax_rate = product.tax_rate / 100
@@ -1099,7 +1289,7 @@ class ZBonService:
                 continue
 
             for item in trans.items:
-                product = item.product
+                product = historical_product(item)
                 raw_group_name = getattr(product, "warengruppe", None) or ""
                 group_name = raw_group_name.strip() or "Ohne Warengruppe"
                 aggregation[group_name]["gross_total"] += item.total_price_cents / 100
@@ -1108,12 +1298,7 @@ class ZBonService:
 
     @staticmethod
     def _is_internal_material_item(item) -> bool:
-        product = getattr(item, "product", None)
-        return bool(
-            product
-            and MaterialAccountService.is_internal_material_product(product)
-            and getattr(item, "is_internal_material", False)
-        )
+        return bool(getattr(item, "is_internal_material", False))
 
     def _count_internal_material_sales(self, transactions: list) -> int:
         """Count sale transactions that contain at least one internal-material item."""
@@ -1133,13 +1318,13 @@ class ZBonService:
                 continue
             
             customer_name = "Gast"  # Default for guests
-            if trans.member:
-                customer_name = trans.member.name
+            if trans.member_name or trans.member:
+                customer_name = trans.member_name or trans.member.name
             
             for item in trans.items:
                 quantity = item.quantity
                 unit_price = item.unit_price_cents / 100
-                tax_rate = item.product.tax_rate / 100
+                tax_rate = historical_product(item).tax_rate / 100
                 
                 net = unit_price / (1 + tax_rate) if tax_rate > 0 else unit_price
                 tax = unit_price - net
@@ -1161,12 +1346,12 @@ class ZBonService:
             if trans.type != TransactionType.SALE:
                 continue
             
-            group = "Mitglied" if trans.member else "Gast"
+            group = "Mitglied" if trans.member_name or trans.member_id else "Gast"
             
             for item in trans.items:
                 quantity = item.quantity
                 unit_price = item.unit_price_cents / 100
-                tax_rate = item.product.tax_rate / 100
+                tax_rate = historical_product(item).tax_rate / 100
                 
                 net = unit_price / (1 + tax_rate) if tax_rate > 0 else unit_price
                 tax = unit_price - net
@@ -1190,13 +1375,13 @@ class ZBonService:
             for item in trans.items:
                 quantity = item.quantity
                 unit_price = item.unit_price_cents / 100
-                tax_rate = item.product.tax_rate
+                tax_rate = historical_product(item).tax_rate
                 
                 net = unit_price / (1 + tax_rate/100) if tax_rate > 0 else unit_price
                 tax = unit_price - net
                 gross = unit_price
                 
-                tax_key = f"{tax_rate}%"
+                tax_key = f"{tax_rate}%" if getattr(item, "tax_rate_snapshot", None) is not None else "Altbestand – Steuersatz unbekannt"
                 aggregation[tax_key]["count"] += quantity
                 aggregation[tax_key]["net_total"] += net * quantity
                 aggregation[tax_key]["tax_total"] += tax * quantity

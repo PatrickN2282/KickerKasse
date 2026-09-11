@@ -12,35 +12,21 @@ from app.services.email_service import EmailService
 from app.services.scheduler_service import SchedulerService
 
 router = APIRouter(prefix="/api/app-settings", tags=["App Settings"])
-TOP_ADMIN_ONLY_SETTINGS_FIELDS = {
-    "kasse_layout",
-    "session_timer_enabled",
-    "session_timer_minutes",
-    "business_name",
-    "business_street",
-    "business_zip",
-    "business_city",
-    "business_phone",
-    "business_email",
-    "business_tax_number",
-    "business_registration_number",
-    "email_enabled",
-    "email_sender",
-    "email_recipient_zbon",
-    "email_subject_suffix",
-    "email_critical_stock_enabled",
-    "smtp_host",
-    "smtp_port",
-    "smtp_username",
-    "smtp_password",
-    "smtp_use_tls",
-    "send_zbon_on_create_enabled",
-    "scheduled_zbon_enabled",
-    "scheduled_zbon_time",
-    "scheduled_zbon_report_type",
-    "scheduled_database_backup_enabled",
-    "scheduled_database_backup_time",
+# Only these ordinary design/visibility settings are editable by an Admin.
+# Every other field, including future additions, requires TopAdmin by default.
+ADMIN_SETTINGS_FIELDS = {
+    "app_name",
+    "background_color",
+    "banner_color",
+    "highlight_color",
+    "kasse_area_background_color",
+    "deckel_enabled",
+    "guest_list_enabled",
+    "kasse_products_background_scale",
+    "kasse_products_background_opacity",
+    "kasse_products_background_enabled",
 }
+TOP_ADMIN_ONLY_SETTINGS_FIELDS = set(AppSettingsUpdate.model_fields) - ADMIN_SETTINGS_FIELDS
 
 
 class EmailConnectionTestRequest(BaseModel):
@@ -222,7 +208,7 @@ async def upload_app_logo(
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Image upload required")
 
     service = AppSettingsService(db)
-    settings = await service.update_logo(file)
+    settings = await service.update_logo(file, performed_by_username=current_user.username)
     return service.to_private_payload(settings, include_sensitive=current_user.is_top_admin)
 
 
@@ -238,7 +224,7 @@ async def upload_kasse_products_background(
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Image upload required")
 
     service = AppSettingsService(db)
-    settings = await service.update_kasse_products_background(file)
+    settings = await service.update_kasse_products_background(file, performed_by_username=current_user.username)
     return service.to_private_payload(settings, include_sensitive=current_user.is_top_admin)
 
 

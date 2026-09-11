@@ -1,5 +1,6 @@
 from fastapi import APIRouter, HTTPException, Depends, Request, status
 from sqlalchemy.orm import Session
+from sqlalchemy.exc import IntegrityError
 
 from app.core import get_db
 from app.core.auth import require_roles

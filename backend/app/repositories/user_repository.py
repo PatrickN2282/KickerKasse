@@ -114,7 +114,7 @@ class UserRepository:
         """Return whether a top admin account already exists."""
         return self.db.query(User.id).filter(User.role == UserRole.TOP_ADMIN).first() is not None
     
-    def update(self, user_id: int, **kwargs) -> User | None:
+    def update(self, user_id: int, *, commit: bool = True, **kwargs) -> User | None:
         """Update user"""
         user = self.get_by_id(user_id)
         if not user:
@@ -134,8 +134,11 @@ class UserRepository:
                     value = parse_user_role(value, default=user.role)
                 setattr(user, key, value)
         
-        self.db.commit()
-        self.db.refresh(user)
+        if commit:
+            self.db.commit()
+            self.db.refresh(user)
+        else:
+            self.db.flush()
         return user
     
     def delete(self, user_id: int) -> bool:

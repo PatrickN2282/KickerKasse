@@ -19,17 +19,22 @@ const registerServiceWorker = () => {
   }
 
   let refreshing = false
+  let approvedUpdate = false
+  let reloadFallback = null
   const serviceWorkerUrl = `/sw.js?build=${encodeURIComponent(appBuildId)}`
 
-  window.addEventListener('load', async () => {
+  const performRegistration = async () => {
     try {
       const registration = await navigator.serviceWorker.register(serviceWorkerUrl, {
         updateViaCache: 'none',
       })
-      const activateWorker = (worker) => worker?.postMessage({ type: 'SKIP_WAITING' })
+      const offerUpdate = (worker) => {
+        if (!worker) return
+        window.dispatchEvent(new CustomEvent('kicker:pwa-update-ready', { detail: { worker } }))
+      }
 
       if (registration.waiting) {
-        activateWorker(registration.waiting)
+        offerUpdate(registration.waiting)
       }
 
       registration.addEventListener('updatefound', () => {
@@ -38,27 +43,52 @@ const registerServiceWorker = () => {
 
         newWorker.addEventListener('statechange', () => {
           if (newWorker.state === 'installed' && navigator.serviceWorker.controller) {
-            activateWorker(newWorker)
+            offerUpdate(newWorker)
           }
         })
       })
 
       navigator.serviceWorker.addEventListener('controllerchange', () => {
-        if (refreshing) return
+        if (refreshing || !approvedUpdate) return
         refreshing = true
+        if (reloadFallback) window.clearTimeout(reloadFallback)
         window.location.reload()
+      })
+
+      window.addEventListener('kicker:pwa-update-apply', (event) => {
+        const worker = event.detail?.worker || registration.waiting
+        if (!worker) return
+        approvedUpdate = true
+        worker.postMessage({ type: 'SKIP_WAITING' })
+        // Some browsers do not emit controllerchange reliably when the waiting
+        // worker already became active. Keep the explicit update action useful.
+        reloadFallback = window.setTimeout(() => {
+          if (refreshing) return
+          refreshing = true
+          window.location.reload()
+        }, 1500)
       })
 
       await registration.update()
     } catch (err) {
       console.log('ServiceWorker registration failed: ', err)
     }
-  })
+  }
+
+  if (document.readyState === 'complete') {
+    performRegistration()
+  } else {
+    window.addEventListener('load', performRegistration, { once: true })
+  }
 }
 
 const bootstrap = async () => {
   const appSettingsStore = useAppSettingsStore(pinia)
-  await appSettingsStore.loadPublicSettings()
+  try {
+    await appSettingsStore.loadPublicSettings()
+  } catch (err) {
+    console.error('[Bootstrap] Public settings are not ready yet:', err)
+  }
   registerServiceWorker()
   app.mount('#app')
 }

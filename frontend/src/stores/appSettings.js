@@ -4,7 +4,7 @@ import apiService from '@/services/api'
 import { getContrastColor } from '@/services/utils'
 
 const fallbackSettings = {
-  app_name: 'KGB - KickerKasse Test',
+  app_name: 'KickerKasse',
   background_color: '#D7DCE2',
   banner_color: '#131820',
   highlight_color: '#5C8F3A',
@@ -26,7 +26,9 @@ const fallbackSettings = {
   kasse_layout: null,
   session_timer_enabled: false,
   session_timer_minutes: 15,
+  kasse_direct_login_enabled: true,
   deckel_enabled: true,
+  guest_list_enabled: true,
   business_name: '',
   business_street: '',
   business_zip: '',
@@ -38,6 +40,8 @@ const fallbackSettings = {
   email_enabled: false,
   email_sender: 'noreply@kassensystem.local',
   email_recipient_zbon: '',
+  email_recipient_stock: '',
+  email_recipient_backup: '',
   email_subject_suffix: '',
   email_critical_stock_enabled: false,
   smtp_host: '',
@@ -49,6 +53,14 @@ const fallbackSettings = {
   scheduled_zbon_enabled: false,
   scheduled_zbon_time: '23:59',
   scheduled_zbon_report_type: 'full-zbon',
+  scheduled_stock_warning_time: '09:00',
+  zbon_last_run_at: null,
+  zbon_last_run_status: null,
+  zbon_last_run_message: null,
+  zbon_last_business_date: null,
+  stock_last_run_at: null,
+  stock_last_run_status: null,
+  stock_last_run_message: null,
 }
 
 const setLinkTag = (id, rel, href, type = null, attributes = {}) => {

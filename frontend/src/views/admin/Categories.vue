@@ -123,6 +123,7 @@ import CategoryAssignmentModal from '@/views/admin/modal/CategoryAssignmentModal
 import CategoryFormModal from '@/views/admin/modal/CategoryFormModal.vue'
 import { useNotificationStore } from '@/stores/notification'
 import apiService from '@/services/api'
+import { getErrorDetailMessage } from '@/services/errorMessage'
 
 const notificationStore = useNotificationStore()
 
@@ -215,7 +216,7 @@ const removeProduct = async (categoryId, productId) => {
     notificationStore.success('Artikelzuordnung entfernt')
   } catch (error) {
     console.error('Error removing product assignment:', error)
-    notificationStore.error(error.response?.data?.detail || 'Entfernen fehlgeschlagen')
+    notificationStore.error(getErrorDetailMessage(error, 'Entfernen fehlgeschlagen'))
   }
 }
 
@@ -225,7 +226,7 @@ const assignProductDirect = async (categoryId, productId) => {
     await loadProducts()
     notificationStore.success('Artikel zur Kategorie hinzugefügt')
   } catch (error) {
-    notificationStore.error(error.response?.data?.detail || 'Zuordnung fehlgeschlagen')
+    notificationStore.error(getErrorDetailMessage(error, 'Zuordnung fehlgeschlagen'))
   }
 }
 
@@ -241,7 +242,7 @@ const submitForm = async () => {
     await loadCategories()
   } catch (error) {
     console.error('Error submitting form:', error)
-    notificationStore.error(error.response?.data?.detail || 'Fehler beim Speichern')
+    notificationStore.error(getErrorDetailMessage(error, 'Fehler beim Speichern'))
   }
 }
 

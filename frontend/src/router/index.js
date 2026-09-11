@@ -9,6 +9,13 @@ const routes = [
     component: () => import('@/views/Login.vue'),
   },
   {
+    // Anforderung 1: dedizierte Passwort-Reset-Seite, die über den Link aus der
+    // Reset-E-Mail des TopAdmin-Self-Service-Flows erreicht wird.
+    path: '/password-reset/:token',
+    name: 'PasswordReset',
+    component: () => import('@/views/PasswordResetView.vue'),
+  },
+  {
     path: '/',
     name: KASSE_ROUTE_NAME,
     component: () => import('@/views/kasse/KasseLayoutHost.vue'),
@@ -70,6 +77,18 @@ const routes = [
         meta: { requiresAuth: true, allowedRoles: ['TOP_ADMIN', 'ADMIN'] },
       },
       {
+        path: 'guestlist',
+        name: 'AdminGuestList',
+        component: () => import('@/views/admin/GuestList.vue'),
+        meta: { requiresAuth: true, allowedRoles: ['TOP_ADMIN', 'ADMIN', 'MANAGER'] },
+      },
+      {
+        path: 'material-transactions',
+        name: 'AdminMaterialTransactions',
+        component: () => import('@/views/admin/MaterialTransactions.vue'),
+        meta: { requiresAuth: true, allowedRoles: ['TOP_ADMIN', 'ADMIN', 'MANAGER'] },
+      },
+      {
         path: 'settings',
         redirect: '/admin/config?section=design',
       },
@@ -98,25 +117,35 @@ const router = createRouter({
   routes,
 })
 
-let sessionHandled = false
+let sessionChecked = false
+let setupStatusChecked = false
 
 router.beforeEach(async (to, from, next) => {
   const authStore = useAuthStore()
-  const setupLockActive = sessionStorage.getItem(INITIAL_SETUP_LOCK_KEY) === '1'
+
+  if (!setupStatusChecked) {
+    setupStatusChecked = true
+    const setupStatus = await authStore.fetchSetupStatus()
+    if (setupStatus?.setup_required) {
+      sessionStorage.setItem(INITIAL_SETUP_LOCK_KEY, '1')
+      authStore.clearClientSession()
+    } else if (setupStatus?.top_admin_exists) {
+      sessionStorage.removeItem(INITIAL_SETUP_LOCK_KEY)
+    }
+  }
+
+  const setupLockActive = authStore.setupRequired
+    || sessionStorage.getItem(INITIAL_SETUP_LOCK_KEY) === '1'
 
   if (setupLockActive && to.path !== '/login') {
     next('/login')
     return
   }
 
-  if (!sessionHandled) {
-    sessionHandled = true
-    const wasReloading = sessionStorage.getItem(SESSION_RELOAD_FLAG_KEY)
-    if (wasReloading) {
-      sessionStorage.removeItem(SESSION_RELOAD_FLAG_KEY)
-    } else {
-      await authStore.logout()
-    }
+  if (!sessionChecked) {
+    sessionChecked = true
+    sessionStorage.removeItem(SESSION_RELOAD_FLAG_KEY)
+    await authStore.checkAuth()
   }
 
   if (to.meta.requiresAuth && !authStore.isAuthenticated) {

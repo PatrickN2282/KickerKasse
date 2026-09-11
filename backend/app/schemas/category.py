@@ -3,24 +3,29 @@ from datetime import datetime
 from typing import Optional
 
 
-class CategoryBase(BaseModel):
-    name: str = Field(..., min_length=1, max_length=120)
-    description: Optional[str] = None
+from .validation import NormalizedModel, UpdateModel, Name, Description, DatabaseInt
+
+
+class CategoryBase(NormalizedModel):
+    name: Name
+    description: Description = None
     color: Optional[str] = Field(None, max_length=20)
     is_active_in_kasse: bool = True
-    display_order: int = 0
+    display_order: DatabaseInt = 0
 
 
 class CategoryCreate(CategoryBase):
     pass
 
 
-class CategoryUpdate(BaseModel):
-    name: Optional[str] = None
-    description: Optional[str] = None
+class CategoryUpdate(UpdateModel):
+    non_nullable_fields = {"name", "is_active_in_kasse", "display_order"}
+
+    name: Optional[Name] = None
+    description: Description = None
     color: Optional[str] = Field(None, max_length=20)
     is_active_in_kasse: Optional[bool] = None
-    display_order: Optional[int] = None
+    display_order: Optional[DatabaseInt] = None
 
 
 class CategoryResponse(CategoryBase):

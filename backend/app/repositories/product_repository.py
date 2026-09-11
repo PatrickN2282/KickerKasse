@@ -37,6 +37,9 @@ class ProductRepository:
         is_unlimited_stock: bool = False,
         warengruppe: str = None,
         is_variable_price: bool = False,
+        is_visible_in_kasse: bool = True,
+        requires_guest_list: bool = False,
+        opens_small_parts_drawer: bool = False,
     ) -> Product:
         """Create a new product"""
         product_data = {
@@ -51,6 +54,9 @@ class ProductRepository:
             "notify_on_low_stock": notify_on_low_stock,
             "is_unlimited_stock": is_unlimited_stock,
             "is_variable_price": is_variable_price,
+            "is_visible_in_kasse": is_visible_in_kasse,
+            "requires_guest_list": requires_guest_list,
+            "opens_small_parts_drawer": opens_small_parts_drawer,
         }
         product_data = self._normalize_stock_fields(product_data)
         product_data = self._normalize_warengruppe(product_data)
@@ -63,12 +69,17 @@ class ProductRepository:
     def get_by_id(self, product_id: int) -> Product | None:
         """Get product by ID"""
         return self.db.query(Product).filter(Product.id == product_id).first()
+
+    def get_by_id_for_update(self, product_id: int) -> Product | None:
+        return self.db.query(Product).filter(Product.id == product_id).populate_existing().with_for_update().first()
     
-    def get_all(self, only_active: bool = True) -> list[Product]:
+    def get_all(self, only_active: bool = True, only_visible_in_kasse: bool = False) -> list[Product]:
         """Get all products"""
         query = self.db.query(Product)
         if only_active:
-            query = query.filter(Product.is_active == True)
+            query = query.filter(Product.is_active.is_(True))
+        if only_visible_in_kasse:
+            query = query.filter(Product.is_visible_in_kasse.is_(True))
         return query.order_by(Product.name).all()
     
     def update(self, product_id: int, **kwargs) -> Product | None:
@@ -77,7 +88,7 @@ class ProductRepository:
         if not product:
             return None
 
-        normalized_kwargs = self._normalize_warengruppe(self._normalize_stock_fields(kwargs))
+        normalized_kwargs = self._normalize_warengruppe(kwargs)
         for key, value in normalized_kwargs.items():
             if hasattr(product, key) and key != "id":
                 setattr(product, key, value)
@@ -86,7 +97,7 @@ class ProductRepository:
         self.db.refresh(product)
         return product
     
-    def deduct_stock(self, product_id: int, quantity: int) -> bool:
+    def deduct_stock(self, product_id: int, quantity: int, commit: bool = True) -> bool:
         """Deduct stock from product. Returns False if insufficient stock"""
         product = self.get_by_id(product_id)
         if not product:
@@ -99,12 +110,13 @@ class ProductRepository:
             return True
 
         product.stock_quantity -= quantity
-        self.db.commit()
+        if commit:
+            self.db.commit()
         return True
     
     def add_stock(self, product_id: int, quantity: int) -> Product | None:
         """Add stock to product"""
-        product = self.get_by_id(product_id)
+        product = self.get_by_id_for_update(product_id)
         if not product:
             return None
 

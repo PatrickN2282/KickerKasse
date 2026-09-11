@@ -4,6 +4,7 @@ from sqlalchemy.orm import Session, joinedload
 
 from app.models import Deckel, DeckelItem, Product
 from app.repositories import ProductRepository
+from app.services.sale_pricing_service import resolve_sale_unit_price_cents
 
 
 class DeckelService:
@@ -16,10 +17,14 @@ class DeckelService:
             joinedload(Deckel.items).joinedload(DeckelItem.product)
         ).order_by(Deckel.updated_at.desc(), Deckel.id.desc()).all()
 
-    def get_deckel(self, deckel_id: int) -> Deckel | None:
+    def get_deckel(self, deckel_id: int, *, lock: bool = False) -> Deckel | None:
+        if lock:
+            locked = self.db.query(Deckel).filter_by(id=deckel_id).populate_existing().with_for_update().first()
+            if not locked:
+                return None
         return self.db.query(Deckel).options(
             joinedload(Deckel.items).joinedload(DeckelItem.product)
-        ).filter(Deckel.id == deckel_id).first()
+        ).filter(Deckel.id == deckel_id).populate_existing().first()
 
     def get_reserved_quantities(self, exclude_deckel_id: int | None = None) -> dict[int, int]:
         query = self.db.query(DeckelItem)
@@ -76,6 +81,30 @@ class DeckelService:
 
         return list(merged.values())
 
+    def _resolve_new_item_prices(self, items: list[dict]) -> list[dict]:
+        for product_id in sorted({item["product_id"] for item in items}):
+            self.product_repo.get_by_id_for_update(product_id)
+        priced_items = []
+        for item in items:
+            product = self.product_repo.get_by_id(item["product_id"])
+            if not product:
+                raise ValueError(f"Produkt {item['product_id']} nicht gefunden")
+            if not product.is_active:
+                raise ValueError(f"Produkt {product.name} ist inaktiv")
+
+            from app.services.voucher_service import VoucherService
+            if product.requires_guest_list or VoucherService.get_prepaid_value_from_product(product) is not None:
+                raise ValueError("Gastartikel und Verzehrkarten bitte direkt über den normalen Verkauf abrechnen.")
+            priced_items.append({
+                **item,
+                "unit_price_cents": resolve_sale_unit_price_cents(
+                    product,
+                    item["unit_price_cents"],
+                    is_internal_material=bool(item.get("is_internal_material", False)),
+                ),
+            })
+        return priced_items
+
     def create_deckel(self, name: str, created_by_user_id: int, items: list[dict]) -> Deckel:
         normalized_name = (name or "").strip()
         if not normalized_name:
@@ -83,7 +112,7 @@ class DeckelService:
         if not items:
             raise ValueError("Ein Deckel benötigt mindestens einen Artikel")
 
-        merged_items = self._merge_item_payload(items)
+        merged_items = self._merge_item_payload(self._resolve_new_item_prices(items))
         self.validate_item_stock(merged_items)
 
         deckel = Deckel(name=normalized_name, created_by_user_id=created_by_user_id)
@@ -104,7 +133,7 @@ class DeckelService:
         return self.get_deckel(deckel.id)
 
     def append_items(self, deckel_id: int, items: list[dict]) -> Deckel:
-        deckel = self.get_deckel(deckel_id)
+        deckel = self.get_deckel(deckel_id, lock=True)
         if not deckel:
             raise ValueError("Deckel nicht gefunden")
         if not items:
@@ -114,7 +143,7 @@ class DeckelService:
         for existing_item in deckel.items:
             existing_quantities[existing_item.product_id] += existing_item.quantity
 
-        merged_new_items = self._merge_item_payload(items)
+        merged_new_items = self._merge_item_payload(self._resolve_new_item_prices(items))
         combined_items = []
         for product_id, quantity in existing_quantities.items():
             unit_price = next(
@@ -163,9 +192,50 @@ class DeckelService:
         return self.get_deckel(deckel.id)
 
     def delete_deckel(self, deckel_id: int) -> bool:
-        deckel = self.get_deckel(deckel_id)
+        deckel = self.get_deckel(deckel_id, lock=True)
         if not deckel:
             return False
         self.db.delete(deckel)
         self.db.commit()
         return True
+
+    def settle(self, deckel_id, user, cash_received_cents, tip_cents=0):
+        from app.services.transaction_service import TransactionService
+        from app.services.material_account_service import MaterialAccountService
+        from app.services.audit_log_service import AuditLogService
+        from app.services.voucher_service import VoucherService
+        try:
+            deckel = self.get_deckel(deckel_id, lock=True)
+            if not deckel:
+                raise LookupError("Deckel nicht gefunden oder bereits abgerechnet")
+            if not deckel.items:
+                raise ValueError("Ein leerer Deckel kann nicht abgerechnet werden")
+            for product_id in sorted({item.product_id for item in deckel.items}):
+                product = self.product_repo.get_by_id_for_update(product_id)
+                if not product:
+                    raise ValueError("Ein Deckelprodukt fehlt")
+                if product.requires_guest_list or VoucherService.get_prepaid_value_from_product(product) is not None:
+                    raise ValueError("Dieser alte Deckel enthält Gastartikel oder Verzehrkarten und muss vor der Abrechnung fachlich geklärt werden.")
+            items = [{"product_id": i.product_id, "product_name": i.product.name,
+                      "quantity": i.quantity, "unit_price_cents": i.unit_price_cents,
+                      "is_internal_material": i.is_internal_material, "note": i.note} for i in deckel.items]
+            self.validate_item_stock(items, exclude_deckel_id=deckel.id)
+            total = sum(i["quantity"] * i["unit_price_cents"] for i in items)
+            service = TransactionService(self.db)
+            change = service.validate_cash_payment("CASH", total, tip_cents, cash_received_cents)
+            transaction = service.create_sale_transaction(user_id=user.id, performed_by_username=user.username,
+                total_amount_cents=total, payment_method="CASH", items=items, tip_cents=tip_cents,
+                cash_received_cents=cash_received_cents, change_given_cents=change, commit=False)
+            for item in items:
+                if not self.product_repo.deduct_stock(item["product_id"], item["quantity"], commit=False):
+                    raise ValueError("Bestand hat sich geändert; Deckel wurde nicht abgerechnet")
+            MaterialAccountService(self.db).record_sale_transaction(transaction)
+            AuditLogService(self.db).log(entity_type="deckel", entity_id=deckel.id, entity_name=deckel.name,
+                action="SETTLED", user_username=user.username, new_value={"transaction_id": transaction.id, "total_amount_cents": total})
+            self.db.delete(deckel)
+            self.db.commit()
+            self.db.refresh(transaction)
+            return transaction
+        except Exception:
+            self.db.rollback()
+            raise

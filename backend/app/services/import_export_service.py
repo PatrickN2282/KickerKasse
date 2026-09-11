@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+import json
+import stat
 import csv
 import io
 import zipfile
@@ -7,6 +9,9 @@ from pathlib import Path, PurePosixPath
 
 from fastapi import HTTPException, status
 from sqlalchemy.orm import Session
+from pydantic import ValidationError
+from app.schemas.data_import import IMPORT_SCHEMAS
+from app.schemas.validation import MAX_INT
 
 from app.models import (
     BalanceLog,
@@ -35,7 +40,7 @@ from app.services.file_service import (
 SECTION_ORDER = ("categories", "products", "members")
 REPLACE_ORDER = ("members", "products", "categories")
 MEDIA_SECTIONS = {"products", "members"}
-IMAGE_EXTENSIONS = {".jpg", ".jpeg", ".png", ".webp", ".gif", ".bmp"}
+IMAGE_EXTENSIONS = {".avif",".jpg", ".jpeg", ".png", ".webp", ".gif", ".bmp"}
 MAX_MEDIA_SIZE = 10 * 1024 * 1024
 
 SECTION_HEADERS = {
@@ -57,9 +62,14 @@ SECTION_HEADERS = {
         "price_cents",
         "member_price_cents",
         "is_discountable",
+        "minimum_stock_quantity",
+        "notify_on_low_stock",
+        "requires_guest_list",
+        "opens_small_parts_drawer",
         "stock_quantity",
         "is_unlimited_stock",
         "is_variable_price",
+        "is_visible_in_kasse",
         "is_active",
         "tax_rate",
         "category_names",
@@ -76,8 +86,17 @@ SECTION_HEADERS = {
         "notes",
         "has_discount",
         "balance_cents",
+        "archived_at",
     ],
 }
+
+TRANSFER_VERSION = "2"
+MAX_TRANSFER_BYTES = 128 * 1024 * 1024
+MAX_EXPANDED_BYTES = 256 * 1024 * 1024
+MAX_ENTRIES = 10000
+MAX_ROWS = 10000
+for headers in SECTION_HEADERS.values():
+    headers.insert(0, "transfer_version")
 
 SECTION_HEADER_SIGNATURES = {
     "categories": {"name", "display_order", "is_active_in_kasse"},
@@ -90,7 +109,33 @@ class ImportExportService:
     def __init__(self, db: Session):
         self.db = db
 
-    def export_sections(self, sections: list[str], include_media: bool) -> tuple[bytes, str, str]:
+    def export_sections(self, sections, include_media):
+        from contextlib import nullcontext
+        from sqlalchemy import text
+        from app.models import Base
+        from app.core.maintenance_lock import maintenance_gate
+        engine = self.db.get_bind()
+        gate = maintenance_gate(engine, exclusive=True) if engine.dialect.name == "postgresql" else nullcontext()
+        with gate:
+            self.db.rollback()
+            try:
+                if engine.dialect.name == "postgresql":
+                    quote = engine.dialect.identifier_preparer.quote
+                    self.db.execute(text("SET LOCAL lock_timeout = '5s'"))
+                    self.db.execute(text("LOCK TABLE " + ", ".join(quote(table.name) for table in Base.metadata.sorted_tables) + " IN SHARE MODE"))
+                result = self._export_sections_unlocked(sections, include_media)
+                if len(result[0]) > MAX_TRANSFER_BYTES:
+                    raise HTTPException(413, "Export überschreitet 128 MiB")
+                if result[1] == "application/zip":
+                    with zipfile.ZipFile(io.BytesIO(result[0])) as archive:
+                        self._check_archive(archive)
+                self.db.commit()
+                return result
+            except BaseException:
+                self.db.rollback()
+                raise
+
+    def _export_sections_unlocked(self, sections: list[str], include_media: bool) -> tuple[bytes, str, str]:
         normalized_sections = self._normalize_sections(sections)
         if not normalized_sections:
             raise HTTPException(
@@ -103,6 +148,9 @@ class ImportExportService:
             "products": self._build_products_csv(),
             "members": self._build_members_csv(),
         }
+
+        for section in normalized_sections:
+            self._read_csv_rows(csv_payloads[section], section + ".csv")
 
         if len(normalized_sections) == 1 and not include_media:
             section = normalized_sections[0]
@@ -128,6 +176,9 @@ class ImportExportService:
         content: bytes,
         media_file_name: str | None = None,
         media_content: bytes | None = None,
+        source_mode: str = "foreign",
+        sections: list[str] | None = None,
+        replace_sections: list[str] | None = None,
     ) -> dict:
         parsed_data = self._parse_data_bundle(file_name, content)
         provided_media = self._parse_external_media_bundle(media_file_name, media_content)
@@ -141,7 +192,19 @@ class ImportExportService:
             section for section in supported_media_sections if provided_media.get(section)
         )
 
+        selected = self._normalize_sections(sections if sections is not None else detected_sections)
+        replacing = self._normalize_sections(replace_sections or [])
+        if set(selected) - set(detected_sections) or set(replacing) - set(selected):
+            raise HTTPException(400, "Ungültige Bereichsauswahl")
+        plan = self._plan(parsed_data["rows"], selected, replacing, source_mode)
+        media = self._merge_media_entries(parsed_data["embedded_media"], provided_media)
+        for section in selected:
+            source_ids = {str(row.get("id")) for row in parsed_data["rows"].get(section, [])}
+            for source_id in sorted(set(media.get(section, {})) - source_ids):
+                plan["conflicts"].append({"section": section, "row": None, "source_id": source_id,
+                    "message": f"Medien für Quell-ID {source_id} haben keinen passenden Datensatz"})
         return {
+            **plan,
             "data_format": parsed_data["format"],
             "detected_sections": detected_sections,
             "row_counts": {
@@ -154,7 +217,7 @@ class ImportExportService:
             "can_import_media": bool(embedded_media_sections or provided_media_sections),
         }
 
-    def import_sections(
+    def _import_sections_uncommitted(
         self,
         file_name: str,
         content: bytes,
@@ -167,7 +230,7 @@ class ImportExportService:
     ) -> dict:
         parsed_data = self._parse_data_bundle(file_name, content)
         available_sections = [section for section in SECTION_ORDER if section in parsed_data["rows"]]
-        selected_sections = self._normalize_sections(sections or available_sections)
+        selected_sections = self._normalize_sections(sections if sections is not None else available_sections)
 
         if not selected_sections:
             raise HTTPException(
@@ -198,12 +261,23 @@ class ImportExportService:
             self._parse_external_media_bundle(media_file_name, media_content),
         ) if import_media else {}
 
+        for section in selected_sections:
+            self._validate_import_rows(section, parsed_data["rows"][section])
+
+        plan = self._plan(parsed_data["rows"], selected_sections, normalized_replace_sections, self._source_mode)
+        if plan["conflicts"]:
+            raise HTTPException(409, {"message": "Importkonflikte zuerst beheben", **plan})
         deleted_media_ids = {"products": [], "members": []}
 
         try:
             replaced_counts = self._replace_selected_sections(normalized_replace_sections, deleted_media_ids)
             if normalized_replace_sections:
                 self.db.expunge_all()
+
+            for product_id in deleted_media_ids["products"]:
+                self._remove_staged_folder("products", product_id)
+            for member_id in deleted_media_ids["members"]:
+                self._remove_staged_folder("members", member_id)
 
             results = {}
             for section in SECTION_ORDER:
@@ -226,15 +300,201 @@ class ImportExportService:
             self.db.rollback()
             raise
 
-        for product_id in deleted_media_ids["products"]:
-            delete_product_image(product_id)
-        for member_id in deleted_media_ids["members"]:
-            delete_member_photo(member_id)
-
         return {
             "imported_sections": selected_sections,
             "results": results,
         }
+
+    def _plan(self, rows_by_section, selected, replacing, source_mode):
+        if source_mode not in {"foreign", "same"}:
+            raise HTTPException(400, "Unbekannter Quellmodus")
+        from app.models import Base
+        models = {"categories": Category, "products": Product, "members": Member}
+        conflicts, records = [], []
+        def conflict(section, row, message):
+            conflicts.append({"section": section, "row": row.get("__row_number"), "source_id": row.get("id"), "message": message})
+        # Inspect all FK relationships instead of maintaining an incomplete list of
+        # histories. This includes guests, deckels, vouchers, accounts and future FKs.
+        for section in replacing:
+            model = models[section]
+            for entity in self.db.query(model).all():
+                reasons = []
+                if section == "categories" and entity.is_fixed:
+                    continue
+                if section == "members" and (entity.balance_cents or entity.role):
+                    reasons.append("Guthaben oder Rolle")
+                if section == "products" and entity.stock_quantity:
+                    reasons.append("Lagerbestand muss zuerst ausgeglichen werden")
+                for table in Base.metadata.tables.values():
+                    for fk in table.foreign_keys:
+                        if fk.column.table.name != model.__tablename__:
+                            continue
+                        if table.name == "product_category":
+                            if section == "products" or "products" in replacing:
+                                continue
+                        if self.db.execute(table.select().where(fk.parent == entity.id).limit(1)).first():
+                            reasons.append(table.name)
+                if reasons:
+                    conflict(section, {}, f"Ersetzen gesperrt: {entity.name} (ID {entity.id}): {', '.join(sorted(set(reasons)))}")
+        categories = {category.name for category in self.db.query(Category).all()
+                      if "categories" not in replacing or category.is_fixed}
+        categories.update(row.get("name") for row in rows_by_section.get("categories", []) if "categories" in selected)
+        initial_balance = initial_stock = 0
+        for section in selected:
+            model = models[section]
+            seen_ids, seen_keys, seen_numbers = set(), set(), set()
+            for row in rows_by_section.get(section, []):
+                try:
+                    self._validate_import_rows(section, [row])
+                except HTTPException as exc:
+                    conflict(section, row, str(exc.detail))
+                    continue
+                source_id = self._parse_optional_int(row.get("id"))
+                name = row.get("name") if section != "members" else self._compose_member_name(row["first_name"], row["last_name"])
+                key = row.get("membership_number") or name if section == "members" else name
+                number = row.get("member_number") if section == "members" else None
+                if (source_id and source_id in seen_ids) or key in seen_keys or (number and number in seen_numbers):
+                    conflict(section, row, "Doppelte Quell-ID, Mitgliedsnummer oder fachlicher Schlüssel in der Datei")
+                seen_ids.add(source_id); seen_keys.add(key)
+                if number: seen_numbers.add(number)
+                target = self.db.get(model, source_id) if source_mode == "same" and source_id and section not in replacing else None
+                if target and target.name != name:
+                    conflict(section, row, f"ID {source_id} gehört zu '{target.name}', nicht zu '{name}'")
+                    target = None
+                matches = [] if section in replacing else self.db.query(model).filter(model.name == name).all()
+                if section == "members" and row.get("membership_number") and section not in replacing:
+                    matches += self.db.query(Member).filter_by(membership_number=row["membership_number"]).all()
+                if any(item.id != (target.id if target else None) for item in matches):
+                    # Fixed system categories are a documented, immutable exception.
+                    fixed = next((item for item in matches if section == "categories" and item.is_fixed), None)
+                    if fixed:
+                        target = fixed
+                    else:
+                        conflict(section, row, "Fachlicher Schlüssel existiert bereits; keine automatische Zusammenführung")
+                if section == "categories":
+                    fixed = self.db.query(Category).filter_by(name=name).first()
+                    if fixed and fixed.is_fixed:
+                        target = fixed
+                row["__target_id"] = target.id if target else None
+                if section == "members":
+                    balance = int(row["balance_cents"])
+                    if target:
+                        if target.balance_cents != balance:
+                            conflict(section, row, "Bestehendes Guthaben nur über Aufladung oder Korrektur ändern")
+                        if self.db.query(User.id).filter_by(member_id=target.id).first():
+                            conflict(section, row, "Verknüpftes Benutzerkonto: Änderungen über die Mitgliederverwaltung durchführen")
+                        if target.member_number != self._parse_optional_int(row.get("member_number")):
+                            conflict(section, row, "Bestehende interne Mitgliedsnummer darf nicht umgebucht werden")
+                        incoming_archive = row.get("archived_at") or ""
+                        stored_archive = str(target.archived_at) if target.archived_at else ""
+                        if incoming_archive != stored_archive:
+                            conflict(section, row, "Archivstatus nur über die Mitgliederverwaltung ändern")
+                    else:
+                        initial_balance += balance
+                        if source_mode == "foreign":
+                            row["member_number"] = ""
+                        elif number and section not in replacing and self.db.query(Member.id).filter_by(member_number=int(number)).first():
+                            conflict(section, row, "Interne Mitgliedsnummer ist bereits vergeben")
+                if section == "products":
+                    if target and (target.stock_quantity != int(row["stock_quantity"]) or
+                                   target.is_unlimited_stock != self._parse_bool(row["is_unlimited_stock"], False)):
+                        conflict(section, row, "Bestehenden Bestand und Bestandsart nur über Lagerverwaltung ändern")
+                    if not target: initial_stock += int(row["stock_quantity"])
+                    missing = set(self._parse_category_names(row.get("category_names"))) - categories
+                    if missing:
+                        conflict(section, row, "Fehlende Kategorien: " + ", ".join(sorted(missing)))
+                records.append({"section": section, "row": row["__row_number"], "name": name,
+                                "source_id": source_id, "target_id": target.id if target else None,
+                                "action": "update" if target else "create"})
+        return {"conflicts": conflicts, "records": records, "initial_balance_cents": initial_balance,
+                "initial_stock_quantity": initial_stock, "source_mode": source_mode}
+
+    def _remove_staged_folder(self, section, identifier):
+        from app.services.backup_media import safe_remove
+        folder = self._staged_media / section / str(identifier)
+        if folder.exists():
+            safe_remove(folder, self._staged_media)
+
+    def import_sections(self, file_name, content, sections=None, *, replace_sections=None,
+                        import_media=False, media_file_name=None, media_content=None,
+                        source_mode="foreign", acknowledge_initial_values=False, actor_username=None):
+        from contextlib import nullcontext
+        from uuid import uuid4
+        from sqlalchemy import text
+        from app.models import Base
+        from app.core.maintenance_lock import maintenance_gate
+        from app.services.file_service import UPLOADS_DIR
+        from app.services.backup_media import MediaReplacement, recover_media, recovery_pending
+        from app.services.audit_log_service import AuditLogService
+        engine = self.db.get_bind()
+        gate = maintenance_gate(engine, exclusive=True) if engine.dialect.name == "postgresql" else nullcontext()
+        with gate:
+            self.db.rollback()
+            self.db.expire_all()
+            if recovery_pending(UPLOADS_DIR):
+                raise HTTPException(503, "Unterbrochene Datenpflege: Server zuerst neu starten")
+            replacement = None
+            commit = self.db.commit
+            try:
+                if engine.dialect.name == "postgresql":
+                    quote = engine.dialect.identifier_preparer.quote
+                    self.db.execute(text("SET LOCAL lock_timeout = '5s'"))
+                    self.db.execute(text("LOCK TABLE " + ", ".join(quote(table.name) for table in Base.metadata.sorted_tables) + " IN SHARE ROW EXCLUSIVE MODE"))
+                parsed = self._parse_data_bundle(file_name, content)
+                selected = self._normalize_sections(sections if sections is not None else list(parsed["rows"]))
+                replacing = self._normalize_sections(replace_sections or [])
+                if not selected or set(selected) - set(parsed["rows"]) or set(replacing) - set(selected):
+                    raise HTTPException(400, "Ungültige Bereichsauswahl")
+                plan = self._plan(parsed["rows"], selected, replacing, source_mode)
+                if plan["conflicts"]:
+                    raise HTTPException(409, {"message": "Importkonflikte zuerst beheben", **plan})
+                if (plan["initial_balance_cents"] or plan["initial_stock_quantity"]) and not acknowledge_initial_values:
+                    raise HTTPException(409, {"message": "Anfangsguthaben und Anfangsbestände ausdrücklich bestätigen", **plan})
+                # Validate media before any database or live-media mutation.
+                media = self._merge_media_entries(parsed["embedded_media"], self._parse_external_media_bundle(media_file_name, media_content))
+                for section in selected:
+                    ids = {str(row.get("id")) for row in parsed["rows"][section]}
+                    if import_media and set(media.get(section, {})) - ids:
+                        raise HTTPException(400, "Medien ohne passenden Datensatz")
+                replacement = MediaReplacement(UPLOADS_DIR, str(uuid4()), entity_type="import_export", action="IMPORTED")
+                existing = {}
+                total = 0
+                if UPLOADS_DIR.exists():
+                    for path in UPLOADS_DIR.rglob("*"):
+                        if path.is_symlink(): raise HTTPException(400, "Medienverknüpfung nicht zulässig")
+                        if path.is_file() and not path.relative_to(UPLOADS_DIR).parts[0].startswith(".restore-"):
+                            total += path.stat().st_size
+                            if total > MAX_EXPANDED_BYTES: raise HTTPException(413, "Medienbestand zu groß für Datentransfer")
+                            existing[path.relative_to(UPLOADS_DIR).as_posix()] = path.read_bytes()
+                replacement.prepare(existing)
+                self._staged_media = replacement.stage / "new"
+                self._source_mode = source_mode
+                self.db.commit = self.db.flush
+                result = self._import_sections_uncommitted(file_name, content, selected,
+                    replace_sections=replacing, import_media=import_media,
+                    media_file_name=media_file_name, media_content=media_content)
+                AuditLogService(self.db).log(entity_type="import_export", action="IMPORTED",
+                    entity_name=replacement.operation_id, user_username=actor_username,
+                    new_value={**result, "source_mode": source_mode, "initial_balance_cents": plan["initial_balance_cents"],
+                               "initial_stock_quantity": plan["initial_stock_quantity"], "records": plan["records"]})
+                replacement.apply()
+                commit()
+            except BaseException:
+                self.db.rollback()
+                if replacement and recovery_pending(UPLOADS_DIR):
+                    recover_media(self.db, UPLOADS_DIR)
+                    self.db.rollback()
+                elif replacement and replacement.stage.exists():
+                    replacement.cleanup()
+                raise
+            finally:
+                self.db.commit = commit
+            try:
+                replacement.cleanup()
+            except OSError:
+                import logging
+                logging.getLogger(__name__).exception("Import committed; media cleanup deferred to restart")
+            return result
 
     def _build_categories_csv(self) -> bytes:
         output = io.StringIO()
@@ -244,6 +504,7 @@ class ImportExportService:
         categories = self.db.query(Category).order_by(Category.display_order, Category.name).all()
         for category in categories:
             writer.writerow({
+                "transfer_version": TRANSFER_VERSION,
                 "dataset": "categories",
                 "id": category.id,
                 "name": category.name,
@@ -263,6 +524,7 @@ class ImportExportService:
         products = self.db.query(Product).order_by(Product.name).all()
         for product in products:
             writer.writerow({
+                "transfer_version": TRANSFER_VERSION,
                 "dataset": "products",
                 "id": product.id,
                 "name": product.name,
@@ -272,11 +534,16 @@ class ImportExportService:
                 "member_price_cents": "" if product.member_price_cents is None else product.member_price_cents,
                 "is_discountable": self._format_bool(product.is_discountable),
                 "stock_quantity": product.stock_quantity,
+                "minimum_stock_quantity": product.minimum_stock_quantity,
+                "notify_on_low_stock": self._format_bool(product.notify_on_low_stock),
+                "requires_guest_list": self._format_bool(product.requires_guest_list),
+                "opens_small_parts_drawer": self._format_bool(product.opens_small_parts_drawer),
                 "is_unlimited_stock": self._format_bool(product.is_unlimited_stock),
                 "is_variable_price": self._format_bool(product.is_variable_price),
+                "is_visible_in_kasse": self._format_bool(product.is_visible_in_kasse),
                 "is_active": self._format_bool(product.is_active),
                 "tax_rate": product.tax_rate,
-                "category_names": "|".join(sorted(category.name for category in product.categories)),
+                "category_names": json.dumps(sorted(category.name for category in product.categories), ensure_ascii=False),
             })
 
         return output.getvalue().encode("utf-8-sig")
@@ -289,6 +556,7 @@ class ImportExportService:
         members = self.db.query(Member).order_by(Member.member_number, Member.last_name, Member.first_name).all()
         for member in members:
             writer.writerow({
+                "transfer_version": TRANSFER_VERSION,
                 "dataset": "members",
                 "id": member.id,
                 "member_number": member.member_number,
@@ -300,32 +568,53 @@ class ImportExportService:
                 "notes": member.notes or "",
                 "has_discount": self._format_bool(member.has_discount),
                 "balance_cents": member.balance_cents,
+                "archived_at": member.archived_at.isoformat() if member.archived_at else "",
             })
 
         return output.getvalue().encode("utf-8-sig")
 
-    def _write_export_media(self, archive: zipfile.ZipFile, sections: list[str]) -> None:
-        if "products" in sections:
-            products = self.db.query(Product).filter(Product.image_path.isnot(None)).order_by(Product.id).all()
-            for product in products:
-                file_path = get_full_path(product.image_path)
-                if file_path and file_path.exists():
-                    archive.writestr(
-                        f"media/products/{product.id}/{file_path.name}",
-                        file_path.read_bytes(),
-                    )
+    def _write_export_media(self, archive, sections):
+        from app.services.file_service import get_product_original_image_path, get_member_original_photo_path
+        for section, model, base, original_path in (
+            ("products", Product, PRODUCTS_DIR, get_product_original_image_path),
+            ("members", Member, MEMBERS_DIR, get_member_original_photo_path),
+        ):
+            if section not in sections:
+                continue
+            for entity in self.db.query(model).all():
+                relative = entity.image_path if section == "products" else entity.photo_path
+                main = get_full_path(relative) if relative else None
+                main_stem = "image" if section == "products" else "photo"
+                for stem, path in ((main_stem, main), ("original", original_path(entity.id))):
+                    if path is None:
+                        continue
+                    try:
+                        path.resolve().relative_to(base.resolve())
+                    except ValueError as exc:
+                        raise HTTPException(400, "Medienpfad liegt außerhalb des Bereichs") from exc
+                    if path.is_symlink() or not path.is_file() or path.suffix.lower() not in IMAGE_EXTENSIONS:
+                        raise HTTPException(400, "Referenzierte Mediendatei fehlt oder ist nicht unterstützt")
+                    if path.stat().st_size > MAX_MEDIA_SIZE:
+                        raise HTTPException(400, "Mediendatei überschreitet 10 MiB")
+                    archive.writestr(f"media/{section}/{entity.id}/{stem}{path.suffix.lower()}", path.read_bytes())
 
-        if "members" in sections:
-            members = self.db.query(Member).filter(Member.photo_path.isnot(None)).order_by(Member.id).all()
-            for member in members:
-                file_path = get_full_path(member.photo_path)
-                if file_path and file_path.exists():
-                    archive.writestr(
-                        f"media/members/{member.id}/{file_path.name}",
-                        file_path.read_bytes(),
-                    )
+    @staticmethod
+    def _check_archive(archive):
+        entries = archive.infolist()
+        if len(entries) > MAX_ENTRIES or sum(item.file_size for item in entries) > MAX_EXPANDED_BYTES:
+            raise HTTPException(413, "ZIP überschreitet die Entpackgrenzen")
+        names = set()
+        from app.services.database_backup_service import safe_media_name
+        for item in entries:
+            name = item.filename.rstrip("/")
+            safe_media_name(name)
+            if name.casefold() in names or item.flag_bits & 1 or stat.S_ISLNK(item.external_attr >> 16):
+                raise HTTPException(400, "Doppelte oder unzulässige ZIP-Einträge")
+            names.add(name.casefold())
 
     def _parse_data_bundle(self, file_name: str, content: bytes) -> dict:
+        if len(content) > MAX_TRANSFER_BYTES:
+            raise HTTPException(413, "Datendatei überschreitet 128 MiB")
         suffix = Path(file_name or "import.csv").suffix.lower()
         rows_by_section: dict[str, list[dict]] = {}
         embedded_media = {"products": {}, "members": {}}
@@ -334,6 +623,7 @@ class ImportExportService:
             try:
                 duplicate_sections = set()
                 with zipfile.ZipFile(io.BytesIO(content)) as archive:
+                    self._check_archive(archive)
                     for info in archive.infolist():
                         if info.is_dir():
                             continue
@@ -387,6 +677,8 @@ class ImportExportService:
         content: bytes | None,
     ) -> dict[str, dict[str, dict]]:
         media_entries = {"products": {}, "members": {}}
+        if content is not None and len(content) > MAX_TRANSFER_BYTES:
+            raise HTTPException(413, "Mediendatei überschreitet 128 MiB")
         if not file_name or content is None:
             return media_entries
 
@@ -398,6 +690,7 @@ class ImportExportService:
 
         try:
             with zipfile.ZipFile(io.BytesIO(content)) as archive:
+                self._check_archive(archive)
                 for info in archive.infolist():
                     if info.is_dir():
                         continue
@@ -415,6 +708,12 @@ class ImportExportService:
 
     def _read_csv_rows(self, content: bytes, file_name: str) -> tuple[list[dict], str]:
         try:
+            return self._read_csv_rows_unchecked(content, file_name)
+        except csv.Error as exc:
+            raise HTTPException(400, "Ungültige CSV oder zu großes CSV-Feld") from exc
+
+    def _read_csv_rows_unchecked(self, content: bytes, file_name: str) -> tuple[list[dict], str]:
+        try:
             text = content.decode("utf-8-sig")
         except UnicodeDecodeError as exc:
             raise HTTPException(
@@ -423,6 +722,8 @@ class ImportExportService:
             ) from exc
 
         reader = csv.DictReader(io.StringIO(text))
+        if len(reader.fieldnames or []) != len(set(reader.fieldnames or [])):
+            raise HTTPException(400, "Doppelte CSV-Spalten")
         headers = [header.strip() for header in (reader.fieldnames or []) if header and header.strip()]
         if not headers:
             raise HTTPException(
@@ -431,13 +732,24 @@ class ImportExportService:
             )
 
         section = self._detect_section(headers, file_name)
+        if len(set(headers)) != len(headers) or set(headers) - set(SECTION_HEADERS[section]):
+            raise HTTPException(400, "Doppelte oder unbekannte CSV-Spalten; Konten und Rollen werden nicht übertragen")
         rows = []
         for index, row in enumerate(reader, start=2):
+            if None in row or any(value is None for value in row.values()):
+                raise HTTPException(400, f"Ungültige Spaltenanzahl in Zeile {index}")
             normalized_row = {str(key).strip(): (value or "").strip() for key, value in row.items() if key is not None}
             if not any(normalized_row.values()):
                 continue
+            if normalized_row.get("dataset") and normalized_row["dataset"] != section:
+                raise HTTPException(400, f"Falscher Bereich in Zeile {index}")
+            if normalized_row.get("transfer_version", "") not in {"", "1", TRANSFER_VERSION}:
+                raise HTTPException(400, "Nicht unterstützte Transfer-Version")
             normalized_row["__row_number"] = index
+            normalized_row["__provided_fields"] = list(normalized_row)
             rows.append(normalized_row)
+            if len(rows) > MAX_ROWS:
+                raise HTTPException(413, "Höchstens 10.000 Datensätze je Bereich")
 
         return rows, section
 
@@ -462,20 +774,27 @@ class ImportExportService:
         merged = {"products": {}, "members": {}}
         for bundle in bundles:
             for section in merged:
-                merged[section].update(bundle.get(section, {}))
+                for key, value in bundle.get(section, {}).items():
+                    if key in merged[section]:
+                        previous = merged[section][key]["files"]
+                        if {item["variant"] for item in previous} & {item["variant"] for item in value["files"]}:
+                            raise HTTPException(400, f"Bildvariante für {section}/{key} mehrfach geliefert")
+                        merged[section][key] = {"files": [*previous, *value["files"]]}
+                    else:
+                        merged[section][key] = value
         return merged
 
     def _collect_media_entry(self, target: dict[str, dict[str, dict]], safe_path: PurePosixPath, content: bytes) -> None:
         parts = safe_path.parts
-        if len(parts) < 4:
-            return
+        if len(parts) != 4:
+            raise HTTPException(400, "Medienpfad muss media/Bereich/Quell-ID/Datei entsprechen")
         _, section, source_key = parts[:3]
         if section not in target or not source_key:
             return
 
         ext = safe_path.suffix.lower()
         if ext not in IMAGE_EXTENSIONS:
-            return
+            raise HTTPException(400, "Nicht unterstütztes Bildformat")
         if len(content) > MAX_MEDIA_SIZE:
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
@@ -485,17 +804,58 @@ class ImportExportService:
                 ),
             )
 
-        target[section][source_key] = {
-            "filename": safe_path.name,
-            "content": content,
-        }
+        entry = target[section].setdefault(source_key, {"files": []})
+        variant = "original" if safe_path.stem.lower() == "original" else "main"
+        if any(item["variant"] == variant for item in entry["files"]):
+            raise HTTPException(400, f"Mehrere Bilder derselben Variante für {section}/{source_key}")
+        entry["files"].append({"filename": safe_path.name, "content": content, "variant": variant})
+
+    def _validate_import_rows(self, section: str, rows: list[dict]):
+        """Validate the complete selection before replacement or media writes."""
+        schema = IMPORT_SCHEMAS[section]
+        for row in rows:
+            number = row["__row_number"]
+            try:
+                data = {}
+                for name, field in schema.model_fields.items():
+                    if name not in SECTION_HEADERS[section]:
+                        continue
+                    raw = row.get(name)
+                    if raw is None or str(raw).strip() == "":
+                        if field.is_required():
+                            raise ValueError(f"Pflichtfeld '{name}' fehlt")
+                        continue
+                    if field.annotation is bool:
+                        raw = self._parse_bool(raw, field.default)
+                    if name == "tax_rate":
+                        raw = str(raw).replace(",", ".")
+                    data[name] = raw
+                validated = schema.model_validate(data)
+                if section == "products" and validated.is_unlimited_stock and validated.stock_quantity:
+                    raise ValueError("Unbegrenzte Produkte müssen Bestand 0 haben")
+                if section == "members" and validated.archived_at and validated.balance_cents:
+                    raise ValueError("Archivierte Mitglieder dürfen kein Guthaben haben")
+                source_id = self._parse_optional_int(row.get("id"))
+                if source_id is not None and not 0 < source_id <= MAX_INT:
+                    raise ValueError("'id' muss eine positive ganze Zahl sein")
+                for name in self._parse_category_names(row.get("category_names")):
+                    if len(name) > 120:
+                        raise ValueError("Kategorienamen dürfen höchstens 120 Zeichen enthalten")
+                for name, value in validated.model_dump().items():
+                    if name in SECTION_HEADERS[section]:
+                        row[name] = "" if value is None else str(value)
+            except (ValidationError, ValueError) as exc:
+                if isinstance(exc, ValidationError):
+                    details = "; ".join(f"{'.'.join(map(str, e['loc'])) or 'Datensatz'}: {e['msg']}" for e in exc.errors())
+                else:
+                    details = str(exc)
+                raise HTTPException(status_code=400, detail=f"{section}, Zeile {number}: {details}") from exc
 
     def _import_categories(self, rows: list[dict]) -> dict:
         created = 0
         updated = 0
         skipped_fixed = 0
 
-        existing_category_ids = {c[0] for c in self.db.query(Category.id).all()}
 
         for row in rows:
             row_number = row["__row_number"]
@@ -503,10 +863,7 @@ class ImportExportService:
             category = None
 
             source_id = self._parse_optional_int(row.get("id"))
-            if source_id is not None and source_id in existing_category_ids:
-                category = self.db.query(Category).filter(Category.id == source_id).first()
-            if category is None:
-                category = self.db.query(Category).filter(Category.name == name).first()
+            category = self.db.get(Category, row["__target_id"]) if row.get("__target_id") else None
 
             if category is not None and category.is_fixed:
                 skipped_fixed += 1
@@ -538,7 +895,6 @@ class ImportExportService:
             for category in self.db.query(Category).all()
         }
 
-        existing_product_ids = {p[0] for p in self.db.query(Product.id).all()}
 
         for row in rows:
             row_number = row["__row_number"]
@@ -546,10 +902,7 @@ class ImportExportService:
             product = None
 
             source_id = self._parse_optional_int(row.get("id"))
-            if source_id is not None and source_id in existing_product_ids:
-                product = self.db.query(Product).filter(Product.id == source_id).first()
-            if product is None:
-                product = self.db.query(Product).filter(Product.name == name).first()
+            product = self.db.get(Product, row["__target_id"]) if row.get("__target_id") else None
 
             if product is None:
                 product = Product(name=name, price_cents=0)
@@ -570,7 +923,12 @@ class ImportExportService:
                 if product.is_unlimited_stock
                 else self._parse_int(row.get("stock_quantity"), 0, row_number, "stock_quantity")
             )
+            for field in ("minimum_stock_quantity", "notify_on_low_stock", "requires_guest_list", "opens_small_parts_drawer"):
+                if field in row.get("__provided_fields", row):
+                    value = row.get(field)
+                    setattr(product, field, int(value) if field == "minimum_stock_quantity" else self._parse_bool(value, False))
             product.is_variable_price = self._parse_bool(row.get("is_variable_price"), False)
+            product.is_visible_in_kasse = self._parse_bool(row.get("is_visible_in_kasse"), True)
             product.is_active = self._parse_bool(row.get("is_active"), True)
             product.tax_rate = self._parse_float(row.get("tax_rate"), 0.0, row_number, "tax_rate")
 
@@ -582,7 +940,7 @@ class ImportExportService:
             if import_media and source_id is not None:
                 media_entry = media_entries.get(str(source_id))
                 if media_entry:
-                    product.image_path = self._store_media_file("products", product.id, media_entry)
+                    product.image_path = self._store_media_file("products", product.id, media_entry) or product.image_path
                     media_imported += 1
 
         self.db.flush()
@@ -598,25 +956,16 @@ class ImportExportService:
             for member in self.db.query(Member).filter(Member.member_number.isnot(None)).all()
         }
 
-        existing_member_ids = {m[0] for m in self.db.query(Member.id).all()}
 
         for row in rows:
             row_number = row["__row_number"]
             first_name = self._require_value(row, "first_name", row_number)
             last_name = self._require_value(row, "last_name", row_number)
 
-            member = None
             source_id = self._parse_optional_int(row.get("id"))
-            if source_id is not None and source_id in existing_member_ids:
-                member = self.db.query(Member).filter(Member.id == source_id).first()
-
+            member = self.db.get(Member, row["__target_id"]) if row.get("__target_id") else None
             member_number = self._parse_optional_int(row.get("member_number"))
             membership_number = self._normalize_optional_string(row.get("membership_number"))
-
-            if member is None and member_number is not None:
-                member = members_by_number.get(member_number)
-            if member is None and membership_number:
-                member = self.db.query(Member).filter(Member.membership_number == membership_number).first()
 
             email = self._normalize_optional_string(row.get("email"))
             phone = self._normalize_optional_string(row.get("phone"))
@@ -652,6 +1001,9 @@ class ImportExportService:
             member.notes = notes
             member.has_discount = has_discount
             member.balance_cents = balance_cents
+            if "archived_at" in row.get("__provided_fields", row):
+                from datetime import datetime
+                member.archived_at = datetime.fromisoformat(row["archived_at"]) if row.get("archived_at") else None
 
             if member_number is not None:
                 existing_member_number = members_by_number.get(member_number)
@@ -664,7 +1016,7 @@ class ImportExportService:
             if import_media and source_id is not None:
                 media_entry = media_entries.get(str(source_id))
                 if media_entry:
-                    member.photo_path = self._store_media_file("members", member.id, media_entry)
+                    member.photo_path = self._store_media_file("members", member.id, media_entry) or member.photo_path
                     media_imported += 1
 
         self.db.flush()
@@ -722,7 +1074,8 @@ class ImportExportService:
         self.db.execute(
             product_category.delete().where(product_category.c.product_id.in_(product_ids))
         )
-        self.db.query(DeckelItem).filter(DeckelItem.product_id.in_(product_ids)).delete(synchronize_session=False)
+        if self.db.query(DeckelItem.id).filter(DeckelItem.product_id.in_(product_ids)).first():
+            raise HTTPException(409, "Offene Deckel verhindern den ersetzenden Produktimport")
         self.db.query(ProductStockCorrectionLog).filter(
             ProductStockCorrectionLog.product_id.in_(product_ids)
         ).delete(synchronize_session=False)
@@ -771,28 +1124,19 @@ class ImportExportService:
         self.db.flush()
         return deleted_count
 
-    def _store_media_file(self, section: str, target_id: int, media_entry: dict) -> str:
-        ensure_upload_directories()
-
-        filename = media_entry["filename"]
-        content = media_entry["content"]
-        ext = Path(filename).suffix.lower()
-        if ext not in IMAGE_EXTENSIONS:
-            raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST,
-                detail=f"Dateiformat '{ext}' wird für Medien nicht unterstützt",
-            )
-
-        base_name = "image" if section == "products" else "photo"
-        folder = (PRODUCTS_DIR if section == "products" else MEMBERS_DIR) / str(target_id)
+    def _store_media_file(self, section, target_id, media_entry):
+        folder = self._staged_media / section / str(target_id)
         folder.mkdir(parents=True, exist_ok=True)
-
-        for existing_file in folder.glob(f"{base_name}.*"):
-            existing_file.unlink(missing_ok=True)
-
-        target_path = folder / f"{base_name}{ext}"
-        target_path.write_bytes(content)
-        return f"{section}/{target_id}/{base_name}{ext}"
+        main_path = None
+        for item in media_entry["files"]:
+            stem = "original" if item["variant"] == "original" else "image" if section == "products" else "photo"
+            ext = Path(item["filename"]).suffix.lower()
+            for old in folder.glob(stem + ".*"):
+                old.unlink()
+            (folder / (stem + ext)).write_bytes(item["content"])
+            if stem != "original":
+                main_path = f"{section}/{target_id}/{stem}{ext}"
+        return main_path
 
     def _normalize_sections(self, sections: list[str] | None) -> list[str]:
         if not sections:
@@ -801,6 +1145,8 @@ class ImportExportService:
         normalized = []
         for section in sections:
             normalized_section = (section or "").strip().lower()
+            if normalized_section not in SECTION_ORDER:
+                raise HTTPException(400, "Unbekannter Import-/Exportbereich")
             if normalized_section in SECTION_ORDER and normalized_section not in normalized:
                 normalized.append(normalized_section)
         return normalized
@@ -820,7 +1166,12 @@ class ImportExportService:
     def _parse_bool(value: str | None, default: bool) -> bool:
         if value is None or str(value).strip() == "":
             return default
-        return str(value).strip().lower() in {"1", "true", "yes", "ja", "y"}
+        normalized = str(value).strip().lower()
+        if normalized in {"1", "true", "yes", "ja", "y"}:
+            return True
+        if normalized in {"0", "false", "no", "nein", "n"}:
+            return False
+        raise ValueError(f"Ungültiger Wahrheitswert: {value}")
 
     @staticmethod
     def _parse_optional_int(value: str | None) -> int | None:
@@ -854,6 +1205,11 @@ class ImportExportService:
     def _parse_category_names(value: str | None) -> list[str]:
         if value is None or str(value).strip() == "":
             return []
+        if str(value).lstrip().startswith("["):
+            parsed = json.loads(value)
+            if not isinstance(parsed, list) or any(not isinstance(name, str) or not name.strip() for name in parsed):
+                raise ValueError("Kategoriezuordnung muss eine Liste von Namen sein")
+            return [name.strip() for name in parsed]
         return [name.strip() for name in str(value).split("|") if name.strip()]
 
     @staticmethod

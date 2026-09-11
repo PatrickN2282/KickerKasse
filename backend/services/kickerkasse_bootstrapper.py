@@ -97,11 +97,15 @@ class BootstrapHandler(http.server.BaseHTTPRequestHandler):
         print(f"[Bootstrapper] Starte Installation via {INSTALL_SCRIPT} ...")
 
         try:
+            install_environment = os.environ.copy()
+            if origin and origin != "*":
+                install_environment["KICKERKASSE_INSTALL_ALLOWED_ORIGIN"] = origin
             result = subprocess.run(
                 [sys.executable, str(INSTALL_SCRIPT)],
                 capture_output=True,
                 text=True,
                 timeout=120,
+                env=install_environment,
             )
             output = (result.stdout + result.stderr).strip()
             success = result.returncode == 0

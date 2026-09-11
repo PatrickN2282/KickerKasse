@@ -2,7 +2,6 @@
   <div
     v-if="show"
     class="modal-overlay"
-    @click.self="$emit('close')"
   >
     <div class="modal-card modal-compact">
       <header class="modal-header">
@@ -129,6 +128,17 @@
             <span>Differenz: <strong>{{ productDelta }}</strong></span>
             <span>von: <strong>{{ username || '—' }}</strong></span>
           </div>
+          <label v-if="showSmallPartsDecreaseOption" class="drawer-option">
+            <input
+              :checked="openSmallPartsForDecrease"
+              type="checkbox"
+              @change="$emit('update:open-small-parts-for-decrease', $event.target.checked)"
+            >
+            <span>
+              <strong>Kleinteile-Lager öffnen</strong>
+              <small>Aktivieren, wenn für diese Verringerung tatsächlich auf das Lager zugegriffen wird.</small>
+            </span>
+          </label>
         </template>
       </div>
 
@@ -164,10 +174,11 @@
 </template>
 
 <script setup>
+import { computed } from 'vue'
 import { getMemberFullName } from '@/services/member'
 import { formatBalance } from '@/services/utils'
 
-defineProps({
+const props = defineProps({
   show: { type: Boolean, required: true },
   activeTab: { type: String, required: true },
   selectedMember: { type: Object, default: null },
@@ -177,6 +188,7 @@ defineProps({
   productTargetStock: { type: [Number, String], default: null },
   memberCorrectionReason: { type: String, default: '' },
   productCorrectionReason: { type: String, default: '' },
+  openSmallPartsForDecrease: { type: Boolean, default: false },
   memberDeltaCents: { type: Number, default: 0 },
   productDelta: { type: String, default: '—' },
   username: { type: String, default: '' },
@@ -193,7 +205,14 @@ const emit = defineEmits([
   'update:product-target-stock',
   'update:member-correction-reason',
   'update:product-correction-reason',
+  'update:open-small-parts-for-decrease',
 ])
+
+const showSmallPartsDecreaseOption = computed(() => (
+  props.activeTab === 'products'
+  && !!props.selectedProduct?.opens_small_parts_drawer
+  && Number(props.productTargetStock) < Number(props.selectedProduct?.stock_quantity)
+))
 
 const updateMemberTargetBalance = (event) => {
   const { value } = event.target
@@ -376,6 +395,27 @@ const updateProductTargetStock = (event) => {
   font-size: 0.85rem;
   color: #475569;
   padding: 0.2rem 0.1rem 0;
+}
+
+.drawer-option {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.65rem;
+  padding: 0.75rem;
+  border: 1px solid #f59e0b;
+  border-radius: 8px;
+  background: #fffbeb;
+  color: #78350f;
+
+  input {
+    margin-top: 0.2rem;
+  }
+
+  span {
+    display: flex;
+    flex-direction: column;
+    gap: 0.2rem;
+  }
 }
 
 .modal-footer {

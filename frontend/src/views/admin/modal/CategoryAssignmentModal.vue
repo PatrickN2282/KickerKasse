@@ -2,7 +2,6 @@
   <div
     v-if="show && category"
     class="modal-overlay"
-    @click.self="$emit('close')"
   >
     <div class="modal-card modal-dialog--fullsize">
       <header class="modal-header">

@@ -91,13 +91,22 @@ class MemberRepository:
 
         raise last_exception
     
-    def get_by_id(self, member_id: int) -> Member | None:
+    def get_by_id(self, member_id: int, *, include_archived: bool = False) -> Member | None:
         """Get member by ID"""
-        return self.db.query(Member).filter(Member.id == member_id).first()
+        query = self.db.query(Member).filter(Member.id == member_id)
+        if not include_archived:
+            query = query.filter(Member.archived_at.is_(None))
+        return query.first()
+
+    def get_by_id_for_update(self, member_id: int) -> Member | None:
+        return self.db.query(Member).filter(Member.id == member_id, Member.archived_at.is_(None)).populate_existing().with_for_update().first()
     
-    def get_all(self) -> list[Member]:
+    def get_all(self, *, include_archived: bool = False) -> list[Member]:
         """Get all members"""
-        return self.db.query(Member).order_by(Member.member_number, Member.name).all()
+        query = self.db.query(Member)
+        if not include_archived:
+            query = query.filter(Member.archived_at.is_(None))
+        return query.order_by(Member.member_number, Member.name).all()
     
     def update(self, member_id: int, **kwargs) -> Member | None:
         """Update member"""
@@ -135,7 +144,7 @@ class MemberRepository:
         self.db.refresh(member)
         return member
     
-    def deduct_balance(self, member_id: int, amount_cents: int) -> bool:
+    def deduct_balance(self, member_id: int, amount_cents: int, commit: bool = True) -> bool:
         """Deduct balance from member. Returns False if insufficient balance"""
         member = self.get_by_id(member_id)
         if not member:
@@ -145,7 +154,8 @@ class MemberRepository:
             return False
         
         member.balance_cents -= amount_cents
-        self.db.commit()
+        if commit:
+            self.db.commit()
         return True
     
     def delete(self, member_id: int) -> bool:

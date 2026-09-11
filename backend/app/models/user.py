@@ -45,6 +45,11 @@ class User(BaseModel):
     role = Column(Enum(UserRole), nullable=False, default=UserRole.VERKAUF)
     is_active = Column(Boolean, default=True, nullable=False)
     member_id = Column(Integer, ForeignKey("members.id"), nullable=True, unique=True)
+    # Anforderung 1 (TopAdmin-Passwort-Reset-Workflow): zählt aufeinanderfolgende
+    # fehlgeschlagene Login-Versuche. Wird bei erfolgreichem Login auf 0 zurückgesetzt.
+    # Ab 5 zeigt das Frontend automatisch den Self-Service-Reset-Dialog für den TopAdmin.
+    session_version = Column(Integer, nullable=False, default=1, server_default="1")
+    failed_login_attempts = Column(Integer, nullable=False, default=0)
     created_at = Column(DateTime, default=func.now(), nullable=False)
     updated_at = Column(DateTime, default=func.now(), onupdate=func.now(), nullable=False)
 
@@ -60,3 +65,19 @@ class User(BaseModel):
 
     def __repr__(self):
         return f"<User {self.username}>"
+
+
+# Cover direct and linked-account mutations at their shared persistence boundary.
+from sqlalchemy import event, inspect, update
+
+
+@event.listens_for(User, "before_update")
+def revoke_sessions_on_access_change(mapper, connection, user):
+    state = inspect(user)
+    if any(state.attrs[name].history.has_changes() for name in ("password_hash", "role", "is_active")):
+        user.session_version = User.session_version + 1
+        from .password_reset_token import PasswordResetToken
+        connection.execute(update(PasswordResetToken).where(
+            PasswordResetToken.user_id == user.id,
+            PasswordResetToken.used_at.is_(None),
+        ).values(used_at=func.now()))

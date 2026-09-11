@@ -1,14 +1,16 @@
+from starlette.concurrency import run_in_threadpool
+import hashlib
+
 from fastapi import APIRouter, Depends, File, Form, HTTPException, Request, UploadFile, status
 from fastapi.responses import Response
 from pydantic import BaseModel, Field
 from sqlalchemy.orm import Session
 
 from app.core import get_db
-from app.core.auth import require_authenticated_user, require_password_confirmation, require_roles, require_top_admin
-from app.core.security import get_password_hasher
+from app.core.auth import require_password_confirmation, require_roles, require_top_admin
 from app.models.user import UserRole
-from app.repositories import UserRepository
-from app.services.database_backup_service import DatabaseBackupService
+from app.services.audit_log_service import AuditLogService
+from app.services.database_backup_service import DatabaseBackupService, MAX_ARCHIVE_BYTES
 from app.services.data_maintenance_service import DataMaintenanceService
 
 router = APIRouter(prefix="/api/admin/data-maintenance", tags=["Admin - Data Maintenance"])
@@ -37,7 +39,7 @@ async def hard_reset(
     db: Session = Depends(get_db),
 ):
     current_user = require_top_admin(request, db)
-    require_password_confirmation(current_user, payload.auth_password)
+    require_password_confirmation(current_user, payload.auth_password, db)
 
     if payload.confirmation_text.strip().upper() != "RESET":
         raise HTTPException(
@@ -55,7 +57,7 @@ async def export_database_backup(
     db: Session = Depends(get_db),
 ):
     require_roles(request, db, UserRole.TOP_ADMIN)
-    content, filename = DatabaseBackupService(db).create_backup_zip()
+    content, filename = await run_in_threadpool(DatabaseBackupService(db).create_backup_zip)
     return Response(
         content=content,
         media_type="application/zip",
@@ -71,39 +73,29 @@ async def restore_database_backup(
     backup_file: UploadFile = File(...),
     db: Session = Depends(get_db),
 ):
-    require_authenticated_user(request, db)
-
-    user_id = request.session.get("user_id")
-    if user_id is None:
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Not authenticated",
-        )
-
-    current_user = UserRepository(db).get_by_id(user_id)
-    if not current_user or not current_user.is_active:
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Not authenticated",
-        )
-
-    if current_user.role == UserRole.TOP_ADMIN:
-        require_password_confirmation(current_user, auth_password)
-    else:
-        top_admin = UserRepository(db).get_top_admin()
-        if not top_admin or not top_admin.is_active:
-            raise HTTPException(
-                status_code=status.HTTP_403_FORBIDDEN,
-                detail="Insufficient permissions",
-            )
-        if not get_password_hasher().verify_password(auth_password, top_admin.password_hash):
-            raise HTTPException(
-                status_code=status.HTTP_403_FORBIDDEN,
-                detail="Insufficient permissions",
-            )
-
-    result = DatabaseBackupService(db).restore_from_backup_zip(
-        backup_file.filename or "backup.zip",
-        await backup_file.read(),
-    )
+    current_user = require_top_admin(request, db)
+    require_password_confirmation(current_user, auth_password, db)
+    actor_username = current_user.username
+    backup_name = backup_file.filename or "backup.zip"
+    backup_content = await backup_file.read(MAX_ARCHIVE_BYTES + 1)
+    if len(backup_content) > MAX_ARCHIVE_BYTES:
+        raise HTTPException(413, "Backup-ZIP darf höchstens 256 MiB groß sein")
+    backup_sha256 = hashlib.sha256(backup_content).hexdigest()
+    try:
+        result = await run_in_threadpool(DatabaseBackupService(db).restore_from_backup_zip,
+            backup_name, backup_content, actor_username=actor_username)
+    except Exception:
+        db.rollback()
+        AuditLogService(db).log_optional(
+            entity_type="database_backup", action="RESTORE_FAILED",
+            user_username=actor_username, entity_name=backup_name,
+            new_value={"sha256": backup_sha256})
+        raise
+    request.session.clear()
+    from app.services.scheduler_service import SchedulerService
+    try:
+        SchedulerService.reload_scheduler()
+    except Exception:
+        import logging
+        logging.getLogger(__name__).exception("Scheduler reload after restore failed")
     return result

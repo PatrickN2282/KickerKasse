@@ -1,9 +1,9 @@
 <template>
   <div class="modal-overlay">
-    <div class="modal-dialog" :class="{ 'modal-dialog--wide': isBalancePayment }">
+    <div ref="dialogRef" class="modal-dialog" :class="{ 'modal-dialog--wide': isBalancePayment }" role="dialog" aria-modal="true" aria-labelledby="payment-dialog-title">
       <div class="modal-header">
         <div>
-          <h3>
+          <h3 id="payment-dialog-title">
             <template v-if="paymentResult">Verkauf abgeschlossen</template>
             <template v-else>{{ paymentSource === 'deckel' ? 'Deckel abrechnen' : 'Zahlung bestätigen' }}</template>
           </h3>
@@ -12,7 +12,7 @@
             <template v-else>Buchung erfolgreich gespeichert</template>
           </p>
         </div>
-        <button class="close-btn" @click="closePaymentConfirmation">✕</button>
+        <button class="close-btn" type="button" aria-label="Zahlungsdialog schließen" :disabled="processingPayment" @click="requestClose">✕</button>
       </div>
 
       <div :class="isBalancePayment && !paymentResult ? 'modal-body-twocol' : 'modal-body'">
@@ -83,6 +83,12 @@
               >
                 <div class="payment-summary-copy">
                   <span>{{ item.quantity }}× {{ item.product_name }}</span>
+                  <small
+                    v-for="(guest, index) in (item.guests || [])"
+                    :key="index"
+                  >
+                    Gast: {{ guest.guest_first_name }} {{ guest.guest_last_name }}
+                  </small>
                   <small v-if="item.note">{{ item.note }}</small>
                 </div>
                 <strong>{{ formatPrice(item.total_price_cents) }}</strong>
@@ -146,17 +152,29 @@
                 />
               </label>
               <label>
-                Rückgeld
+                Davon als Spende
+                <input
+                  v-model="tipDonation"
+                  type="number"
+                  min="0"
+                  :max="cashOverpaymentCents / 100"
+                  step="0.01"
+                  class="form-input"
+                  @keyup.enter="confirmPayment"
+                />
+              </label>
+              <label>
+                Auszuzahlendes Rückgeld
                 <input :value="cashChangeDisplay" type="text" class="form-input" readonly />
               </label>
-              <div v-if="cashChangeCents > 0" class="tip-donate-row">
+              <div v-if="cashOverpaymentCents > 0" class="tip-donate-row">
                 <button
                   type="button"
                   class="btn btn-tip-donate"
                   @click="confirmPaymentWithTip"
                   :disabled="processingPayment"
                 >
-                  💝 Rückgeld spenden ({{ formatPrice(cashChangeCents) }})
+                  💝 Gesamtes Rückgeld spenden ({{ formatPrice(cashOverpaymentCents) }})
                 </button>
               </div>
             </div>
@@ -167,10 +185,10 @@
 
       <div class="modal-footer">
         <template v-if="paymentResult">
-          <button @click="closePaymentConfirmation" class="btn btn-primary">Fertig</button>
+          <button @click="requestClose" class="btn btn-primary">Fertig</button>
         </template>
         <template v-else>
-          <button @click="closePaymentConfirmation" class="btn btn-secondary" :disabled="processingPayment">
+          <button @click="requestClose" class="btn btn-secondary" :disabled="processingPayment">
             Abbrechen / Zurück
           </button>
           <button @click="confirmPayment" class="btn btn-confirm-payment" :class="{ selected: true }" :disabled="processingPayment">
@@ -188,20 +206,26 @@
 
 <script setup>
 import { ref, watch, nextTick, inject, computed } from 'vue'
+import { useModalFocus } from '@/composables/useModalFocus'
 const kasse = inject('kasse')
 const {
   pendingPaymentMethod, processingPayment, paymentResult,
-  cartSubtotal, voucherAppliedAmount, balanceAppliedAmount,
-  hasAppliedVoucher, hasAppliedBalance, cashGiven,
+  voucherAppliedAmount, balanceAppliedAmount,
+  hasAppliedVoucher, hasAppliedBalance, cashGiven, tipDonation,
   paymentSummaryItems, paymentSubtotal, paymentTotal,
-  cashChangeDisplay, cashChangeCents, selectedMemberName, selectedMemberBalance, selectedMember,
-  showPaymentConfirmModal, closePaymentConfirmation,
+  cashOverpaymentCents, cashChangeDisplay, selectedMemberName, selectedMemberBalance, selectedMember,
+  closePaymentConfirmation,
   confirmPayment, confirmPaymentWithTip, formatPrice, getPaymentMethodLabel,
-  handleCheckout, paymentSource, activePaymentDeckel, isInsufficientBalance, effectiveCashTotal,
-  getMemberFullName, getMemberShortName, formatBalance,
+  paymentSource, activePaymentDeckel, isInsufficientBalance, effectiveCashTotal,
+  getMemberFullName, getMemberShortName,
 } = kasse
 
 const cashGivenInput = ref(null)
+const dialogRef = ref(null)
+const { requestClose } = useModalFocus(kasse.showPaymentConfirmModal, dialogRef, {
+  canClose: () => !processingPayment.value,
+  onClose: closePaymentConfirmation,
+})
 
 const isBalancePayment = computed(() =>
   pendingPaymentMethod.value === 'BALANCE' || isInsufficientBalance.value

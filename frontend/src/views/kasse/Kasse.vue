@@ -107,8 +107,17 @@
 
     <div class="kasse-bon" :style="bonPanelStyle">
       <div class="bon-content">
+        <details v-if="cartStore.lastBooking" class="last-booking-banner" aria-live="polite">
+          <summary>
+            <strong>Zuletzt gebucht</strong>
+            <span>#{{ cartStore.lastBooking.receipt_number || '-' }} · {{ formatPrice(getLastBookingGrossAmountCents(cartStore.lastBooking)) }} · {{ getLastBookingPaymentLabel(cartStore.lastBooking) }}</span>
+          </summary>
+          <div v-if="cartStore.lastBooking.cash_received_cents != null" class="last-booking-details">
+            Gegeben {{ formatPrice(cartStore.lastBooking.cash_received_cents) }} · Rückgeld {{ formatPrice(cartStore.lastBooking.change_given_cents || 0) }}
+          </div>
+        </details>
         <div class="receipt-number-banner">
-          Beleg: <strong>#{{ nextReceiptNumber || '-' }}</strong>
+          Vorläufiger Beleg: <strong>#{{ nextReceiptNumber || '-' }}</strong>
         </div>
         <div class="bon-items">
           <div
@@ -118,6 +127,13 @@
           >
             <div class="item-name">
               <span>{{ item.product_name }}</span>
+              <span
+                v-for="(guest, index) in (item.guests || [])"
+                :key="index"
+                class="item-note-preview"
+              >
+                Gast: {{ guest.guest_first_name }} {{ guest.guest_last_name }}
+              </span>
               <span v-if="item.note" class="item-note-preview">{{ item.note }}</span>
             </div>
             <div class="item-controls">
@@ -267,10 +283,26 @@
         </div>
       </div>
 
-      <div v-if="appSettingsStore.settings.deckel_enabled" class="deckel-section">
-        <button @click="openDeckelOverview" class="btn-deckel" :disabled="cartStore.items.length === 0 && deckelList.length === 0" title="Bon als Deckel speichern oder vorhandenen Deckel öffnen">
-          <span v-if="activeDeckelCount > 0" class="deckel-badge">{{ activeDeckelCount }}</span>
+      <div v-if="showQuickActions" class="quick-actions-section" :class="{ 'quick-actions-section--split': showSplitQuickActions }">
+        <button
+          v-if="appSettingsStore.settings.deckel_enabled"
+          @click="openDeckelOverview"
+          class="btn-quick-action btn-deckel"
+          :disabled="cartStore.items.length === 0 && deckelList.length === 0"
+          title="Bon als Deckel speichern oder vorhandenen Deckel öffnen"
+        >
+          <span v-if="activeDeckelCount > 0" class="action-badge">{{ activeDeckelCount }}</span>
           Deckel - Ligaspiel
+        </button>
+        <button
+          v-if="appSettingsStore.settings.guest_list_enabled"
+          @click="openGuestListOverview"
+          class="btn-quick-action btn-guest-list"
+          :disabled="guestListTodayLoading"
+          title="Gästeliste für heute anzeigen"
+        >
+          <span v-if="guestListTodayCount > 0" class="action-badge">{{ guestListTodayCount }}</span>
+          Gäste heute
         </button>
       </div>
     </div>
@@ -282,13 +314,26 @@
     <DeckelCreateModal v-if="showDeckelCreateModal" />
     <DeckelOverviewModal v-if="showDeckelOverviewModal" />
     <DeckelDetailsModal v-if="showDeckelDetailsModal && activeDeckel" />
+    <GuestListOverviewModal
+      v-if="showGuestListOverviewModal"
+      :show="showGuestListOverviewModal"
+      :groups="guestListTodayGroups"
+      @close="closeGuestListOverview"
+    />
     <InternalMaterialNoteModal v-if="showInternalMaterialNoteModal && pendingInternalMaterialProduct" />
     <VariablePriceModal v-if="showVariablePriceModal && pendingVariablePriceProduct" />
+    <GuestListModal
+      v-if="showGuestListModal && pendingGuestListProduct"
+      :show="showGuestListModal"
+      :products="guestListModalProducts"
+      @confirm="confirmGuestListSelection"
+      @cancel="closeGuestListModal"
+    />
   </div>
 </template>
 
 <script setup>
-import { provide, watch, ref } from 'vue'
+import { provide, watch, ref, computed } from 'vue'
 import useKasse from './useKasse.js'
 import { useAppSettingsStore } from '@/stores/appSettings'
 import MemberModal from './modal/MemberModal.vue'
@@ -297,8 +342,11 @@ import VoucherModal from './modal/VoucherModal.vue'
 import DeckelCreateModal from './modal/DeckelCreateModal.vue'
 import DeckelOverviewModal from './modal/DeckelOverviewModal.vue'
 import DeckelDetailsModal from './modal/DeckelDetailsModal.vue'
+import GuestListOverviewModal from './modal/GuestListOverviewModal.vue'
 import InternalMaterialNoteModal from './modal/InternalMaterialNoteModal.vue'
 import VariablePriceModal from './modal/VariablePriceModal.vue'
+import GuestListModal from './modal/GuestListModal.vue'
+import { getLastBookingGrossAmountCents, getLastBookingPaymentLabel } from '@/services/lastBooking'
 
 const appSettingsStore = useAppSettingsStore()
 const kasse = useKasse()
@@ -317,6 +365,10 @@ const {
   showVariablePriceModal,
   pendingVariablePriceProduct,
   pendingInternalMaterialProduct,
+  showGuestListModal,
+  pendingGuestListProduct,
+  closeGuestListModal,
+  confirmGuestListSelection,
   activeDeckel,
   imageErrorMap,
   onImageError,
@@ -339,7 +391,6 @@ const {
   bonPanelStyle,
   startResizing,
   cartSubtotal,
-  voucherAppliedAmount,
   balanceAppliedAmount,
   hasAppliedVoucher,
   hasAppliedBalance,
@@ -356,7 +407,30 @@ const {
   activeDeckelCount,
   openDeckelOverview,
   changeCartItemQuantity,
+  showGuestListOverviewModal,
+  guestListTodayGroups,
+  guestListTodayLoading,
+  guestListTodayCount,
+  openGuestListOverview,
+  closeGuestListOverview,
 } = kasse
+
+const guestListModalProducts = computed(() => {
+  if (!pendingGuestListProduct.value) return []
+  return [{
+    productId: pendingGuestListProduct.value.id,
+    productName: pendingGuestListProduct.value.name,
+    quantity: 1,
+  }]
+})
+
+const showQuickActions = computed(() => (
+  appSettingsStore.settings.deckel_enabled || appSettingsStore.settings.guest_list_enabled
+))
+
+const showSplitQuickActions = computed(() => (
+  appSettingsStore.settings.deckel_enabled && appSettingsStore.settings.guest_list_enabled
+))
 
 // Nach einer Guthaben-Zahlung: wenn noch ein Restbetrag offen ist,
 // direkt das Bar-Zahlungs-Modal öffnen.
@@ -451,6 +525,26 @@ watch(showPaymentConfirmModal, (isOpen) => {
   @media (max-width: 768px) {
     display: none;
   }
+}
+
+.last-booking-banner {
+  margin-bottom: .4rem;
+  padding: .35rem .55rem;
+  border: 1px solid #79b88a;
+  border-radius: 9px;
+  color: #174d2a;
+  background: #eaf7ee;
+  font-size: .78rem;
+
+  summary {
+    display: flex;
+    justify-content: space-between;
+    gap: .5rem;
+    cursor: pointer;
+    list-style-position: inside;
+  }
+
+  .last-booking-details { margin-top: .35rem; padding-top: .35rem; border-top: 1px solid #bbdfc5; }
 }
 
 .kasse-bon {
@@ -1332,13 +1426,20 @@ watch(showPaymentConfirmModal, (isOpen) => {
   display: none;
 }
 
-.deckel-section {
+.quick-actions-section {
   margin-top: auto;
   padding-top: 1rem;
   border-top: 1px solid color-mix(in srgb, var(--app-banner-color) 18%, white 82%);
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 0.75rem;
 }
 
-.btn-deckel,
+.quick-actions-section--split {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.btn-quick-action,
 .btn-cancel {
   width: 100%;
   min-height: 40px;
@@ -1358,18 +1459,21 @@ watch(showPaymentConfirmModal, (isOpen) => {
   }
 }
 
-.btn-deckel {
-  background: linear-gradient(135deg, #e7edf5, #d6e0eb);
-  color: #334155;
-  border: 1px solid #b8c6d8;
-  display: flex;
+.btn-quick-action {
   position: relative;
+  display: flex;
   flex-direction: row;
   justify-content: center;
   align-items: center;
   gap: 0.4rem;
   text-align: center;
   line-height: 1.2;
+}
+
+.btn-deckel {
+  background: linear-gradient(135deg, #e7edf5, #d6e0eb);
+  color: #334155;
+  border: 1px solid #b8c6d8;
 
   &:hover {
     background: linear-gradient(135deg, #dde7f1, #cad7e5);
@@ -1378,7 +1482,19 @@ watch(showPaymentConfirmModal, (isOpen) => {
   }
 }
 
-.deckel-badge {
+.btn-guest-list {
+  background: linear-gradient(135deg, #ecfeff, #cffafe);
+  color: #155e75;
+  border: 1px solid #7dd3fc;
+
+  &:hover {
+    background: linear-gradient(135deg, #cffafe, #a5f3fc);
+    border-color: #38bdf8;
+    color: #0f172a;
+  }
+}
+
+.action-badge {
   position: absolute;
   top: 0.55rem;
   right: 0.7rem;

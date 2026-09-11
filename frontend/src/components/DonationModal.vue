@@ -1,5 +1,5 @@
 <template>
-  <div v-if="show" class="modal-overlay" @click.self="emit('close')">
+  <div v-if="show" class="modal-overlay">
     <div class="modal-dialog">
       <div class="modal-header">
         <div>
@@ -46,7 +46,6 @@ defineProps({
 })
 
 const emit = defineEmits(['close'])
-const donationBannerUrl = '/api/app-settings/donation-banner'
 const donationQrUrl = '/api/app-settings/donation-qr'
 </script>
 

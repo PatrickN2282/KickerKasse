@@ -5,6 +5,14 @@
   --kasse-area-background-color: #ffffff;
   --app-surface-color: #ffffff;
   --app-text-color: #1a1a1a;
+  --action-primary-bg: var(--app-highlight-color);
+  --action-primary-text: var(--app-highlight-contrast, #ffffff);
+  --action-secondary-bg: #ffffff;
+  --action-secondary-text: #334155;
+  --action-danger-bg: #b91c1c;
+  --action-danger-text: #ffffff;
+  --control-border: #94a3b8;
+  --focus-ring: #0b6bcb;
 }
 
 * {
@@ -33,6 +41,30 @@ input,
 select,
 textarea {
   font: inherit;
+}
+
+:where(button, a, input, select, textarea):focus-visible {
+  outline: 3px solid var(--focus-ring);
+  outline-offset: 2px;
+}
+
+.sr-only {
+  position: absolute !important;
+  width: 1px !important;
+  height: 1px !important;
+  padding: 0 !important;
+  margin: -1px !important;
+  overflow: hidden !important;
+  clip: rect(0, 0, 0, 0) !important;
+  white-space: nowrap !important;
+  border: 0 !important;
+}
+
+@media (max-width: 760px), (pointer: coarse) {
+  :where(button, [role="button"]) {
+    min-width: 44px;
+    min-height: 44px;
+  }
 }
 
 img {
@@ -250,10 +282,10 @@ img {
 
 :where(.modal-overlay, .admin-modal-overlay, .confirmation-overlay)
   :is(.modal-footer, .admin-modal-footer, .kk-dialog__footer) :is(.btn-success, .btn-confirm-payment, .btn-primary, .btn-ready) {
-  background: #cdeedc !important;
-  color: #14532d !important;
-  border: 1px solid #86efac !important;
-  box-shadow: 0 0 0 2px rgba(46, 125, 50, 0.2) !important;
+  background: var(--action-primary-bg) !important;
+  color: var(--action-primary-text) !important;
+  border: 1px solid color-mix(in srgb, var(--action-primary-bg) 75%, #000) !important;
+  box-shadow: none !important;
 }
 
 :where(.modal-overlay, .admin-modal-overlay, .confirmation-overlay)
@@ -265,10 +297,17 @@ img {
 }
 
 :where(.modal-overlay, .admin-modal-overlay, .confirmation-overlay)
-  :is(.modal-footer, .admin-modal-footer, .kk-dialog__footer) :is(.btn-secondary, .btn-danger, .btn-action-danger, .btn-cancel, .btn-close, .btn-abort) {
-  background: #f9d5d9 !important;
-  color: #7f1d1d !important;
-  border: 1px solid #fda4af !important;
+  :is(.modal-footer, .admin-modal-footer, .kk-dialog__footer) :is(.btn-secondary, .btn-cancel, .btn-close, .btn-abort) {
+  background: var(--action-secondary-bg) !important;
+  color: var(--action-secondary-text) !important;
+  border: 1px solid var(--control-border) !important;
+}
+
+:where(.modal-overlay, .admin-modal-overlay, .confirmation-overlay)
+  :is(.modal-footer, .admin-modal-footer, .kk-dialog__footer) :is(.btn-danger, .btn-action-danger) {
+  background: var(--action-danger-bg) !important;
+  color: var(--action-danger-text) !important;
+  border: 1px solid #7f1d1d !important;
 }
 
 :where(.modal-overlay, .admin-modal-overlay, .confirmation-overlay)

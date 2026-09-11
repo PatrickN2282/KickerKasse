@@ -15,7 +15,9 @@ class AppSettingsBase(BaseModel):
     kasse_layout: str | None = None
     session_timer_enabled: bool = False
     session_timer_minutes: int = Field(default=15, ge=1, le=MAX_SESSION_TIMER_MINUTES)
+    kasse_direct_login_enabled: bool = True
     deckel_enabled: bool = True
+    guest_list_enabled: bool = True
     kasse_products_background_scale: int = Field(default=100, ge=10, le=300)
     kasse_products_background_opacity: int = Field(default=100, ge=0, le=100)
     kasse_products_background_enabled: bool = True
@@ -32,7 +34,12 @@ class AppSettingsBase(BaseModel):
     email_enabled: bool = False
     email_sender: str | None = Field(default=None, max_length=160)
     email_recipient_zbon: str | None = Field(default=None, max_length=160)
+    email_recipient_stock: str | None = Field(default=None, max_length=160)
+    email_recipient_backup: str | None = Field(default=None, max_length=160)
     email_subject_suffix: str | None = Field(default=None, max_length=120)
+    email_subject_zbon_info: str | None = Field(default=None, max_length=120)
+    email_subject_stock_info: str | None = Field(default=None, max_length=120)
+    email_subject_backup_info: str | None = Field(default=None, max_length=120)
     email_critical_stock_enabled: bool = False
     smtp_host: str | None = Field(default=None, max_length=255)
     smtp_port: int = Field(default=587, ge=1, le=65535)
@@ -43,6 +50,7 @@ class AppSettingsBase(BaseModel):
     scheduled_zbon_enabled: bool = False
     scheduled_zbon_time: str = Field(default="23:59", pattern=r"^([01]\d|2[0-3]):[0-5]\d$")
     scheduled_zbon_report_type: str = Field(default="full-zbon", pattern=r"^(full-zbon|short-zbon|daily-report)$")
+    scheduled_stock_warning_time: str = Field(default="09:00", pattern=r"^([01]\d|2[0-3]):[0-5]\d$")
     scheduled_database_backup_enabled: bool = False
     scheduled_database_backup_time: str = Field(default="03:00", pattern=r"^([01]\d|2[0-3]):[0-5]\d$")
 
@@ -56,7 +64,9 @@ class AppSettingsUpdate(BaseModel):
     kasse_layout: str | None = None
     session_timer_enabled: bool | None = None
     session_timer_minutes: int | None = Field(default=None, ge=1, le=MAX_SESSION_TIMER_MINUTES)
+    kasse_direct_login_enabled: bool | None = None
     deckel_enabled: bool | None = None
+    guest_list_enabled: bool | None = None
     kasse_products_background_scale: int | None = Field(default=None, ge=10, le=300)
     kasse_products_background_opacity: int | None = Field(default=None, ge=0, le=100)
     kasse_products_background_enabled: bool | None = None
@@ -73,7 +83,12 @@ class AppSettingsUpdate(BaseModel):
     email_enabled: bool | None = None
     email_sender: str | None = Field(default=None, max_length=160)
     email_recipient_zbon: str | None = Field(default=None, max_length=160)
+    email_recipient_stock: str | None = Field(default=None, max_length=160)
+    email_recipient_backup: str | None = Field(default=None, max_length=160)
     email_subject_suffix: str | None = Field(default=None, max_length=120)
+    email_subject_zbon_info: str | None = Field(default=None, max_length=120)
+    email_subject_stock_info: str | None = Field(default=None, max_length=120)
+    email_subject_backup_info: str | None = Field(default=None, max_length=120)
     email_critical_stock_enabled: bool | None = None
     smtp_host: str | None = Field(default=None, max_length=255)
     smtp_port: int | None = Field(default=None, ge=1, le=65535)
@@ -84,6 +99,7 @@ class AppSettingsUpdate(BaseModel):
     scheduled_zbon_enabled: bool | None = None
     scheduled_zbon_time: str | None = Field(default=None, pattern=r"^([01]\d|2[0-3]):[0-5]\d$")
     scheduled_zbon_report_type: str | None = Field(default=None, pattern=r"^(full-zbon|short-zbon|daily-report)$")
+    scheduled_stock_warning_time: str | None = Field(default=None, pattern=r"^([01]\d|2[0-3]):[0-5]\d$")
     scheduled_database_backup_enabled: bool | None = None
     scheduled_database_backup_time: str | None = Field(default=None, pattern=r"^([01]\d|2[0-3]):[0-5]\d$")
 
@@ -103,6 +119,13 @@ class AppSettingsResponse(AppSettingsBase):
     asset_version: str
     created_at: datetime
     updated_at: datetime
+    zbon_last_run_at: datetime | None = None
+    zbon_last_run_status: str | None = None
+    zbon_last_run_message: str | None = None
+    zbon_last_business_date: str | None = None
+    stock_last_run_at: datetime | None = None
+    stock_last_run_status: str | None = None
+    stock_last_run_message: str | None = None
 
     class Config:
         from_attributes = True
@@ -128,7 +151,9 @@ class PublicAppSettingsResponse(BaseModel):
     kasse_layout: str | None = None
     session_timer_enabled: bool = False
     session_timer_minutes: int = 15
+    kasse_direct_login_enabled: bool = True
     deckel_enabled: bool = True
+    guest_list_enabled: bool = True
     kasse_products_background_scale: int = 100
     kasse_products_background_opacity: int = 100
     kasse_products_background_enabled: bool = True

@@ -1,5 +1,5 @@
 <template>
-  <div v-if="show" class="modal-overlay" @click.self="closeModal">
+  <div v-if="show" class="modal-overlay">
     <div class="modal-card editor-modal-card">
       <header class="modal-header">
         <div>
@@ -208,49 +208,6 @@ const zoomPercent = computed(() => {
   if (cropMinScale.value <= 0) return 100
   return Math.round(cropScale.value / cropMinScale.value * 100)
 })
-
-// Live preview dimensions and styles
-// Product card preview: matches kasse card-img proportions (3:2 at 80px height → 120×80)
-const PRODUCT_PREVIEW_H = 80
-const PRODUCT_PREVIEW_W = computed(() => Math.round(PRODUCT_PREVIEW_H * props.aspectRatio))
-// Member avatar preview: 80×80 square
-const MEMBER_PREVIEW_W = 80
-const MEMBER_PREVIEW_H = 80
-
-const buildLivePreviewStyles = (previewW, previewH) => {
-  if (!localImageSrc.value || props.frameWidth <= 0 || frameHeight.value <= 0) {
-    return { viewport: {}, img: {} }
-  }
-  const scaleX = previewW / props.frameWidth
-  const scaleY = previewH / frameHeight.value
-  // Use uniform scale to keep aspect consistent
-  const s = Math.min(scaleX, scaleY)
-  const vW = Math.round(props.frameWidth * s)
-  const vH = Math.round(frameHeight.value * s)
-  return {
-    viewport: {
-      width: `${vW}px`,
-      height: `${vH}px`,
-    },
-    img: {
-      position: 'absolute',
-      left: `${cropPanX.value * s}px`,
-      top: `${cropPanY.value * s}px`,
-      width: `${cropNaturalW.value * cropScale.value * s}px`,
-      height: `${cropNaturalH.value * cropScale.value * s}px`,
-      userSelect: 'none',
-      pointerEvents: 'none',
-    },
-  }
-}
-
-const liveProductStyles = computed(() => buildLivePreviewStyles(PRODUCT_PREVIEW_W.value, PRODUCT_PREVIEW_H))
-const liveProductViewportStyle = computed(() => liveProductStyles.value.viewport)
-const liveProductImgStyle = computed(() => liveProductStyles.value.img)
-
-const liveMemberStyles = computed(() => buildLivePreviewStyles(MEMBER_PREVIEW_W, MEMBER_PREVIEW_H))
-const liveMemberViewportStyle = computed(() => liveMemberStyles.value.viewport)
-const liveMemberImgStyle = computed(() => liveMemberStyles.value.img)
 
 const removeMouseListeners = () => {
   document.removeEventListener('mousemove', onDocCropMouseMove)

@@ -41,7 +41,7 @@
         <div class="form-card">
           <h3>🎁 Gutschein</h3>
           <p class="form-description">
-            Kostenlos erstellt, wird bei Einlösung als Verlust verbucht
+            Kostenlos erstellt; der Wert wird bereits bei der Erstellung vom Gutscheinkonto abgezogen
           </p>
           <p class="form-help">
             Gutscheinwert eintragen und danach die Zugangsdaten bestätigen.
@@ -212,9 +212,10 @@
 
         <button
           class="btn-secondary"
+          :disabled="exportingCsv"
           @click="exportAsCSV"
         >
-          📥 CSV Export
+          {{ exportingCsv ? '⏳ Export wird erstellt …' : `📥 Gesamte Auswahl exportieren (${totalVouchers})` }}
         </button>
       </div>
 
@@ -251,9 +252,9 @@
                 </span>
               </td>
               <td class="currency">
-                <div>{{ (voucher.original_value_cents / 100).toFixed(2) }}€</div>
+                <div>{{ formatCurrency(voucher.original_value_cents) }}</div>
                 <small v-if="voucher.remaining_value_cents !== voucher.original_value_cents">
-                  Rest: {{ (voucher.remaining_value_cents / 100).toFixed(2) }}€
+                  Rest: {{ formatCurrency(voucher.remaining_value_cents) }}
                 </small>
               </td>
               <td>
@@ -396,13 +397,13 @@
       @close="closeCreatedVoucherModal"
       @open-club-account="openClubAccountFromModal"
     />
-    <CredentialConfirmModal
+    <AuthCredentialModal
       :show="showPasswordModal"
       :title="passwordModalTitle"
-      message="Optional können hier die Zugangsdaten des Top-Admin zur Freigabe verwendet werden."
+      message="Bitte das Passwort des aktuell angemeldeten Benutzers bestätigen."
       :username="authStore.user?.username || ''"
-      allow-username-edit
       confirm-label="Bestätigen"
+      :error="voucherPasswordModalError"
       @close="handlePasswordModalClose"
       @confirm="handlePasswordConfirmed"
     />
@@ -412,14 +413,19 @@
 <script setup>
 import { ref, computed, onMounted } from 'vue'
 import { useAuthStore } from '@/stores/auth'
+import { useNotificationStore } from '@/stores/notification'
 import apiService from '@/services/api'
-import CredentialConfirmModal from '@/components/CredentialConfirmModal.vue'
+import { getErrorDetailMessage } from '@/services/errorMessage'
+import AuthCredentialModal from '@/components/AuthCredentialModal.vue'
 import VoucherEditModal from '@/views/admin/modal/VoucherEditModal.vue'
 import VoucherCreatedModal from '@/views/admin/modal/VoucherCreatedModal.vue'
+
+const getErrorMessage = getErrorDetailMessage
 
 // Active sub-tab
 const activeSubTab = ref('create')
 const authStore = useAuthStore()
+const notificationStore = useNotificationStore()
 
 // Form data
 const giftForm = ref({
@@ -492,6 +498,12 @@ const createdPrepaidBatch = ref(null)
 const showCreatedVoucherModal = ref(false)
 const createError = ref(null)
 const showPasswordModal = ref(false)
+const voucherPasswordModalError = ref('')
+
+// Anforderung 10: Passwortfehler direkt im gemeinsamen Zugangsdaten-Dialog anzeigen statt
+// nur als Toast. Gibt true zurück, wenn der Fehler ein Zugangsdaten-Fehler war (Dialog bleibt
+// dann geöffnet), sonst false (Dialog wurde bereits regulär geschlossen).
+const isCredentialError = (error) => [401, 403].includes(error?.response?.status)
 const pendingVoucherAction = ref(null)
 const clubAccount = ref({ balance_cents: 0, entries: [] })
 const clubAccountTopUp = ref('')
@@ -510,6 +522,7 @@ const vouchers = ref([])
 const currentPage = ref(1)
 const pageSize = ref(20)
 const totalVouchers = ref(0)
+const exportingCsv = ref(false)
 
 const filters = ref({
   type: '',
@@ -595,11 +608,17 @@ const submitGiftVoucher = async ({ username, password }) => {
     showCreatedVoucherModal.value = true
     giftForm.value = { valueCents: 500, reason: 'DYP_SIEGER', valueDisplay: '5.00' }
     await loadClubAccount()
+    return false
   } catch (error) {
     console.error('[Vouchers] Error creating GIFT voucher:', error)
     console.error('[Vouchers]   Status:', error?.response?.status)
     console.error('[Vouchers]   Message:', error?.response?.data?.detail || error.message)
-    createError.value = error.response?.data?.detail || error.message || 'Fehler beim Erstellen'
+    if (isCredentialError(error)) {
+      voucherPasswordModalError.value = getErrorMessage(error, 'Zugangsdaten sind ungültig')
+      return true
+    }
+    createError.value = getErrorMessage(error, error.message || 'Fehler beim Erstellen')
+    return false
   } finally {
     creatingGift.value = false
   }
@@ -627,9 +646,15 @@ const submitPrepaidVoucher = async ({ username, password }) => {
     showCreatedVoucherModal.value = true
     prepaidForm.value = { valueCents: 1000, valueDisplay: '10.00', quantity: 1 }
     await loadVouchers()
+    return false
   } catch (error) {
     console.error('[Vouchers] Error creating PREPAID voucher:', error)
-    createError.value = error.response?.data?.detail || error.message || 'Fehler beim Erstellen'
+    if (isCredentialError(error)) {
+      voucherPasswordModalError.value = getErrorMessage(error, 'Zugangsdaten sind ungültig')
+      return true
+    }
+    createError.value = getErrorMessage(error, error.message || 'Fehler beim Erstellen')
+    return false
   } finally {
     creatingPrepaid.value = false
   }
@@ -637,27 +662,43 @@ const submitPrepaidVoucher = async ({ username, password }) => {
 
 const handlePasswordModalClose = () => {
   showPasswordModal.value = false
+  voucherPasswordModalError.value = ''
   pendingVoucherAction.value = null
 }
 
 const handlePasswordConfirmed = async (credentials) => {
-  showPasswordModal.value = false
+  voucherPasswordModalError.value = ''
+  let credentialError = false
+
   if (pendingVoucherAction.value === 'gift') {
-    await submitGiftVoucher(credentials)
+    credentialError = await submitGiftVoucher(credentials)
   } else if (pendingVoucherAction.value === 'prepaid') {
-    await submitPrepaidVoucher(credentials)
+    credentialError = await submitPrepaidVoucher(credentials)
   } else if (pendingVoucherAction.value === 'account') {
-    await apiService.post('/admin/vouchers/club-account/topup', {
-      amount_cents: Math.round(Number(clubAccountTopUp.value) * 100),
-      auth_username: credentials.username,
-      auth_password: credentials.password,
-    })
-    clubAccountTopUp.value = ''
-    await loadClubAccount()
+    try {
+      await apiService.post('/admin/vouchers/club-account/topup', {
+        amount_cents: Math.round(Number(clubAccountTopUp.value) * 100),
+        auth_username: credentials.username,
+        auth_password: credentials.password,
+      })
+      clubAccountTopUp.value = ''
+      await loadClubAccount()
+    } catch (error) {
+      if (isCredentialError(error)) {
+        voucherPasswordModalError.value = getErrorMessage(error, 'Zugangsdaten sind ungültig')
+        credentialError = true
+      } else {
+        createError.value = getErrorMessage(error, 'Aufladung fehlgeschlagen')
+      }
+    }
   } else if (pendingVoucherAction.value === 'edit') {
-    await submitVoucherEdit(credentials)
+    credentialError = await submitVoucherEdit(credentials)
   }
-  pendingVoucherAction.value = null
+
+  if (!credentialError) {
+    showPasswordModal.value = false
+    pendingVoucherAction.value = null
+  }
 }
 
 const requestClubAccountTopUp = () => {
@@ -764,7 +805,10 @@ const formatDate = (date) => {
   return new Date(date).toLocaleDateString('de-DE')
 }
 
-const formatCurrency = (amountCents) => `${(amountCents / 100).toFixed(2)}€`
+const formatCurrency = (amountCents) => new Intl.NumberFormat('de-DE', {
+  style: 'currency',
+  currency: 'EUR',
+}).format(Number(amountCents || 0) / 100)
 
 const formatReason = (reason) => {
   if (!reason) return '-'
@@ -815,7 +859,7 @@ const saveVoucherEdit = async () => {
 }
 
 const submitVoucherEdit = async ({ username, password }) => {
-  if (!editingVoucher.value) return
+  if (!editingVoucher.value) return false
 
   updatingVoucher.value = true
   editError.value = null
@@ -836,34 +880,31 @@ const submitVoucherEdit = async ({ username, password }) => {
     }
 
     closeEditVoucher()
+    return false
   } catch (error) {
-    editError.value = error.response?.data?.detail || error.message || 'Fehler beim Speichern'
+    if (isCredentialError(error)) {
+      voucherPasswordModalError.value = getErrorMessage(error, 'Zugangsdaten sind ungültig')
+      return true
+    }
+    editError.value = getErrorMessage(error, error.message || 'Fehler beim Speichern')
+    return false
   } finally {
     updatingVoucher.value = false
   }
 }
 
-const exportAsCSV = () => {
-  if (vouchers.value.length === 0) return
-
-  const headers = ['Nummer', 'Typ', 'Wert (€)', 'Status', 'Grund', 'Erstellt von', 'Erstellt', 'Eingelöst']
-  const rows = vouchers.value.map((v) => [
-    getVoucherCode(v),
-    v.voucher_type,
-    (v.value_cents / 100).toFixed(2),
-    v.status,
-    formatReason(v.reason),
-    formatVoucherCreator(v),
-    formatDate(v.created_at),
-    v.redeemed_at ? formatDate(v.redeemed_at) : '',
-  ])
-
-  const csvContent = [
-    headers.join(','),
-    ...rows.map((r) => r.map((cell) => `"${cell}"`).join(',')),
-  ].join('\n')
-
-  const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' })
+const exportAsCSV = async () => {
+  if (totalVouchers.value === 0 || exportingCsv.value) return
+  exportingCsv.value = true
+  try {
+    const response = await apiService.get('/admin/vouchers/export.csv', {
+      params: {
+        type_filter: filters.value.type || undefined,
+        status_filter: filters.value.status || undefined,
+      },
+      responseType: 'blob',
+    })
+    const blob = response.data
   const link = document.createElement('a')
   const url = URL.createObjectURL(blob)
   link.setAttribute('href', url)
@@ -872,6 +913,14 @@ const exportAsCSV = () => {
   document.body.appendChild(link)
   link.click()
   document.body.removeChild(link)
+    URL.revokeObjectURL(url)
+    const count = Number(response.headers['x-export-count'] || totalVouchers.value)
+    notificationStore.success(`${count} Gutscheine aus der gesamten Filterauswahl exportiert.`)
+  } catch {
+    notificationStore.error('Der Gutscheinexport konnte nicht erstellt werden.')
+  } finally {
+    exportingCsv.value = false
+  }
 }
 
 // Computed

@@ -23,7 +23,7 @@
               <div>{{ deckel.items.length }} Positionen · {{ formatPrice(deckel.total_amount_cents) }}</div>
             </div>
             <div class="deckel-actions-inline" @click.stop>
-              <button class="btn btn-primary" :disabled="cartStore.items.length === 0" @click="bookCurrentCartToDeckel(deckel)">
+              <button class="btn btn-primary" :disabled="deckelSaving || cartStore.items.length === 0" @click="bookCurrentCartToDeckel(deckel)">
                 Buchen
               </button>
               <button class="btn btn-info" @click="openDeckelForPayment(deckel)">
@@ -35,7 +35,7 @@
       </div>
       <div class="modal-footer">
         <button @click="closeDeckelOverviewModal" class="btn btn-secondary">Schließen</button>
-        <button @click="openDeckelCreateModalFromOverview" :disabled="cartStore.items.length === 0" class="btn btn-primary">
+        <button @click="openDeckelCreateModalFromOverview" :disabled="deckelSaving || cartStore.items.length === 0" class="btn btn-primary">
           + Neuen Deckel anlegen
         </button>
       </div>
@@ -46,7 +46,7 @@
 <script setup>
 import { inject } from 'vue'
 const {
-  deckelList, cartStore, openDeckelDetails, bookCurrentCartToDeckel,
+  deckelSaving, deckelList, cartStore, openDeckelDetails, bookCurrentCartToDeckel,
   openDeckelForPayment, openDeckelCreateModalFromOverview, closeDeckelOverviewModal,
   formatPrice,
 } = inject('kasse')

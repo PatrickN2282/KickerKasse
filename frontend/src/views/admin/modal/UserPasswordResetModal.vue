@@ -1,5 +1,5 @@
 <template>
-  <div v-if="show && user" class="modal-overlay" @click.self="$emit('close')">
+  <div v-if="show && user" class="modal-overlay">
     <div class="modal-card modal-compact">
       <header class="modal-header">
         <div>
@@ -23,12 +23,32 @@
                 @input="$emit('update:modelValue', $event.target.value)"
               >
             </div>
+
+            <div class="form-group">
+              <label for="reset-password-confirm">Passwort wiederholen</label>
+              <input
+                id="reset-password-confirm"
+                :value="confirmValue"
+                type="password"
+                minlength="8"
+                :class="{ 'input-error': passwordMismatch }"
+                placeholder="Passwort erneut eingeben"
+                @input="$emit('update:confirmValue', $event.target.value)"
+              >
+              <small v-if="passwordMismatch" class="help-text help-text-error">
+                Die Passwörter stimmen nicht überein.
+              </small>
+            </div>
           </section>
         </div>
 
         <footer class="modal-footer">
           <button class="btn btn-secondary" @click="$emit('close')">Abbrechen</button>
-          <button class="btn btn-success" :disabled="modelValue.length < 8" @click="$emit('submit')">
+          <button
+            class="btn btn-success"
+            :disabled="modelValue.length < 8 || passwordMismatch"
+            @click="$emit('submit')"
+          >
             Speichern
           </button>
         </footer>
@@ -38,13 +58,21 @@
 </template>
 
 <script setup>
-defineProps({
+import { computed } from 'vue'
+
+const props = defineProps({
   show: { type: Boolean, required: true },
   user: { type: Object, default: null },
   modelValue: { type: String, default: '' },
+  confirmValue: { type: String, default: '' },
 })
 
-defineEmits(['close', 'submit', 'update:modelValue'])
+defineEmits(['close', 'submit', 'update:modelValue', 'update:confirmValue'])
+
+const passwordMismatch = computed(() => {
+  if (!props.modelValue && !props.confirmValue) return false
+  return props.modelValue !== props.confirmValue
+})
 </script>
 
 <style scoped lang="scss">
@@ -167,6 +195,31 @@ defineEmits(['close', 'submit', 'update:modelValue'])
 .btn-secondary {
   background: #e2e8f0;
   color: #475569;
+}
+
+.help-text {
+  display: block;
+  margin-top: 0.4rem;
+  font-size: 0.75rem;
+  color: #64748b;
+}
+
+.help-text-error {
+  color: #c62828;
+  font-weight: 600;
+}
+
+.input-error {
+  border-color: #c62828 !important;
+  box-shadow: 0 0 0 3px rgba(198, 40, 40, 0.12) !important;
+  animation: shake 0.35s ease-in-out;
+}
+
+@keyframes shake {
+  10%, 90% { transform: translateX(-1px); }
+  20%, 80% { transform: translateX(2px); }
+  30%, 50%, 70% { transform: translateX(-4px); }
+  40%, 60% { transform: translateX(4px); }
 }
 
 .modal-close {

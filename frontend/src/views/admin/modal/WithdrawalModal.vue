@@ -35,12 +35,17 @@
 
         <div class="kk-form-group">
           <label>Durchgeführt von</label>
-          <button
-            class="kk-select-btn"
-            @click="$emit('open-user-picker')"
-          >
-            {{ selectedUserName || 'Benutzer auswählen …' }}
-          </button>
+          <div class="kk-user-entry">
+            <input
+              :value="performedBy"
+              type="text"
+              class="form-input"
+              placeholder="Name eingeben"
+              @input="$emit('update:performed-by', $event.target.value)"
+            >
+            <button class="kk-select-btn" type="button" @click="$emit('open-user-picker')">Aus Liste</button>
+          </div>
+          <small>TopAdmin wird nicht vorgeschlagen, kann bei Bedarf als Name eingegeben werden.</small>
         </div>
 
         <div class="kk-form-group">
@@ -78,10 +83,10 @@ defineProps({
   show: { type: Boolean, required: true },
   amount: { type: [String, Number], default: '' },
   note: { type: String, default: '' },
-  selectedUserName: { type: String, default: '' },
+  performedBy: { type: String, default: '' },
 })
 
-defineEmits(['close', 'confirm', 'open-user-picker', 'update:amount', 'update:note'])
+defineEmits(['close', 'confirm', 'open-user-picker', 'update:amount', 'update:note', 'update:performed-by'])
 </script>
 
 <style scoped lang="scss">
@@ -198,7 +203,7 @@ defineEmits(['close', 'confirm', 'open-user-picker', 'update:amount', 'update:no
 }
 
 .kk-select-btn {
-  width: 100%;
+  white-space: nowrap;
   padding: 0.75rem 1rem;
   text-align: left;
   background: #f8fafc;
@@ -215,6 +220,9 @@ defineEmits(['close', 'confirm', 'open-user-picker', 'update:amount', 'update:no
     border-color: #94a3b8;
   }
 }
+
+.kk-user-entry { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: .5rem; }
+.kk-form-group small { color: #64748b; font-size: .75rem; }
 
 .form-input {
   padding: 0.5rem 0.75rem;

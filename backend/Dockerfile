@@ -24,7 +24,7 @@ RUN pip install --no-cache-dir --upgrade pip setuptools wheel
 
 # Install Python dependencies (WeasyPrint made optional via requirements-full.txt)
 COPY backend/requirements.txt requirements.txt
-RUN pip install --no-cache-dir -r requirements.txt || true
+RUN pip install --no-cache-dir -r requirements.txt
 
 # Copy backend code
 COPY backend/app app/

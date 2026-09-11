@@ -1,6 +1,6 @@
 from sqlalchemy.orm import Session
 from sqlalchemy import and_, desc, func
-from app.models import Transaction, TransactionItem, TransactionType, PaymentMethod, BalanceLog, CashEntry
+from app.models import Transaction, TransactionItem, TransactionType, PaymentMethod, BalanceLog, CashEntry, Product, Member, User
 from datetime import datetime, date
 
 
@@ -26,29 +26,46 @@ class TransactionRepository:
         voucher_applied_cents: int = 0,
         balance_applied_cents: int = 0,
         tip_cents: int = 0,
+        cash_received_cents: int = None,
+        change_given_cents: int = None,
+        commit: bool = True,
     ) -> Transaction:
         """Create a new transaction"""
+        actor = self.db.get(User, user_id)
+        member_snapshot = self.db.get(Member, member_id) if member_id else None
         transaction = Transaction(
             type=type,
+            booking_type=("MEMBER_BALANCE_RECHARGE" if member_id is not None else "CLUB_ACCOUNT_TOP_UP") if type == TransactionType.RECHARGE else getattr(type, "value", type),
             payment_method=payment_method,
             total_amount_cents=total_amount_cents,
             user_id=user_id,
             member_id=member_id,
-            member_name=member_name,
-            performed_by_username=performed_by_username,
+            member_name=member_name or (member_snapshot.name if member_snapshot else None),
+            performed_by_username=performed_by_username or (actor.username if actor else None),
             reference_transaction_id=reference_transaction_id,
             voucher_code=voucher_code,
             voucher_type=voucher_type,
             voucher_applied_cents=voucher_applied_cents or 0,
             balance_applied_cents=balance_applied_cents or 0,
             tip_cents=tip_cents or 0,
+            cash_received_cents=cash_received_cents,
+            change_given_cents=change_given_cents,
         )
         
         if items:
             for item_data in items:
+                from app.services.sale_pricing_service import resolve_catalog_unit_price_cents
+                product = self.db.get(Product, item_data["product_id"])
+                member = self.db.get(Member, member_id) if member_id else None
+                material = bool(item_data.get("is_internal_material", False))
                 item = TransactionItem(
+                    snapshot_version=1,
+                    product_group_name=(product.warengruppe or "").strip() or "Ohne Warengruppe",
+                    category_name=product.categories[0].name if product.categories else "Ohne Kategorie",
+                    tax_rate_snapshot=product.tax_rate,
+                    internal_material_unit_value_cents=resolve_catalog_unit_price_cents(product, member) if material else 0,
                     product_id=item_data["product_id"],
-                    product_name=item_data.get("product_name"),
+                    product_name=item_data.get("product_name") or product.name,
                     quantity=item_data["quantity"],
                     unit_price_cents=item_data["unit_price_cents"],
                     total_price_cents=item_data["quantity"] * item_data["unit_price_cents"],
@@ -61,15 +78,14 @@ class TransactionRepository:
         self.db.add(transaction)
         self.db.flush()  # Flush to get the ID
          
-        self.db.commit()
-        self.db.refresh(transaction)
+        if commit:
+            self.db.commit()
+            self.db.refresh(transaction)
         return transaction
 
     def get_next_receipt_number(self) -> int:
-        """Get the next sequential receipt number across transactions and cash entries."""
-        transaction_max = self.db.query(func.max(Transaction.receipt_number)).scalar() or 0
-        cash_entry_max = self.db.query(func.max(CashEntry.receipt_number)).scalar() or 0
-        return max(transaction_max, cash_entry_max) + 1
+        from app.core.financial_booking import next_receipt_number
+        return next_receipt_number(self.db)
     
     def get_by_id(self, transaction_id: int) -> Transaction | None:
         """Get transaction by ID"""
@@ -125,6 +141,7 @@ class BalanceLogRepository:
         new_balance_cents: int,
         reason: str,
         transaction_id: int = None,
+        commit: bool = True,
     ) -> BalanceLog:
         """Create a new balance log"""
         log = BalanceLog(
@@ -136,8 +153,9 @@ class BalanceLogRepository:
             reason=reason,
         )
         self.db.add(log)
-        self.db.commit()
-        self.db.refresh(log)
+        if commit:
+            self.db.commit()
+            self.db.refresh(log)
         return log
     
     def get_by_member(self, member_id: int) -> list[BalanceLog]:

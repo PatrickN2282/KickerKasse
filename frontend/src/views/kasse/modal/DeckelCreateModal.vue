@@ -9,7 +9,7 @@
         <button class="close-btn" @click="closeDeckelCreateModal">✕</button>
       </div>
       <div class="modal-body">
-        <p class="info-text">Der aktuelle Bon wird unter einem Namen zwischengespeichert und kann später bar bezahlt werden.</p>
+        <p class="info-text">Der aktuelle Bon wird unter einem Namen zwischengespeichert und später ausschließlich bar bezahlt. Ohne Mitgliedsauswahl, Gäste oder Verzehrkarten.</p>
         <input
           v-model="deckelName"
           type="text"
@@ -20,7 +20,7 @@
       </div>
       <div class="modal-footer">
         <button @click="closeDeckelCreateModal" class="btn btn-secondary">Abbrechen / Zurück</button>
-        <button @click="createDeckel" :disabled="!deckelName.trim() || cartStore.items.length === 0" class="btn btn-primary">
+        <button @click="createDeckel" :disabled="deckelSaving || !deckelName.trim() || cartStore.items.length === 0" class="btn btn-primary">
           ✓ Speichern
         </button>
       </div>
@@ -30,7 +30,7 @@
 
 <script setup>
 import { inject } from 'vue'
-const { deckelName, cartStore, createDeckel, closeDeckelCreateModal } = inject('kasse')
+const { deckelSaving, deckelName, cartStore, createDeckel, closeDeckelCreateModal } = inject('kasse')
 </script>
 
 <style scoped lang="scss">

@@ -1,16 +1,19 @@
 <template>
-  <div class="notification-center">
+  <div class="notification-center" role="region" aria-label="Systemmeldungen" aria-live="polite" aria-relevant="additions text">
     <transition-group name="notification-list" tag="div">
       <div
         v-for="notification in notificationStore.notifications"
         :key="notification.id"
         :class="['notification', `notification-${notification.type}`]"
+        :role="notification.type === 'error' ? 'alert' : 'status'"
       >
         <div class="notification-content">
           <span class="notification-message">{{ notification.message }}</span>
           <button
+            type="button"
             @click="notificationStore.removeNotification(notification.id)"
             class="notification-close"
+            aria-label="Meldung schließen"
           >
             ✕
           </button>

@@ -1,3 +1,4 @@
+from app.core.atomic import audited_change
 from sqlalchemy.orm import Session
 from app.models import ProductStockCorrectionLog
 from app.repositories import ProductRepository
@@ -13,20 +14,19 @@ class ProductService:
 
     def _audit(self, action: str, product, user_username: str | None, old_value: dict | None = None, new_value: dict | None = None):
         """Write an audit log entry for a product action."""
-        try:
-            from app.services.audit_log_service import AuditLogService
-            AuditLogService(self.db).log(
-                entity_type="product",
-                action=action,
-                user_username=user_username,
-                entity_id=product.id,
-                entity_name=product.name,
-                old_value=old_value,
-                new_value=new_value,
-            )
-        except Exception:
-            pass
-    
+        from app.services.audit_log_service import AuditLogService
+        AuditLogService(self.db).log(
+            entity_type="product",
+            action=action,
+            user_username=user_username,
+            entity_id=product.id,
+            entity_name=product.name,
+            old_value=old_value,
+            new_value=new_value,
+        )
+
+
+    @audited_change
     def create_product(
         self, name: str, price_cents: int, description: str = None,
         member_price_cents: int = None, is_discountable: bool = True,
@@ -36,19 +36,22 @@ class ProductService:
         is_unlimited_stock: bool = False,
         warengruppe: str = None,
         is_variable_price: bool = False,
+        is_visible_in_kasse: bool = True,
+        requires_guest_list: bool = False,
+        opens_small_parts_drawer: bool = False,
         performed_by_username: str | None = None,
     ):
         """Create a new product"""
         product = self.repo.create(
             name, price_cents, description, member_price_cents,
             is_discountable, stock_quantity, minimum_stock_quantity, notify_on_low_stock, is_unlimited_stock, warengruppe,
-            is_variable_price,
+            is_variable_price, is_visible_in_kasse, requires_guest_list, opens_small_parts_drawer,
         )
         self._audit(
             "CREATED",
             product,
             performed_by_username,
-            new_value={"name": name, "price_cents": price_cents, "warengruppe": warengruppe},
+            new_value={column.name: getattr(product, column.name) for column in product.__table__.columns},
         )
         self.db.commit()
         self.db.refresh(product)
@@ -58,16 +61,22 @@ class ProductService:
         """Get product by ID"""
         return self.repo.get_by_id(product_id)
     
-    def get_all_products(self, only_active: bool = True):
+    def get_all_products(self, only_active: bool = True, only_visible_in_kasse: bool = False):
         """Get all products"""
-        return self.repo.get_all(only_active)
+        return self.repo.get_all(only_active, only_visible_in_kasse)
     
+    @audited_change
     def update_product(self, product_id: int, performed_by_username: str | None = None, **kwargs):
         """Update product"""
-        existing = self.repo.get_by_id(product_id)
+        from app.schemas.product import ProductUpdate
+        kwargs = ProductUpdate.model_validate(kwargs).model_dump(exclude_unset=True)
+        existing = self.repo.get_by_id_for_update(product_id)
         if not existing:
             return None
-        old_snapshot = {"name": existing.name, "price_cents": existing.price_cents, "warengruppe": existing.warengruppe}
+        if ("is_unlimited_stock" in kwargs and kwargs["is_unlimited_stock"] != existing.is_unlimited_stock
+                and existing.stock_quantity != 0):
+            raise ValueError("Bestandsart nur bei Bestand 0 ändern. Bitte zuerst eine Bestandskorrektur durchführen.")
+        old_snapshot = {key: getattr(existing, key) for key in kwargs}
         product = self.repo.update(product_id, **kwargs)
         if product:
             self._audit("UPDATED", product, performed_by_username, old_value=old_snapshot, new_value=kwargs)
@@ -80,36 +89,29 @@ class ProductService:
         product = self.repo.get_by_id(product_id)
         return bool(product and (product.is_unlimited_stock or product.stock_quantity >= quantity))
     
+    @audited_change
     def adjust_stock(self, product_id: int, quantity: int, executed_by_username: str | None = None):
-        """Adjust product stock (positive or negative)"""
-        product = self.repo.get_by_id(product_id)
+        """Restock through the dedicated, logged path."""
+        from app.schemas.validation import MAX_INT
+        if not 0 < quantity <= MAX_INT:
+            raise ValueError("Einlagerung muss eine positive ganze Menge sein")
+        product = self.repo.get_by_id_for_update(product_id)
         if not product:
             return None
-        
-        if quantity > 0:
-            old_stock_quantity = product.stock_quantity
-            product = self.repo.add_stock(product_id, quantity)
-            if not product:
-                return None
-            if not product.is_unlimited_stock:
-                self._audit(
-                    "RESTOCKED",
-                    product,
-                    executed_by_username,
+        if product.is_unlimited_stock:
+            raise ValueError("Unbegrenzte Produkte benötigen keine Einlagerung")
+        old_stock_quantity = product.stock_quantity
+        if old_stock_quantity + quantity > MAX_INT:
+            raise ValueError("Der resultierende Bestand ist zu groß")
+        product.stock_quantity += quantity
+        self._audit("RESTOCKED", product, executed_by_username,
                     old_value={"stock_quantity": old_stock_quantity},
-                    new_value={
-                        "stock_quantity": product.stock_quantity,
-                        "change_quantity": quantity,
-                    },
-                )
-            self.db.commit()
-            self.db.refresh(product)
-            return product
-        else:
-            if not self.repo.deduct_stock(product_id, abs(quantity)):
-                return None
-            return self.repo.get_by_id(product_id)
+                    new_value={"stock_quantity": product.stock_quantity, "change_quantity": quantity})
+        self.db.commit()
+        self.db.refresh(product)
+        return product
 
+    @audited_change
     def correct_stock(
         self,
         product_id: int,
@@ -119,9 +121,17 @@ class ProductService:
         reason: str | None = None,
     ):
         """Set product stock without cash flow and create a separate correction audit log."""
-        product = self.repo.get_by_id(product_id)
+        from app.schemas.product import ProductStockCorrectionRequest
+        ProductStockCorrectionRequest(new_stock_quantity=new_stock_quantity, reason=reason)
+        product = self.repo.get_by_id_for_update(product_id)
         if not product:
             return None
+
+        if str(product.description or "").startswith("VERZEHRKARTE:"):
+            raise ValueError("Verzehrkarten können nur im Gutschein-Bereich mit fortlaufender Nummer erstellt werden")
+
+        if product.is_unlimited_stock:
+            raise ValueError("Bitte zuerst auf begrenzten Bestand umstellen")
 
         actor_username = resolve_actor_username(
             self.db,
@@ -166,6 +176,7 @@ class ProductService:
             .all()
         )
     
+    @audited_change
     def delete_product(self, product_id: int, performed_by_username: str | None = None):
         """Delete product (soft delete)"""
         product = self.repo.get_by_id(product_id)

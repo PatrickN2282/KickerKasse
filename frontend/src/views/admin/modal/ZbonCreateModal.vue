@@ -85,11 +85,8 @@
               >
             </div>
 
-            <div
-              v-if="showDifferenceReason"
-              class="kk-counted-input"
-            >
-              <label>Grund für die Differenz <span class="kk-label-warn">⚠ Pflichtfeld</span></label>
+            <div class="kk-counted-input">
+              <label>Grund für Abweichung (optional):</label>
               <textarea
                 :value="differenceReason"
                 class="form-input"
@@ -97,7 +94,7 @@
                 placeholder="Grund für die Abweichung zwischen SOLL und IST …"
                 @input="$emit('update:difference-reason', $event.target.value)"
               />
-              <small class="kk-hint-text kk-hint-text--warning">Diese Angabe wird auf dem Kassenbericht vermerkt.</small>
+              <small class="kk-hint-text">Diese Angabe wird auf dem Kassenbericht vermerkt.</small>
             </div>
 
             <small
@@ -117,7 +114,7 @@
                 <strong>{{ openingBalanceDisplay }}</strong>
               </div>
               <div class="kk-balance-row">
-                <span>Buchungs-Range</span>
+                <span>Buchungszeitraum</span>
                 <strong>{{ receiptLabel }}</strong>
               </div>
               <div class="kk-balance-row">
@@ -234,7 +231,7 @@ defineEmits([
   background: #ffffff;
   border-radius: 20px;
   width: min(85vw, 1200px);
-  max-height: min(85vh, 900px);
+  max-height: min(85vh, 1050px);
   display: flex;
   flex-direction: column;
   /* overflow: hidden verhindert, dass Footer wegscrollt */

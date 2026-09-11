@@ -39,15 +39,15 @@
               </tr>
               <tr>
                 <td>Wert:</td>
-                <td><strong>{{ (voucherValidation.value_cents / 100).toFixed(2) }}€</strong></td>
+                <td><strong>{{ formatPrice(voucherValidation.value_cents) }}</strong></td>
               </tr>
               <tr v-if="voucherValidation.valid && cartSubtotal > 0">
                 <td>Anrechnung:</td>
-                <td><strong>{{ (voucherValidation.applicable_amount_cents / 100).toFixed(2) }}€</strong></td>
+                <td><strong>{{ formatPrice(voucherValidation.applicable_amount_cents) }}</strong></td>
               </tr>
               <tr v-if="voucherValidation.valid && voucherValidation.remaining_value_cents > 0">
                 <td>Restwert:</td>
-                <td>{{ (voucherValidation.remaining_value_cents / 100).toFixed(2) }}€</td>
+                <td>{{ formatPrice(voucherValidation.remaining_value_cents) }}</td>
               </tr>
               <tr v-if="getExpiredStatusLabel(voucherValidation)">
                 <td>Status:</td>
@@ -79,7 +79,7 @@
               </tr>
               <tr>
                 <td>Wert:</td>
-                <td><strong>{{ (voucherRedeemed.value_cents / 100).toFixed(2) }}€</strong></td>
+                <td><strong>{{ formatPrice(voucherRedeemed.value_cents) }}</strong></td>
               </tr>
             </table>
             <p class="info-text">{{ voucherRedeemed.message }}</p>
@@ -114,7 +114,7 @@ const {
   voucherError, validatingVoucher, redeemingVoucher, voucherPrefix,
   cartSubtotal, voucherActionLabel, hasValidVoucherInput,
   validateVoucher, redeemVoucher, closeVoucherModal, handleVoucherSecondaryAction,
-  formatVoucherReason, getExpiredStatusLabel,
+  formatVoucherReason, getExpiredStatusLabel, formatPrice,
 } = inject('kasse')
 </script>
 

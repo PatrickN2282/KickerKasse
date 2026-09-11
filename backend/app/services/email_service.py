@@ -4,12 +4,15 @@ import socket
 import smtplib
 import ssl
 import time
+from datetime import datetime
 from html import escape
 from email import encoders
 from email.mime.base import MIMEBase
 from email.mime.multipart import MIMEMultipart
 from email.mime.text import MIMEText
+from zoneinfo import ZoneInfo
 
+from app.core.config import settings, resolve_timezone_name
 from app.core.database import SessionLocal
 from app.services.app_settings_service import AppSettingsService
 
@@ -28,6 +31,21 @@ class EmailService:
     def _report_subject(cls, base: str, config: dict | None = None) -> str:
         current_config = config or cls._load_email_settings()
         return f"{base}{cls._subject_suffix(current_config)}"
+
+    @classmethod
+    def build_operational_subject(
+        cls,
+        function_label: str,
+        info_key: str,
+        config: dict | None = None,
+        occurred_at: datetime | None = None,
+    ) -> str:
+        current_config = config or cls._load_email_settings()
+        timestamp = occurred_at or datetime.now(ZoneInfo(resolve_timezone_name(settings.APP_TIMEZONE)))
+        app_name = (current_config.get("app_name") or "KickerKasse").strip()
+        info = (current_config.get(info_key) or "").strip()
+        subject = f"{app_name} - {function_label} {timestamp.strftime('%d.%m.%Y %H:%M')}h"
+        return f"{subject} - {info}" if info else subject
 
     @staticmethod
     def _load_email_settings() -> dict:
@@ -62,14 +80,27 @@ class EmailService:
             return False
 
         try:
-            msg = MIMEMultipart('alternative')
+            # Use 'mixed' as the outer container when attachments are present so that
+            # file attachments are treated as separate parts and not as alternative
+            # representations of the body.  Without 'mixed', some clients silently drop
+            # the attachment because they consider all children of 'alternative' to be
+            # interchangeable body variants.
+            if attachments:
+                msg = MIMEMultipart('mixed')
+                body_part = MIMEMultipart('alternative')
+                body_part.attach(MIMEText(body, 'plain'))
+                if html_body:
+                    body_part.attach(MIMEText(html_body, 'html'))
+                msg.attach(body_part)
+            else:
+                msg = MIMEMultipart('alternative')
+                msg.attach(MIMEText(body, 'plain'))
+                if html_body:
+                    msg.attach(MIMEText(html_body, 'html'))
+
             msg['Subject'] = subject
             msg['From'] = sender
             msg['To'] = to_address
-            msg.attach(MIMEText(body, 'plain'))
-
-            if html_body:
-                msg.attach(MIMEText(html_body, 'html'))
 
             if attachments:
                 for filename, content, mime_type in attachments:
@@ -273,7 +304,7 @@ class EmailService:
     @classmethod
     def send_zbon_email(cls, recipient: str, zbon_content: str, date: str) -> bool:
         config = cls._load_email_settings()
-        subject = cls._report_subject(f"Kassenbericht für {date}", config)
+        subject = cls.build_operational_subject("Kassenbericht", "email_subject_zbon_info", config)
         body = f"""
 Anbei erhalten Sie den Kassenbericht für {date}.
 
@@ -312,7 +343,7 @@ Diese E-Mail wurde automatisch generiert.
     ) -> bool:
         config = cls._load_email_settings()
         if informational_only:
-            subject = cls._report_subject(f"Tagesupdate Kassenbewegungen - {date}", config)
+            subject = cls.build_operational_subject("Kassenbericht", "email_subject_zbon_info", config)
             body = (
                 f"Tagesupdate fuer {date}. Dieser Versand ersetzt keinen manuell erstellten "
                 "Kassenbericht mit Kassenzaehlung und Pruefer."
@@ -326,8 +357,7 @@ Diese E-Mail wurde automatisch generiert.
                 "mit Kassenzaehlung und Sichtkontrolle."
             )
         else:
-            base_subject = f"Kassenbericht {seq_number or date} - {date}" if seq_number else f"Kassenbericht für {date}"
-            subject = cls._report_subject(base_subject, config)
+            subject = cls.build_operational_subject("Kassenbericht", "email_subject_zbon_info", config)
             body = f"Kassenbericht für {date}"
             intro_line = f"Anbei erhalten Sie den Kassenbericht fuer <strong>{date}</strong>."
             footer_line = "Diese E-Mail wurde automatisch generiert. Bitte speichern Sie diesen Kassenbericht fuer Ihre Unterlagen."
@@ -372,7 +402,7 @@ Diese E-Mail wurde automatisch generiert.
             return True
 
         config = cls._load_email_settings()
-        subject = cls._report_subject("Kritischer Lagerbestand", config)
+        subject = cls.build_operational_subject("Lagerwarnung", "email_subject_stock_info", config)
         body_lines = [
             "Die folgenden Artikel haben den Mindestbestand unterschritten:",
             "",
@@ -416,6 +446,49 @@ Diese E-Mail wurde automatisch generiert.
             {rows}
           </tbody>
         </table>
+      </div>
+    </div>
+  </body>
+</html>
+"""
+        return cls.send_email(recipient, subject, body, html_body=html_body)
+
+    @classmethod
+    def send_password_reset_email(cls, recipient: str, username: str, reset_url: str) -> bool:
+        """Sends the TopAdmin self-service password reset link.
+
+        Siehe Roadmap-UX-Sicherheit.md, Punkt 1: Der Link führt auf die dedizierte
+        Passwort-Reset-Seite und ist serverseitig zeitlich begrenzt und einmal verwendbar.
+        """
+        config = cls._load_email_settings()
+        subject = cls._report_subject("Passwort zurücksetzen", config)
+        body = (
+            f"Hallo {username},\n\n"
+            "für dein Kickerkasse-TopAdmin-Konto wurde ein Passwort-Reset angefordert.\n"
+            f"Zum Zurücksetzen öffne folgenden Link (gültig für 60 Minuten, nur einmal verwendbar):\n\n"
+            f"{reset_url}\n\n"
+            "Falls du diese Anfrage nicht gestellt hast, kannst du diese E-Mail ignorieren."
+        )
+        html_body = f"""
+<html>
+  <body style="margin:0;background:#f8fafc;font-family:Arial,sans-serif;color:#0f172a;">
+    <div style="max-width:560px;margin:24px auto;background:#ffffff;border:1px solid #e2e8f0;border-radius:12px;overflow:hidden;">
+      <div style="padding:18px 22px;border-bottom:1px solid #e2e8f0;">
+        <h2 style="margin:0;font-size:18px;font-weight:700;">Passwort zurücksetzen</h2>
+      </div>
+      <div style="padding:18px 22px;">
+        <p style="margin:0 0 14px 0;font-size:14px;line-height:1.5;">
+          Hallo {escape(username)}, für dein TopAdmin-Konto wurde ein Passwort-Reset angefordert.
+        </p>
+        <p style="margin:0 0 18px 0;">
+          <a href="{escape(reset_url)}" style="display:inline-block;padding:10px 18px;background:#209529;color:#ffffff;border-radius:8px;text-decoration:none;font-weight:600;">
+            Neues Passwort festlegen
+          </a>
+        </p>
+        <p style="margin:0;font-size:12px;color:#64748b;">
+          Der Link ist 60 Minuten gültig und kann nur einmal verwendet werden.
+          Falls du diese Anfrage nicht gestellt hast, kannst du diese E-Mail ignorieren.
+        </p>
       </div>
     </div>
   </body>

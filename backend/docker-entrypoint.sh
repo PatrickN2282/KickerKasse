@@ -13,7 +13,7 @@ echo ""
 echo "⏳ STEP 1: Waiting for database connection..."
 DB_READY=0
 for i in {1..30}; do
-    if pg_isready -h ${DATABASE_HOST:-postgres} -U ${DATABASE_USER:-kassensystem-test} > /dev/null 2>&1; then
+    if pg_isready -h "${DATABASE_HOST:-postgres}" -p "${DATABASE_PORT:-5432}" -U "${DATABASE_USER:-kassensystem-test}" -d "${DATABASE_NAME:-kassensystem-test}" > /dev/null 2>&1; then
         echo "✓ Database connection successful"
         DB_READY=1
         break
@@ -38,7 +38,8 @@ logging.basicConfig(
 )
 
 try:
-    from app.core import engine
+    from app.core import engine, settings
+    settings.validate_runtime_configuration()
     from app.core.db_migration import run_migrations
     
     logger = logging.getLogger(__name__)
@@ -46,10 +47,9 @@ try:
     
     success = run_migrations(engine)
     
-    if success:
-        print("\n✓ Database migration completed successfully")
-    else:
-        print("\n⚠️  Database migration completed with warnings - check logs above")
+    if not success:
+        raise RuntimeError("Database migration did not complete successfully")
+    print("\n✓ Database migration completed successfully")
         
 except Exception as e:
     print(f"\n✗ ERROR during migration: {e}")

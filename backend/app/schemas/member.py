@@ -3,12 +3,15 @@ from datetime import datetime
 from typing import Optional
 
 
-class MemberBase(BaseModel):
-    first_name: str = Field(..., min_length=1, max_length=80)
-    last_name: str = Field(..., min_length=1, max_length=80)
-    membership_number: Optional[str] = Field(default=None, max_length=50)
-    email: Optional[str] = None
-    phone: Optional[str] = None
+from .validation import NormalizedModel, UpdateModel, PersonName, Email, Phone, MembershipNumber, NonNegativeInt, validate_member_name
+
+
+class MemberBase(NormalizedModel):
+    first_name: PersonName
+    last_name: PersonName
+    membership_number: MembershipNumber = None
+    email: Email = None
+    phone: Phone = None
     notes: Optional[str] = None
     has_discount: bool = True
     role: Optional[str] = None
@@ -25,25 +28,56 @@ class MemberBase(BaseModel):
 
 
 class MemberCreate(MemberBase):
+    @model_validator(mode="after")
+    def check_combined_name(self):
+        validate_member_name(self.first_name, self.last_name)
+        return self
+
     account_password: Optional[str] = Field(default=None, min_length=8)
 
 
-class MemberUpdate(BaseModel):
-    first_name: Optional[str] = None
-    last_name: Optional[str] = None
-    membership_number: Optional[str] = None
-    email: Optional[str] = None
-    phone: Optional[str] = None
+class MemberUpdate(UpdateModel):
+    non_nullable_fields = {"first_name", "last_name", "has_discount"}
+
+    first_name: Optional[PersonName] = None
+    last_name: Optional[PersonName] = None
+    membership_number: MembershipNumber = None
+    email: Email = None
+    phone: Phone = None
     notes: Optional[str] = None
     has_discount: Optional[bool] = None
     role: Optional[str] = None
-    balance_cents: Optional[int] = None
     account_password: Optional[str] = Field(default=None, min_length=8)
+
+    @model_validator(mode="before")
+    @classmethod
+    def reject_balance_changes(cls, data):
+        # Reject explicitly rather than silently ignoring the former update field.
+        # Presence matters: null, unchanged values and mixed updates are forbidden too.
+        if isinstance(data, dict) and "balance_cents" in data:
+            raise ValueError("Guthaben bitte über Aufladung oder Guthabenkorrektur ändern")
+        return data
 
 
 class MemberBalanceCorrectionRequest(BaseModel):
-    new_balance_cents: int = Field(..., ge=0)
+    new_balance_cents: NonNegativeInt
     reason: Optional[str] = Field(default=None, max_length=255)
+
+
+class MemberSelectionResponse(BaseModel):
+    """Only the fields needed to select and charge a member at checkout."""
+    id: int
+    member_number: int
+    membership_number: MembershipNumber = None
+    name: str
+    first_name: str
+    last_name: str
+    photo_path: Optional[str] = None
+    has_discount: bool
+    balance_cents: int
+
+    class Config:
+        from_attributes = True
 
 
 class MemberResponse(MemberBase):
@@ -55,6 +89,7 @@ class MemberResponse(MemberBase):
     photo_path: Optional[str] = None  # Path to member photo file
     account_username: Optional[str] = None
     has_user_account: bool = False
+    archived_at: datetime | None = None
     user_account_active: bool = False
     created_at: datetime
     updated_at: datetime
@@ -69,6 +104,7 @@ class MemberResponse(MemberBase):
             data = {
                 field: getattr(data, field, None)
                 for field in [
+                    "archived_at",
                     "id",
                     "member_number",
                     "name",
@@ -87,6 +123,7 @@ class MemberResponse(MemberBase):
                     "account_username",
                     "has_user_account",
                     "user_account_active",
+                    "drawer_targets",
                     "linked_user",
                 ]
             }
@@ -126,6 +163,10 @@ class MemberResponse(MemberBase):
 
 class MemberDetailResponse(MemberResponse):
     pass
+
+
+class MemberRechargeResponse(MemberResponse):
+    drawer_targets: list[str] = Field(default_factory=list)
 
 
 class MemberBalanceCorrectionLogResponse(BaseModel):

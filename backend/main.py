@@ -8,11 +8,9 @@ from starlette.middleware.base import BaseHTTPMiddleware
 from starlette.staticfiles import StaticFiles
 from starlette.exceptions import HTTPException as StarletteHTTPException
 from sqlalchemy.orm import Session
-from app.core import settings, engine
+from app.core import settings
 from app.core.database import SessionLocal, get_db
 from app.core.init_db import init_default_users
-from app.core.db_migration import run_migrations
-from app.models import Base, User
 from app.services import SchedulerService
 from app.api import (
     auth_router,
@@ -29,36 +27,46 @@ from app.api import (
     import_export_router,
     audit_log_router,
     hardware_agent_router,
+    guest_list_router,
 )
 
 import logging
 logger = logging.getLogger(__name__)
-logger.info("Starting database migration process...")
-run_migrations(engine)
-logger.info("Database migration completed")
+settings.validate_runtime_configuration()
+from app.core.database import engine
+from app.core.db_migration import run_migrations
+if not run_migrations(engine):
+    raise RuntimeError("Database migration or schema verification failed; application startup stopped")
 
 db = SessionLocal()
 try:
-    init_default_users(db)
+    from app.core.maintenance_lock import maintenance_gate
+    from app.services.backup_media import recover_media, recovery_pending
+    if recovery_pending():
+        with maintenance_gate(engine, exclusive=True):
+            recover_media(db)
+            db.rollback()
+    with maintenance_gate(engine):
+        init_default_users(db)
 finally:
     db.close()
 
 app = FastAPI(
     title="Kassensoftware API",
     description="Webbasierte Kassensoftware für Vereine",
-    version="1.0.0",
+    version="2.7.0",
 )
 
 app.add_middleware(
     SessionMiddleware,
     secret_key=settings.SECRET_KEY,
     session_cookie=settings.SESSION_COOKIE_NAME,
-    max_age=None,
+    max_age=settings.SESSION_COOKIE_MAX_AGE,
     same_site="lax",
-    https_only=False,
+    https_only=settings.COOKIE_SECURE,
 )
 
-if not os.getenv("PRODUCTION"):
+if not settings.PRODUCTION:
     app.add_middleware(
         CORSMiddleware,
         allow_origins=["*"],
@@ -79,6 +87,8 @@ class TrailingSlashMiddleware(BaseHTTPMiddleware):
 
 
 app.add_middleware(TrailingSlashMiddleware)
+from app.core.maintenance_lock import MaintenanceMiddleware
+app.add_middleware(MaintenanceMiddleware, engine=engine)
 
 
 @app.on_event("startup")
@@ -108,19 +118,13 @@ app.include_router(data_maintenance_router)
 app.include_router(import_export_router)
 app.include_router(audit_log_router)
 app.include_router(hardware_agent_router)
+app.include_router(guest_list_router)
 
 
 @app.get("/api/health")
 @app.get("/api/health/")
 async def health():
     return {"status": "healthy"}
-
-
-@app.get("/api/debug/users-count")
-@app.get("/api/debug/users-count/")
-async def debug_users_count(db: Session = Depends(get_db)):
-    count = db.query(User).count()
-    return {"user_count": count}
 
 
 frontend_dist = Path(__file__).parent / "app" / "frontend" / "dist"

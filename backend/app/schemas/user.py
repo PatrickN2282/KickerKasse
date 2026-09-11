@@ -1,4 +1,4 @@
-from pydantic import BaseModel, Field, field_validator
+from pydantic import BaseModel, ConfigDict, Field, field_validator
 from datetime import datetime
 from typing import Optional
 
@@ -24,6 +24,9 @@ class UserCreate(UserBase):
 
 
 class UserUpdate(BaseModel):
+    # State changes and account linking have dedicated, protected workflows.
+    model_config = ConfigDict(extra="forbid")
+
     username: Optional[str] = None
     email: Optional[str] = None
     role: Optional[str] = None

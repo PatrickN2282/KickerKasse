@@ -7,7 +7,8 @@ import { useAuthStore } from '@/stores/auth'
 import { formatPrice, formatBalance } from '@/services/utils'
 import { getMemberFullName, getMemberShortName, getMemberSearchText } from '@/services/member'
 import apiService from '@/services/api'
-import { LOCAL_HARDWARE_AGENT_BASE_URL } from '@/constants'
+import { failedDrawerTargetLabels, openDrawerTargets } from '@/services/drawer'
+import { hasConfiguredMemberPrice, resolveDisplayedUnitPriceCents } from '@/services/pricing'
 
 export default function useKasse() {
 const productStore = useProductStore()
@@ -16,6 +17,15 @@ const cartStore = useCartStore()
 const notificationStore = useNotificationStore()
 const authStore = useAuthStore()
 const INTERNAL_MATERIAL_CATEGORY_NAME = 'Verbrauchsmaterial - Intern'
+
+const reportDrawerResult = (results, bookingLabel = 'Buchung gespeichert') => {
+  const failedLabels = failedDrawerTargetLabels(results)
+  if (!failedLabels.length) return
+  notificationStore.warning(
+    `${bookingLabel} – ${failedLabels.join(' und ')} konnte nicht geöffnet werden. Nicht erneut buchen; Schublade manuell prüfen.`,
+    10000
+  )
+}
 
 const showMemberModal = ref(false)
 const showPaymentConfirmModal = ref(false)
@@ -29,6 +39,9 @@ const categories = ref([])
 const bonWidth = ref(420)
 const nextReceiptNumber = ref(null)
 const cashGiven = ref('')
+const tipDonation = ref('0.00')
+
+cartStore.bindActor(authStore.user?.id ?? null)
 const imageErrorMap = ref({})
 
 const onImageError = (productId) => {
@@ -64,6 +77,13 @@ const isVariablePriceValid = computed(() => {
   return !isNaN(price) && price >= 0
 })
 
+// Guest list modal
+const showGuestListModal = ref(false)
+const showGuestListOverviewModal = ref(false)
+const pendingGuestListProduct = ref(null)
+const guestListTodayGroups = ref([])
+const guestListTodayLoading = ref(false)
+
 const voucherReasonLabels = {
   DYP_SIEGER: 'DYP-Sieger',
   PROMOTION: 'Promotion',
@@ -78,11 +98,11 @@ const isInternalMaterialSale = (product, categoryId = null) => (
 )
 
 const getDisplayedProductPriceCents = (product, categoryId = null) => (
-  isInternalMaterialSale(product, categoryId)
-    ? 0
-    : ((cartStore.selectedMemberId && cartStore.selectedMemberHasDiscount && product.member_price_cents)
-        ? product.member_price_cents
-        : product.price_cents)
+  resolveDisplayedUnitPriceCents(product, {
+    memberSelected: !!cartStore.selectedMemberId,
+    memberHasDiscount: cartStore.selectedMemberHasDiscount,
+    internalMaterial: isInternalMaterialSale(product, categoryId),
+  })
 )
 
 const loadCategories = async () => {
@@ -218,24 +238,17 @@ const balanceAppliedAmount = computed(() => cartStore.getBalanceAppliedAmount())
 const hasAppliedVoucher = computed(() => cartStore.appliedVouchers.length > 0)
 const hasAppliedBalance = computed(() => balanceAppliedAmount.value > 0)
 const activeDeckelCount = computed(() => deckelList.value.length)
-const paymentSummaryItems = computed(() => paymentSource.value === 'deckel'
-  ? (activePaymentDeckel.value?.items || [])
-  : cartStore.items
-)
-const paymentSubtotal = computed(() => paymentSource.value === 'deckel'
-  ? (activePaymentDeckel.value?.total_amount_cents || 0)
-  : cartSubtotal.value
-)
-const paymentTotal = computed(() => paymentSource.value === 'deckel'
-  ? (activePaymentDeckel.value?.total_amount_cents || 0)
-  : cartStore.getTotalAmount()
-)
-const isInsufficientBalance = computed(() => (
-  pendingPaymentMethod.value === 'BALANCE'
-  && !!cartStore.selectedMemberId
-  && selectedMemberBalance.value > 0
-  && selectedMemberBalance.value < paymentTotal.value
+const guestListTodayCount = computed(() => (
+  guestListTodayGroups.value.reduce((sum, group) => sum + (group.entries?.length || 0), 0)
 ))
+const paymentSummaryItems = computed(() => paymentSource.value === 'deckel'
+  ? (activePaymentDeckel.value?.items || []) : cartStore.items)
+const paymentSubtotal = computed(() => paymentSource.value === 'deckel'
+  ? (activePaymentDeckel.value?.total_amount_cents || 0) : cartSubtotal.value)
+const paymentTotal = computed(() => paymentSource.value === 'deckel'
+  ? (activePaymentDeckel.value?.total_amount_cents || 0) : cartStore.getTotalAmount())
+const isInsufficientBalance = computed(() => paymentSource.value === 'cart'
+  && pendingPaymentMethod.value === 'BALANCE' && selectedMemberBalance.value < paymentTotal.value)
 
 const effectiveCashTotal = computed(() => {
   if (isInsufficientBalance.value) {
@@ -244,18 +257,23 @@ const effectiveCashTotal = computed(() => {
   return paymentTotal.value
 })
 
-const cashChangeDisplay = computed(() => {
+const cashOverpaymentCents = computed(() => {
   const value = Number(cashGiven.value || 0)
-  const change = Math.max(Math.round((value * 100) - effectiveCashTotal.value), 0)
-  return formatPrice(change)
+  if (!Number.isFinite(value)) return 0
+  return Math.max(Math.round((value * 100) - effectiveCashTotal.value), 0)
+})
+
+const tipDonationCents = computed(() => {
+  const value = Number(tipDonation.value || 0)
+  if (!Number.isFinite(value)) return 0
+  return Math.max(Math.round(value * 100), 0)
 })
 
 const cashChangeCents = computed(() => {
-  const value = Number(cashGiven.value || 0)
-  const given = Math.round(value * 100)
-  if (given < effectiveCashTotal.value) return 0
-  return given - effectiveCashTotal.value
+  return Math.max(cashOverpaymentCents.value - tipDonationCents.value, 0)
 })
+
+const cashChangeDisplay = computed(() => formatPrice(cashChangeCents.value))
 const voucherActionLabel = computed(() => {
   if (redeemingVoucher.value) {
     return '⏳ Wird verarbeitet...'
@@ -308,7 +326,7 @@ const getCartReservedQuantity = (productId, excludeLineId = null) => {
   }, 0)
 }
 
-const hasMemberPrice = (product) => product.member_price_cents !== null && product.member_price_cents !== undefined
+const hasMemberPrice = (product) => hasConfiguredMemberPrice(product)
 
 const showProductBadge = (product) => hasMemberPrice(product) || product.is_unlimited_stock
 
@@ -334,6 +352,10 @@ const getStockLabel = (product) => (
 )
 
 const selectProduct = (product, categoryId = null) => {
+  if (product.requires_guest_list && (isInternalMaterialSale(product, categoryId) || String(product.description || '').startsWith('VERZEHRKARTE:'))) {
+    notificationStore.error('Gastartikel können nicht als internes Material oder Verzehrkarte gebucht werden.')
+    return
+  }
   if (isInternalMaterialSale(product, categoryId)) {
     pendingInternalMaterialProduct.value = {
       ...product,
@@ -348,6 +370,12 @@ const selectProduct = (product, categoryId = null) => {
     pendingVariablePriceProduct.value = { ...product, categoryId }
     variablePrice.value = (product.price_cents / 100).toFixed(2)
     showVariablePriceModal.value = true
+    return
+  }
+
+  if (product.requires_guest_list) {
+    pendingGuestListProduct.value = { ...product, categoryId }
+    showGuestListModal.value = true
     return
   }
 
@@ -366,11 +394,70 @@ const closeVariablePriceModal = () => {
   variablePrice.value = ''
 }
 
+const closeGuestListModal = () => {
+  showGuestListModal.value = false
+  pendingGuestListProduct.value = null
+}
+
+const confirmGuestListSelection = async (guestEntries) => {
+  const product = pendingGuestListProduct.value
+  if (!product) return
+
+  const result = cartStore.addItem({
+    ...product,
+    is_internal_material: false,
+    guests: guestEntries.map(e => ({
+      guest_first_name: e.guestFirstName,
+      guest_last_name: e.guestLastName || null,
+      member_id: e.memberId || null,
+    })),
+  }, getAvailableStock(product))
+  if (!result.success) {
+    notificationStore.error(`Nur ${getAvailableStock(product)} Einheiten von ${product.name} verfügbar`)
+    return
+  }
+  closeGuestListModal()
+}
+
+const loadTodayGuestList = async () => {
+  guestListTodayLoading.value = true
+  try {
+    const today = new Date()
+    const yyyy = today.getFullYear()
+    const mm = String(today.getMonth() + 1).padStart(2, '0')
+    const dd = String(today.getDate()).padStart(2, '0')
+    const response = await apiService.get('/guest-list/entries', {
+      params: { date: `${yyyy}-${mm}-${dd}` },
+    })
+    guestListTodayGroups.value = response.data || []
+  } catch (error) {
+    console.error('[Kasse] Failed to load today guest list:', error)
+    guestListTodayGroups.value = []
+  } finally {
+    guestListTodayLoading.value = false
+  }
+}
+
+const openGuestListOverview = async () => {
+  await loadTodayGuestList()
+  showGuestListOverviewModal.value = true
+}
+
+const closeGuestListOverview = () => {
+  showGuestListOverviewModal.value = false
+}
+
 const confirmVariablePriceSelection = () => {
   if (!pendingVariablePriceProduct.value || !isVariablePriceValid.value) return
 
   const product = pendingVariablePriceProduct.value
   const priceCents = Math.round(parseFloat(variablePrice.value) * 100)
+  if (product.requires_guest_list) {
+    pendingGuestListProduct.value = { ...product, price_cents: priceCents, member_price_cents: null }
+    closeVariablePriceModal()
+    showGuestListModal.value = true
+    return
+  }
   const result = cartStore.addItem({
     ...product,
     price_cents: priceCents,
@@ -412,6 +499,11 @@ const confirmInternalMaterialSelection = () => {
 }
 
 const changeCartItemQuantity = (item, quantity) => {
+  if (item.requires_guest_list && quantity > item.quantity) {
+    const product = productStore.products.find(p => p.id === item.product_id)
+    if (product) selectProduct(product)
+    return
+  }
   const product = productStore.products.find(productEntry => productEntry.id === item.product_id)
   const maxQuantity = product ? getAvailableStock(product, null, item.line_id) : item.quantity
   const result = cartStore.updateItemQuantity(item.line_id, quantity, maxQuantity)
@@ -421,7 +513,13 @@ const changeCartItemQuantity = (item, quantity) => {
 }
 
 const selectCustomer = () => {
+  memberSearch.value = ''
   showMemberModal.value = true
+}
+
+const closeMemberModal = () => {
+  memberSearch.value = ''
+  showMemberModal.value = false
 }
 
 const validatePaymentMethod = (method) => {
@@ -468,6 +566,7 @@ const openPaymentConfirmation = (method, options = {}) => {
   pendingPaymentMethod.value = method
   showPaymentConfirmModal.value = true
   paymentResult.value = null
+  tipDonation.value = '0.00'
   if (method === 'CASH') {
     cashGiven.value = (paymentTotal.value / 100).toFixed(2)
   } else if (method === 'BALANCE' && selectedMemberBalance.value > 0 && selectedMemberBalance.value < paymentTotal.value) {
@@ -485,6 +584,9 @@ const closePaymentConfirmation = () => {
   showPaymentConfirmModal.value = false
   pendingPaymentMethod.value = null
   cashGiven.value = ''
+  tipDonation.value = '0.00'
+  cartStore.tipCents = 0
+  cartStore.cashReceivedCents = null
   paymentResult.value = null
   paymentSource.value = 'cart'
   activePaymentDeckel.value = null
@@ -492,9 +594,19 @@ const closePaymentConfirmation = () => {
 
 const validateCashInput = () => {
   if (pendingPaymentMethod.value === 'CASH' || isInsufficientBalance.value) {
-    const givenCents = Math.round(Number(cashGiven.value || 0) * 100)
+    const givenAmount = Number(cashGiven.value || 0)
+    const tipAmount = Number(tipDonation.value || 0)
+    if (!Number.isFinite(givenAmount) || !Number.isFinite(tipAmount) || tipAmount < 0) {
+      notificationStore.error('Bitte gültige Beträge für Barzahlung und Spende eingeben')
+      return false
+    }
+    const givenCents = Math.round(givenAmount * 100)
     if (givenCents < effectiveCashTotal.value) {
       notificationStore.error('Der gegebene Barbetrag reicht nicht aus')
+      return false
+    }
+    if (tipDonationCents.value > cashOverpaymentCents.value) {
+      notificationStore.error('Die Spende darf das verfügbare Rückgeld nicht überschreiten')
       return false
     }
   }
@@ -510,7 +622,11 @@ const confirmPayment = async () => {
     return
   }
 
-  cartStore.tipCents = 0
+  const hasCashPart = pendingPaymentMethod.value === 'CASH' || isInsufficientBalance.value
+  cartStore.tipCents = hasCashPart ? tipDonationCents.value : 0
+  cartStore.cashReceivedCents = hasCashPart
+    ? Math.round(Number(cashGiven.value || 0) * 100)
+    : null
   processingPayment.value = true
   const transaction = await handlePaymentAndCheckout(pendingPaymentMethod.value)
   processingPayment.value = false
@@ -530,32 +646,11 @@ const confirmPayment = async () => {
 }
 
 const confirmPaymentWithTip = async () => {
-  if (!pendingPaymentMethod.value || cashChangeCents.value <= 0) {
+  if (!pendingPaymentMethod.value || cashOverpaymentCents.value <= 0) {
     return
   }
-
-  if (!validateCashInput()) {
-    return
-  }
-
-  cartStore.tipCents = cashChangeCents.value
-  processingPayment.value = true
-  const transaction = await handlePaymentAndCheckout(pendingPaymentMethod.value)
-  processingPayment.value = false
-
-  if (transaction?.appliedBalanceOnly) {
-    cartStore.tipCents = 0
-    closePaymentConfirmation()
-    return
-  }
-
-  if (transaction) {
-    if (transaction.issued_prepaid_voucher_numbers?.length) {
-      paymentResult.value = transaction
-      return
-    }
-    closePaymentConfirmation()
-  }
+  tipDonation.value = (cashOverpaymentCents.value / 100).toFixed(2)
+  await confirmPayment()
 }
 
 const handlePaymentAndCheckout = async (method) => {
@@ -587,7 +682,7 @@ const selectMember = (member) => {
   cartStore.selectedMemberId = member.id
   cartStore.selectedMemberHasDiscount = !!member.has_discount
   cartStore.recalculatePrices()  // Update prices to member prices
-  showMemberModal.value = false
+  closeMemberModal()
 }
 
 const openVoucherModal = () => {
@@ -774,31 +869,54 @@ const openDeckelForPayment = (deckel) => {
   openDeckelDetails(deckel)
 }
 
+const validateDeckelCart = () => {
+  const unsupported = cartStore.selectedMemberId || cartStore.appliedVouchers.length || cartStore.appliedBalanceCents
+    || cartStore.items.some(item => {
+      const product = productStore.products.find(p => p.id === item.product_id)
+      return item.requires_guest_list || product?.requires_guest_list || String(product?.description || '').startsWith('VERZEHRKARTE:')
+    })
+  if (unsupported) notificationStore.error('Deckel werden bar bezahlt, ohne Mitgliedsauswahl, Gäste, Gutscheine oder Verzehrkarten. Bitte diesen Bon direkt abrechnen.')
+  return !unsupported
+}
+
+const deckelSaving = ref(false)
 const createDeckel = async () => {
+  if (deckelSaving.value || !validateDeckelCart()) return
+  deckelSaving.value = true
   try {
     const response = await apiService.post('/deckel', {
       name: deckelName.value,
       items: serializeCartItems(),
     })
+    const drawerResults = await openDrawerTargets(response.data?.drawer_targets)
     cartStore.clear()
     closeDeckelCreateModal()
-    await Promise.all([loadDeckelList(), productStore.getProducts(), loadNextReceiptNumber()])
+    await Promise.all([loadDeckelList(), productStore.getProducts(true, true), loadNextReceiptNumber()])
     notificationStore.success(`Deckel "${response.data.name}" gespeichert`)
+    reportDrawerResult(drawerResults, `Deckel "${response.data.name}" gespeichert`)
   } catch (error) {
     notificationStore.error(error.response?.data?.detail || 'Deckel konnte nicht gespeichert werden')
+  } finally {
+    deckelSaving.value = false
   }
 }
 
 const bookCurrentCartToDeckel = async (deckel) => {
+  if (deckelSaving.value || !validateDeckelCart()) return
+  deckelSaving.value = true
   try {
-    await apiService.post(`/deckel/${deckel.id}/book`, {
+    const response = await apiService.post(`/deckel/${deckel.id}/book`, {
       items: serializeCartItems(),
     })
+    const drawerResults = await openDrawerTargets(response.data?.drawer_targets)
     cartStore.clear()
-    await Promise.all([loadDeckelList(), productStore.getProducts()])
+    await Promise.all([loadDeckelList(), productStore.getProducts(true, true)])
     notificationStore.success(`Bon auf Deckel "${deckel.name}" gebucht`)
+    reportDrawerResult(drawerResults, `Bon auf Deckel "${deckel.name}" gebucht`)
   } catch (error) {
     notificationStore.error(error.response?.data?.detail || 'Bon konnte nicht auf den Deckel gebucht werden')
+  } finally {
+    deckelSaving.value = false
   }
 }
 
@@ -815,10 +933,15 @@ const handleDeckelPayment = async () => {
   }
 
   try {
-    const response = await apiService.post(`/deckel/${activePaymentDeckel.value.id}/pay`)
-    notificationStore.success(`Deckel "${activePaymentDeckel.value.name}" wurde bezahlt`)
-    openCashDrawer()
-    await Promise.all([productStore.getProducts(), memberStore.getMembers(), loadDeckelList(), loadNextReceiptNumber()])
+    const response = await apiService.post(`/deckel/${activePaymentDeckel.value.id}/pay`, {
+      cash_received_cents: Math.round(Number(cashGiven.value || 0) * 100),
+      tip_cents: tipDonationCents.value,
+    })
+    const paidDeckelName = activePaymentDeckel.value.name
+    notificationStore.success(`Deckel "${paidDeckelName}" wurde bezahlt`)
+    const drawerResults = await openDrawerTargets(response.data?.drawer_targets)
+    reportDrawerResult(drawerResults, `Deckel "${paidDeckelName}" bezahlt`)
+    await Promise.all([productStore.getProducts(true, true), memberStore.getMemberSelection(), loadDeckelList(), loadNextReceiptNumber()])
     return response.data
   } catch (error) {
     notificationStore.error(error.response?.data?.detail || 'Deckel konnte nicht abgerechnet werden')
@@ -893,62 +1016,40 @@ const loadNextReceiptNumber = async () => {
   }
 }
 
-const openCashDrawer = async () => {
-  const controller = new AbortController()
-  const timeoutId = window.setTimeout(() => controller.abort(), 2000)
-  try {
-    const response = await fetch(`${LOCAL_HARDWARE_AGENT_BASE_URL}/openDrawer`, {
-      method: 'POST',
-      signal: controller.signal,
-    })
-    if (!response.ok) {
-      console.warn('[Kasse] Cash drawer agent responded with error:', response.status)
-    } else {
-      console.log('[Kasse] Cash drawer opened successfully.')
-    }
-  } catch (err) {
-    try {
-      const fallbackController = new AbortController()
-      const fallbackTimeoutId = window.setTimeout(() => fallbackController.abort(), 2000)
-      await fetch(`${LOCAL_HARDWARE_AGENT_BASE_URL}/openDrawer`, {
-        method: 'POST',
-        mode: 'no-cors',
-        signal: fallbackController.signal,
-      })
-      window.clearTimeout(fallbackTimeoutId)
-      console.log('[Kasse] Cash drawer trigger sent in no-cors mode.')
-    } catch (fallbackErr) {
-      // Kein harter Fehler – Verkauf war erfolgreich, Schublade optional
-      console.warn('[Kasse] Cash drawer trigger failed (agent not reachable?):', fallbackErr?.message || err?.message)
-    }
-  } finally {
-    window.clearTimeout(timeoutId)
-  }
-}
-
 const handleCheckout = async (successMessage = 'Verkauf abgeschlossen') => {
   try {
     console.log('[Kasse] Starting checkout...')
-    // Zahlungsart VOR dem Checkout sichern – checkout() setzt paymentMethod zurück auf 'CASH'
-    const paymentMethod = cartStore.paymentMethod
-    const transaction = await cartStore.checkout(authStore.user.id)
+    const transaction = await cartStore.checkout(authStore.user.id, selectedMemberBalance.value)
     console.log('[Kasse] Checkout successful, transaction:', transaction)
     notificationStore.success(successMessage)
 
-    // Kassenschublade öffnen: nur wenn tatsächlich Bargeld fließt.
-    // Reine Guthabenzahlung (BALANCE) → kein Bargeld → Schublade bleibt zu.
-    // Gemischte Zahlung (Guthaben reicht nicht) → handlePaymentAndCheckout setzt paymentMethod
-    // bereits auf 'CASH', bevor handleCheckout aufgerufen wird → Schublade öffnet.
-    if (paymentMethod === 'CASH') {
-      openCashDrawer()
-    }
+    // The backend derives drawer targets from canonical payment and product data.
+    // The browser performs each local hardware action exactly once.
+    const drawerResults = await openDrawerTargets(transaction?.drawer_targets)
+    reportDrawerResult(drawerResults, 'Buchung gespeichert')
 
     // Reload members to update balances
-    await Promise.all([memberStore.getMembers(), productStore.getProducts(), loadNextReceiptNumber(), loadDeckelList()])
+    await Promise.allSettled([memberStore.getMemberSelection(), productStore.getProducts(true, true), loadNextReceiptNumber(), loadDeckelList()])
+    await loadTodayGuestList()
     return transaction
   } catch (err) {
     console.error('[Kasse] Checkout failed:', err)
-    const errorMessage = err.response?.data?.detail || err.message || 'Fehler bei der Abrechnung'
+    const detail = err.response?.data?.detail
+    if (detail?.code === 'SALE_CONFIRMATION_CHANGED') {
+      const confirmedItems = Array.isArray(detail.items) ? detail.items : []
+      cartStore.items.forEach((item, index) => {
+        const confirmed = confirmedItems[index]
+        if (confirmed?.product_id === item.product_id) {
+          item.unit_price_cents = confirmed.unit_price_cents
+          item.total_price_cents = confirmed.unit_price_cents * item.quantity
+        }
+      })
+      await memberStore.getMemberSelection()
+      cashGiven.value = (Number(detail.actual_total_amount_cents || 0) / 100).toFixed(2)
+      notificationStore.info(detail.message)
+      return null
+    }
+    const errorMessage = typeof detail === 'string' ? detail : (detail?.message || err.message || 'Fehler bei der Abrechnung')
     console.error('[Kasse] Showing error notification:', errorMessage)
     notificationStore.error(errorMessage)
     return null
@@ -1000,12 +1101,31 @@ watch(
   { deep: true }
 )
 
+watch(
+  () => authStore.user?.id ?? null,
+  (userId) => cartStore.bindActor(userId)
+)
+
+watch([cashGiven, tipDonation, pendingPaymentMethod], () => {
+  if (!showPaymentConfirmModal.value || paymentSource.value !== 'cart') return
+  cartStore.paymentMethod = pendingPaymentMethod.value || 'CASH'
+  cartStore.cashReceivedCents = cashGiven.value === '' ? null : Math.round(Number(cashGiven.value || 0) * 100)
+  cartStore.tipCents = Math.round(Number(tipDonation.value || 0) * 100)
+})
+
 onMounted(async () => {
-  await productStore.getProducts()
-  await memberStore.getMembers()
+  await productStore.getProducts(true, true)
+  await memberStore.getMemberSelection()
   await loadCategories()
   await loadDeckelList()
   await loadNextReceiptNumber()
+  await loadTodayGuestList()
+  if (cartStore.items.length > 0 && cartStore.cashReceivedCents !== null) {
+    pendingPaymentMethod.value = cartStore.paymentMethod
+    cashGiven.value = (cartStore.cashReceivedCents / 100).toFixed(2)
+    tipDonation.value = (cartStore.tipCents / 100).toFixed(2)
+    showPaymentConfirmModal.value = true
+  }
   clampBonWidth(bonWidth.value)
   console.log('[Kasse] Initial members loaded:', memberStore.members.length)
 })
@@ -1018,10 +1138,10 @@ onBeforeUnmount(() => {
     productStore, memberStore, cartStore, notificationStore, authStore,
     showMemberModal, showPaymentConfirmModal, showInternalMaterialNoteModal,
     memberSearch, pendingPaymentMethod, processingPayment, paymentResult,
-    expandedCategories, categories, bonWidth, nextReceiptNumber, cashGiven,
+    expandedCategories, categories, bonWidth, nextReceiptNumber, cashGiven, tipDonation,
     imageErrorMap, onImageError, showVoucherModal, voucherNumber, voucherValidation,
     voucherValidated, voucherRedeemed, voucherError, validatingVoucher, redeemingVoucher,
-    showDeckelCreateModal, showDeckelOverviewModal, showDeckelDetailsModal, deckelName,
+    deckelSaving, showDeckelCreateModal, showDeckelOverviewModal, showDeckelDetailsModal, deckelName,
     deckelList, activeDeckel, paymentSource, activePaymentDeckel, pendingInternalMaterialProduct,
     internalMaterialNote, showVariablePriceModal, pendingVariablePriceProduct, variablePrice,
     isVariablePriceValid, voucherPrefix, normalizedVoucherPrefix,
@@ -1031,12 +1151,12 @@ onBeforeUnmount(() => {
     selectedMemberName, selectedMemberBalance, selectedMember, hasExpandedCategory,
     cartSubtotal, voucherAppliedAmount, balanceAppliedAmount, hasAppliedVoucher,
     hasAppliedBalance, activeDeckelCount, paymentSummaryItems, paymentSubtotal,
-    paymentTotal, cashChangeDisplay, cashChangeCents, voucherActionLabel,
+    paymentTotal, cashOverpaymentCents, tipDonationCents, cashChangeDisplay, cashChangeCents, voucherActionLabel,
     hasValidVoucherInput, bonPanelStyle, filteredMembers, getDeckelReservedQuantity,
     getCartReservedQuantity, hasMemberPrice, showProductBadge, getAvailableStock,
     isProductOutOfStock, getStockLabel, selectProduct, closeVariablePriceModal,
     confirmVariablePriceSelection, closeInternalMaterialNoteModal, confirmInternalMaterialSelection,
-    changeCartItemQuantity, selectCustomer, validatePaymentMethod, applyPartialBalanceAndContinue,
+    changeCartItemQuantity, selectCustomer, closeMemberModal, validatePaymentMethod, applyPartialBalanceAndContinue,
     openPaymentConfirmation, closePaymentConfirmation, confirmPayment, confirmPaymentWithTip,
     handlePaymentAndCheckout, selectMember, openVoucherModal, validateVoucher, redeemVoucher,
     resetVoucherState, closeVoucherModal, backToVoucherInput, handleVoucherSecondaryAction,
@@ -1048,5 +1168,8 @@ onBeforeUnmount(() => {
     formatVoucherReason, getExpiredStatusLabel, getPaymentMethodLabel, loadNextReceiptNumber,
     handleCheckout, getPaymentButtonStyle, isInsufficientBalance, effectiveCashTotal,
     getMemberFullName, getMemberShortName, formatPrice, formatBalance,
+    showGuestListModal, showGuestListOverviewModal, pendingGuestListProduct, closeGuestListModal,
+    confirmGuestListSelection, guestListTodayGroups, guestListTodayLoading, guestListTodayCount,
+    openGuestListOverview, closeGuestListOverview,
   }
 }

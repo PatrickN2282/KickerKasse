@@ -357,10 +357,41 @@ class ConclusionPage(QWizardPage):
         endpoint_info.setWordWrap(True)
         endpoint_info.setFont(QFont("sans-serif", 11))
 
+        self.config_token_label = QLabel()
+        self.config_token_label.setWordWrap(True)
+        self.config_token_label.setTextInteractionFlags(Qt.TextSelectableByMouse)
+        self.config_token_label.setStyleSheet(
+            "background-color: #fff3cd; color: #664d03; border: 1px solid #ffecb5; "
+            "border-radius: 4px; padding: 10px; font-family: monospace;"
+        )
+
         layout.addWidget(success_title)
         layout.addWidget(endpoint_info)
+        layout.addWidget(self.config_token_label)
         layout.addStretch()
         self.setLayout(layout)
+
+    def initializePage(self):
+        token = ""
+        try:
+            with open("/etc/default/kickerkasse-agent", encoding="utf-8") as config_file:
+                for line in config_file:
+                    if line.startswith("KICKERKASSE_AGENT_CONFIG_TOKEN="):
+                        token = line.split("=", 1)[1].strip()
+                        break
+        except OSError:
+            pass
+        if token:
+            self.config_token_label.setText(
+                "Lokaler Konfigurationscode für Admin → Einstellungen → Erweitert:\n\n"
+                f"{token}\n\n"
+                "Bitte sicher verwahren. Er wird nur zur Konfiguration dieses Vereins-PCs benötigt."
+            )
+        else:
+            self.config_token_label.setText(
+                "Der lokale Konfigurationscode konnte nicht gelesen werden. "
+                "Bitte die Installation erneut ausführen."
+            )
 
 class SetupWizard(QWizard):
     def __init__(self):

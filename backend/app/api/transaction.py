@@ -1,14 +1,15 @@
+from app.core.booking_route import BookingRoute
 from fastapi import APIRouter, HTTPException, Depends, Request, status
 from fastapi.responses import HTMLResponse, FileResponse, Response
 from sqlalchemy.orm import Session
 from datetime import date, datetime
 from sqlalchemy import func, desc
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, ConfigDict, model_validator
 from typing import Optional
 import logging
 
 from app.core import get_db
-from app.core.auth import require_password_confirmation, require_roles
+from app.core.auth import require_authenticated_user, require_password_confirmation, require_roles
 from app.schemas import (
     TransactionCreate,
     TransactionResponse,
@@ -20,7 +21,6 @@ from app.schemas import (
 from app.services import (
     DeckelService,
     EmailService,
-    HardwareAgentService,
     MaterialAccountService,
     SchedulerService,
     TransactionService,
@@ -29,17 +29,27 @@ from app.services import (
 )
 from app.services.app_settings_service import AppSettingsService
 from app.services.zbon_html_exporter import ZBonHTMLExporter
+from app.services.transaction_export_service import TransactionExportService
+from app.services.sale_pricing_service import resolve_sale_unit_price_cents
 from app.repositories import MemberRepository, ProductRepository, UserRepository
-from app.models import CashEntryType, PaymentMethod, Transaction, ZBonHistory, UserRole
+from app.models import GuestListEntry, Member, Voucher, CashEntryType, PaymentMethod, Transaction, ZBonHistory, UserRole
+from app.utils.drawer import SMALL_PARTS_DRAWER, drawer_targets_for_sale
 
 logger = logging.getLogger(__name__)
-router = APIRouter(prefix="/api/transactions", tags=["Transactions"])
+router = APIRouter(route_class=BookingRoute, prefix="/api/transactions", tags=["Transactions"])
 
 
 # Request models
 class CashCountRequest(BaseModel):
-    coins: Optional[dict] = None  # {"0.01": 5, "0.02": 3, ...}
-    notes: Optional[dict] = None  # {"5": 2, "10": 1, ...}
+    model_config = ConfigDict(extra="forbid")
+    coins: Optional[dict] = None
+    notes: Optional[dict] = None
+
+    @model_validator(mode="after")
+    def validate_count(self):
+        from app.utils.cash_count import cash_count_cents
+        cash_count_cents(self.model_dump())
+        return self
 
 
 class ZBonGenerateRequest(BaseModel):
@@ -55,24 +65,44 @@ class ZBonEmailRequest(BaseModel):
     include_cash_count: bool = False
 
 
-class ZBonCreateRequest(BaseModel):
-    created_by_name: str
-    skimmed_by_name: Optional[str] = None
-    cash_counted_by_name: Optional[str] = None
+class ZBonPreviewRequest(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+    created_by_id: Optional[str] = Field(default=None, pattern=r"^(user|member)-[1-9][0-9]*$")
+    cash_counted_by_member_id: Optional[int] = Field(default=None, gt=0)
     cash_count: Optional[CashCountRequest] = None
     cash_count_total: Optional[float] = None
-    difference_reason: Optional[str] = None
     pending_withdrawals: list["PendingWithdrawalRequest"] = Field(default_factory=list)
+
+    @model_validator(mode="after")
+    def validate_total(self):
+        from app.utils.cash_count import cash_count_cents
+        cash_count_cents(self.cash_count.model_dump() if self.cash_count else None, self.cash_count_total)
+        return self
+
+
+class ZBonCreateRequest(ZBonPreviewRequest):
+    created_by_id: str = Field(pattern=r"^(user|member)-[1-9][0-9]*$")
+    cash_counted_by_member_id: int = Field(gt=0)
+    cash_count_total: float = Field(ge=0, allow_inf_nan=False)
+    difference_reason: Optional[str] = Field(default=None, max_length=1000)
     auth_password: str
 
 
-class ZBonPreviewRequest(BaseModel):
-    created_by_name: Optional[str] = None
-    skimmed_by_name: Optional[str] = None
-    cash_counted_by_name: Optional[str] = None
-    cash_count: Optional[CashCountRequest] = None
-    cash_count_total: Optional[float] = None
-    pending_withdrawals: list["PendingWithdrawalRequest"] = Field(default_factory=list)
+def resolve_zbon_actors(db, data):
+    from app.services.user_service import UserService
+    creator = None
+    if data.created_by_id:
+        creator = next((u["username"] for u in UserService(db).get_finance_options()
+                        if u["id"] == data.created_by_id), None)
+        if not creator:
+            raise HTTPException(400, "Ersteller nicht gefunden oder ohne Finanzberechtigung.")
+    verifier = None
+    if data.cash_counted_by_member_id:
+        member = db.get(Member, data.cash_counted_by_member_id)
+        if member is None or member.archived_at is not None:
+            raise HTTPException(400, "Prüfendes Mitglied nicht gefunden oder archiviert.")
+        verifier = member.name
+    return creator, verifier
 
 
 class ZBonPreviewEmailRequest(BaseModel):
@@ -83,8 +113,8 @@ class ZBonPreviewEmailRequest(BaseModel):
 
 
 class PendingWithdrawalRequest(BaseModel):
-    amount_cents: int
-    reason: str
+    amount_cents: int = Field(..., gt=0)
+    reason: str = Field(..., min_length=1)
 
 
 def _require_finance_access(request: Request, db: Session):
@@ -100,6 +130,18 @@ def _get_combined_voucher_type(vouchers: list[tuple]) -> str | None:
     return first_type if all(voucher_type == first_type for voucher_type in voucher_types) else "MIXED"
 
 
+@router.get("/operations/{operation_key}")
+async def get_booking_operation(operation_key: str, request: Request, db: Session = Depends(get_db)):
+    from app.models import BookingOperation
+    import json
+    user = require_authenticated_user(request, db)
+    operation = db.query(BookingOperation).filter_by(operation_key=operation_key, user_id=user.id).first()
+    if operation is None:
+        raise HTTPException(404, "Vorgang noch nicht bestätigt. Erneut mit derselben Kennung versuchen.")
+    return {"status": "completed", "response": json.loads(operation.response_json),
+            "response_status": operation.response_status}
+
+
 @router.get("/next-receipt-number")
 @router.get("/next-receipt-number/")
 async def get_next_receipt_number(
@@ -107,12 +149,8 @@ async def get_next_receipt_number(
     db: Session = Depends(get_db),
 ):
     """Get the next receipt number"""
-    user_id = request.session.get("user_id")
-    if not user_id:
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Not authenticated",
-        )
+    cashier = require_authenticated_user(request, db)
+    user_id = cashier.id
     
     service = TransactionService(db)
     next_number = service.get_next_receipt_number()
@@ -127,7 +165,8 @@ async def create_sale(
     db: Session = Depends(get_db),
 ):
     """Create a sale transaction"""
-    user_id = request.session.get("user_id")
+    current_user = require_authenticated_user(request, db)
+    user_id = current_user.id
     if not user_id:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
@@ -136,221 +175,331 @@ async def create_sale(
     
     print(f"[API] Creating sale transaction for user {user_id}: payment_method={transaction_data.payment_method}, member_id={transaction_data.member_id}, items={len(transaction_data.items)}")
     
-    # Load cashier username for snapshot
-    performed_by_username = None
-    user_repo = UserRepository(db)
-    cashier = user_repo.get_by_id(user_id)
-    if cashier:
-        performed_by_username = cashier.username
+    # The authenticated server-side user is authoritative, never request.user_id.
+    performed_by_username = current_user.username
 
-    # Validate items exist and have stock
-    product_repo = ProductRepository(db)
-    product_names: dict[int, str] = {}
-    reserved_quantities = DeckelService(db).get_reserved_quantities()
-    sold_prepaid_quantities_by_value: dict[int, int] = {}
-    voucher_service = VoucherService(db)
-    for item in transaction_data.items:
-        product = product_repo.get_by_id(item.product_id)
-        if not product:
-            raise HTTPException(
-                status_code=status.HTTP_404_NOT_FOUND,
-                detail=f"Product {item.product_id} not found",
-            )
-        product_names[product.id] = product.name
-        if not product.is_unlimited_stock:
-            available_quantity = max(product.stock_quantity - reserved_quantities.get(product.id, 0), 0)
-            if available_quantity < item.quantity:
+    try:
+        # Validate items exist and have stock
+        product_repo = ProductRepository(db)
+        member = None
+        if transaction_data.member_id:
+            member = MemberRepository(db).get_by_id_for_update(transaction_data.member_id)
+            if not member:
+                raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Member not found")
+
+        requested_quantities = {}
+        for item in transaction_data.items:
+            requested_quantities[item.product_id] = requested_quantities.get(item.product_id, 0) + item.quantity
+        product_names: dict[int, str] = {}
+        products_for_drawer = []
+        for product_id in sorted({item.product_id for item in transaction_data.items}):
+            product_repo.get_by_id_for_update(product_id)
+        reserved_quantities = DeckelService(db).get_reserved_quantities()
+        sold_prepaid_quantities_by_value: dict[int, int] = {}
+        voucher_service = VoucherService(db)
+        for item in transaction_data.items:
+            product = product_repo.get_by_id_for_update(item.product_id)
+            if not product:
+                raise HTTPException(
+                    status_code=status.HTTP_404_NOT_FOUND,
+                    detail=f"Product {item.product_id} not found",
+                )
+            if not product.is_active:
+                raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=f"Product {product.name} is inactive")
+            try:
+                item.unit_price_cents = resolve_sale_unit_price_cents(
+                    product,
+                    item.unit_price_cents,
+                    is_internal_material=item.is_internal_material,
+                    member=member,
+                )
+            except ValueError as exc:
+                raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(exc)) from exc
+            product_names[product.id] = product.name
+            products_for_drawer.append(product)
+            if not product.is_unlimited_stock:
+                available_quantity = max(product.stock_quantity - reserved_quantities.get(product.id, 0), 0)
+                if available_quantity < requested_quantities[item.product_id]:
+                    raise HTTPException(
+                        status_code=status.HTTP_400_BAD_REQUEST,
+                        detail=f"Unzureichender Bestand für Produkt {product.name}",
+                    )
+            if product.requires_guest_list:
+                if item.is_internal_material or len(item.guests) != item.quantity:
+                    raise HTTPException(status_code=400, detail=f"Für {product.name} muss je Einheit genau ein Gast erfasst werden; interne Gastbuchungen sind nicht möglich.")
+            elif item.guests:
+                raise HTTPException(status_code=400, detail="Gäste dürfen nur einem Gastartikel zugeordnet werden")
+            for guest in item.guests:
+                if guest.member_id is not None and MemberRepository(db).get_by_id(guest.member_id) is None:
+                    raise HTTPException(status_code=400, detail="Das zugeordnete Mitglied existiert nicht")
+            prepaid_value_cents = voucher_service.get_prepaid_value_from_product(product)
+            if prepaid_value_cents is not None and product.requires_guest_list:
+                raise HTTPException(status_code=400, detail="Verzehrkarten und Gastartikel dürfen nicht kombiniert werden")
+            if prepaid_value_cents is not None:
+                sold_prepaid_quantities_by_value[prepaid_value_cents] = (
+                    sold_prepaid_quantities_by_value.get(prepaid_value_cents, 0) + item.quantity
+                )
+
+        if sold_prepaid_quantities_by_value:
+            try:
+                voucher_service.ensure_prepaid_stock(sold_prepaid_quantities_by_value)
+            except ValueError as exc:
                 raise HTTPException(
                     status_code=status.HTTP_400_BAD_REQUEST,
-                    detail=f"Unzureichender Bestand für Produkt {product.name}",
+                    detail=str(exc),
+                ) from exc
+        
+        total_amount = sum(item.unit_price_cents * item.quantity for item in transaction_data.items)
+        vouchers = []
+        voucher_applied_cents = 0
+        voucher_candidates = []
+        for redemption in transaction_data.voucher_redemptions:
+            candidate = voucher_service.repository.get_by_number(redemption.voucher_number)
+            if not candidate:
+                raise HTTPException(status_code=400, detail="Gutschein nicht gefunden")
+            voucher_candidates.append(candidate.id)
+        if len(set(voucher_candidates)) != len(voucher_candidates):
+            raise HTTPException(status_code=400, detail="Derselbe Gutschein darf nur einmal im Bon vorkommen")
+        for voucher_id in sorted(voucher_candidates):
+            db.query(Voucher).filter_by(id=voucher_id).populate_existing().with_for_update().first()
+        for voucher_redemption in transaction_data.voucher_redemptions:
+            try:
+                voucher = voucher_service.get_redeemable_voucher(voucher_redemption.voucher_number)
+            except ValueError as e:
+                raise HTTPException(
+                    status_code=status.HTTP_400_BAD_REQUEST,
+                    detail=str(e),
                 )
-        prepaid_value_cents = voucher_service.get_prepaid_value_from_product(product)
-        if prepaid_value_cents is not None:
-            sold_prepaid_quantities_by_value[prepaid_value_cents] = (
-                sold_prepaid_quantities_by_value.get(prepaid_value_cents, 0) + item.quantity
+
+            remaining_cart_value = max(total_amount - voucher_applied_cents, 0)
+            available_voucher_cents = (
+                voucher.remaining_value_cents
+                if voucher.remaining_value_cents is not None
+                else voucher.value_cents
+            )
+            applied_amount = min(available_voucher_cents, remaining_cart_value)
+
+            if applied_amount <= 0:
+                raise HTTPException(
+                    status_code=status.HTTP_400_BAD_REQUEST,
+                    detail="Voucher kann bei leerem Warenkorb nicht eingelöst werden",
+                )
+
+            vouchers.append((voucher, applied_amount))
+            voucher_applied_cents += applied_amount
+
+        payable_after_vouchers_cents = max(total_amount - voucher_applied_cents, 0)
+        balance_applied_cents = 0
+        member_balance_changed = bool(
+            member is not None
+            and transaction_data.expected_member_balance_cents is not None
+            and transaction_data.expected_member_balance_cents != member.balance_cents
+        )
+
+        # Check member balance if paying with balance
+        if transaction_data.payment_method == "BALANCE" or transaction_data.balance_discount_cents > 0:
+            if not transaction_data.member_id:
+                raise HTTPException(
+                    status_code=status.HTTP_400_BAD_REQUEST,
+                    detail="Member ID required for balance payment",
+                )
+            
+            requested_balance_cents = (
+                payable_after_vouchers_cents
+                if transaction_data.payment_method == "BALANCE"
+                else transaction_data.balance_discount_cents
+            )
+            balance_applied_cents = min(requested_balance_cents, member.balance_cents, payable_after_vouchers_cents)
+
+            if (
+                transaction_data.payment_method == "BALANCE"
+                and balance_applied_cents < payable_after_vouchers_cents
+                and not member_balance_changed
+            ):
+                raise HTTPException(
+                    status_code=status.HTTP_400_BAD_REQUEST,
+                    detail="Insufficient member balance",
+                )
+
+        payable_amount_cents = max(payable_after_vouchers_cents - balance_applied_cents, 0)
+        if (
+            transaction_data.payment_method == "BALANCE"
+            and payable_amount_cents != 0
+            and not member_balance_changed
+        ):
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Balance payment must cover the full remaining amount",
             )
 
-    if sold_prepaid_quantities_by_value:
+        amount_changed = (
+            transaction_data.expected_total_amount_cents is not None
+            and transaction_data.expected_total_amount_cents != payable_amount_cents
+        )
+        balance_changed = (
+            member_balance_changed
+            and (transaction_data.payment_method == "BALANCE" or transaction_data.balance_discount_cents > 0)
+        )
+        if amount_changed or balance_changed:
+            raise HTTPException(
+                status_code=status.HTTP_409_CONFLICT,
+                detail={
+                    "code": "SALE_CONFIRMATION_CHANGED",
+                    "message": "Preis oder Guthaben hat sich geändert. Bitte die aktualisierten Beträge erneut bestätigen.",
+                    "expected_total_amount_cents": transaction_data.expected_total_amount_cents,
+                    "actual_total_amount_cents": payable_amount_cents,
+                    "actual_member_balance_cents": member.balance_cents if member is not None else None,
+                    "items": [
+                        {
+                            "product_id": item.product_id,
+                            "unit_price_cents": item.unit_price_cents,
+                        }
+                        for item in transaction_data.items
+                    ],
+                },
+            )
+
         try:
-            voucher_service.ensure_prepaid_stock(sold_prepaid_quantities_by_value)
+            change_given_cents = TransactionService.validate_cash_payment(
+                transaction_data.payment_method,
+                payable_amount_cents,
+                transaction_data.tip_cents,
+                transaction_data.cash_received_cents,
+            )
         except ValueError as exc:
+            raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(exc)) from exc
+
+        service = TransactionService(db)
+        
+        # Collect member name snapshot
+        member_name_snapshot = None
+        if transaction_data.member_id:
+            member_repo_for_snapshot = MemberRepository(db)
+            m = member_repo_for_snapshot.get_by_id(transaction_data.member_id)
+            if m:
+                member_name_snapshot = m.name
+
+        # Create transaction with snapshot fields
+        items_data = [
+            {**item.dict(), "product_name": product_names.get(item.product_id)}
+            for item in transaction_data.items
+        ]
+        transaction = service.create_sale_transaction(
+            user_id=user_id,
+            total_amount_cents=payable_amount_cents,
+            payment_method=transaction_data.payment_method,
+            member_id=transaction_data.member_id,
+            member_name=member_name_snapshot,
+            performed_by_username=performed_by_username,
+            items=items_data,
+            voucher_code=", ".join(voucher.voucher_code for voucher, _ in vouchers) if vouchers else None,
+            voucher_type=_get_combined_voucher_type(vouchers),
+            voucher_applied_cents=voucher_applied_cents,
+            balance_applied_cents=balance_applied_cents,
+            tip_cents=transaction_data.tip_cents,
+            cash_received_cents=transaction_data.cash_received_cents,
+            change_given_cents=change_given_cents,
+            commit=False,
+        )
+        
+        # Process payment
+        member_repo = MemberRepository(db)
+        service.process_sale_payment(transaction, member_repo, commit=False)
+        
+        # Deduct once per product, including multiple guest/variable-price lines.
+        for product_id, quantity in requested_quantities.items():
+            if not product_repo.deduct_stock(product_id, quantity, commit=False):
+                raise HTTPException(status_code=409, detail="Stock changed during checkout")
+
+        MaterialAccountService(db).record_sale_transaction(transaction)
+
+        for voucher, applied_amount in vouchers:
+            voucher_service.repository.apply_redemption(
+                voucher.id,
+                user_id,
+                transaction.id,
+                applied_amount_cents=applied_amount,
+                commit=False,
+            )
+
+        issued_prepaid_vouchers = []
+        next_unissued_prepaid_voucher_number = None
+        try:
+            issued_prepaid_vouchers, next_unissued_prepaid = voucher_service.issue_prepaid_vouchers_for_sale(
+                transaction,
+                sold_prepaid_quantities_by_value,
+                user_id,
+            )
+            next_unissued_prepaid_voucher_number = voucher_service.format_voucher_identifier(next_unissued_prepaid)
+        except ValueError as exc:
+            db.rollback()
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
                 detail=str(exc),
             ) from exc
-    
-    total_amount = sum(item.unit_price_cents * item.quantity for item in transaction_data.items)
-    vouchers = []
-    voucher_applied_cents = 0
-    for voucher_redemption in transaction_data.voucher_redemptions:
+
+        for payload_item, saved_item in zip(transaction_data.items, transaction.items):
+            for guest in payload_item.guests:
+                db.add(GuestListEntry(product_id=saved_item.product_id, transaction_id=transaction.id,
+                    transaction_item_id=saved_item.id, member_id=guest.member_id,
+                    guest_first_name=guest.guest_first_name, guest_last_name=guest.guest_last_name,
+                    guest_name=f"{guest.guest_first_name} {guest.guest_last_name or ''}".strip()))
+
+        # Final commit to ensure everything is persisted
         try:
-            voucher = voucher_service.get_redeemable_voucher(voucher_redemption.voucher_number)
-        except ValueError as e:
-            raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST,
-                detail=str(e),
-            )
+            db.commit()
+        except Exception:
+            db.rollback()
+            raise
+        db.refresh(transaction)
 
-        remaining_cart_value = max(total_amount - voucher_applied_cents, 0)
-        available_voucher_cents = (
-            voucher.remaining_value_cents
-            if voucher.remaining_value_cents is not None
-            else voucher.value_cents
+        drawer_targets = drawer_targets_for_sale(
+            products_for_drawer,
+            transaction.payment_method,
+            payable_amount_cents,
+            transaction.tip_cents,
+            transaction.cash_received_cents,
+            transaction.change_given_cents,
         )
-        applied_amount = min(available_voucher_cents, remaining_cart_value)
-
-        if applied_amount <= 0:
-            raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST,
-                detail="Voucher kann bei leerem Warenkorb nicht eingelöst werden",
-            )
-
-        vouchers.append((voucher, applied_amount))
-        voucher_applied_cents += applied_amount
-
-    payable_after_vouchers_cents = max(total_amount - voucher_applied_cents, 0)
-    balance_applied_cents = 0
-
-    # Check member balance if paying with balance
-    if transaction_data.payment_method == "BALANCE" or transaction_data.balance_discount_cents > 0:
-        if not transaction_data.member_id:
-            raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST,
-                detail="Member ID required for balance payment",
-            )
         
-        member_repo = MemberRepository(db)
-        member = member_repo.get_by_id(transaction_data.member_id)
-        if not member:
-            raise HTTPException(
-                status_code=status.HTTP_404_NOT_FOUND,
-                detail="Member not found",
-            )
-
-        requested_balance_cents = (
-            payable_after_vouchers_cents
-            if transaction_data.payment_method == "BALANCE"
-            else transaction_data.balance_discount_cents
+        print(
+            f"[API] Sale transaction created successfully: "
+            f"id={transaction.id}, receipt_number={transaction.receipt_number}, "
+            f"gross={total_amount}, payable={payable_amount_cents}, voucher={voucher_applied_cents}, balance={balance_applied_cents}"
         )
-        balance_applied_cents = min(requested_balance_cents, member.balance_cents, payable_after_vouchers_cents)
-
-        if transaction_data.payment_method == "BALANCE" and balance_applied_cents < payable_after_vouchers_cents:
-            raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST,
-                detail="Insufficient member balance",
-            )
-
-    payable_amount_cents = max(payable_after_vouchers_cents - balance_applied_cents, 0)
-    if transaction_data.payment_method == "BALANCE" and payable_amount_cents != 0:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Balance payment must cover the full remaining amount",
-        )
-
-    service = TransactionService(db)
-    
-    # Collect member name snapshot
-    member_name_snapshot = None
-    if transaction_data.member_id:
-        member_repo_for_snapshot = MemberRepository(db)
-        m = member_repo_for_snapshot.get_by_id(transaction_data.member_id)
-        if m:
-            member_name_snapshot = m.name
-
-    # Create transaction with snapshot fields
-    items_data = [
-        {**item.dict(), "product_name": product_names.get(item.product_id)}
-        for item in transaction_data.items
-    ]
-    transaction = service.create_sale_transaction(
-        user_id=user_id,
-        total_amount_cents=payable_amount_cents,
-        payment_method=transaction_data.payment_method,
-        member_id=transaction_data.member_id,
-        member_name=member_name_snapshot,
-        performed_by_username=performed_by_username,
-        items=items_data,
-        voucher_code=", ".join(voucher.voucher_code for voucher, _ in vouchers) if vouchers else None,
-        voucher_type=_get_combined_voucher_type(vouchers),
-        voucher_applied_cents=voucher_applied_cents,
-        balance_applied_cents=balance_applied_cents,
-        tip_cents=transaction_data.tip_cents,
-    )
-    
-    # Process payment
-    member_repo = MemberRepository(db)
-    service.process_sale_payment(transaction, member_repo)
-    
-    # Deduct stock for each item
-    for item in transaction.items:
-        product = product_repo.get_by_id(item.product_id)
-        if product and not product.is_unlimited_stock:
-            product_repo.deduct_stock(item.product_id, item.quantity)
-
-    MaterialAccountService(db).record_sale_transaction(transaction)
-
-    for voucher, applied_amount in vouchers:
-        voucher_service.repository.apply_redemption(
-            voucher.id,
-            user_id,
-            transaction.id,
-            applied_amount_cents=applied_amount,
-            commit=False,
-        )
-
-    issued_prepaid_vouchers = []
-    next_unissued_prepaid_voucher_number = None
-    try:
-        issued_prepaid_vouchers, next_unissued_prepaid = voucher_service.issue_prepaid_vouchers_for_sale(
-            transaction,
-            sold_prepaid_quantities_by_value,
-            user_id,
-        )
-        next_unissued_prepaid_voucher_number = voucher_service.format_voucher_identifier(next_unissued_prepaid)
-    except ValueError as exc:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail=str(exc),
-        ) from exc
-
-    # Final commit to ensure everything is persisted
-    db.commit()
-    db.refresh(transaction)
-
-    if transaction_data.trigger_cash_drawer:
-        drawer_opened, drawer_detail = HardwareAgentService.trigger_drawer_open()
-        if not drawer_opened:
-            logger.warning("Cash drawer trigger after sale failed: %s", drawer_detail)
-    
-    print(
-        f"[API] Sale transaction created successfully: "
-        f"id={transaction.id}, receipt_number={transaction.receipt_number}, "
-        f"gross={total_amount}, payable={payable_amount_cents}, voucher={voucher_applied_cents}, balance={balance_applied_cents}"
-    )
-    
-    return {
-        "id": transaction.id,
-        "receipt_number": transaction.receipt_number,
-        "type": transaction.type.value,
-        "payment_method": transaction.payment_method.value,
-        "total_amount_cents": transaction.total_amount_cents,
-        "user_id": transaction.user_id,
-        "member_id": transaction.member_id,
-        "voucher_code": transaction.voucher_code,
-        "voucher_type": transaction.voucher_type,
-        "voucher_applied_cents": transaction.voucher_applied_cents or 0,
-        "balance_applied_cents": transaction.balance_applied_cents or 0,
-        "items": transaction.items,
-        "issued_prepaid_voucher_numbers": [
-            code
-            for voucher in issued_prepaid_vouchers
-            for code in [voucher_service.format_voucher_identifier(voucher)]
-            if code
-        ],
-        "next_unissued_prepaid_voucher_number": next_unissued_prepaid_voucher_number,
-        "created_at": transaction.created_at,
-        "updated_at": transaction.updated_at,
-    }
+        
+        return {
+            "id": transaction.id,
+            "receipt_number": transaction.receipt_number,
+            "type": transaction.type.value,
+            "payment_method": transaction.payment_method.value,
+            "total_amount_cents": transaction.total_amount_cents,
+            "user_id": transaction.user_id,
+            "member_id": transaction.member_id,
+            "voucher_code": transaction.voucher_code,
+            "voucher_type": transaction.voucher_type,
+            "voucher_redemptions": transaction.voucher_redemptions,
+            "voucher_applied_cents": transaction.voucher_applied_cents or 0,
+            "balance_applied_cents": transaction.balance_applied_cents or 0,
+            "tip_cents": transaction.tip_cents or 0,
+            "cash_received_cents": transaction.cash_received_cents,
+            "change_given_cents": transaction.change_given_cents,
+            "open_small_parts_drawer": SMALL_PARTS_DRAWER in drawer_targets,
+            "drawer_targets": drawer_targets,
+            "items": transaction.items,
+            "issued_prepaid_voucher_numbers": [
+                code
+                for voucher in issued_prepaid_vouchers
+                for code in [voucher_service.format_voucher_identifier(voucher)]
+                if code
+            ],
+            "next_unissued_prepaid_voucher_number": next_unissued_prepaid_voucher_number,
+            "created_at": transaction.created_at,
+            "updated_at": transaction.updated_at,
+        }
+    except Exception:
+        db.rollback()
+        raise
 
 
 @router.post("/storno", response_model=TransactionResponse, status_code=status.HTTP_201_CREATED)
@@ -361,20 +510,14 @@ async def create_storno(
     db: Session = Depends(get_db),
 ):
     """Create a storno (reversal) transaction"""
-    user_id = request.session.get("user_id")
-    if not user_id:
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Not authenticated",
-        )
+    current_user = require_authenticated_user(request, db)
+    user_id = current_user.id
     
     service = TransactionService(db)
 
     # Load cashier username for snapshot
     performed_by_username_storno = None
-    storno_user = UserRepository(db).get_by_id(user_id)
-    if storno_user:
-        performed_by_username_storno = storno_user.username
+    performed_by_username_storno = current_user.username
     
     try:
         storno = service.create_storno_transaction(
@@ -398,6 +541,18 @@ async def create_storno(
         product_repo.add_stock(item.product_id, item.quantity)
 
     MaterialAccountService(db).record_storno_transaction(storno)
+
+    original = storno.reference_transaction
+    drawer_targets = drawer_targets_for_sale(
+        (item.product for item in original.items),
+        original.payment_method,
+        original.total_amount_cents,
+        original.tip_cents,
+        original.cash_received_cents,
+        original.change_given_cents,
+    )
+    storno.drawer_targets = drawer_targets
+    storno.open_small_parts_drawer = SMALL_PARTS_DRAWER in drawer_targets
     
     return storno
 
@@ -444,7 +599,7 @@ async def get_daily_stats(
     db: Session = Depends(get_db),
 ):
     """Get daily statistics with transaction list"""
-    _require_finance_access(request, db)
+    require_roles(request, db, UserRole.ADMIN)
     
     try:
         summary_date = datetime.strptime(date, "%Y-%m-%d").date()
@@ -470,7 +625,7 @@ async def get_filtered_transactions(
     db: Session = Depends(get_db),
 ):
     """Get filtered transactions"""
-    _require_finance_access(request, db)
+    require_roles(request, db, UserRole.ADMIN)
     
     try:
         start = datetime.strptime(start_date, "%Y-%m-%d").date()
@@ -487,6 +642,112 @@ async def get_filtered_transactions(
     return result
 
 
+def _parse_transaction_export_filters(start_date: str, end_date: str) -> tuple[date, date]:
+    try:
+        start = datetime.strptime(start_date, "%Y-%m-%d").date()
+        end = datetime.strptime(end_date, "%Y-%m-%d").date()
+    except ValueError as exc:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Invalid date format. Use YYYY-MM-DD",
+        ) from exc
+
+    if end < start:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Das Bis-Datum darf nicht vor dem Von-Datum liegen",
+        )
+    return start, end
+
+
+def _build_transaction_export(
+    db: Session,
+    start_date: str,
+    end_date: str,
+    payment_method: str | None,
+) -> tuple[date, date, dict, str]:
+    start, end = _parse_transaction_export_filters(start_date, end_date)
+    allowed_payment_methods = {None, "", "CASH", "BALANCE", "VOUCHER_GIFT", "VOUCHER_PREPAID", "WITHDRAWAL"}
+    if payment_method not in allowed_payment_methods:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Ungültige Zahlungsart",
+        )
+
+    result = TransactionService(db).get_filtered_transactions(start, end, payment_method or None)
+    html = TransactionExportService.render_html(
+        transactions=result["transactions"],
+        total_amount_cents=result["total_amount"],
+        start_date=start,
+        end_date=end,
+        payment_method=payment_method or None,
+        business_info=AppSettingsService(db).get_business_info(),
+    )
+    return start, end, result, html
+
+
+@router.get("/export/preview", response_class=HTMLResponse)
+@router.get("/export/preview/", response_class=HTMLResponse)
+async def preview_transaction_export(
+    start_date: str,
+    end_date: str,
+    request: Request,
+    payment_method: str | None = None,
+    db: Session = Depends(get_db),
+):
+    """Render the selected transaction history as a printable HTML preview."""
+    require_roles(request, db, UserRole.ADMIN)
+    _, _, _, html = _build_transaction_export(db, start_date, end_date, payment_method)
+    return HTMLResponse(content=html)
+
+
+@router.get("/export/csv")
+@router.get("/export/csv/")
+async def download_transaction_csv(
+    start_date: str,
+    end_date: str,
+    request: Request,
+    payment_method: str | None = None,
+    db: Session = Depends(get_db),
+):
+    """Download the selected transaction history as an Excel-friendly CSV file."""
+    require_roles(request, db, UserRole.ADMIN)
+    start, end, result, _ = _build_transaction_export(db, start_date, end_date, payment_method)
+    filename = TransactionExportService.filename(start, end, "csv")
+    return Response(
+        content=TransactionExportService.render_csv(result["transactions"]),
+        media_type="text/csv; charset=utf-8",
+        headers={"Content-Disposition": f'attachment; filename="{filename}"'},
+    )
+
+
+@router.get("/export/pdf")
+@router.get("/export/pdf/")
+async def download_transaction_pdf(
+    start_date: str,
+    end_date: str,
+    request: Request,
+    payment_method: str | None = None,
+    db: Session = Depends(get_db),
+):
+    """Download the selected transaction history as PDF."""
+    require_roles(request, db, UserRole.ADMIN)
+    start, end, result, html = _build_transaction_export(db, start_date, end_date, payment_method)
+    pdf = TransactionExportService.render_pdf(
+        html,
+        result["transactions"],
+        result["total_amount"],
+        start,
+        end,
+    )
+    filename = TransactionExportService.filename(start, end, "pdf")
+    return Response(
+        content=pdf,
+        media_type="application/pdf",
+        headers={"Content-Disposition": f'attachment; filename="{filename}"'},
+    )
+
+
 @router.get("/revenue-stats")
 @router.get("/revenue-stats/")
 async def get_revenue_stats(
@@ -494,7 +755,7 @@ async def get_revenue_stats(
     db: Session = Depends(get_db),
 ):
     """Get revenue statistics"""
-    _require_finance_access(request, db)
+    require_roles(request, db, UserRole.ADMIN)
     
     try:
         service = TransactionService(db)
@@ -517,12 +778,7 @@ async def get_transaction(
     db: Session = Depends(get_db),
 ):
     """Get transaction by ID"""
-    user_id = request.session.get("user_id")
-    if not user_id:
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Not authenticated",
-        )
+    require_roles(request, db, UserRole.ADMIN)
     
     service = TransactionService(db)
     transaction = service.get_transaction(transaction_id)
@@ -544,12 +800,7 @@ async def get_transactions(
     db: Session = Depends(get_db),
 ):
     """Get all transactions"""
-    user_id = request.session.get("user_id")
-    if not user_id:
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Not authenticated",
-        )
+    require_roles(request, db, UserRole.ADMIN)
     
     service = TransactionService(db)
     return service.get_all_transactions(skip, limit)
@@ -608,6 +859,7 @@ async def preview_current_zbon(
 ):
     """Preview the current Z-Bon period since the last generated Z-Bon."""
     _require_finance_access(request, db)
+    creator_name, verifier_name = resolve_zbon_actors(db, zbon_req)
 
     cash_count = None
     if zbon_req.cash_count:
@@ -627,9 +879,9 @@ async def preview_current_zbon(
 
     service = ZBonService(db)
     return service.build_current_zbon_preview(
-        created_by_name=zbon_req.created_by_name,
-        skimmed_by_name=zbon_req.skimmed_by_name,
-        cash_counted_by_name=zbon_req.cash_counted_by_name,
+        created_by_name=creator_name,
+        skimmed_by_name=None,
+        cash_counted_by_name=verifier_name,
         include_cash_count=cash_count,
         cash_count_total=zbon_req.cash_count_total,
         pending_withdrawals=pending_withdrawals,
@@ -708,7 +960,10 @@ async def create_zbon(
 ):
     """Create and archive a new immutable Z-Bon."""
     current_user = require_roles(request, db, UserRole.ADMIN, UserRole.MANAGER)
-    require_password_confirmation(current_user, zbon_req.auth_password)
+    require_password_confirmation(current_user, zbon_req.auth_password, db)
+    creator_name, verifier_name = resolve_zbon_actors(db, zbon_req)
+    from app.core.financial_booking import lock_financial_period
+    lock_financial_period(db)
 
     cash_count = None
     if zbon_req.cash_count:
@@ -743,32 +998,38 @@ async def create_zbon(
 
     service = ZBonService(db)
     payload = service.create_zbon(
-        created_by_name=zbon_req.created_by_name,
-        skimmed_by_name=zbon_req.skimmed_by_name,
-        cash_counted_by_name=zbon_req.cash_counted_by_name,
+        created_by_name=creator_name,
+        skimmed_by_name=None,
+        cash_counted_by_name=verifier_name,
         include_cash_count=cash_count,
         cash_count_total=zbon_req.cash_count_total,
         difference_reason=zbon_req.difference_reason,
         pending_withdrawals=None,
     )
 
-    email_settings = AppSettingsService(db).get_email_settings()
-    recipient = (email_settings.get("email_recipient_zbon") or "").strip()
-    if (
-        email_settings.get("email_enabled")
-        and email_settings.get("send_zbon_on_create_enabled")
-        and recipient
-    ):
-        sent = EmailService.send_zbon_html_email(
-            recipient=recipient,
-            html_zbon=payload.get("report_content") or "",
-            date=payload.get("business_date") or date.today().isoformat(),
-            seq_number=payload.get("sequence_number"),
-            informational_only=False,
-        )
-        if not sent:
-            logger.warning("Auto-send after Z-Bon creation failed for sequence=%s", payload.get("sequence_number"))
+    def notify_zbon_created():
+        email_settings = AppSettingsService(db).get_email_settings()
+        recipient = (email_settings.get("email_recipient_zbon") or "").strip()
+        if (
+            email_settings.get("email_enabled")
+            and email_settings.get("send_zbon_on_create_enabled")
+            and recipient
+        ):
+            sent = EmailService.send_zbon_html_email(
+                recipient=recipient,
+                html_zbon=payload.get("report_content") or "",
+                date=payload.get("business_date") or date.today().isoformat(),
+                seq_number=payload.get("sequence_number"),
+                informational_only=False,
+            )
+            if not sent:
+                logger.warning("Auto-send after Z-Bon creation failed for sequence=%s", payload.get("sequence_number"))
+    if hasattr(request.state, "after_booking_commit"):
+        request.state.after_booking_commit.append(notify_zbon_created)
+    else:
+        notify_zbon_created()
 
+    payload["drawer_targets"] = ["main"] if pending_withdrawals else []
     return payload
 
 
@@ -808,7 +1069,7 @@ async def send_zbon_email(
         success = EmailService.send_zbon_html_email(
             recipient=recipient,
             html_zbon=zbon_result["html"],
-            date=target_date.isoformat(),
+            date=zbon_result["business_date"],
             seq_number=zbon_result.get("sequence_number"),
             informational_only=True,
         )
@@ -843,6 +1104,9 @@ async def get_zbon_html(
     
     try:
         from app.services.zbon_html_exporter import ZBonHTMLExporter
+
+        payload = ZBonService(db).build_current_zbon_preview()
+        return HTMLResponse(content=payload["report_content"])
         
         target_date = None
         if report_date:
@@ -952,6 +1216,20 @@ async def get_zbon_pdf(
     
     try:
         from app.services.zbon_html_exporter import ZBonHTMLExporter
+
+        payload = ZBonService(db).build_current_zbon_preview()
+        html = payload["report_content"]
+        try:
+            pdf_file = ZBonHTMLExporter.export_pdf(html)
+            filename = f"Kassenbericht_{payload['sequence_number']}_{payload['business_date']}.pdf"
+            return Response(
+                content=pdf_file.getvalue(),
+                media_type="application/pdf",
+                headers={"Content-Disposition": f'attachment; filename="{filename}"'},
+            )
+        except RuntimeError as pdf_error:
+            logger.warning("PDF export unavailable: %s", pdf_error)
+            return HTMLResponse(content=html)
         
         target_date = None
         if report_date:
@@ -1095,12 +1373,7 @@ async def send_zbon_email(
     Returns:
         JSON response with status
     """
-    user_id = request.session.get("user_id")
-    if not user_id:
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Not authenticated",
-        )
+    _require_finance_access(request, db)
     
     try:
         target_date = None
@@ -1129,7 +1402,7 @@ async def send_zbon_email(
         success = email_service.send_zbon_html_email(
             recipient=recipient,
             html_zbon=html,
-            date=target_date.strftime("%Y-%m-%d"),
+            date=update_payload["business_date"],
             seq_number=seq_number,
             include_pdf=pdf_bytes,
             informational_only=True,
@@ -1167,23 +1440,8 @@ async def get_scheduler_status(
     db: Session = Depends(get_db),
 ):
     """Get current scheduler status (admin only)"""
-    user_id = request.session.get("user_id")
-    if not user_id:
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Not authenticated",
-        )
-    
-    # Check if user is admin
-    from app.repositories import UserRepository
-    user_repo = UserRepository(db)
-    user = user_repo.get_by_id(user_id)
-    if not user or not user.is_admin:
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail="Admin access required",
-        )
-    
+    require_roles(request, db, UserRole.ADMIN)
+
     return SchedulerService.get_scheduler_status()
 
 
@@ -1192,12 +1450,12 @@ async def get_scheduler_status(
 # ============================================================
 
 class CashWithdrawalRequest(BaseModel):
-    amount_cents: int  # Amount in cents
+    amount_cents: int = Field(..., gt=0)  # Amount in cents
     reason: str  # Reason for withdrawal (e.g., "Abschöpfung Benny u.Carsten")
 
 
 class CashDepositRequest(BaseModel):
-    amount_cents: int  # Amount in cents
+    amount_cents: int = Field(..., gt=0)  # Amount in cents
     reason: str  # Reason for deposit
 
 
@@ -1231,6 +1489,7 @@ async def record_cash_withdrawal(
             "amount_eur": entry.amount_cents / 100,
             "reason": entry.reason,
             "created_at": entry.created_at.isoformat(),
+            "drawer_targets": ["main"],
         }
     except Exception as e:
         raise HTTPException(
@@ -1247,7 +1506,7 @@ async def record_cash_deposit(
     db: Session = Depends(get_db),
 ):
     """Record a cash deposit (Einlage)"""
-    current_user = _require_finance_access(request, db)
+    current_user = require_roles(request, db, UserRole.ADMIN)
     user_id = current_user.id
     
     try:
@@ -1269,6 +1528,7 @@ async def record_cash_deposit(
             "amount_eur": entry.amount_cents / 100,
             "reason": entry.reason,
             "created_at": entry.created_at.isoformat(),
+            "drawer_targets": ["main"],
         }
     except Exception as e:
         raise HTTPException(
@@ -1285,7 +1545,7 @@ async def get_cash_entries(
     db: Session = Depends(get_db),
 ):
     """Get cash entries (withdrawals and deposits) for a date"""
-    _require_finance_access(request, db)
+    require_roles(request, db, UserRole.ADMIN)
     
     try:
         from app.repositories import CashEntryRepository
@@ -1331,7 +1591,7 @@ async def get_cash_balance(
     db: Session = Depends(get_db),
 ):
     """Get cash balance snapshot for a date"""
-    _require_finance_access(request, db)
+    require_roles(request, db, UserRole.ADMIN)
     
     try:
         from app.repositories import CashBalanceRepository
@@ -1374,6 +1634,17 @@ async def get_cash_balance(
 # ============================================================================
 # Z-BON HISTORY ENDPOINTS
 # ============================================================================
+
+
+@router.get("/zbon/audit")
+@router.get("/zbon/audit/")
+async def get_zbon_consistency_audit(
+    request: Request,
+    db: Session = Depends(get_db),
+):
+    """Return a read-only consistency report for all archived Z-Bons."""
+    _require_finance_access(request, db)
+    return ZBonService(db).build_history_consistency_report()
 
 
 @router.get("/zbon/history", response_model=ZBonHistoryListResponse)

@@ -2,7 +2,8 @@
   <div class="login-container">
     <div class="login-card">
       <div class="login-brand">
-        <img :src="appSettingsStore.logoUrl" alt="KGB - KickerKasse" class="login-logo" />
+        <img :src="appSettingsStore.logoUrl" :alt="appSettingsStore.settings.app_name" class="login-logo" />
+        <h1 class="login-title">{{ appSettingsStore.settings.app_name }}</h1>
       </div>
 
       <div v-if="showSetupHint" class="setup-hint">
@@ -11,8 +12,16 @@
         <button type="button" class="btn btn-primary setup-btn" @click="setupWizardVisible = true">Initial-Setup starten</button>
       </div>
 
+      <div v-else-if="authStore.setupStatusError" class="setup-hint setup-hint--error">
+        <strong>Erststart-Status nicht erreichbar.</strong>
+        <span>{{ authStore.setupStatusError }} Bitte erneut prüfen, bevor du dich anmeldest.</span>
+        <button type="button" class="btn btn-primary setup-btn" :disabled="authStore.setupStatusLoading" @click="loadSetupStatus">
+          {{ authStore.setupStatusLoading ? 'Prüfung läuft …' : 'Erneut prüfen' }}
+        </button>
+      </div>
+
       <!-- Normalbetrieb: Kasse-Button prominent -->
-      <template v-if="!showSetupHint">
+      <template v-if="setupStatusKnown && !showSetupHint && isKasseDirectLoginEnabled">
         <button
           type="button"
           class="btn-kasse"
@@ -52,7 +61,7 @@
               required
             />
           </div>
-          <button type="submit" class="btn btn-login" :disabled="isLoading || showSetupHint">
+          <button type="submit" class="btn btn-login" :disabled="isLoading || showSetupHint || !setupStatusKnown">
             {{ isLoading ? '…' : '→' }}
           </button>
         </div>
@@ -71,6 +80,12 @@
       @close="setupWizardVisible = false"
       @completed="handleSetupCompleted"
     />
+
+    <!-- Anforderung 1: erscheint automatisch nach 5 aufeinanderfolgenden TopAdmin-Fehlversuchen. -->
+    <TopAdminResetModal
+      :show="showTopAdminResetModal"
+      @close="showTopAdminResetModal = false"
+    />
   </div>
 </template>
 
@@ -78,6 +93,7 @@
 import { computed, onBeforeUnmount, onMounted, reactive, ref, watch } from 'vue'
 import { useRouter } from 'vue-router'
 import InitialSetupWizardModal from '@/components/InitialSetupWizardModal.vue'
+import TopAdminResetModal from '@/components/TopAdminResetModal.vue'
 import PwaInstallButton from '@/components/PwaInstallButton.vue'
 import { useAuthStore } from '@/stores/auth'
 import { useAppSettingsStore } from '@/stores/appSettings'
@@ -95,8 +111,11 @@ const form = reactive({
 const isLoading = ref(false)
 const error = ref(null)
 const setupWizardVisible = ref(false)
+const showTopAdminResetModal = ref(false)
 const setupLockActive = ref(sessionStorage.getItem(INITIAL_SETUP_LOCK_KEY) === '1')
 const showSetupHint = computed(() => authStore.setupRequired)
+const setupStatusKnown = computed(() => authStore.topAdminExists !== null && !authStore.setupStatusError)
+const isKasseDirectLoginEnabled = computed(() => appSettingsStore.settings.kasse_direct_login_enabled !== false)
 
 const pushSetupHistoryState = () => {
   window.history.pushState({ setupLock: true }, document.title)
@@ -146,6 +165,11 @@ const handleLogin = async () => {
     router.push('/')
   } else {
     error.value = authStore.error
+    // Anforderung 1: nach 5 aufeinanderfolgenden TopAdmin-Fehlversuchen automatisch das
+    // nicht schließbare (nur per X/Abbrechen schließbare) Reset-Modal öffnen.
+    if (authStore.topAdminResetAvailable) {
+      showTopAdminResetModal.value = true
+    }
   }
 
   isLoading.value = false
@@ -173,15 +197,22 @@ const handleSetupCompleted = async () => {
   router.push('/')
 }
 
+const loadSetupStatus = async () => {
+  const status = await authStore.fetchSetupStatus()
+  if (status?.setup_required) {
+    enableSetupLock()
+  } else if (status?.top_admin_exists) {
+    disableSetupLock()
+    setupWizardVisible.value = false
+  }
+}
+
 onMounted(async () => {
   if (setupLockActive.value) {
     setupWizardVisible.value = true
   }
 
-  const status = await authStore.fetchSetupStatus()
-  if (status?.setup_required) {
-    enableSetupLock()
-  }
+  await loadSetupStatus()
 })
 
 onBeforeUnmount(() => {
@@ -219,7 +250,15 @@ onBeforeUnmount(() => {
   width: min(320px, 100%);
   height: 130px;
   object-fit: contain;
-  margin-bottom: 1.25rem;
+  margin-bottom: 0.35rem;
+}
+
+.login-title {
+  margin: 0 0 1.25rem;
+  color: #1e293b;
+  font-size: 1.35rem;
+  line-height: 1.25;
+  text-align: center;
 }
 
 /* ── Kasse-Button ─────────────────────────────────────── */

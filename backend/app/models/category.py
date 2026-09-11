@@ -1,4 +1,4 @@
-from sqlalchemy import Column, String, Integer, DateTime, Boolean, Table, ForeignKey, Text
+from sqlalchemy import CheckConstraint, Column, String, Integer, DateTime, Boolean, Table, ForeignKey, Text
 from sqlalchemy.sql import func
 from sqlalchemy.orm import relationship
 from app.constants import INTERNAL_MATERIAL_CATEGORY_NAME
@@ -16,6 +16,9 @@ product_category = Table(
 
 class Category(BaseModel):
     __tablename__ = "categories"
+    __table_args__ = (
+        CheckConstraint('length(trim(name)) > 0', name='ck_categories_name_not_blank'),
+    )
 
     name = Column(String(120), nullable=False, unique=True)
     description = Column(String(255), nullable=True)

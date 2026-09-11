@@ -32,6 +32,7 @@ class ServiceActionRequest(BaseModel):
 
 class DrawerOpenRequest(BaseModel):
     auth_password: str = Field(..., min_length=1)
+    target: str = Field(default="main", pattern="^(main|small_parts)$")
 
 
 @router.get("/status")
@@ -138,12 +139,13 @@ async def open_cash_drawer(
     db: Session = Depends(get_db),
 ):
     current_user = require_roles(request, db, UserRole.ADMIN)
-    require_password_confirmation(current_user, payload.auth_password)
+    require_password_confirmation(current_user, payload.auth_password, db)
 
-    success, detail = HardwareAgentService.trigger_drawer_open()
-    if not success:
-        raise HTTPException(
-            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
-            detail=detail or "Kassenschublade konnte nicht geöffnet werden",
-        )
-    return {"status": "ok", "detail": detail}
+    # The authenticated backend decides which drawer may be opened. The browser
+    # sends the actual pulse to its own localhost agent, which works for both an
+    # all-local installation and a remote-server/client installation.
+    return {
+        "status": "ok",
+        "detail": "Schubladenöffnung freigegeben",
+        "drawer_targets": [payload.target],
+    }

@@ -36,7 +36,23 @@ class ZBonHistory(BaseModel):
     # Entnahmen/Einlagen an diesem Tag
     cash_withdrawals = Column(Float, default=0.0, nullable=False)  # Entnahmen
     cash_deposits = Column(Float, default=0.0, nullable=False)  # Einlagen
-    
+
+    # Cent-genaue, unveränderliche Finanzwerte für neue Abschlüsse.
+    # Nullable hält ältere Archive ehrlich, statt fehlende Werte mit 0 vorzutäuschen.
+    article_revenue_cents = Column(Integer, nullable=True)
+    cash_sale_payments_cents = Column(Integer, nullable=True)
+    balance_redeemed_cents = Column(Integer, nullable=True)
+    voucher_redeemed_cents = Column(Integer, nullable=True)
+    member_recharges_cents = Column(Integer, nullable=True)
+    club_account_recharges_cents = Column(Integer, nullable=True)
+    prepaid_sales_cents = Column(Integer, nullable=True)
+    tip_donations_cents = Column(Integer, nullable=True)
+    cash_opening_balance_cents = Column(Integer, nullable=True)
+    cash_deposits_cents = Column(Integer, nullable=True)
+    cash_withdrawals_cents = Column(Integer, nullable=True)
+    cash_calculated_cents = Column(Integer, nullable=True)
+    total_revenue_cents = Column(Integer, nullable=True)
+
     # Transaktionszahlen
     transaction_count_sales = Column(Integer, default=0, nullable=False)
     transaction_count_recharge = Column(Integer, default=0, nullable=False)

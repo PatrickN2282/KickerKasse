@@ -6,6 +6,7 @@ Run automatically on app startup to add missing columns/tables
 from sqlalchemy import inspect, text
 from sqlalchemy.engine import Engine
 import logging
+import re
 
 from app.constants import (
     INTERNAL_MATERIAL_CATEGORY_DESCRIPTION,
@@ -16,13 +17,17 @@ from app.services.app_settings_service import (
     DEFAULT_APP_NAME,
     DEFAULT_KASSE_AREA_BACKGROUND_COLOR,
     DEFAULT_SESSION_TIMER_MINUTES,
+    DEFAULT_KASSE_DIRECT_LOGIN_ENABLED,
     DEFAULT_DECKEL_ENABLED,
+    DEFAULT_GUEST_LIST_ENABLED,
     DEFAULT_KASSE_PRODUCTS_BACKGROUND_SCALE,
     DEFAULT_KASSE_PRODUCTS_BACKGROUND_OPACITY,
     DEFAULT_KASSE_PRODUCTS_BACKGROUND_ENABLED,
     DEFAULT_EMAIL_ENABLED,
     DEFAULT_EMAIL_SENDER,
     DEFAULT_EMAIL_RECIPIENT_ZBON,
+    DEFAULT_EMAIL_RECIPIENT_STOCK,
+    DEFAULT_EMAIL_RECIPIENT_BACKUP,
     DEFAULT_EMAIL_SUBJECT_SUFFIX,
     DEFAULT_EMAIL_CRITICAL_STOCK_ENABLED,
     DEFAULT_SMTP_HOST,
@@ -54,22 +59,30 @@ class DatabaseMigrator:
             logger.info("DATABASE MIGRATION STARTED")
             logger.info("=" * 70)
             
-            # Step 1: Create all tables first
-            logger.info("✓ Step 1: Creating/verifying tables...")
             from app.models import Base
-            Base.metadata.create_all(bind=self.engine)
-            logger.info("  → All tables created/verified")
-            
-            # Step 2: Update enum types if needed
-            logger.info("✓ Step 2: Updating enum types...")
-            self._update_enum_types()
-            logger.info("  → Enum types checked")
-            
-            # Step 3: Apply column additions for existing tables
-            logger.info("✓ Step 3: Adding missing columns...")
-            self._add_missing_columns()
-            logger.info("  → Missing columns added")
-            
+            from app.core.schema_verification import run_versioned_steps, ensure_data_constraints
+            from app.core.access_migration import migrate_access
+            from app.core.booking_migration import migrate_vouchers, migrate_guests
+            from app.core.closure_migration import migrate_closures, migrate_operations
+            from app.core.history_migration import migrate_history
+            from app.core.mail_status_migration import migrate_mail_status
+            run_versioned_steps(self.engine, [
+                ("1.6.5", "create_tables", lambda: Base.metadata.create_all(bind=self.engine)),
+                ("1.6.5", "enum_types", self._update_enum_types),
+                ("1.6.5", "legacy_columns", self._add_missing_columns),
+                ("1.6.5", "integrity_indexes", self._ensure_integrity_indexes),
+                ("1.6.6", "data_constraints", lambda: ensure_data_constraints(self.engine)),
+                ("1.6.7", "access_sessions_and_limits", lambda: migrate_access(self.engine)),
+                ("1.6.10", "voucher_redemptions", lambda: migrate_vouchers(self.engine)),
+                ("1.6.11", "sale_guest_positions", lambda: migrate_guests(self.engine)),
+                ("1.6.12", "receipt_counter_and_closures", lambda: migrate_closures(self.engine)),
+                ("1.6.13", "booking_operations", lambda: migrate_operations(self.engine)),
+                ("1.6.14", "history_snapshots_and_member_archive", lambda: migrate_history(self.engine)),
+                ("2.3.0", "mail_schedule_and_delivery_status", lambda: migrate_mail_status(self.engine)),
+                ("2.6.0", "mail_subject_info_fields", self._add_email_subject_info_columns),
+                ("2.6.4", "product_kasse_visibility", self._add_product_kasse_visibility_column),
+            ])
+
             logger.info("=" * 70)
             logger.info("✓ DATABASE MIGRATION COMPLETED SUCCESSFULLY")
             logger.info("=" * 70)
@@ -80,9 +93,55 @@ class DatabaseMigrator:
             logger.error("=" * 70)
             import traceback
             logger.error(traceback.format_exc())
-            # Don't crash, just log - tables might already exist
+            # The entrypoint and local startup must reject a False result.
             return False
-    
+
+    def _add_email_subject_info_columns(self):
+        """Add per-mail subject info fields before strict schema verification."""
+        with self.engine.begin() as conn:
+            existing = {column["name"] for column in inspect(conn).get_columns("app_settings")}
+            for column_name in (
+                "email_subject_zbon_info",
+                "email_subject_stock_info",
+                "email_subject_backup_info",
+            ):
+                if column_name not in existing:
+                    conn.execute(text(
+                        f"ALTER TABLE app_settings ADD COLUMN {column_name} VARCHAR(120)"
+                    ))
+
+    def _add_product_kasse_visibility_column(self):
+        """Keep product lifecycle and cash-register visibility independent."""
+        with self.engine.begin() as conn:
+            existing = {column["name"] for column in inspect(conn).get_columns("products")}
+            if "is_visible_in_kasse" not in existing:
+                conn.execute(text(
+                    "ALTER TABLE products ADD COLUMN is_visible_in_kasse "
+                    "BOOLEAN DEFAULT TRUE NOT NULL"
+                ))
+
+    def _ensure_integrity_indexes(self):
+        """Install safeguards that need an explicit migration on existing databases."""
+        with self.engine.begin() as conn:
+            duplicate_stornos = conn.execute(text("""
+                SELECT reference_transaction_id
+                FROM transactions
+                WHERE type = 'STORNO' AND reference_transaction_id IS NOT NULL
+                GROUP BY reference_transaction_id
+                HAVING COUNT(*) > 1
+            """)).fetchall()
+            if duplicate_stornos:
+                references = ", ".join(str(row[0]) for row in duplicate_stornos[:10])
+                raise RuntimeError(
+                    "Cannot enforce one-storno-per-sale; duplicate historical "
+                    f"stornos exist for transaction IDs: {references}"
+                )
+            conn.execute(text("""
+                CREATE UNIQUE INDEX IF NOT EXISTS uq_transactions_storno_reference
+                ON transactions (reference_transaction_id)
+                WHERE type = 'STORNO'
+            """))
+
     def _update_enum_types(self):
         """Update enum types to match current version"""
         with self.engine.connect() as conn:
@@ -109,7 +168,7 @@ class DatabaseMigrator:
                             "CASE "
                             "WHEN role::text = 'TOP_ADMIN' THEN 'TOP_ADMIN'::userrole "
                             "WHEN role::text = 'ADMIN' THEN 'ADMIN'::userrole "
-                            "WHEN role::text = 'KASSENMITGLIED' THEN 'MANAGER'::userrole "
+                            "WHEN role::text IN ('MANAGER', 'KASSENMITGLIED') THEN 'MANAGER'::userrole "
                             "ELSE 'VERKAUF'::userrole "
                             "END"
                         ),
@@ -118,7 +177,7 @@ class DatabaseMigrator:
                             "WHEN role IS NULL THEN NULL "
                             "WHEN role::text = 'TOP_ADMIN' THEN 'TOP_ADMIN'::userrole "
                             "WHEN role::text = 'ADMIN' THEN 'ADMIN'::userrole "
-                            "WHEN role::text = 'KASSENMITGLIED' THEN 'MANAGER'::userrole "
+                            "WHEN role::text IN ('MANAGER', 'KASSENMITGLIED') THEN 'MANAGER'::userrole "
                             "ELSE 'VERKAUF'::userrole "
                             "END"
                         ),
@@ -148,6 +207,7 @@ class DatabaseMigrator:
                         ("vouchers", "status"): (
                             "CASE "
                             "WHEN status::text = 'REDEEMED' THEN 'REDEEMED'::voucherstatus "
+                            "WHEN status::text = 'PARTIALLY_REDEEMED' THEN 'PARTIALLY_REDEEMED'::voucherstatus "
                             "ELSE 'CREATED'::voucherstatus "
                             "END"
                         )
@@ -159,6 +219,7 @@ class DatabaseMigrator:
                     conn.rollback()
                 except:
                     pass
+                raise
 
     def _sync_enum_type(
         self,
@@ -191,10 +252,25 @@ class DatabaseMigrator:
         temp_name = f"{enum_name}_old"
         values_sql = ", ".join([f"'{value}'" for value in expected_values])
 
+        inspector = inspect(conn)
+        defaults = {}
+        existing_specs = []
+        for table_name, column_name in column_specs:
+            if not inspector.has_table(table_name):
+                continue
+            columns = {c["name"]: c for c in inspector.get_columns(table_name)}
+            if column_name not in columns:
+                continue  # The legacy-column step adds this column afterwards.
+            existing_specs.append((table_name, column_name))
+            default = columns[column_name].get("default")
+            if default is not None:
+                defaults[(table_name, column_name)] = default
+                conn.execute(text(f"ALTER TABLE {table_name} ALTER COLUMN {column_name} DROP DEFAULT"))
+
         conn.execute(text(f"ALTER TYPE {enum_name} RENAME TO {temp_name}"))
         conn.execute(text(f"CREATE TYPE {enum_name} AS ENUM ({values_sql})"))
 
-        for table_name, column_name in column_specs:
+        for table_name, column_name in existing_specs:
             using_expression = (
                 using_expressions.get((table_name, column_name))
                 if using_expressions
@@ -205,6 +281,11 @@ class DatabaseMigrator:
                 f"ALTER COLUMN {column_name} TYPE {enum_name} "
                 f"USING {using_expression}"
             ))
+            default = defaults.get((table_name, column_name))
+            if default is not None:
+                default = default.replace(f"::{enum_name}", "::text")
+                converted_default = re.sub(rf"\b{column_name}\b", lambda _: f"({default})", using_expression)
+                conn.execute(text(f"ALTER TABLE {table_name} ALTER COLUMN {column_name} SET DEFAULT {converted_default}"))
 
         conn.execute(text(f"DROP TYPE {temp_name}"))
         conn.commit()
@@ -237,6 +318,7 @@ class DatabaseMigrator:
                             conn.rollback()
                         except:
                             pass
+                        raise
                     
                     # Generate codes for existing vouchers
                     try:
@@ -255,6 +337,7 @@ class DatabaseMigrator:
                             conn.rollback()
                         except:
                             pass
+                        raise
                 else:
                     logger.debug("✓ voucher_code column already exists")
                     try:
@@ -272,6 +355,7 @@ class DatabaseMigrator:
                             conn.rollback()
                         except:
                             pass
+                        raise
             
             # ============================================================================
             # OTHER COLUMNS
@@ -293,6 +377,7 @@ class DatabaseMigrator:
                             conn.rollback()
                         except:
                             pass
+                        raise
 
             if 'app_settings' in inspector.get_table_names():
                 app_settings_columns = {col['name'] for col in inspector.get_columns('app_settings')}
@@ -312,6 +397,7 @@ class DatabaseMigrator:
                             conn.rollback()
                         except:
                             pass
+                        raise
 
                 if 'kasse_layout' not in app_settings_columns:
                     logger.info("Adding kasse_layout column to app_settings table...")
@@ -327,6 +413,7 @@ class DatabaseMigrator:
                             conn.rollback()
                         except:
                             pass
+                        raise
 
                 if 'session_timer_enabled' not in app_settings_columns:
                     logger.info("Adding session_timer_enabled column to app_settings table...")
@@ -343,6 +430,7 @@ class DatabaseMigrator:
                             conn.rollback()
                         except:
                             pass
+                        raise
 
                 if 'session_timer_minutes' not in app_settings_columns:
                     logger.info("Adding session_timer_minutes column to app_settings table...")
@@ -359,6 +447,41 @@ class DatabaseMigrator:
                             conn.rollback()
                         except:
                             pass
+                        raise
+
+                if 'kasse_direct_login_enabled' not in app_settings_columns:
+                    logger.info("Adding kasse_direct_login_enabled column to app_settings table...")
+                    try:
+                        conn.execute(text(
+                            "ALTER TABLE app_settings "
+                            "ADD COLUMN kasse_direct_login_enabled BOOLEAN DEFAULT :default_kasse_direct_login_enabled NOT NULL"
+                        ), {"default_kasse_direct_login_enabled": DEFAULT_KASSE_DIRECT_LOGIN_ENABLED})
+                        conn.commit()
+                        logger.info("✓ Added kasse_direct_login_enabled column to app_settings")
+                    except Exception as e:
+                        logger.warning(f"Could not add kasse_direct_login_enabled column: {str(e)}")
+                        try:
+                            conn.rollback()
+                        except:
+                            pass
+                        raise
+
+                if 'guest_list_enabled' not in app_settings_columns:
+                    logger.info("Adding guest_list_enabled column to app_settings table...")
+                    try:
+                        conn.execute(text(
+                            "ALTER TABLE app_settings "
+                            "ADD COLUMN guest_list_enabled BOOLEAN DEFAULT :default_guest_list_enabled NOT NULL"
+                        ), {"default_guest_list_enabled": DEFAULT_GUEST_LIST_ENABLED})
+                        conn.commit()
+                        logger.info("✓ Added guest_list_enabled column to app_settings")
+                    except Exception as e:
+                        logger.warning(f"Could not add guest_list_enabled column: {str(e)}")
+                        try:
+                            conn.rollback()
+                        except:
+                            pass
+                        raise
 
                 if 'kasse_area_background_color' not in app_settings_columns:
                     logger.info("Adding kasse_area_background_color column to app_settings table...")
@@ -375,6 +498,7 @@ class DatabaseMigrator:
                             conn.rollback()
                         except:
                             pass
+                        raise
 
 
                 if 'kasse_products_background_path' not in app_settings_columns:
@@ -391,6 +515,7 @@ class DatabaseMigrator:
                             conn.rollback()
                         except:
                             pass
+                        raise
 
                 if 'kasse_products_background_scale' not in app_settings_columns:
                     logger.info("Adding kasse_products_background_scale column to app_settings table...")
@@ -407,6 +532,7 @@ class DatabaseMigrator:
                             conn.rollback()
                         except:
                             pass
+                        raise
 
                 if 'kasse_products_background_opacity' not in app_settings_columns:
                     logger.info("Adding kasse_products_background_opacity column to app_settings table...")
@@ -423,6 +549,7 @@ class DatabaseMigrator:
                             conn.rollback()
                         except:
                             pass
+                        raise
 
                 if 'kasse_products_background_enabled' not in app_settings_columns:
                     logger.info("Adding kasse_products_background_enabled column to app_settings table...")
@@ -439,6 +566,7 @@ class DatabaseMigrator:
                             conn.rollback()
                         except:
                             pass
+                        raise
 
                 if 'deckel_enabled' not in app_settings_columns:
                     logger.info("Adding deckel_enabled column to app_settings table...")
@@ -455,6 +583,7 @@ class DatabaseMigrator:
                             conn.rollback()
                         except:
                             pass
+                        raise
 
                 if 'business_name' not in app_settings_columns:
                     logger.info("Adding business_name column to app_settings table...")
@@ -468,6 +597,7 @@ class DatabaseMigrator:
                             conn.rollback()
                         except:
                             pass
+                        raise
 
                 if 'business_street' not in app_settings_columns:
                     logger.info("Adding business_street column to app_settings table...")
@@ -481,6 +611,7 @@ class DatabaseMigrator:
                             conn.rollback()
                         except:
                             pass
+                        raise
 
                 if 'business_zip' not in app_settings_columns:
                     logger.info("Adding business_zip column to app_settings table...")
@@ -494,6 +625,7 @@ class DatabaseMigrator:
                             conn.rollback()
                         except:
                             pass
+                        raise
 
                 if 'business_city' not in app_settings_columns:
                     logger.info("Adding business_city column to app_settings table...")
@@ -507,6 +639,7 @@ class DatabaseMigrator:
                             conn.rollback()
                         except:
                             pass
+                        raise
 
                 if 'business_phone' not in app_settings_columns:
                     logger.info("Adding business_phone column to app_settings table...")
@@ -520,6 +653,7 @@ class DatabaseMigrator:
                             conn.rollback()
                         except:
                             pass
+                        raise
 
                 if 'business_email' not in app_settings_columns:
                     logger.info("Adding business_email column to app_settings table...")
@@ -533,6 +667,7 @@ class DatabaseMigrator:
                             conn.rollback()
                         except:
                             pass
+                        raise
 
                 if 'business_tax_number' not in app_settings_columns:
                     logger.info("Adding business_tax_number column to app_settings table...")
@@ -546,6 +681,7 @@ class DatabaseMigrator:
                             conn.rollback()
                         except:
                             pass
+                        raise
 
                 if 'business_registration_number' not in app_settings_columns:
                     logger.info("Adding business_registration_number column to app_settings table...")
@@ -559,6 +695,7 @@ class DatabaseMigrator:
                             conn.rollback()
                         except:
                             pass
+                        raise
 
                 if 'email_enabled' not in app_settings_columns:
                     logger.info("Adding email_enabled column to app_settings table...")
@@ -575,6 +712,7 @@ class DatabaseMigrator:
                             conn.rollback()
                         except:
                             pass
+                        raise
 
                 if 'email_sender' not in app_settings_columns:
                     logger.info("Adding email_sender column to app_settings table...")
@@ -590,6 +728,7 @@ class DatabaseMigrator:
                             conn.rollback()
                         except:
                             pass
+                        raise
 
                 if 'email_recipient_zbon' not in app_settings_columns:
                     logger.info("Adding email_recipient_zbon column to app_settings table...")
@@ -605,6 +744,39 @@ class DatabaseMigrator:
                             conn.rollback()
                         except:
                             pass
+                        raise
+
+                if 'email_recipient_stock' not in app_settings_columns:
+                    logger.info("Adding email_recipient_stock column to app_settings table...")
+                    try:
+                        conn.execute(text(
+                            "ALTER TABLE app_settings ADD COLUMN email_recipient_stock VARCHAR(160) DEFAULT :default_email_recipient_stock"
+                        ), {"default_email_recipient_stock": DEFAULT_EMAIL_RECIPIENT_STOCK})
+                        conn.commit()
+                        logger.info("✓ Added email_recipient_stock column to app_settings")
+                    except Exception as e:
+                        logger.warning(f"Could not add email_recipient_stock column: {str(e)}")
+                        try:
+                            conn.rollback()
+                        except:
+                            pass
+                        raise
+
+                if 'email_recipient_backup' not in app_settings_columns:
+                    logger.info("Adding email_recipient_backup column to app_settings table...")
+                    try:
+                        conn.execute(text(
+                            "ALTER TABLE app_settings ADD COLUMN email_recipient_backup VARCHAR(160) DEFAULT :default_email_recipient_backup"
+                        ), {"default_email_recipient_backup": DEFAULT_EMAIL_RECIPIENT_BACKUP})
+                        conn.commit()
+                        logger.info("✓ Added email_recipient_backup column to app_settings")
+                    except Exception as e:
+                        logger.warning(f"Could not add email_recipient_backup column: {str(e)}")
+                        try:
+                            conn.rollback()
+                        except:
+                            pass
+                        raise
 
                 if 'email_subject_suffix' not in app_settings_columns:
                     logger.info("Adding email_subject_suffix column to app_settings table...")
@@ -620,6 +792,29 @@ class DatabaseMigrator:
                             conn.rollback()
                         except:
                             pass
+                        raise
+
+                for subject_info_column in (
+                    'email_subject_zbon_info',
+                    'email_subject_stock_info',
+                    'email_subject_backup_info',
+                ):
+                    if subject_info_column in app_settings_columns:
+                        continue
+                    logger.info("Adding %s column to app_settings table...", subject_info_column)
+                    try:
+                        conn.execute(text(
+                            f"ALTER TABLE app_settings ADD COLUMN {subject_info_column} VARCHAR(120)"
+                        ))
+                        conn.commit()
+                        logger.info("✓ Added %s column to app_settings", subject_info_column)
+                    except Exception as e:
+                        logger.warning("Could not add %s column: %s", subject_info_column, str(e))
+                        try:
+                            conn.rollback()
+                        except Exception:
+                            pass
+                        raise
 
                 if 'email_critical_stock_enabled' not in app_settings_columns:
                     logger.info("Adding email_critical_stock_enabled column to app_settings table...")
@@ -636,6 +831,7 @@ class DatabaseMigrator:
                             conn.rollback()
                         except:
                             pass
+                        raise
 
                 if 'smtp_host' not in app_settings_columns:
                     logger.info("Adding smtp_host column to app_settings table...")
@@ -651,6 +847,7 @@ class DatabaseMigrator:
                             conn.rollback()
                         except:
                             pass
+                        raise
 
                 if 'smtp_port' not in app_settings_columns:
                     logger.info("Adding smtp_port column to app_settings table...")
@@ -667,6 +864,7 @@ class DatabaseMigrator:
                             conn.rollback()
                         except:
                             pass
+                        raise
 
                 if 'smtp_username' not in app_settings_columns:
                     logger.info("Adding smtp_username column to app_settings table...")
@@ -682,6 +880,7 @@ class DatabaseMigrator:
                             conn.rollback()
                         except:
                             pass
+                        raise
 
                 if 'smtp_password' not in app_settings_columns:
                     logger.info("Adding smtp_password column to app_settings table...")
@@ -697,6 +896,7 @@ class DatabaseMigrator:
                             conn.rollback()
                         except:
                             pass
+                        raise
 
                 if 'smtp_use_tls' not in app_settings_columns:
                     logger.info("Adding smtp_use_tls column to app_settings table...")
@@ -713,6 +913,7 @@ class DatabaseMigrator:
                             conn.rollback()
                         except:
                             pass
+                        raise
 
                 if 'send_zbon_on_create_enabled' not in app_settings_columns:
                     logger.info("Adding send_zbon_on_create_enabled column to app_settings table...")
@@ -729,6 +930,7 @@ class DatabaseMigrator:
                             conn.rollback()
                         except:
                             pass
+                        raise
 
                 if 'scheduled_zbon_enabled' not in app_settings_columns:
                     logger.info("Adding scheduled_zbon_enabled column to app_settings table...")
@@ -745,6 +947,7 @@ class DatabaseMigrator:
                             conn.rollback()
                         except:
                             pass
+                        raise
 
                 if 'scheduled_zbon_time' not in app_settings_columns:
                     logger.info("Adding scheduled_zbon_time column to app_settings table...")
@@ -760,6 +963,7 @@ class DatabaseMigrator:
                             conn.rollback()
                         except:
                             pass
+                        raise
 
                 if 'scheduled_zbon_report_type' not in app_settings_columns:
                     logger.info("Adding scheduled_zbon_report_type column to app_settings table...")
@@ -775,6 +979,7 @@ class DatabaseMigrator:
                             conn.rollback()
                         except:
                             pass
+                        raise
 
                 if 'scheduled_database_backup_enabled' not in app_settings_columns:
                     logger.info("Adding scheduled_database_backup_enabled column to app_settings table...")
@@ -791,6 +996,7 @@ class DatabaseMigrator:
                             conn.rollback()
                         except:
                             pass
+                        raise
 
                 if 'scheduled_database_backup_time' not in app_settings_columns:
                     logger.info("Adding scheduled_database_backup_time column to app_settings table...")
@@ -807,6 +1013,7 @@ class DatabaseMigrator:
                             conn.rollback()
                         except:
                             pass
+                        raise
 
             if 'members' in inspector.get_table_names():
                 member_columns = {col['name'] for col in inspector.get_columns('members')}
@@ -870,6 +1077,115 @@ class DatabaseMigrator:
                             conn.rollback()
                         except:
                             pass
+                        raise
+
+            if 'guest_list_entries' in inspector.get_table_names():
+                guest_list_columns = {col['name'] for col in inspector.get_columns('guest_list_entries')}
+
+                if 'guest_first_name' not in guest_list_columns:
+                    logger.info("Adding guest_first_name column to guest_list_entries table...")
+                    try:
+                        conn.execute(text(
+                            "ALTER TABLE guest_list_entries ADD COLUMN guest_first_name VARCHAR(120)"
+                        ))
+                        conn.commit()
+                        logger.info("✓ Added guest_first_name column to guest_list_entries")
+                    except Exception as e:
+                        logger.warning(f"Could not add guest_first_name column: {str(e)}")
+                        try:
+                            conn.rollback()
+                        except:
+                            pass
+                        raise
+
+                if 'guest_last_name' not in guest_list_columns:
+                    logger.info("Adding guest_last_name column to guest_list_entries table...")
+                    try:
+                        conn.execute(text(
+                            "ALTER TABLE guest_list_entries ADD COLUMN guest_last_name VARCHAR(120)"
+                        ))
+                        conn.commit()
+                        logger.info("✓ Added guest_last_name column to guest_list_entries")
+                    except Exception as e:
+                        logger.warning(f"Could not add guest_last_name column: {str(e)}")
+                        try:
+                            conn.rollback()
+                        except:
+                            pass
+                        raise
+
+                if 'member_id' not in guest_list_columns:
+                    logger.info("Adding member_id column to guest_list_entries table...")
+                    try:
+                        conn.execute(text(
+                            "ALTER TABLE guest_list_entries ADD COLUMN member_id INTEGER"
+                        ))
+                        conn.execute(text(
+                            "ALTER TABLE guest_list_entries "
+                            "ADD CONSTRAINT fk_guest_list_entries_member_id "
+                            "FOREIGN KEY (member_id) REFERENCES members(id)"
+                        ))
+                        conn.commit()
+                        logger.info("✓ Added member_id column to guest_list_entries")
+                    except Exception as e:
+                        logger.warning(f"Could not add member_id column: {str(e)}")
+                        try:
+                            conn.rollback()
+                        except:
+                            pass
+                        raise
+
+                try:
+                    rows = conn.execute(text(
+                        "SELECT id, guest_name, guest_first_name, guest_last_name FROM guest_list_entries"
+                    )).fetchall()
+
+                    for row in rows:
+                        row_mapping = row._mapping
+                        entry_id = row_mapping["id"]
+                        guest_name = (row_mapping.get("guest_name") or "").strip()
+                        guest_first_name = (row_mapping.get("guest_first_name") or "").strip()
+                        guest_last_name = (row_mapping.get("guest_last_name") or "").strip()
+
+                        if not guest_first_name and guest_name:
+                            parts = guest_name.split(maxsplit=1)
+                            guest_first_name = parts[0]
+                            if len(parts) > 1 and not guest_last_name:
+                                guest_last_name = parts[1]
+
+                        if not guest_first_name:
+                            continue
+
+                        normalized_guest_name = f"{guest_first_name} {guest_last_name}".strip()
+                        if (
+                            (row_mapping.get("guest_first_name") or "").strip() == guest_first_name
+                            and (row_mapping.get("guest_last_name") or "").strip() == guest_last_name
+                            and guest_name == normalized_guest_name
+                        ):
+                            continue
+
+                        conn.execute(
+                            text(
+                                "UPDATE guest_list_entries "
+                                "SET guest_name = :guest_name, guest_first_name = :guest_first_name, guest_last_name = :guest_last_name "
+                                "WHERE id = :entry_id"
+                            ),
+                            {
+                                "entry_id": entry_id,
+                                "guest_name": normalized_guest_name,
+                                "guest_first_name": guest_first_name,
+                                "guest_last_name": guest_last_name or None,
+                            }
+                        )
+
+                    conn.commit()
+                except Exception as e:
+                    logger.warning(f"Could not normalize guest list name columns: {str(e)}")
+                    try:
+                        conn.rollback()
+                    except:
+                        pass
+                    raise
 
             if 'cash_entries' in inspector.get_table_names():
                 cash_entry_columns = {col['name'] for col in inspector.get_columns('cash_entries')}
@@ -889,6 +1205,7 @@ class DatabaseMigrator:
                             conn.rollback()
                         except:
                             pass
+                        raise
 
                 try:
                     current_max_result = conn.execute(text("""
@@ -919,6 +1236,7 @@ class DatabaseMigrator:
                         conn.rollback()
                     except:
                         pass
+                    raise
 
             if 'users' in inspector.get_table_names():
                 users_columns = {col['name']: col for col in inspector.get_columns('users')}
@@ -936,6 +1254,25 @@ class DatabaseMigrator:
                             conn.rollback()
                         except:
                             pass
+                        raise
+
+                if 'failed_login_attempts' not in users_columns:
+                    # Anforderung 1: TopAdmin-Passwort-Reset-Workflow benötigt einen
+                    # Fehlversuchszähler, um nach 5 Fehlversuchen automatisch den
+                    # Self-Service-Reset-Dialog anzubieten.
+                    try:
+                        conn.execute(text(
+                            "ALTER TABLE users ADD COLUMN failed_login_attempts INTEGER NOT NULL DEFAULT 0"
+                        ))
+                        conn.commit()
+                        logger.info("✓ Added failed_login_attempts column to users")
+                    except Exception as e:
+                        logger.warning(f"Could not add users.failed_login_attempts column: {str(e)}")
+                        try:
+                            conn.rollback()
+                        except:
+                            pass
+                        raise
 
                 if 'member_id' not in users_columns:
                     try:
@@ -956,6 +1293,7 @@ class DatabaseMigrator:
                             conn.rollback()
                         except:
                             pass
+                        raise
                 else:
                     try:
                         conn.execute(text(
@@ -972,6 +1310,7 @@ class DatabaseMigrator:
                             conn.rollback()
                         except:
                             pass
+                        raise
 
             if 'members' in inspector.get_table_names():
                 members_columns = {col['name']: col for col in inspector.get_columns('members')}
@@ -987,6 +1326,60 @@ class DatabaseMigrator:
                         conn.rollback()
                     except:
                         pass
+                    raise
+
+                # Member emails are intentionally non-unique. Keep historical DBs compatible
+                # by removing legacy unique constraints/indexes that were created in older
+                # versions.
+                try:
+                    conn.execute(text("""
+                        DO $$
+                        DECLARE idx RECORD;
+                        BEGIN
+                            FOR idx IN (
+                                SELECT i.indexname
+                                FROM pg_indexes i
+                                WHERE i.schemaname = current_schema()
+                                  AND i.tablename = 'members'
+                                  AND i.indexdef ILIKE 'CREATE UNIQUE INDEX%'
+                                  AND i.indexdef ILIKE '%(email)%'
+                            ) LOOP
+                                EXECUTE format('DROP INDEX IF EXISTS %I', idx.indexname);
+                            END LOOP;
+                        END
+                        $$;
+                    """))
+                    conn.execute(text("""
+                        DO $$
+                        DECLARE c RECORD;
+                        BEGIN
+                            FOR c IN (
+                                SELECT conname
+                                FROM pg_constraint
+                                WHERE conrelid = 'members'::regclass
+                                  AND contype = 'u'
+                                  AND EXISTS (
+                                      SELECT 1
+                                      FROM unnest(conkey) AS colnum
+                                      JOIN pg_attribute a
+                                        ON a.attrelid = conrelid
+                                       AND a.attnum = colnum
+                                      WHERE a.attname = 'email'
+                                  )
+                            ) LOOP
+                                EXECUTE format('ALTER TABLE members DROP CONSTRAINT IF EXISTS %I', c.conname);
+                            END LOOP;
+                        END
+                        $$;
+                    """))
+                    conn.commit()
+                except Exception as e:
+                    logger.warning(f"Could not remove members.email unique constraints: {str(e)}")
+                    try:
+                        conn.rollback()
+                    except:
+                        pass
+                    raise
 
                 if 'member_number' not in members_columns:
                     logger.info("Adding member_number column to members table...")
@@ -1020,6 +1413,7 @@ class DatabaseMigrator:
                             conn.rollback()
                         except:
                             pass
+                        raise
                 else:
                     try:
                         conn.execute(text("""
@@ -1050,6 +1444,7 @@ class DatabaseMigrator:
                             conn.rollback()
                         except:
                             pass
+                        raise
              
             # Tax rate column
             if 'products' in inspector.get_table_names():
@@ -1069,6 +1464,7 @@ class DatabaseMigrator:
                             conn.rollback()
                         except:
                             pass
+                        raise
 
                 if 'minimum_stock_quantity' not in products_columns:
                     logger.info("Adding minimum_stock_quantity column to products table...")
@@ -1084,6 +1480,7 @@ class DatabaseMigrator:
                             conn.rollback()
                         except:
                             pass
+                        raise
 
                 if 'notify_on_low_stock' not in products_columns:
                     logger.info("Adding notify_on_low_stock column to products table...")
@@ -1099,6 +1496,7 @@ class DatabaseMigrator:
                             conn.rollback()
                         except:
                             pass
+                        raise
 
                 if 'is_unlimited_stock' not in products_columns:
                     logger.info("Adding is_unlimited_stock column to products table...")
@@ -1114,6 +1512,7 @@ class DatabaseMigrator:
                             conn.rollback()
                         except:
                             pass
+                        raise
 
                 if 'warengruppe' not in products_columns:
                     logger.info("Adding warengruppe column to products table...")
@@ -1129,6 +1528,7 @@ class DatabaseMigrator:
                             conn.rollback()
                         except:
                             pass
+                        raise
 
                 if 'is_variable_price' not in products_columns:
                     logger.info("Adding is_variable_price column to products table...")
@@ -1144,6 +1544,39 @@ class DatabaseMigrator:
                             conn.rollback()
                         except:
                             pass
+                        raise
+
+                if 'requires_guest_list' not in products_columns:
+                    logger.info("Adding requires_guest_list column to products table...")
+                    try:
+                        conn.execute(text(
+                            "ALTER TABLE products ADD COLUMN requires_guest_list BOOLEAN DEFAULT FALSE NOT NULL"
+                        ))
+                        conn.commit()
+                        logger.info("✓ Added requires_guest_list column to products")
+                    except Exception as e:
+                        logger.warning(f"Could not add requires_guest_list column: {str(e)}")
+                        try:
+                            conn.rollback()
+                        except:
+                            pass
+                        raise
+
+                if 'opens_small_parts_drawer' not in products_columns:
+                    logger.info("Adding opens_small_parts_drawer column to products table...")
+                    try:
+                        conn.execute(text(
+                            "ALTER TABLE products ADD COLUMN opens_small_parts_drawer BOOLEAN DEFAULT FALSE NOT NULL"
+                        ))
+                        conn.commit()
+                        logger.info("✓ Added opens_small_parts_drawer column to products")
+                    except Exception as e:
+                        logger.warning(f"Could not add opens_small_parts_drawer column: {str(e)}")
+                        try:
+                            conn.rollback()
+                        except:
+                            pass
+                        raise
             
             # Display order column
             if 'categories' in inspector.get_table_names():
@@ -1163,6 +1596,7 @@ class DatabaseMigrator:
                             conn.rollback()
                         except:
                             pass
+                        raise
 
                 try:
                     conn.execute(text("""
@@ -1183,6 +1617,7 @@ class DatabaseMigrator:
                         conn.rollback()
                     except:
                         pass
+                    raise
 
             if 'transactions' in inspector.get_table_names():
                 transaction_columns = {col['name'] for col in inspector.get_columns('transactions')}
@@ -1203,6 +1638,14 @@ class DatabaseMigrator:
                     (
                         'tip_cents',
                         "ALTER TABLE transactions ADD COLUMN tip_cents INTEGER DEFAULT 0 NOT NULL"
+                    ),
+                    (
+                        'cash_received_cents',
+                        "ALTER TABLE transactions ADD COLUMN cash_received_cents INTEGER"
+                    ),
+                    (
+                        'change_given_cents',
+                        "ALTER TABLE transactions ADD COLUMN change_given_cents INTEGER"
                     ),
                     (
                         'member_name',
@@ -1229,6 +1672,7 @@ class DatabaseMigrator:
                             conn.rollback()
                         except:
                             pass
+                        raise
 
                 # Backfill snapshot columns for existing transactions
                 try:
@@ -1254,6 +1698,7 @@ class DatabaseMigrator:
                         conn.rollback()
                     except:
                         pass
+                    raise
 
             if 'transaction_items' in inspector.get_table_names():
                 transaction_item_columns = {col['name'] for col in inspector.get_columns('transaction_items')}
@@ -1273,6 +1718,7 @@ class DatabaseMigrator:
                             conn.rollback()
                         except:
                             pass
+                        raise
 
                 if 'note' not in transaction_item_columns:
                     logger.info("Adding note column to transaction_items table...")
@@ -1289,6 +1735,7 @@ class DatabaseMigrator:
                             conn.rollback()
                         except:
                             pass
+                        raise
 
                 if 'product_name' not in transaction_item_columns:
                     logger.info("Adding product_name snapshot column to transaction_items table...")
@@ -1311,6 +1758,7 @@ class DatabaseMigrator:
                             conn.rollback()
                         except:
                             pass
+                        raise
 
             if 'deckel_items' in inspector.get_table_names():
                 deckel_item_columns = {col['name'] for col in inspector.get_columns('deckel_items')}
@@ -1330,6 +1778,7 @@ class DatabaseMigrator:
                             conn.rollback()
                         except:
                             pass
+                        raise
 
                 if 'note' not in deckel_item_columns:
                     logger.info("Adding note column to deckel_items table...")
@@ -1346,6 +1795,7 @@ class DatabaseMigrator:
                             conn.rollback()
                         except:
                             pass
+                        raise
 
             if 'material_account_entries' in inspector.get_table_names():
                 material_account_columns = {col['name'] for col in inspector.get_columns('material_account_entries')}
@@ -1370,6 +1820,7 @@ class DatabaseMigrator:
                             conn.rollback()
                         except:
                             pass
+                        raise
 
             if 'vouchers' in inspector.get_table_names():
                 voucher_columns = {col['name'] for col in inspector.get_columns('vouchers')}
@@ -1381,11 +1832,11 @@ class DatabaseMigrator:
                     ),
                     (
                         'original_value_cents',
-                        "ALTER TABLE vouchers ADD COLUMN original_value_cents INTEGER DEFAULT 0 NOT NULL"
+                        "ALTER TABLE vouchers ADD COLUMN original_value_cents INTEGER"
                     ),
                     (
                         'remaining_value_cents',
-                        "ALTER TABLE vouchers ADD COLUMN remaining_value_cents INTEGER DEFAULT 0 NOT NULL"
+                        "ALTER TABLE vouchers ADD COLUMN remaining_value_cents INTEGER"
                     ),
                     (
                         'sold_by_user_id',
@@ -1416,12 +1867,19 @@ class DatabaseMigrator:
                             conn.rollback()
                         except:
                             pass
+                        raise
 
                 try:
                     logger.info("Backfilling voucher original/remaining values...")
                     conn.execute(text("""
                         UPDATE vouchers
                         SET
+                            status = CASE
+                                WHEN remaining_value_cents IS NOT NULL OR status::text = 'REDEEMED' THEN status
+                                WHEN value_cents - COALESCE(redeemed_amount_cents, 0) <= 0 THEN 'REDEEMED'::voucherstatus
+                                WHEN COALESCE(redeemed_amount_cents, 0) > 0 THEN 'PARTIALLY_REDEEMED'::voucherstatus
+                                ELSE 'CREATED'::voucherstatus
+                            END,
                             original_value_cents = CASE
                                 WHEN original_value_cents IS NULL
                                     THEN value_cents
@@ -1438,8 +1896,10 @@ class DatabaseMigrator:
                             END,
                             redeemed_amount_cents = COALESCE(redeemed_amount_cents, CASE
                                 WHEN status::text = 'REDEEMED' THEN value_cents
+                                WHEN remaining_value_cents IS NOT NULL THEN GREATEST(COALESCE(original_value_cents, value_cents) - remaining_value_cents, 0)
                                 ELSE 0
                             END)
+                        WHERE original_value_cents IS NULL OR remaining_value_cents IS NULL OR redeemed_amount_cents IS NULL
                     """))
                     conn.commit()
                     logger.info("✓ Backfilled voucher original/remaining values")
@@ -1449,25 +1909,13 @@ class DatabaseMigrator:
                         conn.rollback()
                     except:
                         pass
+                    raise
 
-                try:
-                    logger.info("Normalizing partial voucher statuses...")
-                    conn.execute(text("""
-                        UPDATE vouchers
-                        SET status = CASE
-                            WHEN remaining_value_cents <= 0 THEN 'REDEEMED'::voucherstatus
-                            WHEN COALESCE(redeemed_amount_cents, 0) > 0 THEN 'PARTIALLY_REDEEMED'::voucherstatus
-                            ELSE 'CREATED'::voucherstatus
-                        END
-                    """))
-                    conn.commit()
-                    logger.info("✓ Normalized voucher statuses")
-                except Exception as e:
-                    logger.warning(f"Could not normalize voucher statuses: {str(e)}")
-                    try:
-                        conn.rollback()
-                    except:
-                        pass
+                # NULL distinguishes interrupted backfills from legitimate zero balances.
+                for column_name in ("original_value_cents", "remaining_value_cents"):
+                    conn.execute(text(f"ALTER TABLE vouchers ALTER COLUMN {column_name} SET DEFAULT 0"))
+                    conn.execute(text(f"ALTER TABLE vouchers ALTER COLUMN {column_name} SET NOT NULL"))
+                conn.commit()
 
             if 'zbon_history' in inspector.get_table_names():
                 zbon_columns = {col['name'] for col in inspector.get_columns('zbon_history')}
@@ -1488,6 +1936,19 @@ class DatabaseMigrator:
                     ('cash_counted_by_name', "ALTER TABLE zbon_history ADD COLUMN cash_counted_by_name VARCHAR(255)"),
                     ('cash_count_details', "ALTER TABLE zbon_history ADD COLUMN cash_count_details TEXT"),
                     ('report_data', "ALTER TABLE zbon_history ADD COLUMN report_data TEXT"),
+                    ('article_revenue_cents', "ALTER TABLE zbon_history ADD COLUMN article_revenue_cents INTEGER"),
+                    ('cash_sale_payments_cents', "ALTER TABLE zbon_history ADD COLUMN cash_sale_payments_cents INTEGER"),
+                    ('balance_redeemed_cents', "ALTER TABLE zbon_history ADD COLUMN balance_redeemed_cents INTEGER"),
+                    ('voucher_redeemed_cents', "ALTER TABLE zbon_history ADD COLUMN voucher_redeemed_cents INTEGER"),
+                    ('member_recharges_cents', "ALTER TABLE zbon_history ADD COLUMN member_recharges_cents INTEGER"),
+                    ('club_account_recharges_cents', "ALTER TABLE zbon_history ADD COLUMN club_account_recharges_cents INTEGER"),
+                    ('prepaid_sales_cents', "ALTER TABLE zbon_history ADD COLUMN prepaid_sales_cents INTEGER"),
+                    ('tip_donations_cents', "ALTER TABLE zbon_history ADD COLUMN tip_donations_cents INTEGER"),
+                    ('cash_opening_balance_cents', "ALTER TABLE zbon_history ADD COLUMN cash_opening_balance_cents INTEGER"),
+                    ('cash_deposits_cents', "ALTER TABLE zbon_history ADD COLUMN cash_deposits_cents INTEGER"),
+                    ('cash_withdrawals_cents', "ALTER TABLE zbon_history ADD COLUMN cash_withdrawals_cents INTEGER"),
+                    ('cash_calculated_cents', "ALTER TABLE zbon_history ADD COLUMN cash_calculated_cents INTEGER"),
+                    ('total_revenue_cents', "ALTER TABLE zbon_history ADD COLUMN total_revenue_cents INTEGER"),
                 ]
 
                 for column_name, sql in missing_zbon_columns:
@@ -1505,6 +1966,7 @@ class DatabaseMigrator:
                             conn.rollback()
                         except:
                             pass
+                        raise
 
 
 def run_migrations(engine: Engine) -> bool:
@@ -1522,7 +1984,5 @@ def run_migrations(engine: Engine) -> bool:
         return migrator.migrate()
     except Exception as e:
         logger.error(f"Migration failed: {str(e)}")
-        # Don't crash the app, just log the error
-        # This allows the app to start even if migrations fail
-        # (useful for development/debugging)
+        # Callers treat False as a fatal startup failure.
         return False

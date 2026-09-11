@@ -21,6 +21,8 @@ SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 
 @event.listens_for(engine, "connect")
 def _set_connection_timezone(dbapi_connection, _connection_record):
+    if engine.dialect.name != "postgresql":
+        return
     timezone_name = resolve_timezone_name(settings.APP_TIMEZONE)
     cursor = dbapi_connection.cursor()
     try:
@@ -33,8 +35,14 @@ def _set_connection_timezone(dbapi_connection, _connection_record):
         cursor.close()
 
 
-def get_db() -> Session:
+from fastapi import Request
+
+
+def get_db(request: Request) -> Session:
     """Get database session for dependency injection"""
+    if hasattr(request.state, "booking_db"):
+        yield request.state.booking_db
+        return
     db = SessionLocal()
     try:
         yield db

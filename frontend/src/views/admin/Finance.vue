@@ -149,20 +149,24 @@
             >
               <div class="acc-stat-rows">
                 <div class="acc-row">
-                  <span class="acc-row-label">💵 Bar-Einnahmen</span>
-                  <span class="acc-row-value green">{{ formatPrice(dailyStats.cash_total) }}</span>
+                  <span class="acc-row-label">💵 Barzahlungen Artikel</span>
+                  <span class="acc-row-value green">{{ formatPrice(dailyStats.cash_sale_payments_cents) }}</span>
                 </div>
                 <div class="acc-row">
                   <span class="acc-row-label">🪙 Guthaben eingelöst</span>
                   <span class="acc-row-value blue">{{ formatPrice(dailyStats.balance_total) }}</span>
                 </div>
                 <div class="acc-row">
-                  <span class="acc-row-label">🎟 Gutscheine (Gewinn)</span>
+                  <span class="acc-row-label">🎟 Gutscheine eingelöst</span>
                   <span class="acc-row-value orange">{{ formatPrice(dailyStats.voucher_total) }}</span>
                 </div>
                 <div class="acc-row">
                   <span class="acc-row-label">💳 Prepaid-Kartenverkauf</span>
                   <span class="acc-row-value blue">{{ formatPrice(dailyStats.prepaid_voucher_sales_total) }}</span>
+                </div>
+                <div class="acc-row">
+                  <span class="acc-row-label">⬆️ Mitgliedsguthaben aufgeladen</span>
+                  <span class="acc-row-value green">{{ formatPrice(dailyStats.member_recharges_cents) }}</span>
                 </div>
                 <div class="acc-row acc-total-row">
                   <span class="acc-row-label">Umsatz Gesamt</span>
@@ -182,7 +186,7 @@
                 <span class="acc-icon">🏧</span>
                 <span class="acc-title">Kassensaldo (Soll-Berechnung)</span>
               </div>
-              <span class="acc-summary">Soll: {{ formatEuroValue(dailyStats.cash_calculated) }}</span>
+              <span class="acc-summary">Soll: {{ formatPrice(dailyStats.cash_calculated_cents) }}</span>
               <span
                 class="acc-chevron"
                 :class="{ open: accSections.saldo }"
@@ -197,23 +201,39 @@
                   <tr>
                     <td>Anfangsbestand</td>
                     <td class="calc-right">
-                      {{ formatEuroValue(dailyStats.opening_balance) }}
+                      {{ formatPrice(dailyStats.cash_opening_balance_cents) }}
                     </td>
                   </tr>
                   <tr>
                     <td class="calc-op">
-                      + Bar-Einnahmen
+                      + Barzahlungen Artikel
                     </td>
                     <td class="calc-right calc-plus">
-                      +{{ formatPrice(dailyStats.cash_total) }}
+                      +{{ formatPrice(dailyStats.cash_sale_payments_cents) }}
                     </td>
                   </tr>
                   <tr>
                     <td class="calc-op">
-                      + Prepaid-Verkäufe
+                      + Mitgliedsguthaben-Aufladungen
                     </td>
                     <td class="calc-right calc-plus">
-                      +{{ formatPrice(dailyStats.prepaid_voucher_sales_total) }}
+                      +{{ formatPrice(dailyStats.member_recharges_cents) }}
+                    </td>
+                  </tr>
+                  <tr>
+                    <td class="calc-op">
+                      + Trinkgeld / Spenden
+                    </td>
+                    <td class="calc-right calc-plus">
+                      +{{ formatPrice(dailyStats.tip_donations_cents) }}
+                    </td>
+                  </tr>
+                  <tr>
+                    <td class="calc-op">
+                      + Sonstige Einlagen
+                    </td>
+                    <td class="calc-right calc-plus">
+                      +{{ formatPrice(dailyStats.cash_deposits_cents) }}
                     </td>
                   </tr>
                   <tr>
@@ -227,7 +247,7 @@
                   <tr class="calc-total-row">
                     <td><strong>= Soll-Bestand</strong></td>
                     <td class="calc-right">
-                      <strong>{{ formatEuroValue(dailyStats.cash_calculated) }}</strong>
+                      <strong>{{ formatPrice(dailyStats.cash_calculated_cents) }}</strong>
                     </td>
                   </tr>
                 </tbody>
@@ -316,6 +336,7 @@
                     <th>Typ</th>
                     <th>Mitglied / Konto</th>
                     <th>Betrag</th>
+                    <th>Trinkgeld</th>
                     <th>Zahlungsart</th>
                     <th>Benutzer</th>
                   </tr>
@@ -338,6 +359,9 @@
                       <td class="amount">
                         {{ formatPrice(transaction.gross_amount_cents || transaction.total_amount_cents) }}
                       </td>
+                      <td class="amount">
+                        {{ transaction.tip_cents > 0 ? formatPrice(transaction.tip_cents) : '-' }}
+                      </td>
                       <td>
                         <span :class="['payment-badge', getPaymentBadgeClass(transaction)]">
                           {{ getPaymentBadgeLabel(transaction) }}
@@ -350,7 +374,7 @@
                       class="items-row"
                     >
                       <td
-                        colspan="8"
+                        colspan="9"
                         class="items-cell"
                       >
                         <div class="items-list">
@@ -567,7 +591,17 @@
       v-if="activeTab === 'history'"
       class="tab-content"
     >
-      <h3>Transaktionshistorie</h3>
+      <div class="history-title-row">
+        <h3>Transaktionshistorie</h3>
+        <button
+          class="btn btn-success"
+          type="button"
+          :disabled="loadingHistory || loadingTransactionExport"
+          @click="openTransactionExportPreview"
+        >
+          📤 Liste exportieren
+        </button>
+      </div>
 
       <div class="filter-section">
         <div class="filter-group">
@@ -654,6 +688,7 @@
               <th>Typ</th>
               <th>Mitglied / Konto</th>
               <th>Betrag</th>
+              <th>Trinkgeld</th>
               <th>Zahlungsart</th>
               <th>Benutzer</th>
             </tr>
@@ -676,6 +711,9 @@
                 <td class="amount">
                   {{ formatPrice(transaction.gross_amount_cents || transaction.total_amount_cents) }}
                 </td>
+                <td class="amount">
+                  {{ transaction.tip_cents > 0 ? formatPrice(transaction.tip_cents) : '-' }}
+                </td>
                 <td>
                   <span
                     :class="['payment-badge', getPaymentBadgeClass(transaction)]"
@@ -690,7 +728,7 @@
                 class="items-row"
               >
                 <td
-                  colspan="8"
+                  colspan="9"
                   class="items-cell"
                 >
                   <div class="items-list">
@@ -711,6 +749,7 @@
                         <span class="item-qty">{{ item.quantity }}×</span>
                         <span class="item-price">{{ formatPrice(item.unit_price_cents) }}</span>
                         <span class="item-total">= {{ formatPrice(item.total_price_cents) }}</span>
+                        <span v-if="item.note" class="item-note">📝 {{ item.note }}</span>
                       </div>
                     </div>
                     <div
@@ -1224,7 +1263,7 @@
       </div>
     </div>
 
-<!--
+    <!--
   ================================================================
   KONSOLIDIERTE MODAL-TEMPLATES – Finance.vue
   Ersetzt die vier bestehenden Modal-Blöcke am Ende des Templates
@@ -1307,12 +1346,13 @@
       :show="showWithdrawalModal"
       :amount="withdrawalForm.amount"
       :note="withdrawalForm.note"
-      :selected-user-name="getSelectedUserName(selectedWithdrawalUserId, '')"
+      :performed-by="withdrawalForm.performedBy"
       @close="closeWithdrawalModal"
       @confirm="submitWithdrawal"
       @open-user-picker="openUserPicker('withdrawalUserId')"
       @update:amount="withdrawalForm.amount = $event"
       @update:note="withdrawalForm.note = $event"
+      @update:performed-by="withdrawalForm.performedBy = $event; withdrawalForm.userId = null"
     />
 
     <!-- ═══════════════════════════════════════════════════════════
@@ -1343,17 +1383,28 @@
       @send-email="sendPreviewHtmlByEmail"
     />
 
+    <TransactionExportModal
+      :show="showTransactionExportModal"
+      :html="transactionExportHtml"
+      :loading="loadingTransactionExport"
+      :downloading="downloadingTransactionExport"
+      @close="showTransactionExportModal = false"
+      @download="downloadTransactionExport"
+    />
+
     <!-- Password Confirm Modal (bleibt unverändert) -->
-    <PasswordConfirmModal
+    <AuthCredentialModal
       :show="showPasswordModal"
       title="Kassenbericht erstellen"
       message="Bitte Zugangsdaten des aktuell angemeldeten Benutzers bestätigen."
       :username="authStore.user?.username || ''"
+      :usernames="[]"
       confirm-label="Kassenbericht erstellen"
-      @close="showPasswordModal = false"
+      :error="zbonPasswordModalError"
+      @close="showPasswordModal = false; zbonPasswordModalError = ''"
       @confirm="createZBon"
     />
-    </div>
+  </div>
 </template>
 
 <script setup>
@@ -1362,10 +1413,11 @@ import { useRoute, useRouter } from 'vue-router'
 import { formatPrice } from '@/services/utils'
 import apiService from '@/services/api'
 import CashCounterModal from '@/components/CashCounterModal.vue'
-import PasswordConfirmModal from '@/components/PasswordConfirmModal.vue'
+import AuthCredentialModal from '@/components/AuthCredentialModal.vue'
 import { useNotificationStore } from '@/stores/notification'
 import { useMemberStore } from '@/stores/member'
 import { getMemberFullName, getMemberSearchText, getMemberShortName } from '@/services/member'
+import { DRAWER_TARGETS, openDrawerTargets } from '@/services/drawer'
 import { useAuthStore } from '@/stores/auth'
 import { useAppSettingsStore } from '@/stores/appSettings'
 import Corrections from '@/views/admin/Corrections.vue'
@@ -1373,6 +1425,15 @@ import ZbonCreateModal from '@/views/admin/modal/ZbonCreateModal.vue'
 import WithdrawalModal from '@/views/admin/modal/WithdrawalModal.vue'
 import MemberPickerModal from '@/views/admin/modal/MemberPickerModal.vue'
 import ZbonPreviewModal from '@/views/admin/modal/ZbonPreviewModal.vue'
+import TransactionExportModal from '@/views/admin/modal/TransactionExportModal.vue'
+
+const getErrorMessage = (error, fallback) => {
+  const detail = error?.response?.data?.detail
+  if (detail && typeof detail === 'object') {
+    return detail.message || fallback
+  }
+  return detail || fallback
+}
 
 const notificationStore = useNotificationStore()
 const memberStore = useMemberStore()
@@ -1389,6 +1450,10 @@ const DEFAULT_FINANCE_TAB = 'zbon'
 const activeTab = ref(DEFAULT_FINANCE_TAB)
 const loading = ref(false)
 const loadingHistory = ref(false)
+const loadingTransactionExport = ref(false)
+const downloadingTransactionExport = ref(false)
+const showTransactionExportModal = ref(false)
+const transactionExportHtml = ref('')
 
 // Cash counter modal state
 const showCashCounterModal = ref(false)
@@ -1403,6 +1468,7 @@ const showZbonPreviewModal = ref(false)
 const showWithdrawalModal = ref(false)
 const showMemberPickerModal = ref(false)
 const showPasswordModal = ref(false)
+const zbonPasswordModalError = ref('')
 const memberPickerTarget = ref(null)
 const memberSearch = ref('')
 const financeUsers = ref([])
@@ -1420,6 +1486,7 @@ const zbonDifferenceReason = ref('')
 const withdrawalForm = ref({
   amount: '',
   userId: null,
+  performedBy: '',
   note: '',
 })
 const pendingWithdrawals = ref([])
@@ -1450,6 +1517,12 @@ const zbonsTotalPages = ref(1)
 // Data
 const dailyStats = ref({
   cash_total: 0,
+  cash_sale_payments_cents: 0,
+  member_recharges_cents: 0,
+  tip_donations_cents: 0,
+  cash_opening_balance_cents: 0,
+  cash_deposits_cents: 0,
+  cash_calculated_cents: 0,
   balance_total: 0,
   voucher_total: 0,
   prepaid_voucher_sales_total: 0,
@@ -1557,7 +1630,7 @@ function formatEuroValue(value) {
     return '-'
   }
 
-  return `${Number(value).toFixed(2)} €`
+  return new Intl.NumberFormat('de-DE', { style: 'currency', currency: 'EUR' }).format(Number(value))
 }
 
 const currentPeriodLabel = computed(() => {
@@ -1641,14 +1714,15 @@ const canCreateZbon = computed(() => (
   !!zbonForm.value.createdByUserId
   && !!zbonForm.value.verifiedByUserId
   && zbonFinalCashValue.value !== null
-  && (!hasZbonDifference.value || !!zbonDifferenceReason.value.trim())
 ))
 
 const isUserPickerTarget = computed(() => ['createdByUserId', 'withdrawalUserId'].includes(memberPickerTarget.value))
 
 const filteredPickerOptions = computed(() => {
   const search = memberSearch.value.trim().toLowerCase()
-  const options = isUserPickerTarget.value ? financeUsers.value : memberStore.members
+  const options = isUserPickerTarget.value
+    ? financeUsers.value.filter(user => memberPickerTarget.value !== 'withdrawalUserId' || user.role !== 'TOP_ADMIN')
+    : memberStore.members
 
   if (!search) {
     return options
@@ -1661,7 +1735,6 @@ const filteredPickerOptions = computed(() => {
   return options.filter(member => getMemberSearchText(member).includes(search))
 })
 
-const selectedWithdrawalUserId = computed(() => withdrawalForm.value.userId)
 const formatMemberLabel = (member) => getMemberShortName(member)
 const formatUserLabel = (user) => user?.username || ''
 const formatPickerLabel = (entry) => isUserPickerTarget.value ? formatUserLabel(entry) : formatMemberLabel(entry)
@@ -1682,6 +1755,10 @@ const getTransactionMemberLabel = (transaction) => {
     return 'Abschöpfung'
   }
 
+  if (transaction.booking_type === 'CASH_DEPOSIT') {
+    return 'Kassenbestand'
+  }
+
   if (transaction.booking_type === 'CLUB_ACCOUNT_TOP_UP') {
     return 'Gutscheinkonto'
   }
@@ -1699,6 +1776,12 @@ const getTransactionTypeLabel = (transaction) => {
 
   if (transaction.booking_type === 'CASH_WITHDRAWAL') {
     return 'Abschöpfung'
+  }
+
+  if (transaction.booking_type === 'CASH_DEPOSIT') {
+    return String(transaction.reason || '').toLowerCase().includes('initial')
+      ? 'Kassenstart / Geldübernahme'
+      : 'Bareinlage'
   }
 
   if (transaction.booking_type === 'CLUB_ACCOUNT_TOP_UP') {
@@ -1805,8 +1888,8 @@ const loadDailyStats = async () => {
   loading.value = true
   try {
     const payload = {
-      created_by_name: getSelectedUserName(zbonForm.value.createdByUserId, null),
-      cash_counted_by_name: getSelectedVerifierName(zbonForm.value.verifiedByUserId, null),
+      created_by_id: zbonForm.value.createdByUserId,
+      cash_counted_by_member_id: zbonForm.value.verifiedByUserId,
       cash_count: cashCountData.value
         ? {
           coins: cashCountData.value.coins,
@@ -1818,6 +1901,12 @@ const loadDailyStats = async () => {
     const preview = response.data
     dailyStats.value = {
       cash_total: Math.round((preview.summary?.cash_sales_total || 0) * 100),
+      cash_sale_payments_cents: preview.summary?.cash_sale_payments_cents || 0,
+      member_recharges_cents: preview.summary?.member_recharges_cents || 0,
+      tip_donations_cents: preview.summary?.tip_donations_cents || 0,
+      cash_opening_balance_cents: preview.summary?.cash_opening_balance_cents || 0,
+      cash_deposits_cents: preview.summary?.cash_deposits_cents || 0,
+      cash_calculated_cents: preview.summary?.cash_calculated_cents || 0,
       balance_total: Math.round((preview.summary?.balance_sales_total || 0) * 100),
       voucher_total: Math.round((preview.summary?.voucher_sales_total || 0) * 100),
       prepaid_voucher_sales_total: Math.round((preview.summary?.prepaid_voucher_sales_total || 0) * 100),
@@ -1853,6 +1942,12 @@ const loadDailyStats = async () => {
     console.error('Error loading Z-Bon preview:', error)
     dailyStats.value = {
       cash_total: 0,
+      cash_sale_payments_cents: 0,
+      member_recharges_cents: 0,
+      tip_donations_cents: 0,
+      cash_opening_balance_cents: 0,
+      cash_deposits_cents: 0,
+      cash_calculated_cents: 0,
       balance_total: 0,
       voucher_total: 0,
       prepaid_voucher_sales_total: 0,
@@ -1913,9 +2008,70 @@ const applyFilters = async () => {
   }
 }
 
+const getTransactionExportParams = () => {
+  const params = new URLSearchParams({
+    start_date: filterStartDate.value,
+    end_date: filterEndDate.value,
+  })
+  if (filterPaymentMethod.value) {
+    params.append('payment_method', filterPaymentMethod.value)
+  }
+  return params
+}
+
+const openTransactionExportPreview = async () => {
+  showTransactionExportModal.value = true
+  loadingTransactionExport.value = true
+  transactionExportHtml.value = ''
+  try {
+    const response = await apiService.get(`/transactions/export/preview?${getTransactionExportParams().toString()}`, {
+      responseType: 'text',
+    })
+    transactionExportHtml.value = response.data
+  } catch (error) {
+    showTransactionExportModal.value = false
+    notificationStore.error(getErrorMessage(error, 'Export-Vorschau konnte nicht erstellt werden'))
+  } finally {
+    loadingTransactionExport.value = false
+  }
+}
+
+const downloadTransactionExport = async (format) => {
+  if (!['csv', 'pdf'].includes(format) || downloadingTransactionExport.value) return
+
+  downloadingTransactionExport.value = true
+  try {
+    const response = await apiService.get(`/transactions/export/${format}?${getTransactionExportParams().toString()}`, {
+      responseType: 'blob',
+      timeout: 30000,
+    })
+    const fallbackName = `Transaktionen_${filterStartDate.value}_${filterEndDate.value}.${format}`
+    const disposition = response.headers['content-disposition'] || ''
+    const filenameMatch = disposition.match(/filename="?([^";]+)"?/i)
+    const filename = filenameMatch?.[1] || fallbackName
+    const url = window.URL.createObjectURL(response.data)
+    const link = document.createElement('a')
+    link.href = url
+    link.download = filename
+    document.body.appendChild(link)
+    link.click()
+    link.remove()
+    window.URL.revokeObjectURL(url)
+    notificationStore.success(`${format.toUpperCase()}-Export wurde heruntergeladen`)
+  } catch (error) {
+    notificationStore.error(getErrorMessage(error, `${format.toUpperCase()}-Export fehlgeschlagen`))
+  } finally {
+    downloadingTransactionExport.value = false
+  }
+}
+
 const getPaymentBadgeClass = (transaction) => {
   if (transaction.booking_type === 'CASH_WITHDRAWAL') {
     return 'withdrawal'
+  }
+
+  if (transaction.booking_type === 'CASH_DEPOSIT') {
+    return 'recharge'
   }
 
   if (transaction.booking_type === 'CLUB_ACCOUNT_TOP_UP' || transaction.booking_type === 'MEMBER_BALANCE_RECHARGE') {
@@ -1978,6 +2134,10 @@ const getPaymentBadgeParts = (transaction) => {
 const getPaymentBadgeLabel = (transaction) => {
   if (transaction.booking_type === 'CASH_WITHDRAWAL') {
     return '💸 Abschöpfung'
+  }
+
+  if (transaction.booking_type === 'CASH_DEPOSIT') {
+    return '💶 Bareinlage'
   }
 
   if (transaction.booking_type === 'CLUB_ACCOUNT_TOP_UP') {
@@ -2104,7 +2264,8 @@ const isInternalAccountEntryExpanded = (accountType, entryId) => (
   expandedInternalAccountEntries.value.has(buildInternalAccountEntryKey(accountType, entryId))
 )
 
-const openCashCounterModal = () => {
+const openCashCounterModal = async () => {
+  await openDrawerTargets([DRAWER_TARGETS.MAIN])
   showCashCounterModal.value = true
 }
 const onCashCounterConfirm = (data) => {
@@ -2149,6 +2310,7 @@ const selectPickerOption = (entry) => {
     zbonForm.value.verifiedByUserId = entry.id
   } else if (memberPickerTarget.value === 'withdrawalUserId') {
     withdrawalForm.value.userId = entry.id
+    withdrawalForm.value.performedBy = entry.username
   }
 
   closeMemberPicker()
@@ -2207,6 +2369,7 @@ const openWithdrawalModal = async () => {
     await loadFinanceUsers()
   }
   withdrawalForm.value.userId = getCurrentFinanceUserOptionId()
+  withdrawalForm.value.performedBy = authStore.user?.username || ''
   showWithdrawalModal.value = true
 }
 
@@ -2214,6 +2377,7 @@ const closeWithdrawalModal = () => {
   withdrawalForm.value = {
     amount: '',
     userId: null,
+    performedBy: '',
     note: '',
   }
   showWithdrawalModal.value = false
@@ -2226,9 +2390,9 @@ const submitWithdrawal = async () => {
     return
   }
 
-  const userName = getSelectedUserName(withdrawalForm.value.userId, '')
+  const userName = withdrawalForm.value.performedBy?.trim()
   if (!userName) {
-    notificationStore.error('Bitte einen Benutzer auswählen')
+    notificationStore.error('Bitte angeben, wer die Abschöpfung durchführt')
     return
   }
 
@@ -2246,10 +2410,11 @@ const submitWithdrawal = async () => {
       })
       notificationStore.success('Abschöpfung für den Kassenbericht vorgemerkt')
     } else {
-      await apiService.post('/transactions/cash/withdrawal', {
+      const response = await apiService.post('/transactions/cash/withdrawal', {
         amount_cents: Math.round(amount * 100),
         reason,
       })
+      await openDrawerTargets(response.data?.drawer_targets)
       notificationStore.success('Abschöpfung erfolgreich gespeichert')
     }
     closeWithdrawalModal()
@@ -2273,7 +2438,8 @@ const requestZBonCreate = () => {
   showPasswordModal.value = true
 }
 
-const createZBon = async (password) => {
+const createZBon = async (credentials) => {
+  zbonPasswordModalError.value = ''
   showPasswordModal.value = false
   const employeeName = getSelectedUserName(zbonForm.value.createdByUserId, '')
   const checkerName = getSelectedVerifierName(zbonForm.value.verifiedByUserId, '')
@@ -2293,21 +2459,19 @@ const createZBon = async (password) => {
     return
   }
 
-  if (hasZbonDifference.value && !zbonDifferenceReason.value.trim()) {
-    notificationStore.error('Bitte einen Grund fuer die Differenz angeben')
-    return
-  }
-
   try {
     loading.value = true
-    await apiService.post('/transactions/zbon/create', {
-      created_by_name: employeeName,
-      cash_counted_by_name: checkerName,
-      auth_password: password,
+    const response = await apiService.post('/transactions/zbon/create', {
+      created_by_id: zbonForm.value.createdByUserId,
+      cash_counted_by_member_id: zbonForm.value.verifiedByUserId,
+      auth_password: credentials.password,
       cash_count_total: zbonFinalCashValue.value,
-      difference_reason: hasZbonDifference.value ? zbonDifferenceReason.value.trim() : null,
+      cash_count: !pendingWithdrawals.value.length && cashCountData.value
+        ? { coins: cashCountData.value.coins, notes: cashCountData.value.notes } : null,
+      difference_reason: zbonDifferenceReason.value.trim() || null,
       pending_withdrawals: pendingWithdrawals.value,
     })
+    await openDrawerTargets(response.data?.drawer_targets)
     notificationStore.success('Kassenbericht erfolgreich erstellt')
     closeZbonCreateModal()
     zbonForm.value = {
@@ -2324,7 +2488,14 @@ const createZBon = async (password) => {
     }
   } catch (error) {
     console.error('Error creating Z-Bon:', error)
-    notificationStore.error(`Fehler beim Erstellen: ${error.response?.data?.detail || error.message}`)
+    const statusCode = error?.response?.status
+    if (statusCode === 401 || statusCode === 403) {
+      // Anforderung 10: Passwortfehler direkt im Dialog anzeigen statt nur als Toast.
+      zbonPasswordModalError.value = getErrorMessage(error, 'Passwort ist falsch')
+      showPasswordModal.value = true
+    } else {
+      notificationStore.error(`Fehler beim Erstellen: ${error.response?.data?.detail || error.message}`)
+    }
   } finally {
     loading.value = false
   }
@@ -2526,11 +2697,13 @@ onMounted(() => {
   memberStore.getMembers()
   loadFinanceUsers()
   loadDailyStats()
-  applyFilters()
-  loadRevenueStats()
-  loadMemberStats()
-  loadInternalAccounts()
-  loadSchedulerStatus()
+  if (authStore.isAdmin) {
+    applyFilters()
+    loadRevenueStats()
+    loadMemberStats()
+    loadInternalAccounts()
+    loadSchedulerStatus()
+  }
 })
 
 onBeforeUnmount(() => {
@@ -2557,6 +2730,18 @@ onBeforeUnmount(() => {
   h4 {
     margin: 0.75rem 0 0.5rem 0;
     color: #666;
+  }
+}
+
+.history-title-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  margin-bottom: 0.75rem;
+
+  h3 {
+    margin: 0;
   }
 }
 
@@ -2883,6 +3068,14 @@ onBeforeUnmount(() => {
   font-size: 0.85rem;
   padding-top: 0.35rem;
   border-top: 1px dashed #c3ced9;
+}
+
+.item-note {
+  width: 100%;
+  margin-top: 0.2rem;
+  color: #475569;
+  font-size: 0.82rem;
+  font-style: italic;
 }
 
 .no-items {

@@ -91,11 +91,13 @@
       :username="formData.username"
       :email="formData.email"
       :password-value="formData.password"
+      :password-confirm-value="formData.passwordConfirm"
       :role="formData.role"
       @close="closeUserModal"
       @update:username="formData.username = $event"
       @update:email="formData.email = $event"
       @update:password-value="formData.password = $event"
+      @update:password-confirm-value="formData.passwordConfirm = $event"
       @update:role="formData.role = $event"
       @save="handleSaveUser"
     />
@@ -103,6 +105,7 @@
     <UserPasswordResetModal
       :show="Boolean(resettingPasswordFor)"
       v-model:model-value="resetPwd"
+      v-model:confirm-value="resetPwdConfirm"
       :user="resettingPasswordFor"
       @close="closePasswordReset"
       @submit="submitPasswordReset"
@@ -116,6 +119,7 @@ import { useNotificationStore } from '@/stores/notification'
 import { useAuthStore } from '@/stores/auth'
 import { getMemberFullName, getRoleLabel } from '@/services/member'
 import apiService from '@/services/api'
+import { getErrorDetailMessage } from '@/services/errorMessage'
 import UserFormModal from '@/views/admin/modal/UserFormModal.vue'
 import UserPasswordResetModal from '@/views/admin/modal/UserPasswordResetModal.vue'
 
@@ -132,15 +136,23 @@ const formData = reactive({
   username: '',
   email: '',
   password: '',
+  passwordConfirm: '',
   role: 'VERKAUF',
 })
 const passwordResetData = reactive({
   password: '',
+  passwordConfirm: '',
 })
 const resetPwd = computed({
   get: () => passwordResetData.password,
   set: (value) => {
     passwordResetData.password = value
+  },
+})
+const resetPwdConfirm = computed({
+  get: () => passwordResetData.passwordConfirm,
+  set: (value) => {
+    passwordResetData.passwordConfirm = value
   },
 })
 
@@ -164,9 +176,10 @@ const displayedUsers = computed(() => [
       canReactivate: !user.is_active,
       canResetPassword: user.is_active,
     })),
-  ...membersWithRoles.value.map(member => ({
+  ...membersWithRoles.value
+    .filter(member => showInactiveUsers.value || !member.isInactive)
+    .map(member => ({
     ...member,
-    isInactive: false,
     canEdit: false,
     canDeactivate: false,
     canReactivate: false,
@@ -177,6 +190,7 @@ const resetForm = () => {
   formData.username = ''
   formData.email = ''
   formData.password = ''
+  formData.passwordConfirm = ''
   formData.role = 'VERKAUF'
   editingUserId.value = null
 }
@@ -191,6 +205,7 @@ const openEditModal = (user) => {
   formData.username = user.username || ''
   formData.email = user.email || ''
   formData.password = ''
+  formData.passwordConfirm = ''
   formData.role = user.role || 'VERKAUF'
   showUserModal.value = true
 }
@@ -201,6 +216,11 @@ const closeUserModal = () => {
 }
 
 const handleSaveUser = async () => {
+  if (formData.password && formData.password !== formData.passwordConfirm) {
+    notificationStore.error('Die Passwörter stimmen nicht überein')
+    return
+  }
+
   const payload = {
     username: formData.username.trim(),
     email: formData.email?.trim() || null,
@@ -223,7 +243,7 @@ const handleSaveUser = async () => {
     closeUserModal()
     await loadUsers()
   } catch (err) {
-    notificationStore.error(err.response?.data?.detail || 'Fehler beim Speichern')
+    notificationStore.error(getErrorDetailMessage(err, 'Fehler beim Speichern'))
   }
 }
 
@@ -234,7 +254,7 @@ const deactivateUser = async (userId) => {
       notificationStore.success('Benutzer deaktiviert')
       await loadUsers()
     } catch (err) {
-      notificationStore.error(err.response?.data?.detail || 'Fehler beim Deaktivieren')
+      notificationStore.error(getErrorDetailMessage(err, 'Fehler beim Deaktivieren'))
     }
   }
 }
@@ -245,7 +265,7 @@ const reactivateUser = async (userId) => {
     notificationStore.success('Benutzer reaktiviert')
     await loadUsers()
   } catch (err) {
-    notificationStore.error(err.response?.data?.detail || 'Fehler beim Reaktivieren')
+    notificationStore.error(getErrorDetailMessage(err, 'Fehler beim Reaktivieren'))
   }
 }
 
@@ -272,6 +292,7 @@ const loadRoleMembers = async () => {
         email: member.email || '-',
         role: member.role,
         hasUserAccount: member.has_user_account,
+        isInactive: member.has_user_account && !member.user_account_active,
         entryType: member.has_user_account ? 'Mitgliedskonto' : 'Mitglied',
         canResetPassword: true,
       }))
@@ -287,14 +308,20 @@ const openPasswordReset = (user) => {
   }
   resettingPasswordFor.value = user
   passwordResetData.password = ''
+  passwordResetData.passwordConfirm = ''
 }
 
 const closePasswordReset = () => {
   resettingPasswordFor.value = null
   passwordResetData.password = ''
+  passwordResetData.passwordConfirm = ''
 }
 
 const submitPasswordReset = async () => {
+  if (passwordResetData.password !== passwordResetData.passwordConfirm) {
+    notificationStore.error('Die Passwörter stimmen nicht überein')
+    return
+  }
   try {
     if (resettingPasswordFor.value.memberId) {
       await apiService.put(`/members/${resettingPasswordFor.value.memberId}`, {
@@ -309,7 +336,7 @@ const submitPasswordReset = async () => {
     closePasswordReset()
     await Promise.all([loadUsers(), loadRoleMembers()])
   } catch (err) {
-    notificationStore.error(err.response?.data?.detail || 'Fehler beim Speichern des Passworts')
+    notificationStore.error(getErrorDetailMessage(err, 'Fehler beim Speichern des Passworts'))
   }
 }
 

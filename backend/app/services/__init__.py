@@ -14,6 +14,7 @@ from .import_export_service import ImportExportService
 from .audit_log_service import AuditLogService
 from .hardware_agent_service import HardwareAgentService
 from .database_backup_service import DatabaseBackupService
+from .password_reset_service import PasswordResetService
 
 from .scheduler_service import SchedulerService
 __all__ = [
@@ -33,5 +34,6 @@ __all__ = [
     "AuditLogService",
     "HardwareAgentService",
     "DatabaseBackupService",
+    "PasswordResetService",
     "SchedulerService",
 ]
