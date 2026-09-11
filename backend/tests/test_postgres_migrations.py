@@ -182,6 +182,30 @@ def test_recheck_legacy_columns_repairs_journaled_old_schema(pg_engine):
     assert "tip_donations_cents" in columns
 
 
+def test_data_constraints_skip_future_columns_until_later_steps_add_them(pg_engine):
+    Base.metadata.create_all(pg_engine)
+    with pg_engine.begin() as conn:
+        conn.execute(text("""CREATE TABLE IF NOT EXISTS schema_migrations (
+            version VARCHAR(30) NOT NULL, step VARCHAR(80) NOT NULL,
+            applied_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
+            PRIMARY KEY (version, step))"""))
+        conn.execute(text("ALTER TABLE products DROP COLUMN is_visible_in_kasse"))
+        for version, step in [
+            ("1.6.5", "create_tables"),
+            ("1.6.5", "enum_types"),
+            ("1.6.5", "legacy_columns"),
+        ]:
+            conn.execute(
+                text("INSERT INTO schema_migrations(version, step) VALUES (:version, :step)"),
+                {"version": version, "step": step},
+            )
+    assert run_migrations(pg_engine)
+    assert run_migrations(pg_engine)
+    columns = {column["name"] for column in inspect(pg_engine).get_columns("products")}
+    assert "is_visible_in_kasse" in columns
+    assert ("2.6.4", "product_kasse_visibility") in [(version, step) for version, step, _ in journal(pg_engine)]
+
+
 def test_missing_voucher_value_columns_backfill_once_even_after_interruption(pg_engine):
     Base.metadata.create_all(pg_engine)
     with Session(pg_engine) as db:
