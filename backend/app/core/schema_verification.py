@@ -52,7 +52,12 @@ def _constraint_dependencies(table_name, constraint_name):
 
 
 def _constraint_predicate(table_name, constraint_name, table):
-    return CONSTRAINT_PREDICATES[table_name][constraint_name](table)
+    try:
+        return CONSTRAINT_PREDICATES[table_name][constraint_name](table)
+    except KeyError as exc:
+        raise RuntimeError(
+            f"Missing validation predicate mapping for {table_name}.{constraint_name}"
+        ) from exc
 
 
 def verify_schema(engine):
