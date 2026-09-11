@@ -25,7 +25,7 @@ def journal(engine):
 def test_fresh_install_and_repeat_preserve_journal_and_data(pg_engine):
     assert run_migrations(pg_engine)
     before = journal(pg_engine)
-    assert len(before) == 11
+    assert len(before) == 15
     with Session(pg_engine) as db:
         db.add(Product(name="Wasser", price_cents=0, stock_quantity=25))
         db.commit()
@@ -142,7 +142,17 @@ def test_parallel_restock_and_stale_session_preserve_quantities(pg_engine):
 def test_parallel_startup_applies_each_migration_once(pg_engine):
     with ThreadPoolExecutor(max_workers=2) as pool:
         assert list(pool.map(lambda _: run_migrations(pg_engine), range(2))) == [True, True]
-    assert len(journal(pg_engine)) == 11
+    assert len(journal(pg_engine)) == 15
+
+
+def test_recheck_legacy_columns_repairs_journaled_old_schema(pg_engine):
+    assert run_migrations(pg_engine)
+    with pg_engine.begin() as conn:
+        conn.execute(text("DELETE FROM schema_migrations WHERE version='2.7.1' AND step='recheck_legacy_columns'"))
+        conn.execute(text("ALTER TABLE zbon_history DROP COLUMN tip_donations_cents"))
+    assert run_migrations(pg_engine)
+    columns = {column["name"] for column in inspect(pg_engine).get_columns("zbon_history")}
+    assert "tip_donations_cents" in columns
 
 
 def test_missing_voucher_value_columns_backfill_once_even_after_interruption(pg_engine):
