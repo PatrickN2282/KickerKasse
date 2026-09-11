@@ -1,7 +1,68 @@
 """Small, explicit postconditions for the existing startup migrations."""
-from sqlalchemy import CheckConstraint, Enum, String, inspect, text
+
+from sqlalchemy import CheckConstraint, Enum, String, func, inspect, literal, not_, select, text
 
 from app.models import Base
+
+
+CONSTRAINT_COLUMN_DEPENDENCIES = {
+    "products": {
+        "ck_products_price_nonnegative": {"price_cents"},
+        "ck_products_member_price_nonnegative": {"member_price_cents"},
+        "ck_products_stock_nonnegative": {"stock_quantity"},
+        "ck_products_minimum_stock_nonnegative": {"minimum_stock_quantity"},
+        "ck_products_tax_rate_range": {"tax_rate"},
+        "ck_products_name_not_blank": {"name"},
+    },
+    "members": {
+        "ck_members_balance_nonnegative": {"balance_cents"},
+        "ck_members_name_not_blank": {"name"},
+        "ck_members_combined_name_length": {"first_name", "last_name"},
+    },
+    "categories": {
+        "ck_categories_name_not_blank": {"name"},
+    },
+}
+
+
+CONSTRAINT_PREDICATES = {
+    "products": {
+        "ck_products_price_nonnegative": lambda table: table.c.price_cents >= 0,
+        "ck_products_member_price_nonnegative": lambda table: (table.c.member_price_cents.is_(None)) | (table.c.member_price_cents >= 0),
+        "ck_products_stock_nonnegative": lambda table: table.c.stock_quantity >= 0,
+        "ck_products_minimum_stock_nonnegative": lambda table: table.c.minimum_stock_quantity >= 0,
+        "ck_products_tax_rate_range": lambda table: (table.c.tax_rate >= 0) & (table.c.tax_rate <= 100),
+        "ck_products_name_not_blank": lambda table: func.length(func.trim(table.c.name)) > 0,
+    },
+    "members": {
+        "ck_members_balance_nonnegative": lambda table: table.c.balance_cents >= 0,
+        "ck_members_name_not_blank": lambda table: func.length(func.trim(table.c.name)) > 0,
+        "ck_members_combined_name_length": lambda table: func.length(
+            func.trim(table.c.first_name).concat(literal(" ")).concat(func.trim(table.c.last_name))
+        ) <= 120,
+    },
+    "categories": {
+        "ck_categories_name_not_blank": lambda table: func.length(func.trim(table.c.name)) > 0,
+    },
+}
+
+
+def _constraint_dependencies(table_name, constraint_name):
+    try:
+        return CONSTRAINT_COLUMN_DEPENDENCIES[table_name][constraint_name]
+    except KeyError as exc:
+        raise RuntimeError(
+            f"Missing validation dependency mapping for {table_name}.{constraint_name}"
+        ) from exc
+
+
+def _constraint_predicate(table_name, constraint_name, table):
+    try:
+        return CONSTRAINT_PREDICATES[table_name][constraint_name](table)
+    except KeyError as exc:
+        raise RuntimeError(
+            f"Missing validation predicate mapping for {table_name}.{constraint_name}"
+        ) from exc
 
 
 def verify_schema(engine):
@@ -37,14 +98,40 @@ def validate_existing_data(engine):
     with engine.connect() as conn:
         for table_name in ("products", "members", "categories"):
             table = Base.metadata.tables[table_name]
-            rules = [(c.name, str(c.sqltext)) for c in table.constraints if isinstance(c, CheckConstraint)]
+            existing_columns = {column["name"] for column in inspect(conn).get_columns(table_name)}
+            rules = []
+            for constraint in table.constraints:
+                if not isinstance(constraint, CheckConstraint):
+                    continue
+                rules.append((
+                    constraint.name,
+                    _constraint_dependencies(table_name, constraint.name),
+                    _constraint_predicate(table_name, constraint.name, table),
+                ))
             for column in table.columns:
+                if column.name not in existing_columns:
+                    continue
                 if not column.nullable:
-                    rules.append((column.name + "_required", f'"{column.name}" IS NOT NULL'))
+                    rules.append((
+                        column.name + "_required",
+                        {column.name},
+                        table.c[column.name].is_not(None),
+                    ))
                 if isinstance(column.type, String) and not isinstance(column.type, Enum) and column.type.length:
-                    rules.append((column.name + "_length", f'length("{column.name}") <= {column.type.length}'))
-            for name, expression in rules:
-                ids = conn.execute(text(f'SELECT id FROM "{table_name}" WHERE NOT ({expression}) ORDER BY id LIMIT 20')).scalars().all()
+                    rules.append((
+                        column.name + "_length",
+                        {column.name},
+                        func.length(table.c[column.name]) <= column.type.length,
+                    ))
+            for name, referenced_columns, predicate in rules:
+                if not referenced_columns <= existing_columns:
+                    continue
+                ids = conn.execute(
+                    select(table.c.id)
+                    .where(not_(predicate))
+                    .order_by(table.c.id)
+                    .limit(20)
+                ).scalars().all()
                 if ids:
                     errors.append(f"{table_name}.{name}: IDs {ids}")
     if errors:
@@ -59,10 +146,15 @@ def ensure_data_constraints(engine):
             existing = {c["name"] for c in inspector.get_check_constraints(table_name)}
             columns = {c["name"]: c for c in inspector.get_columns(table_name)}
             for column in Base.metadata.tables[table_name].columns:
+                if column.name not in columns:
+                    continue
                 if not column.nullable and columns[column.name]["nullable"]:
                     conn.execute(text(f'ALTER TABLE "{table_name}" ALTER COLUMN "{column.name}" SET NOT NULL'))
             for constraint in Base.metadata.tables[table_name].constraints:
                 if not isinstance(constraint, CheckConstraint):
+                    continue
+                referenced_columns = _constraint_dependencies(table_name, constraint.name)
+                if not referenced_columns <= columns.keys():
                     continue
                 if constraint.name not in existing:
                     conn.execute(text(f'ALTER TABLE "{table_name}" ADD CONSTRAINT "{constraint.name}" CHECK ({constraint.sqltext}) NOT VALID'))
